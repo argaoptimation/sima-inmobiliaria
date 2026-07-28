@@ -17,30 +17,24 @@ export async function registrarPago(cuotaId: string, formData: FormData) {
 
   const monto = Number(formData.get('monto'))
   const moneda = formData.get('moneda') as 'USD' | 'ARS'
-  const comprobante = formData.get('comprobante') as File
-
-  const comprobantePath = `${user!.id}/${Date.now()}-${comprobante.name}`
 
   const admin = createAdminClient()
 
-  const { error: errorUpload } = await admin.storage
-    .from('comprobantes')
-    .upload(comprobantePath, comprobante)
+  const { data: pago, error: errorPago } = await admin
+    .from('pagos')
+    .insert({
+      cliente_id: user!.id,
+      monto,
+      moneda,
+    })
+    .select('id')
+    .single()
 
-  if (errorUpload) {
-    redirect(`/portal-cliente/pagar/${cuotaId}?error=${encodeURIComponent(errorUpload.message)}`)
+  if (errorPago || !pago) {
+    redirect(
+      `/portal-cliente/pagar/${cuotaId}?error=${encodeURIComponent(errorPago?.message ?? 'error desconocido')}`
+    )
   }
 
-  const { error: errorPago } = await admin.from('pagos').insert({
-    cliente_id: user!.id,
-    monto,
-    moneda,
-    comprobante_path: comprobantePath,
-  })
-
-  if (errorPago) {
-    redirect(`/portal-cliente/pagar/${cuotaId}?error=${encodeURIComponent(errorPago.message)}`)
-  }
-
-  redirect('/portal-cliente')
+  redirect(`/portal-cliente/pagos/${pago.id}/comprobante`)
 }

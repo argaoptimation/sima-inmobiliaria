@@ -40,6 +40,12 @@ export default async function NuevoLotePage({
           className="rounded border px-3 py-2"
         />
         <input name="fechaPrimeraCuota" type="date" required className="rounded border px-3 py-2" />
+        <textarea
+          name="datosTransferencia"
+          placeholder="Datos para transferir (alias, CBU, banco...)"
+          className="rounded border px-3 py-2"
+          rows={3}
+        />
         <button type="submit" className="rounded bg-black px-3 py-2 text-white">
           Crear lote
         </button>

@@ -23,6 +23,19 @@ export async function confirmarPago(pagoId: string) {
     return
   }
 
+  const { data: pago } = await supabase
+    .from('pagos')
+    .select('comprobante_path')
+    .eq('id', pagoId)
+    .single()
+
+  if (!pago || !pago.comprobante_path) {
+    // No se puede confirmar un pago del que todavia no se subio comprobante:
+    // no hay evidencia que revisar.
+    revalidatePath('/admin/pagos')
+    return
+  }
+
   const campoPor = perfil.role === 'acreedor' ? 'confirmado_acreedor_por' : 'confirmado_admin_por'
   const campoAt = perfil.role === 'acreedor' ? 'confirmado_acreedor_at' : 'confirmado_admin_at'
 

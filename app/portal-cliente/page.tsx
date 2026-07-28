@@ -1,4 +1,5 @@
 import { createClient } from '@/lib/supabase/server'
+import { createAdminClient } from '@/lib/supabase/admin'
 import { calcularEstadoCobranza } from '@/lib/cobranza/estado-cliente'
 import { redirect } from 'next/navigation'
 
@@ -44,10 +45,37 @@ export default async function PortalClientePage() {
 
   const primeraImpaga = cuotas?.find((cuota) => cuota.saldo_pendiente > 0)
 
+  const totalPendiente = (cuotas ?? []).reduce(
+    (acumulado, cuota) => acumulado + cuota.saldo_pendiente,
+    0
+  )
+
+  const { data: pagos } = await supabase
+    .from('pagos')
+    .select('id, monto, moneda, estado, comprobante_path')
+    .eq('cliente_id', user.id)
+    .order('created_at', { ascending: false })
+
+  const admin = createAdminClient()
+
+  const pagosConLink = await Promise.all(
+    (pagos ?? []).map(async (pago) => {
+      if (!pago.comprobante_path) {
+        return { ...pago, comprobanteUrl: null }
+      }
+
+      const { data, error } = await admin.storage
+        .from('comprobantes')
+        .createSignedUrl(pago.comprobante_path, 300)
+
+      return { ...pago, comprobanteUrl: error ? null : data?.signedUrl ?? null }
+    })
+  )
+
   return (
     <main className="mx-auto mt-12 max-w-2xl p-6">
       <h1 className="mb-2 text-xl font-semibold">{lote.identificador}</h1>
-      <p className="mb-6 text-sm">
+      <p className="mb-2 text-sm">
         Estado:{' '}
         <span
           className={
@@ -60,6 +88,9 @@ export default async function PortalClientePage() {
         >
           {estado}
         </span>
+      </p>
+      <p className="mb-6 text-sm font-medium">
+        Total pendiente: {totalPendiente} {lote.moneda}
       </p>
       <table className="w-full text-sm">
         <thead>
@@ -85,7 +116,7 @@ export default async function PortalClientePage() {
               <td>
                 {primeraImpaga?.id === cuota.id && (
                   <a href={`/portal-cliente/pagar/${cuota.id}`} className="underline">
-                    Pagar / subir comprobante
+                    Pagar cuota
                   </a>
                 )}
               </td>
@@ -93,6 +124,50 @@ export default async function PortalClientePage() {
           ))}
         </tbody>
       </table>
+
+      <h2 className="mb-2 mt-10 text-lg font-semibold">Mis pagos</h2>
+      {pagosConLink.length === 0 ? (
+        <p className="text-sm text-gray-600">Todavía no registraste ningún pago.</p>
+      ) : (
+        <table className="w-full text-sm">
+          <thead>
+            <tr className="border-b text-left">
+              <th className="py-2">Monto</th>
+              <th>Estado</th>
+              <th>Comprobante</th>
+            </tr>
+          </thead>
+          <tbody>
+            {pagosConLink.map((pago) => (
+              <tr key={pago.id} className="border-b">
+                <td className="py-2">
+                  {pago.monto} {pago.moneda}
+                </td>
+                <td>{pago.estado}</td>
+                <td>
+                  {!pago.comprobante_path ? (
+                    <span className="text-amber-700">
+                      ⚠ Falta subir comprobante ·{' '}
+                      <a
+                        href={`/portal-cliente/pagos/${pago.id}/comprobante`}
+                        className="underline"
+                      >
+                        Subir
+                      </a>
+                    </span>
+                  ) : pago.comprobanteUrl ? (
+                    <a href={pago.comprobanteUrl} target="_blank" className="underline">
+                      Ver comprobante
+                    </a>
+                  ) : (
+                    <span className="text-gray-500">Comprobante no disponible</span>
+                  )}
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      )}
     </main>
   )
 }
