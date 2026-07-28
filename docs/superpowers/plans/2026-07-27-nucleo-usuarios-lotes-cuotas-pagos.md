@@ -710,7 +710,7 @@ git commit -m "feat: generacion de cuotas por lote"
 - Create: `lib/supabase/server.ts`
 - Create: `lib/supabase/admin.ts`
 - Create: `lib/supabase/middleware.ts`
-- Create: `middleware.ts`
+- Create: `proxy.ts` (Next.js 16 renamed the middleware file convention to `proxy.ts`; same content, function exported as `proxy` instead of `middleware`)
 
 **Interfaces:**
 - Consumes: `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`, `SUPABASE_SECRET_KEY` from `.env.local`
@@ -829,13 +829,13 @@ export async function updateSession(request: NextRequest) {
 }
 ```
 
-Create `middleware.ts` at the project root:
+Create `proxy.ts` at the project root (Next.js 16 renamed the `middleware.ts` convention to `proxy.ts` — the exported function is now called `proxy`, everything else is unchanged):
 
 ```typescript
 import { type NextRequest } from 'next/server'
 import { updateSession } from '@/lib/supabase/middleware'
 
-export async function middleware(request: NextRequest) {
+export async function proxy(request: NextRequest) {
   return await updateSession(request)
 }
 
@@ -856,7 +856,7 @@ Expected: build succeeds (no route uses these files yet, but they must type-chec
 - [ ] **Step 6: Commit**
 
 ```bash
-git add lib/supabase middleware.ts
+git add lib/supabase proxy.ts
 git commit -m "feat: clientes de supabase (browser, server, admin) y middleware de sesion"
 ```
 
