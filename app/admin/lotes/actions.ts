@@ -3,8 +3,11 @@
 import { createClient } from '@/lib/supabase/server'
 import { generarCuotas } from '@/lib/lotes/generar-cuotas'
 import { redirect } from 'next/navigation'
+import { requireAdmin } from '@/lib/auth/require-admin'
 
 export async function crearLote(formData: FormData) {
+  await requireAdmin()
+
   const supabase = await createClient()
 
   const identificador = formData.get('identificador') as string
