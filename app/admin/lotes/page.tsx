@@ -38,6 +38,11 @@ export default async function LotesPage() {
                     Vender / asignar cliente
                   </a>
                 )}
+                {lote.moneda === 'ARS' && (
+                  <a href={`/admin/lotes/${lote.id}/indexar`} className="ml-3 text-sm underline">
+                    Indexar
+                  </a>
+                )}
               </td>
             </tr>
           ))}
