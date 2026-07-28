@@ -1,12 +1,20 @@
 import { aplicarIndexacion } from './actions'
 
-export default async function IndexarLotePage({ params }: { params: Promise<{ id: string }> }) {
+export default async function IndexarLotePage({
+  params,
+  searchParams,
+}: {
+  params: Promise<{ id: string }>
+  searchParams: Promise<{ error?: string }>
+}) {
   const { id } = await params
+  const { error } = await searchParams
   const aplicarIndexacionConId = aplicarIndexacion.bind(null, id)
 
   return (
     <main className="max-w-md">
       <h1 className="mb-6 text-xl font-semibold">Aplicar ajuste por índice</h1>
+      {error && <p className="mb-4 rounded bg-red-100 p-2 text-sm text-red-700">{error}</p>}
       <form action={aplicarIndexacionConId} className="flex flex-col gap-3">
         <input
           name="porcentaje"
