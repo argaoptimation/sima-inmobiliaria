@@ -54,16 +54,21 @@ export async function subirComprobante(pagoId: string, formData: FormData) {
     )
   }
 
-  const { error: errorUpdate } = await admin
+  // Claim atomico: si durante el upload alguien confirmo el pago, este update
+  // ya no matchea ninguna fila y no pisamos comprobante_path de un pago
+  // que ya esta en revision (mismo patron que usa confirmarPago).
+  const { data: actualizado, error: errorUpdate } = await admin
     .from('pagos')
     .update({ comprobante_path: comprobantePath })
     .eq('id', pagoId)
     .eq('cliente_id', user!.id)
+    .is('confirmado_acreedor_por', null)
+    .is('confirmado_admin_por', null)
+    .select('id')
+    .single()
 
-  if (errorUpdate) {
-    redirect(
-      `/portal-cliente/pagos/${pagoId}/comprobante?error=${encodeURIComponent(errorUpdate.message)}`
-    )
+  if (errorUpdate || !actualizado) {
+    redirect(`/portal-cliente/pagos/${pagoId}/comprobante`)
   }
 
   redirect('/portal-cliente')
