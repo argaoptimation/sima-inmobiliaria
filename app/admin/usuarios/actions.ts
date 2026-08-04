@@ -3,6 +3,7 @@
 import { createAdminClient } from '@/lib/supabase/admin'
 import { redirect } from 'next/navigation'
 import { requireAdmin, requireAdministrador } from '@/lib/auth/require-admin'
+import { tieneDatosTransferencia } from '@/lib/lotes/validar-cuenta-cobro'
 
 const ROLES_STAFF = ['acreedor', 'vendedor', 'cobrador'] as const
 
@@ -41,9 +42,9 @@ export async function crearUsuarioStaff(formData: FormData) {
 export async function actualizarNombreStaff(userId: string, formData: FormData) {
   await requireAdministrador()
 
-  const fullName = formData.get('fullName') as string
+  const fullName = (formData.get('fullName') as string)?.trim()
 
-  if (!fullName?.trim()) {
+  if (!fullName) {
     redirect(`/admin/usuarios?error=${encodeURIComponent('El nombre no puede estar vacío')}`)
   }
 
@@ -65,7 +66,7 @@ export async function actualizarDatosTransferenciaStaff(userId: string, formData
   const banco = (formData.get('banco') as string | null)?.trim()
   const cbuRaw = (formData.get('cbu') as string | null)?.trim()
 
-  if (!titular || !alias || !banco) {
+  if (!tieneDatosTransferencia({ alias: alias ?? null, banco: banco ?? null, titular: titular ?? null })) {
     redirect(
       `/admin/usuarios?error=${encodeURIComponent('Titular, alias y banco son obligatorios')}`
     )

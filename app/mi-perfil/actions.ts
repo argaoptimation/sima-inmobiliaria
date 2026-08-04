@@ -2,6 +2,7 @@
 
 import { createClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
+import { tieneDatosTransferencia } from '@/lib/lotes/validar-cuenta-cobro'
 
 async function requireStaffLogueado() {
   const supabase = await createClient()
@@ -26,9 +27,9 @@ async function requireStaffLogueado() {
 export async function actualizarNombre(formData: FormData) {
   const { supabase, userId } = await requireStaffLogueado()
 
-  const fullName = formData.get('fullName') as string
+  const fullName = (formData.get('fullName') as string)?.trim()
 
-  if (!fullName?.trim()) {
+  if (!fullName) {
     redirect(`/mi-perfil?error=${encodeURIComponent('El nombre no puede estar vacío')}`)
   }
 
@@ -49,7 +50,7 @@ export async function actualizarDatosTransferencia(formData: FormData) {
   const banco = (formData.get('banco') as string | null)?.trim()
   const cbuRaw = (formData.get('cbu') as string | null)?.trim()
 
-  if (!titular || !alias || !banco) {
+  if (!tieneDatosTransferencia({ alias: alias ?? null, banco: banco ?? null, titular: titular ?? null })) {
     redirect(`/mi-perfil?error=${encodeURIComponent('Titular, alias y banco son obligatorios')}`)
   }
 

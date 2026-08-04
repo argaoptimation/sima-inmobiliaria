@@ -56,6 +56,7 @@ test.describe('Cuenta de cobro por lote', () => {
       await page.waitForURL(/\/portal-cliente\/pagar\//)
 
       await expect(page.getByText('acreedor.cobro')).toBeVisible()
+      await expect(page.getByText('E2E Acreedor Con Datos SA')).toBeVisible()
     })
   })
 
