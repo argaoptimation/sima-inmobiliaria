@@ -1,4 +1,5 @@
 import { createClient } from '@/lib/supabase/server'
+import { redirect } from 'next/navigation'
 import {
   crearUsuarioStaff,
   actualizarNombreStaff,
@@ -13,6 +14,108 @@ export default async function UsuariosPage({
 }) {
   const { error, editar } = await searchParams
   const supabase = await createClient()
+
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
+
+  if (!user) {
+    redirect('/login')
+  }
+
+  const { data: perfilPropio } = await supabase
+    .from('profiles')
+    .select('role')
+    .eq('id', user!.id)
+    .single()
+
+  if (!perfilPropio) {
+    redirect('/login')
+  }
+
+  if (perfilPropio!.role === 'acreedor') {
+    const { data: misLotes } = await supabase
+      .from('lotes')
+      .select('vendedor_id')
+      .eq('acreedor_id', user!.id)
+      .not('vendedor_id', 'is', null)
+
+    const vendedorIds = [...new Set((misLotes ?? []).map((lote) => lote.vendedor_id as string))]
+
+    const { data: vendedores } =
+      vendedorIds.length > 0
+        ? await supabase
+            .from('profiles')
+            .select('id, full_name, alias, banco, cbu, titular')
+            .in('id', vendedorIds)
+            .order('full_name')
+        : { data: [] }
+
+    return (
+      <main className="max-w-2xl">
+        <h1 className="mb-6 text-xl font-semibold">Usuarios de staff</h1>
+        {error && <p className="mb-4 rounded bg-red-100 p-2 text-sm text-red-700">{error}</p>}
+        <form action={crearUsuarioStaff} className="mb-8 flex flex-col gap-3">
+          <input
+            name="fullName"
+            placeholder="Nombre completo"
+            required
+            className="rounded border px-3 py-2"
+          />
+          <input
+            name="email"
+            type="email"
+            placeholder="Email"
+            required
+            className="rounded border px-3 py-2"
+          />
+          <select name="role" required className="rounded border px-3 py-2">
+            <option value="acreedor">Acreedor</option>
+            <option value="vendedor">Vendedor</option>
+            <option value="cobrador">Cobrador</option>
+          </select>
+          <button type="submit" className="rounded bg-black px-3 py-2 text-white">
+            Invitar
+          </button>
+        </form>
+
+        <h2 className="mb-2 text-lg font-semibold">Vendedores de tus lotes</h2>
+        {(vendedores ?? []).length === 0 ? (
+          <p className="text-sm text-gray-600">
+            Todavía no tenés ningún vendedor asociado a tus lotes.
+          </p>
+        ) : (
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="border-b text-left">
+                <th className="py-2">Nombre</th>
+                <th>Datos de transferencia</th>
+              </tr>
+            </thead>
+            <tbody>
+              {vendedores!.map((persona) => (
+                <tr key={persona.id} className="border-b">
+                  <td className="py-2">{persona.full_name}</td>
+                  <td>
+                    {tieneDatosTransferencia({
+                      alias: persona.alias,
+                      banco: persona.banco,
+                      titular: persona.titular,
+                    }) ? (
+                      `${persona.titular} · ${persona.alias} · ${persona.banco}`
+                    ) : (
+                      <span className="text-amber-700">Sin datos de transferencia</span>
+                    )}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        )}
+      </main>
+    )
+  }
+
   const { data: staff } = await supabase
     .from('profiles')
     .select('id, full_name, role, alias, banco, cbu, titular')
