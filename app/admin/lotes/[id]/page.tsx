@@ -3,6 +3,7 @@ import { calcularEstadoCobranza } from '@/lib/cobranza/estado-cliente'
 import { notFound } from 'next/navigation'
 import { actualizarIdentificador, actualizarCobro, eliminarLote } from './actions'
 import { BotonEliminarLote } from './BotonEliminarLote'
+import { tieneDatosTransferencia } from '@/lib/lotes/validar-cuenta-cobro'
 
 export default async function LoteDetallePage({
   params,
@@ -52,7 +53,7 @@ export default async function LoteDetallePage({
 
   const { data: staff } = await supabase
     .from('profiles')
-    .select('id, full_name, role, datos_transferencia')
+    .select('id, full_name, role, alias, banco, titular')
     .in('role', ['administrador', 'acreedor', 'vendedor'])
     .order('full_name')
 
@@ -60,7 +61,9 @@ export default async function LoteDetallePage({
   const acreedores = (staff ?? []).filter((persona) => persona.role === 'acreedor')
   const vendedores = (staff ?? []).filter((persona) => persona.role === 'vendedor')
   const conDatos = (staff ?? []).filter(
-    (persona) => persona.datos_transferencia?.trim() || persona.id === lote!.cuenta_cobro_id
+    (persona) =>
+      tieneDatosTransferencia({ alias: persona.alias, banco: persona.banco, titular: persona.titular }) ||
+      persona.id === lote!.cuenta_cobro_id
   )
 
   const actualizarIdentificadorConId = actualizarIdentificador.bind(null, id)
@@ -168,7 +171,8 @@ export default async function LoteDetallePage({
             {administradores.map((persona) => (
               <option key={persona.id} value={persona.id}>
                 {persona.full_name}
-                {!persona.datos_transferencia?.trim() && ' — sin datos de transferencia'}
+                {!tieneDatosTransferencia({ alias: persona.alias, banco: persona.banco, titular: persona.titular }) &&
+                  ' — sin datos de transferencia'}
               </option>
             ))}
           </select>
@@ -184,7 +188,8 @@ export default async function LoteDetallePage({
             {acreedores.map((persona) => (
               <option key={persona.id} value={persona.id}>
                 {persona.full_name}
-                {!persona.datos_transferencia?.trim() && ' — sin datos de transferencia'}
+                {!tieneDatosTransferencia({ alias: persona.alias, banco: persona.banco, titular: persona.titular }) &&
+                  ' — sin datos de transferencia'}
               </option>
             ))}
           </select>
@@ -200,7 +205,8 @@ export default async function LoteDetallePage({
             {vendedores.map((persona) => (
               <option key={persona.id} value={persona.id}>
                 {persona.full_name}
-                {!persona.datos_transferencia?.trim() && ' — sin datos de transferencia'}
+                {!tieneDatosTransferencia({ alias: persona.alias, banco: persona.banco, titular: persona.titular }) &&
+                  ' — sin datos de transferencia'}
               </option>
             ))}
           </select>
@@ -216,7 +222,8 @@ export default async function LoteDetallePage({
             {conDatos.map((persona) => (
               <option key={persona.id} value={persona.id}>
                 {persona.full_name} ({persona.role})
-                {!persona.datos_transferencia?.trim() && ' — sin datos de transferencia'}
+                {!tieneDatosTransferencia({ alias: persona.alias, banco: persona.banco, titular: persona.titular }) &&
+                  ' — sin datos de transferencia'}
               </option>
             ))}
           </select>

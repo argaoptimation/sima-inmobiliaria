@@ -119,11 +119,14 @@ export async function actualizarCobro(loteId: string, formData: FormData) {
     const admin = createAdminClient()
     const { data: persona } = await admin
       .from('profiles')
-      .select('id, datos_transferencia')
+      .select('id, alias, banco, titular')
       .eq('id', cuentaCobroId)
       .single()
 
-    if (!persona || !tieneDatosTransferencia(persona.datos_transferencia)) {
+    if (
+      !persona ||
+      !tieneDatosTransferencia({ alias: persona.alias, banco: persona.banco, titular: persona.titular })
+    ) {
       redirect(
         `/admin/lotes/${loteId}?error=${encodeURIComponent(
           'Esa persona todavía no tiene datos de transferencia cargados'
