@@ -14,7 +14,18 @@ export async function actualizarMiPerfil(formData: FormData) {
     redirect('/login')
   }
 
+  const { data: perfil } = await supabase.from('profiles').select('role').eq('id', user!.id).single()
+
+  if (!perfil || perfil.role === 'cliente') {
+    redirect('/portal-cliente')
+  }
+
   const fullName = formData.get('fullName') as string
+
+  if (!fullName?.trim()) {
+    redirect('/mi-perfil?error=' + encodeURIComponent('El nombre no puede estar vacío'))
+  }
+
   const datosTransferenciaRaw = formData.get('datosTransferencia') as string | null
   const datosTransferencia = datosTransferenciaRaw?.trim() ? datosTransferenciaRaw.trim() : null
 

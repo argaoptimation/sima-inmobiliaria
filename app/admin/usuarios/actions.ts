@@ -2,7 +2,7 @@
 
 import { createAdminClient } from '@/lib/supabase/admin'
 import { redirect } from 'next/navigation'
-import { requireAdmin } from '@/lib/auth/require-admin'
+import { requireAdmin, requireAdministrador } from '@/lib/auth/require-admin'
 
 const ROLES_STAFF = ['acreedor', 'vendedor', 'cobrador'] as const
 
@@ -39,7 +39,7 @@ export async function crearUsuarioStaff(formData: FormData) {
 }
 
 export async function actualizarUsuarioStaff(userId: string, formData: FormData) {
-  await requireAdmin()
+  await requireAdministrador()
 
   const fullName = formData.get('fullName') as string
 

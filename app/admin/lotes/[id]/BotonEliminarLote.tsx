@@ -3,7 +3,7 @@
 export function BotonEliminarLote({
   eliminarLoteAction,
 }: {
-  eliminarLoteAction: () => void
+  eliminarLoteAction: () => Promise<void>
 }) {
   return (
     <form

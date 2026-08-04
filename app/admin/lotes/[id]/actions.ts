@@ -3,7 +3,7 @@
 import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { redirect } from 'next/navigation'
-import { requireAdmin } from '@/lib/auth/require-admin'
+import { requireAdmin, requireAdministrador } from '@/lib/auth/require-admin'
 import { tieneDatosTransferencia } from '@/lib/lotes/validar-cuenta-cobro'
 
 function idOVacio(valor: FormDataEntryValue | null): string | null {
@@ -27,9 +27,19 @@ export async function actualizarIdentificador(loteId: string, formData: FormData
 }
 
 export async function eliminarLote(loteId: string) {
-  await requireAdmin()
+  await requireAdministrador()
 
   const supabase = await createClient()
+
+  const { data: lote } = await supabase.from('lotes').select('cliente_id').eq('id', loteId).single()
+
+  if (lote?.cliente_id) {
+    redirect(
+      `/admin/lotes/${loteId}?error=${encodeURIComponent(
+        'No se puede eliminar: este lote ya tiene un cliente asignado'
+      )}`
+    )
+  }
 
   const { data: cuotas } = await supabase.from('cuotas').select('id').eq('lote_id', loteId)
   const cuotaIds = (cuotas ?? []).map((cuota) => cuota.id)
@@ -59,12 +69,41 @@ export async function eliminarLote(loteId: string) {
 }
 
 export async function actualizarCobro(loteId: string, formData: FormData) {
-  await requireAdmin()
+  await requireAdministrador()
 
   const adminId = idOVacio(formData.get('adminId'))
   const acreedorId = idOVacio(formData.get('acreedorId'))
   const vendedorId = idOVacio(formData.get('vendedorId'))
   const cuentaCobroId = idOVacio(formData.get('cuentaCobroId'))
+
+  const idsAValidar = [adminId, acreedorId, vendedorId].filter(
+    (valorId): valorId is string => valorId !== null
+  )
+
+  if (idsAValidar.length > 0) {
+    const adminValidacion = createAdminClient()
+    const { data: personas } = await adminValidacion
+      .from('profiles')
+      .select('id, role')
+      .in('id', idsAValidar)
+
+    const rolEsperado = (personaId: string | null) => {
+      if (personaId === adminId) return 'administrador'
+      if (personaId === acreedorId) return 'acreedor'
+      return 'vendedor'
+    }
+
+    const rolInvalido = idsAValidar.some((idPersona) => {
+      const persona = personas?.find((p) => p.id === idPersona)
+      return !persona || persona.role !== rolEsperado(idPersona)
+    })
+
+    if (rolInvalido) {
+      redirect(
+        `/admin/lotes/${loteId}?error=${encodeURIComponent('Uno de los roles asignados no coincide')}`
+      )
+    }
+  }
 
   if (cuentaCobroId) {
     const idsAsociados = [adminId, acreedorId, vendedorId]

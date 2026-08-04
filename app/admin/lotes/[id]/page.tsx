@@ -59,7 +59,9 @@ export default async function LoteDetallePage({
   const administradores = (staff ?? []).filter((persona) => persona.role === 'administrador')
   const acreedores = (staff ?? []).filter((persona) => persona.role === 'acreedor')
   const vendedores = (staff ?? []).filter((persona) => persona.role === 'vendedor')
-  const conDatos = (staff ?? []).filter((persona) => persona.datos_transferencia?.trim())
+  const conDatos = (staff ?? []).filter(
+    (persona) => persona.datos_transferencia?.trim() || persona.id === lote!.cuenta_cobro_id
+  )
 
   const actualizarIdentificadorConId = actualizarIdentificador.bind(null, id)
   const actualizarCobroConId = actualizarCobro.bind(null, id)
@@ -214,6 +216,7 @@ export default async function LoteDetallePage({
             {conDatos.map((persona) => (
               <option key={persona.id} value={persona.id}>
                 {persona.full_name} ({persona.role})
+                {!persona.datos_transferencia?.trim() && ' — sin datos de transferencia'}
               </option>
             ))}
           </select>
