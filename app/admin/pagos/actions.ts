@@ -4,7 +4,7 @@ import { createClient } from '@/lib/supabase/server'
 import { imputarPagoFIFO } from '@/lib/pagos/imputar-fifo'
 import { revalidatePath } from 'next/cache'
 
-export async function confirmarPago(pagoId: string) {
+export async function confirmarPago(pagoId: string, formData: FormData) {
   const supabase = await createClient()
 
   const {
@@ -39,9 +39,25 @@ export async function confirmarPago(pagoId: string) {
   const campoPor = perfil.role === 'acreedor' ? 'confirmado_acreedor_por' : 'confirmado_admin_por'
   const campoAt = perfil.role === 'acreedor' ? 'confirmado_acreedor_at' : 'confirmado_admin_at'
 
+  // Bookkeeping opcional para el cierre de caja del acreedor/admin: el monto
+  // realmente recibido (a menudo en pesos) puede diferir del monto imputado
+  // (en la moneda del lote). Si se deja en blanco, no tocamos estas columnas
+  // para no pisar un valor que ya haya cargado otro confirmador.
+  const montoRecibido = formData.get('montoRecibido')
+  const monedaRecibida = formData.get('monedaRecibida')
+  const montoRecibidoNumero = montoRecibido ? Number(montoRecibido) : NaN
+  const montoRecibidoValido =
+    Number.isFinite(montoRecibidoNumero) && montoRecibidoNumero >= 0
+
   const { error: errorConfirmacion } = await supabase
     .from('pagos')
-    .update({ [campoPor]: user.id, [campoAt]: new Date().toISOString() })
+    .update({
+      [campoPor]: user.id,
+      [campoAt]: new Date().toISOString(),
+      ...(montoRecibidoValido
+        ? { monto_recibido: montoRecibidoNumero, moneda_recibida: monedaRecibida }
+        : {}),
+    })
     .eq('id', pagoId)
 
   if (errorConfirmacion) {

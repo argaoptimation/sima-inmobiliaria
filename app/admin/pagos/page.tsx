@@ -7,7 +7,7 @@ export default async function PagosPage() {
   const { data: pagos } = await supabase
     .from('pagos')
     .select(
-      'id, monto, moneda, comprobante_path, estado, confirmado_acreedor_por, confirmado_admin_por, cliente_id'
+      'id, monto, moneda, comprobante_path, estado, confirmado_acreedor_por, confirmado_admin_por, cliente_id, monto_recibido, moneda_recibida'
     )
     .order('created_at', { ascending: false })
 
@@ -69,8 +69,30 @@ export default async function PagosPage() {
                 <td>
                   {pago.estado === 'pendiente' &&
                     (pago.comprobante_path ? (
-                      <form action={confirmarEstePago}>
-                        <button type="submit" className="underline">
+                      <form action={confirmarEstePago} className="flex flex-col gap-2">
+                        <label className="text-xs text-gray-500">
+                          Monto recibido (opcional, para cierre de caja)
+                          <input
+                            name="montoRecibido"
+                            type="number"
+                            step="0.01"
+                            min="0"
+                            defaultValue={pago.monto_recibido ?? undefined}
+                            className="mt-1 block rounded border px-2 py-1"
+                          />
+                        </label>
+                        <label className="text-xs text-gray-500">
+                          Moneda recibida
+                          <select
+                            name="monedaRecibida"
+                            defaultValue={pago.moneda_recibida ?? 'USD'}
+                            className="mt-1 block rounded border px-2 py-1"
+                          >
+                            <option value="USD">USD</option>
+                            <option value="ARS">ARS</option>
+                          </select>
+                        </label>
+                        <button type="submit" className="self-start underline">
                           Confirmar mi parte
                         </button>
                       </form>
