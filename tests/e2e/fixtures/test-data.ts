@@ -140,7 +140,7 @@ async function ensureTestUser(
     email: string
     fullName: string
     role: 'administrador' | 'acreedor' | 'cliente'
-    datosTransferencia?: string
+    datosTransferencia?: { alias: string; banco: string; titular: string; cbu?: string }
   }
 ) {
   let userId: string
@@ -167,7 +167,10 @@ async function ensureTestUser(
     id: userId,
     role: config.role,
     full_name: config.fullName,
-    datos_transferencia: config.datosTransferencia ?? null,
+    alias: config.datosTransferencia?.alias ?? null,
+    banco: config.datosTransferencia?.banco ?? null,
+    cbu: config.datosTransferencia?.cbu ?? null,
+    titular: config.datosTransferencia?.titular ?? null,
   })
 
   if (errorProfile) {
@@ -201,7 +204,12 @@ export async function ensureTestFixtures(): Promise<TestFixtures> {
     ensureTestUser(admin, TEST_USERS.cliente),
     ensureTestUser(admin, {
       ...TEST_USERS.acreedorConDatos,
-      datosTransferencia: 'Alias: acreedor.cobro · CBU: 0000003100000000000001 · Banco: Test Bank',
+      datosTransferencia: {
+        alias: 'acreedor.cobro',
+        banco: 'Test Bank',
+        titular: 'E2E Acreedor Con Datos SA',
+        cbu: '0000003100000000000001',
+      },
     }),
   ])
 
