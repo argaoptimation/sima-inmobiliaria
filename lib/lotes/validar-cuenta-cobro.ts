@@ -1,3 +1,9 @@
-export function tieneDatosTransferencia(datosTransferencia: string | null): boolean {
-  return Boolean(datosTransferencia && datosTransferencia.trim().length > 0)
+export interface DatosTransferencia {
+  alias: string | null
+  banco: string | null
+  titular: string | null
+}
+
+export function tieneDatosTransferencia(datos: DatosTransferencia): boolean {
+  return Boolean(datos.alias?.trim() && datos.banco?.trim() && datos.titular?.trim())
 }
