@@ -32,6 +32,7 @@ export default async function AdminLayout({ children }: { children: React.ReactN
         <a href="/admin/lotes">Lotes</a>
         <a href="/admin/pagos">Pagos</a>
         <a href="/admin/usuarios">Usuarios</a>
+        <a href="/mi-perfil">Mi perfil</a>
       </nav>
       <div className="p-6">{children}</div>
     </div>

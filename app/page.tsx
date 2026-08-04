@@ -32,7 +32,10 @@ export default async function Home() {
 
   return (
     <main className="mx-auto mt-24 max-w-sm p-6 text-center">
-      <p>Tu rol ({profile.role}) todavía no tiene una pantalla propia en esta versión.</p>
+      <p className="mb-4">Tu rol ({profile.role}) todavía no tiene una pantalla propia en esta versión.</p>
+      <a href="/mi-perfil" className="underline">
+        Cargar mis datos de transferencia
+      </a>
     </main>
   )
 }
