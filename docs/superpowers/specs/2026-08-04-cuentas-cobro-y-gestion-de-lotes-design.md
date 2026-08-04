@@ -245,3 +245,12 @@ antes de hacerlo (motivo explícito del pedido).
 (ej. longitud, checksum) — sigue siendo texto libre para esos campos
 individuales, solo cambia la estructura, no se agrega validación de formato
 bancario.
+
+**Decisión de implementación**: en `/mi-perfil` y en la edición inline de
+`/admin/usuarios`, "nombre completo" y "datos de transferencia" quedan como
+**dos formularios separados** (dos botones "Guardar" independientes), en vez
+de uno solo combinado. Motivo: si fueran un único formulario, la
+obligatoriedad de alias/banco/titular bloquearía guardar un simple cambio de
+nombre en un perfil que todavía no cargó sus datos bancarios (ej. el rol
+`cobrador`, que puede no necesitarlos nunca). Mismo patrón que ya usa
+`/admin/lotes/[id]` para separar "Identificador" de "Cobro".
