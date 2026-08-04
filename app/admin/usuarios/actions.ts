@@ -37,3 +37,23 @@ export async function crearUsuarioStaff(formData: FormData) {
 
   redirect('/admin/usuarios')
 }
+
+export async function actualizarUsuarioStaff(userId: string, formData: FormData) {
+  await requireAdmin()
+
+  const fullName = formData.get('fullName') as string
+  const datosTransferenciaRaw = formData.get('datosTransferencia') as string | null
+  const datosTransferencia = datosTransferenciaRaw?.trim() ? datosTransferenciaRaw.trim() : null
+
+  const admin = createAdminClient()
+  const { error } = await admin
+    .from('profiles')
+    .update({ full_name: fullName, datos_transferencia: datosTransferencia })
+    .eq('id', userId)
+
+  if (error) {
+    redirect(`/admin/usuarios?error=${encodeURIComponent(error.message)}`)
+  }
+
+  redirect('/admin/usuarios')
+}
