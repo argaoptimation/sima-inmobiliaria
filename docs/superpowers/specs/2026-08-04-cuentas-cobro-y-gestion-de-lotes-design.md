@@ -254,3 +254,48 @@ obligatoriedad de alias/banco/titular bloquearía guardar un simple cambio de
 nombre en un perfil que todavía no cargó sus datos bancarios (ej. el rol
 `cobrador`, que puede no necesitarlos nunca). Mismo patrón que ya usa
 `/admin/lotes/[id]` para separar "Identificador" de "Cobro".
+
+## Addendum 2 (2026-08-04): visibilidad de datos bancarios entre acreedor y vendedor, y navegación de Mi perfil
+
+Dos ajustes pedidos por Gabriel después de usar la pantalla:
+
+### Visibilidad acotada del acreedor
+
+Hoy `/admin/usuarios` muestra el listado completo de staff (con sus datos de
+transferencia) a cualquiera que pase el gate de `/admin/layout.tsx`, que deja
+pasar tanto a `administrador` como a `acreedor` — es decir, cualquier
+acreedor podía ver los datos bancarios de TODO el staff, no solo los
+relevantes para él. Esto quedó anotado como hallazgo Minor #2 en la revisión
+final del feature de datos estructurados, sin resolver a propósito porque
+necesitaba una decisión de producto.
+
+Regla confirmada por Gabriel, con ejemplo: si el acreedor X tiene lotes
+1, 2 y 3 (sea cual sea su `estado` — reservado o vendido, no importa), y esos
+lotes tienen asociado a los vendedores A, B y C respectivamente
+(`lotes.vendedor_id`), entonces el acreedor X puede ver los datos bancarios
+de A, B y C — pero NO los de ningún otro vendedor que no comparta un lote con
+él. En términos de datos: el acreedor X puede ver a la persona Y si y solo si
+existe al menos un lote con `acreedor_id = X` y `vendedor_id = Y`.
+
+- `administrador` sigue viendo y editando absolutamente todo, sin cambios.
+- `acreedor` deja de ver la tabla completa de staff. En su lugar, ve una
+  lista de solo lectura ("Vendedores de tus lotes") con nombre y datos de
+  transferencia de los vendedores que comparten al menos un lote con él. Sin
+  links de "Editar" — ya no podía editar a otros desde la revisión final
+  anterior (`requireAdministrador()`), esto solo cierra el lado de lectura
+  que había quedado abierto.
+- El formulario de "Invitar" (`crearUsuarioStaff`) no cambia: el acreedor
+  sigue pudiendo invitar nuevo staff, tal como podía antes. Gabriel no pidió
+  tocar eso.
+- No se toca la visibilidad de `admin_id` en este addendum — el acreedor no
+  necesita ver datos de administradores, y Gabriel no lo pidió.
+
+### Navegación desde "Mi perfil"
+
+`/mi-perfil` es una ruta fuera de `/admin/*`, así que no hereda la barra de
+navegación de `app/admin/layout.tsx` — al entrar ahí, `administrador` y
+`acreedor` se quedan sin forma de volver a Lotes/Pagos/Usuarios sin tocar
+la URL a mano. Se extrae la barra de nav a un componente compartido y se
+muestra también en `/mi-perfil`, solo para `administrador`/`acreedor` (que
+son los únicos roles con algo más a donde ir hoy; `vendedor`/`cobrador`
+siguen sin pantalla propia, eso es aparte, brainstorming pendiente).
