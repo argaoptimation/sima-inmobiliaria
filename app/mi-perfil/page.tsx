@@ -1,6 +1,7 @@
 import { createClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
 import { actualizarNombre, actualizarDatosTransferencia } from './actions'
+import { NavAdmin } from '@/components/NavAdmin'
 
 export default async function MiPerfilPage({
   searchParams,
@@ -33,7 +34,9 @@ export default async function MiPerfilPage({
   }
 
   return (
-    <main className="mx-auto mt-12 max-w-md p-6">
+    <>
+      {(perfil!.role === 'administrador' || perfil!.role === 'acreedor') && <NavAdmin />}
+      <main className="mx-auto mt-12 max-w-md p-6">
       <h1 className="mb-6 text-xl font-semibold">Mi perfil</h1>
       {error && <p className="mb-4 rounded bg-red-100 p-2 text-sm text-red-700">{error}</p>}
       {ok && <p className="mb-4 rounded bg-green-100 p-2 text-sm text-green-700">Guardado.</p>}
@@ -97,6 +100,7 @@ export default async function MiPerfilPage({
           Guardar
         </button>
       </form>
-    </main>
+      </main>
+    </>
   )
 }
