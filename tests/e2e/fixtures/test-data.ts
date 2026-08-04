@@ -44,12 +44,30 @@ export const TEST_USERS = {
     fullName: 'E2E Acreedor Con Datos',
     role: 'acreedor' as const,
   },
+  vendedorLoteA: {
+    email: 'test-vendedor-a@sima-e2e.invalid',
+    fullName: 'E2E Vendedor A',
+    role: 'vendedor' as const,
+  },
+  vendedorLoteB: {
+    email: 'test-vendedor-b@sima-e2e.invalid',
+    fullName: 'E2E Vendedor B',
+    role: 'vendedor' as const,
+  },
+  acreedorSecundario: {
+    email: 'test-acreedor-secundario@sima-e2e.invalid',
+    fullName: 'E2E Acreedor Secundario',
+    role: 'acreedor' as const,
+  },
 }
 
 export interface TestFixtures {
   admin: { id: string; email: string }
   acreedor: { id: string; email: string }
   acreedorConDatos: { id: string; email: string }
+  acreedorSecundario: { id: string; email: string }
+  vendedorLoteA: { id: string; email: string }
+  vendedorLoteB: { id: string; email: string }
   cliente: { id: string; email: string }
   password: string
   loteId: string
@@ -139,7 +157,7 @@ async function ensureTestUser(
   config: {
     email: string
     fullName: string
-    role: 'administrador' | 'acreedor' | 'cliente'
+    role: 'administrador' | 'acreedor' | 'vendedor' | 'cliente'
     datosTransferencia?: { alias: string; banco: string; titular: string; cbu?: string }
   }
 ) {
@@ -198,7 +216,15 @@ function sumarMeses(fechaISO: string, meses: number): string {
 export async function ensureTestFixtures(): Promise<TestFixtures> {
   const admin = createAdminClient()
 
-  const [administrador, acreedor, cliente, acreedorConDatos] = await Promise.all([
+  const [
+    administrador,
+    acreedor,
+    cliente,
+    acreedorConDatos,
+    acreedorSecundario,
+    vendedorLoteA,
+    vendedorLoteB,
+  ] = await Promise.all([
     ensureTestUser(admin, TEST_USERS.administrador),
     ensureTestUser(admin, TEST_USERS.acreedor),
     ensureTestUser(admin, TEST_USERS.cliente),
@@ -210,6 +236,15 @@ export async function ensureTestFixtures(): Promise<TestFixtures> {
         titular: 'E2E Acreedor Con Datos SA',
         cbu: '0000003100000000000001',
       },
+    }),
+    ensureTestUser(admin, TEST_USERS.acreedorSecundario),
+    ensureTestUser(admin, {
+      ...TEST_USERS.vendedorLoteA,
+      datosTransferencia: { alias: 'vendedor.a', banco: 'Banco A', titular: 'E2E Vendedor A SA' },
+    }),
+    ensureTestUser(admin, {
+      ...TEST_USERS.vendedorLoteB,
+      datosTransferencia: { alias: 'vendedor.b', banco: 'Banco B', titular: 'E2E Vendedor B SA' },
     }),
   ])
 
@@ -284,10 +319,37 @@ export async function ensureTestFixtures(): Promise<TestFixtures> {
     throw new Error(`No se pudieron crear las cuotas de prueba: ${errorCuotas?.message}`)
   }
 
+  await admin
+    .from('lotes')
+    .update({ acreedor_id: acreedorConDatos.id, vendedor_id: vendedorLoteA.id })
+    .eq('id', lote.id)
+
+  // Limpieza + creación de un segundo lote, sin cliente, solo para la
+  // relación acreedor-vendedor (no participa del flujo de pagos).
+  // Nota: el identificador deliberadamente NO empieza con "E2E Test Lote"
+  // (a diferencia del lote principal) porque `cuenta-cobro.spec.ts` ubica
+  // "el" lote de prueba con `getByRole('row', { name: /E2E Test Lote/ })`,
+  // un regex sin anclar que matchearía por substring y rompería ese test
+  // por ambigüedad (2 filas) si el nombre empezara igual.
+  await admin.from('lotes').delete().eq('identificador', 'E2E Lote Secundario')
+
+  await admin.from('lotes').insert({
+    identificador: 'E2E Lote Secundario',
+    moneda: 'USD',
+    estado: 'disponible',
+    cantidad_cuotas: 1,
+    monto_cuota_base: 1,
+    acreedor_id: acreedorSecundario.id,
+    vendedor_id: vendedorLoteB.id,
+  })
+
   return {
     admin: administrador,
     acreedor,
     acreedorConDatos,
+    acreedorSecundario,
+    vendedorLoteA,
+    vendedorLoteB,
     cliente,
     password: TEST_PASSWORD,
     loteId: lote.id,
