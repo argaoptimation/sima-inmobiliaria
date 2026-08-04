@@ -1,6 +1,6 @@
 import { createClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
-import { actualizarMiPerfil } from './actions'
+import { actualizarNombre, actualizarDatosTransferencia } from './actions'
 
 export default async function MiPerfilPage({
   searchParams,
@@ -20,7 +20,7 @@ export default async function MiPerfilPage({
 
   const { data: perfil } = await supabase
     .from('profiles')
-    .select('full_name, role, datos_transferencia')
+    .select('full_name, role, alias, banco, cbu, titular')
     .eq('id', user!.id)
     .single()
 
@@ -37,23 +37,59 @@ export default async function MiPerfilPage({
       <h1 className="mb-6 text-xl font-semibold">Mi perfil</h1>
       {error && <p className="mb-4 rounded bg-red-100 p-2 text-sm text-red-700">{error}</p>}
       {ok && <p className="mb-4 rounded bg-green-100 p-2 text-sm text-green-700">Guardado.</p>}
-      <form action={actualizarMiPerfil} className="flex flex-col gap-3">
+
+      <h2 className="mb-2 text-lg font-semibold">Nombre completo</h2>
+      <form action={actualizarNombre} className="mb-8 flex gap-3">
+        <input
+          name="fullName"
+          defaultValue={perfil!.full_name}
+          required
+          className="flex-1 rounded border px-3 py-2"
+        />
+        <button type="submit" className="rounded bg-black px-3 py-2 text-sm text-white">
+          Guardar
+        </button>
+      </form>
+
+      <h2 className="mb-2 text-lg font-semibold">Datos de transferencia</h2>
+      <p className="mb-3 text-sm text-gray-600">
+        Así los va a ver el cliente para corroborar antes de transferir. El titular tiene que ser
+        el nombre tal cual figura en la cuenta bancaria de destino (puede no coincidir con tu
+        nombre de arriba).
+      </p>
+      <form action={actualizarDatosTransferencia} className="flex flex-col gap-3">
         <label className="text-sm">
-          Nombre completo
+          Titular de la cuenta
           <input
-            name="fullName"
-            defaultValue={perfil!.full_name}
+            name="titular"
+            defaultValue={perfil!.titular ?? ''}
             required
             className="mt-1 block w-full rounded border px-3 py-2"
           />
         </label>
         <label className="text-sm">
-          Datos de transferencia (alias, CBU, banco)
-          <textarea
-            name="datosTransferencia"
-            defaultValue={perfil!.datos_transferencia ?? ''}
-            rows={3}
-            placeholder="Alias, CBU, banco..."
+          Alias
+          <input
+            name="alias"
+            defaultValue={perfil!.alias ?? ''}
+            required
+            className="mt-1 block w-full rounded border px-3 py-2"
+          />
+        </label>
+        <label className="text-sm">
+          Banco
+          <input
+            name="banco"
+            defaultValue={perfil!.banco ?? ''}
+            required
+            className="mt-1 block w-full rounded border px-3 py-2"
+          />
+        </label>
+        <label className="text-sm">
+          CBU (opcional)
+          <input
+            name="cbu"
+            defaultValue={perfil!.cbu ?? ''}
             className="mt-1 block w-full rounded border px-3 py-2"
           />
         </label>

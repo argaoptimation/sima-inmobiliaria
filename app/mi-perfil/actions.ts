@@ -3,7 +3,7 @@
 import { createClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
 
-export async function actualizarMiPerfil(formData: FormData) {
+async function requireStaffLogueado() {
   const supabase = await createClient()
 
   const {
@@ -20,19 +20,43 @@ export async function actualizarMiPerfil(formData: FormData) {
     redirect('/portal-cliente')
   }
 
+  return { supabase, userId: user!.id }
+}
+
+export async function actualizarNombre(formData: FormData) {
+  const { supabase, userId } = await requireStaffLogueado()
+
   const fullName = formData.get('fullName') as string
 
   if (!fullName?.trim()) {
-    redirect('/mi-perfil?error=' + encodeURIComponent('El nombre no puede estar vacío'))
+    redirect(`/mi-perfil?error=${encodeURIComponent('El nombre no puede estar vacío')}`)
   }
 
-  const datosTransferenciaRaw = formData.get('datosTransferencia') as string | null
-  const datosTransferencia = datosTransferenciaRaw?.trim() ? datosTransferenciaRaw.trim() : null
+  const { error } = await supabase.from('profiles').update({ full_name: fullName }).eq('id', userId)
+
+  if (error) {
+    redirect(`/mi-perfil?error=${encodeURIComponent(error.message)}`)
+  }
+
+  redirect('/mi-perfil?ok=1')
+}
+
+export async function actualizarDatosTransferencia(formData: FormData) {
+  const { supabase, userId } = await requireStaffLogueado()
+
+  const titular = (formData.get('titular') as string | null)?.trim()
+  const alias = (formData.get('alias') as string | null)?.trim()
+  const banco = (formData.get('banco') as string | null)?.trim()
+  const cbuRaw = (formData.get('cbu') as string | null)?.trim()
+
+  if (!titular || !alias || !banco) {
+    redirect(`/mi-perfil?error=${encodeURIComponent('Titular, alias y banco son obligatorios')}`)
+  }
 
   const { error } = await supabase
     .from('profiles')
-    .update({ full_name: fullName, datos_transferencia: datosTransferencia })
-    .eq('id', user!.id)
+    .update({ titular, alias, banco, cbu: cbuRaw ? cbuRaw : null })
+    .eq('id', userId)
 
   if (error) {
     redirect(`/mi-perfil?error=${encodeURIComponent(error.message)}`)
