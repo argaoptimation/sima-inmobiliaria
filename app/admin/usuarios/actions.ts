@@ -38,7 +38,7 @@ export async function crearUsuarioStaff(formData: FormData) {
   redirect('/admin/usuarios')
 }
 
-export async function actualizarUsuarioStaff(userId: string, formData: FormData) {
+export async function actualizarNombreStaff(userId: string, formData: FormData) {
   await requireAdministrador()
 
   const fullName = formData.get('fullName') as string
@@ -47,13 +47,34 @@ export async function actualizarUsuarioStaff(userId: string, formData: FormData)
     redirect(`/admin/usuarios?error=${encodeURIComponent('El nombre no puede estar vacío')}`)
   }
 
-  const datosTransferenciaRaw = formData.get('datosTransferencia') as string | null
-  const datosTransferencia = datosTransferenciaRaw?.trim() ? datosTransferenciaRaw.trim() : null
+  const admin = createAdminClient()
+  const { error } = await admin.from('profiles').update({ full_name: fullName }).eq('id', userId)
+
+  if (error) {
+    redirect(`/admin/usuarios?error=${encodeURIComponent(error.message)}`)
+  }
+
+  redirect('/admin/usuarios')
+}
+
+export async function actualizarDatosTransferenciaStaff(userId: string, formData: FormData) {
+  await requireAdministrador()
+
+  const titular = (formData.get('titular') as string | null)?.trim()
+  const alias = (formData.get('alias') as string | null)?.trim()
+  const banco = (formData.get('banco') as string | null)?.trim()
+  const cbuRaw = (formData.get('cbu') as string | null)?.trim()
+
+  if (!titular || !alias || !banco) {
+    redirect(
+      `/admin/usuarios?error=${encodeURIComponent('Titular, alias y banco son obligatorios')}`
+    )
+  }
 
   const admin = createAdminClient()
   const { error } = await admin
     .from('profiles')
-    .update({ full_name: fullName, datos_transferencia: datosTransferencia })
+    .update({ titular, alias, banco, cbu: cbuRaw ? cbuRaw : null })
     .eq('id', userId)
 
   if (error) {

@@ -1,5 +1,10 @@
 import { createClient } from '@/lib/supabase/server'
-import { crearUsuarioStaff, actualizarUsuarioStaff } from './actions'
+import {
+  crearUsuarioStaff,
+  actualizarNombreStaff,
+  actualizarDatosTransferenciaStaff,
+} from './actions'
+import { tieneDatosTransferencia } from '@/lib/lotes/validar-cuenta-cobro'
 
 export default async function UsuariosPage({
   searchParams,
@@ -10,7 +15,7 @@ export default async function UsuariosPage({
   const supabase = await createClient()
   const { data: staff } = await supabase
     .from('profiles')
-    .select('id, full_name, role, datos_transferencia')
+    .select('id, full_name, role, alias, banco, cbu, titular')
     .in('role', ['administrador', 'acreedor', 'vendedor', 'cobrador'])
     .order('role')
 
@@ -52,31 +57,65 @@ export default async function UsuariosPage({
         </thead>
         <tbody>
           {staff?.map((persona) => {
-            const actualizarConId = actualizarUsuarioStaff.bind(null, persona.id)
+            const actualizarNombreConId = actualizarNombreStaff.bind(null, persona.id)
+            const actualizarDatosConId = actualizarDatosTransferenciaStaff.bind(null, persona.id)
+            const tieneDatos = tieneDatosTransferencia({
+              alias: persona.alias,
+              banco: persona.banco,
+              titular: persona.titular,
+            })
 
             if (editar === persona.id) {
               return (
                 <tr key={persona.id} className="border-b">
                   <td colSpan={4} className="py-3">
-                    <form action={actualizarConId} className="flex flex-col gap-2">
+                    <form action={actualizarNombreConId} className="mb-3 flex gap-2">
                       <input
                         name="fullName"
                         defaultValue={persona.full_name}
                         required
+                        className="flex-1 rounded border px-3 py-2"
+                      />
+                      <button
+                        type="submit"
+                        className="rounded bg-black px-3 py-2 text-sm text-white"
+                      >
+                        Guardar nombre
+                      </button>
+                    </form>
+                    <form action={actualizarDatosConId} className="flex flex-col gap-2">
+                      <input
+                        name="titular"
+                        defaultValue={persona.titular ?? ''}
+                        placeholder="Titular de la cuenta"
+                        required
                         className="rounded border px-3 py-2"
                       />
-                      <textarea
-                        name="datosTransferencia"
-                        defaultValue={persona.datos_transferencia ?? ''}
-                        placeholder="Alias, CBU, banco..."
-                        rows={2}
+                      <input
+                        name="alias"
+                        defaultValue={persona.alias ?? ''}
+                        placeholder="Alias"
+                        required
+                        className="rounded border px-3 py-2"
+                      />
+                      <input
+                        name="banco"
+                        defaultValue={persona.banco ?? ''}
+                        placeholder="Banco"
+                        required
+                        className="rounded border px-3 py-2"
+                      />
+                      <input
+                        name="cbu"
+                        defaultValue={persona.cbu ?? ''}
+                        placeholder="CBU (opcional)"
                         className="rounded border px-3 py-2"
                       />
                       <button
                         type="submit"
-                        className="self-start rounded bg-black px-3 py-2 text-white"
+                        className="self-start rounded bg-black px-3 py-2 text-sm text-white"
                       >
-                        Guardar
+                        Guardar datos de transferencia
                       </button>
                     </form>
                   </td>
@@ -89,8 +128,8 @@ export default async function UsuariosPage({
                 <td className="py-2">{persona.full_name}</td>
                 <td>{persona.role}</td>
                 <td>
-                  {persona.datos_transferencia?.trim() ? (
-                    persona.datos_transferencia
+                  {tieneDatos ? (
+                    `${persona.titular} · ${persona.alias} · ${persona.banco}`
                   ) : (
                     <span className="text-amber-700">Sin datos de transferencia</span>
                   )}
