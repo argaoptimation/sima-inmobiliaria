@@ -39,11 +39,17 @@ export const TEST_USERS = {
     fullName: 'E2E Cliente',
     role: 'cliente' as const,
   },
+  acreedorConDatos: {
+    email: 'test-acreedor-cobro@sima-e2e.invalid',
+    fullName: 'E2E Acreedor Con Datos',
+    role: 'acreedor' as const,
+  },
 }
 
 export interface TestFixtures {
   admin: { id: string; email: string }
   acreedor: { id: string; email: string }
+  acreedorConDatos: { id: string; email: string }
   cliente: { id: string; email: string }
   password: string
   loteId: string
@@ -130,7 +136,12 @@ async function buscarUsuarioPorEmail(admin: AdminClient, email: string) {
  */
 async function ensureTestUser(
   admin: AdminClient,
-  config: { email: string; fullName: string; role: 'administrador' | 'acreedor' | 'cliente' }
+  config: {
+    email: string
+    fullName: string
+    role: 'administrador' | 'acreedor' | 'cliente'
+    datosTransferencia?: string
+  }
 ) {
   let userId: string
 
@@ -156,6 +167,7 @@ async function ensureTestUser(
     id: userId,
     role: config.role,
     full_name: config.fullName,
+    datos_transferencia: config.datosTransferencia ?? null,
   })
 
   if (errorProfile) {
@@ -183,10 +195,14 @@ function sumarMeses(fechaISO: string, meses: number): string {
 export async function ensureTestFixtures(): Promise<TestFixtures> {
   const admin = createAdminClient()
 
-  const [administrador, acreedor, cliente] = await Promise.all([
+  const [administrador, acreedor, cliente, acreedorConDatos] = await Promise.all([
     ensureTestUser(admin, TEST_USERS.administrador),
     ensureTestUser(admin, TEST_USERS.acreedor),
     ensureTestUser(admin, TEST_USERS.cliente),
+    ensureTestUser(admin, {
+      ...TEST_USERS.acreedorConDatos,
+      datosTransferencia: 'Alias: acreedor.cobro · CBU: 0000003100000000000001 · Banco: Test Bank',
+    }),
   ])
 
   // --- Limpieza: borramos cualquier lote previo del cliente de prueba y todo
@@ -263,6 +279,7 @@ export async function ensureTestFixtures(): Promise<TestFixtures> {
   return {
     admin: administrador,
     acreedor,
+    acreedorConDatos,
     cliente,
     password: TEST_PASSWORD,
     loteId: lote.id,
