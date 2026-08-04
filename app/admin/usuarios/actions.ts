@@ -42,6 +42,11 @@ export async function actualizarUsuarioStaff(userId: string, formData: FormData)
   await requireAdmin()
 
   const fullName = formData.get('fullName') as string
+
+  if (!fullName?.trim()) {
+    redirect(`/admin/usuarios?error=${encodeURIComponent('El nombre no puede estar vacío')}`)
+  }
+
   const datosTransferenciaRaw = formData.get('datosTransferencia') as string | null
   const datosTransferencia = datosTransferenciaRaw?.trim() ? datosTransferenciaRaw.trim() : null
 
