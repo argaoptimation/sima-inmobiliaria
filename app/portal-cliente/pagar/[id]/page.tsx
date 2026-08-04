@@ -24,9 +24,21 @@ export default async function PagarCuotaPage({
 
   const { data: lote } = await supabase
     .from('lotes')
-    .select('datos_transferencia')
-    .eq('cliente_id', user.id)
+    .select('cuenta_cobro_id')
+    .eq('cliente_id', user!.id)
     .single()
+
+  let datosTransferencia: string | null = null
+
+  if (lote?.cuenta_cobro_id) {
+    const { data: cuentaCobro } = await supabase
+      .from('profiles')
+      .select('datos_transferencia')
+      .eq('id', lote.cuenta_cobro_id)
+      .single()
+
+    datosTransferencia = cuentaCobro?.datos_transferencia ?? null
+  }
 
   const registrarPagoConId = registrarPago.bind(null, id)
 
@@ -34,8 +46,8 @@ export default async function PagarCuotaPage({
     <main className="mx-auto mt-12 max-w-md p-6">
       <h1 className="mb-6 text-xl font-semibold">Registrar pago</h1>
       <p className="mb-6 rounded bg-gray-100 p-3 text-sm">
-        {lote?.datos_transferencia
-          ? `Datos para transferir: ${lote.datos_transferencia}`
+        {datosTransferencia
+          ? `Datos para transferir: ${datosTransferencia}`
           : 'Consultá los datos de la cuenta con SIMA Inmobiliaria.'}
       </p>
       {error && <p className="mb-4 rounded bg-red-100 p-2 text-sm text-red-700">{error}</p>}
