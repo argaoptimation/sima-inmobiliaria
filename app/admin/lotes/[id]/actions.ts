@@ -26,6 +26,38 @@ export async function actualizarIdentificador(loteId: string, formData: FormData
   redirect(`/admin/lotes/${loteId}`)
 }
 
+export async function eliminarLote(loteId: string) {
+  await requireAdmin()
+
+  const supabase = await createClient()
+
+  const { data: cuotas } = await supabase.from('cuotas').select('id').eq('lote_id', loteId)
+  const cuotaIds = (cuotas ?? []).map((cuota) => cuota.id)
+
+  if (cuotaIds.length > 0) {
+    const { count } = await supabase
+      .from('pago_imputaciones')
+      .select('id', { count: 'exact', head: true })
+      .in('cuota_id', cuotaIds)
+
+    if (count && count > 0) {
+      redirect(
+        `/admin/lotes/${loteId}?error=${encodeURIComponent(
+          'No se puede eliminar: este lote ya tiene pagos imputados'
+        )}`
+      )
+    }
+  }
+
+  const { error } = await supabase.from('lotes').delete().eq('id', loteId)
+
+  if (error) {
+    redirect(`/admin/lotes/${loteId}?error=${encodeURIComponent(error.message)}`)
+  }
+
+  redirect('/admin/lotes')
+}
+
 export async function actualizarCobro(loteId: string, formData: FormData) {
   await requireAdmin()
 

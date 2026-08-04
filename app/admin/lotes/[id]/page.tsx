@@ -1,7 +1,8 @@
 import { createClient } from '@/lib/supabase/server'
 import { calcularEstadoCobranza } from '@/lib/cobranza/estado-cliente'
 import { notFound } from 'next/navigation'
-import { actualizarIdentificador, actualizarCobro } from './actions'
+import { actualizarIdentificador, actualizarCobro, eliminarLote } from './actions'
+import { BotonEliminarLote } from './BotonEliminarLote'
 
 export default async function LoteDetallePage({
   params,
@@ -62,10 +63,14 @@ export default async function LoteDetallePage({
 
   const actualizarIdentificadorConId = actualizarIdentificador.bind(null, id)
   const actualizarCobroConId = actualizarCobro.bind(null, id)
+  const eliminarLoteConId = eliminarLote.bind(null, id)
 
   return (
     <main className="max-w-2xl">
-      <h1 className="mb-6 text-xl font-semibold">{lote!.identificador}</h1>
+      <div className="mb-6 flex items-center justify-between">
+        <h1 className="text-xl font-semibold">{lote!.identificador}</h1>
+        <BotonEliminarLote eliminarLoteAction={eliminarLoteConId} />
+      </div>
 
       {error && <p className="mb-4 rounded bg-red-100 p-2 text-sm text-red-700">{error}</p>}
 
