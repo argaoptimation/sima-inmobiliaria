@@ -46,6 +46,10 @@ No cubre (fuera de alcance, quedan para specs futuras):
 de texto libre que hoy tiene `lotes` (alias, CBU, banco en un solo bloque),
 pero ahora pertenece a la persona (administrador, acreedor o vendedor).
 
+> **Superado por el Addendum (2026-08-04, más abajo):** después de usar la
+> pantalla, Gabriel pidió que esto sean campos estructurados en vez de texto
+> libre. Ver "Addendum: campos estructurados de datos de transferencia".
+
 **`lotes`**: se agregan cuatro columnas, todas `uuid references profiles(id)`,
 nullable:
 
@@ -189,3 +193,55 @@ de la cuenta con SIMA Inmobiliaria."
   de un lote ya creado.
 - Rediseño reserva → contrato/entrega inicial → vendido y permisos propios
   del rol vendedor.
+
+## Addendum (2026-08-04): campos estructurados de datos de transferencia
+
+Después de usar la pantalla `/mi-perfil` recién construida, Gabriel pidió
+reemplazar el textarea de texto libre por campos individuales, porque un
+texto libre no deja claro qué dato falta ni permite mostrarle al cliente algo
+prolijo para corroborar antes de transferir. Pedido textual: *"alias y banco
+sí o sí que sean obligatorios, cbu opcional y nombre completo que solicite sí
+o sí, como sale en la cuenta de destino a la cual se va a transferir"* —
+aclarando que ese nombre puede no coincidir con el `full_name` del perfil
+(ej. una cuenta bancaria a nombre completo con dos nombres y dos apellidos,
+mientras el perfil de login usa un nombre más corto).
+
+**Reemplaza** la columna única `profiles.datos_transferencia text` por
+cuatro columnas, todas en `profiles`, todas nullable a nivel de base de
+datos (un staff recién invitado legítimamente no tiene ninguna cargada
+todavía):
+
+- `alias text`
+- `banco text`
+- `cbu text`
+- `titular text` — el nombre tal cual figura en la cuenta de destino, no
+  necesariamente igual a `full_name`.
+
+**Obligatoriedad**: no es a nivel de base (no hay forma de forzar "obligatorio
+salvo que esté todo vacío" con un `not null` simple, y un perfil recién
+creado legítimamente no tiene nada cargado). Es a nivel de formulario: tanto
+en `/mi-perfil` como en la edición de `/admin/usuarios`, `alias`, `banco` y
+`titular` son campos requeridos del `<form>` (HTML `required` + validación
+en la Server Action, mismo patrón que ya se usa para `fullName`); `cbu` es el
+único campo opcional. Como consecuencia, guardar esa sección siempre deja los
+tres campos obligatorios completos o no la deja guardar — no hay estado
+intermedio de "guardé dos de tres".
+
+**"Tiene datos cargados" pasa a significar**: `alias`, `banco` y `titular`
+completos (no vacíos ni solo espacios) — `cbu` no cuenta para esta condición.
+Esto reemplaza la definición anterior de `tieneDatosTransferencia` (que
+evaluaba un único string) en todos los lugares donde se usa: la validación
+de `cuenta_cobro_id` en `actualizarCobro`, las anotaciones "— sin datos de
+transferencia" en los selects del detalle de lote, y el guard de
+`subirComprobante`/pantalla de pago del cliente no aplica acá (ese flujo no
+depende de esto).
+
+**Cliente, al pagar** (`/portal-cliente/pagar/[id]`): en vez de un bloque de
+texto libre, se muestra estructurado — titular, alias, banco, y CBU si está
+cargado — para que el cliente pueda corroborar a quién le está transfiriendo
+antes de hacerlo (motivo explícito del pedido).
+
+**Fuera de alcance de este addendum**: no se valida el formato de CBU/alias
+(ej. longitud, checksum) — sigue siendo texto libre para esos campos
+individuales, solo cambia la estructura, no se agrega validación de formato
+bancario.
