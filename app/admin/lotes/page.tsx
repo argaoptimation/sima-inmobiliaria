@@ -33,8 +33,11 @@ export default async function LotesPage() {
               <td>{lote.estado}</td>
               <td>{lote.cantidad_cuotas}</td>
               <td>
+                <a href={`/admin/lotes/${lote.id}`} className="text-sm underline">
+                  Ver detalle
+                </a>
                 {lote.estado !== 'vendido' && (
-                  <a href={`/admin/lotes/${lote.id}/vender`} className="text-sm underline">
+                  <a href={`/admin/lotes/${lote.id}/vender`} className="ml-3 text-sm underline">
                     Vender / asignar cliente
                   </a>
                 )}
