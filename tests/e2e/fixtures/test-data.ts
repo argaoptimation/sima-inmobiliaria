@@ -71,6 +71,7 @@ export interface TestFixtures {
   cliente: { id: string; email: string }
   password: string
   loteId: string
+  loteSecundarioId: string
   cuotaIds: string[]
 }
 
@@ -333,15 +334,23 @@ export async function ensureTestFixtures(): Promise<TestFixtures> {
   // por ambigüedad (2 filas) si el nombre empezara igual.
   await admin.from('lotes').delete().eq('identificador', 'E2E Lote Secundario')
 
-  await admin.from('lotes').insert({
-    identificador: 'E2E Lote Secundario',
-    moneda: 'USD',
-    estado: 'disponible',
-    cantidad_cuotas: 1,
-    monto_cuota_base: 1,
-    acreedor_id: acreedorSecundario.id,
-    vendedor_id: vendedorLoteB.id,
-  })
+  const { data: loteSecundario, error: errorLoteSecundario } = await admin
+    .from('lotes')
+    .insert({
+      identificador: 'E2E Lote Secundario',
+      moneda: 'USD',
+      estado: 'disponible',
+      cantidad_cuotas: 1,
+      monto_cuota_base: 1,
+      acreedor_id: acreedorSecundario.id,
+      vendedor_id: vendedorLoteB.id,
+    })
+    .select('id')
+    .single()
+
+  if (errorLoteSecundario || !loteSecundario) {
+    throw new Error(`No se pudo crear el lote secundario de prueba: ${errorLoteSecundario?.message}`)
+  }
 
   return {
     admin: administrador,
@@ -353,6 +362,7 @@ export async function ensureTestFixtures(): Promise<TestFixtures> {
     cliente,
     password: TEST_PASSWORD,
     loteId: lote.id,
+    loteSecundarioId: loteSecundario.id,
     cuotaIds: cuotas.map((c) => c.id),
   }
 }
