@@ -1,6 +1,6 @@
 import { createClient } from '@/lib/supabase/server'
 import { calcularEstadoCobranza } from '@/lib/cobranza/estado-cliente'
-import { notFound } from 'next/navigation'
+import { notFound, redirect } from 'next/navigation'
 import { actualizarIdentificador, actualizarCobro, eliminarLote } from './actions'
 import { BotonEliminarLote } from './BotonEliminarLote'
 import { tieneDatosTransferencia } from '@/lib/lotes/validar-cuenta-cobro'
@@ -17,6 +17,24 @@ export default async function LoteDetallePage({
 
   const supabase = await createClient()
 
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
+
+  if (!user) {
+    redirect('/login')
+  }
+
+  const { data: perfilPropio } = await supabase
+    .from('profiles')
+    .select('role')
+    .eq('id', user!.id)
+    .single()
+
+  if (!perfilPropio) {
+    redirect('/login')
+  }
+
   const { data: lote } = await supabase
     .from('lotes')
     .select(
@@ -27,6 +45,10 @@ export default async function LoteDetallePage({
 
   if (!lote) {
     notFound()
+  }
+
+  if (perfilPropio!.role === 'acreedor' && lote!.acreedor_id !== user!.id) {
+    redirect('/admin/lotes')
   }
 
   const { data: cuotas } = await supabase
@@ -74,7 +96,9 @@ export default async function LoteDetallePage({
     <main className="max-w-2xl">
       <div className="mb-6 flex items-center justify-between">
         <h1 className="text-xl font-semibold">{lote!.identificador}</h1>
-        <BotonEliminarLote eliminarLoteAction={eliminarLoteConId} />
+        {perfilPropio!.role === 'administrador' && (
+          <BotonEliminarLote eliminarLoteAction={eliminarLoteConId} />
+        )}
       </div>
 
       {error && <p className="mb-4 rounded bg-red-100 p-2 text-sm text-red-700">{error}</p>}
@@ -143,23 +167,25 @@ export default async function LoteDetallePage({
         </button>
       </form>
 
-      <h2 className="mb-2 text-lg font-semibold">Cobro</h2>
-      <p className="mb-3 text-sm text-gray-600">
-        Asigná quiénes son el admin, el acreedor y el vendedor de este lote, y cuál de ellos recibe
-        las transferencias actualmente. Solo se puede elegir como cuenta de cobro a alguien que ya
-        tenga datos de transferencia cargados
-        {editarUsuario && (
-          <>
-            {' '}
-            —{' '}
-            <a href={`/admin/usuarios?editar=${editarUsuario}`} className="underline">
-              cargarlos ahora
-            </a>
-          </>
-        )}
-        .
-      </p>
-      <form action={actualizarCobroConId} className="flex flex-col gap-3">
+      {perfilPropio!.role === 'administrador' && (
+        <>
+          <h2 className="mb-2 text-lg font-semibold">Cobro</h2>
+          <p className="mb-3 text-sm text-gray-600">
+            Asigná quiénes son el admin, el acreedor y el vendedor de este lote, y cuál de ellos
+            recibe las transferencias actualmente. Solo se puede elegir como cuenta de cobro a
+            alguien que ya tenga datos de transferencia cargados
+            {editarUsuario && (
+              <>
+                {' '}
+                —{' '}
+                <a href={`/admin/usuarios?editar=${editarUsuario}`} className="underline">
+                  cargarlos ahora
+                </a>
+              </>
+            )}
+            .
+          </p>
+          <form action={actualizarCobroConId} className="flex flex-col gap-3">
         <label className="text-sm">
           Admin
           <select
@@ -231,7 +257,9 @@ export default async function LoteDetallePage({
         <button type="submit" className="self-start rounded bg-black px-3 py-2 text-sm text-white">
           Guardar cobro
         </button>
-      </form>
+          </form>
+        </>
+      )}
     </main>
   )
 }

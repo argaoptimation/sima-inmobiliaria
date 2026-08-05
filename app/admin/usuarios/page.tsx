@@ -33,7 +33,7 @@ export default async function UsuariosPage({
     redirect('/login')
   }
 
-  if (perfilPropio!.role === 'acreedor') {
+  if (perfilPropio!.role !== 'administrador') {
     const { data: misLotes } = await supabase
       .from('lotes')
       .select('vendedor_id')

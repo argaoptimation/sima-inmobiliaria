@@ -1,11 +1,37 @@
 import { createClient } from '@/lib/supabase/server'
+import { redirect } from 'next/navigation'
 
 export default async function LotesPage() {
   const supabase = await createClient()
-  const { data: lotes } = await supabase
+
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
+
+  if (!user) {
+    redirect('/login')
+  }
+
+  const { data: perfilPropio } = await supabase
+    .from('profiles')
+    .select('role')
+    .eq('id', user!.id)
+    .single()
+
+  if (!perfilPropio) {
+    redirect('/login')
+  }
+
+  let queryLotes = supabase
     .from('lotes')
     .select('id, identificador, moneda, estado, cantidad_cuotas')
     .order('created_at', { ascending: false })
+
+  if (perfilPropio!.role === 'acreedor') {
+    queryLotes = queryLotes.eq('acreedor_id', user!.id)
+  }
+
+  const { data: lotes } = await queryLotes
 
   return (
     <main>
