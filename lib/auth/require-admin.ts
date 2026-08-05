@@ -44,3 +44,37 @@ export async function requireAdministrador() {
     redirect('/login')
   }
 }
+
+export async function requireAdminSobreLote(loteId: string) {
+  const supabase = await createClient()
+
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
+
+  if (!user) {
+    redirect('/login')
+  }
+
+  const { data: profile } = await supabase
+    .from('profiles')
+    .select('role')
+    .eq('id', user!.id)
+    .single()
+
+  if (!profile || (profile.role !== 'administrador' && profile.role !== 'acreedor')) {
+    redirect('/login')
+  }
+
+  if (profile!.role === 'acreedor') {
+    const { data: lote } = await supabase
+      .from('lotes')
+      .select('acreedor_id')
+      .eq('id', loteId)
+      .single()
+
+    if (!lote || lote.acreedor_id !== user!.id) {
+      redirect('/admin/lotes')
+    }
+  }
+}

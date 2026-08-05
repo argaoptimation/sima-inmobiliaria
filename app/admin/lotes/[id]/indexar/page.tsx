@@ -1,4 +1,5 @@
 import { aplicarIndexacion } from './actions'
+import { requireAdminSobreLote } from '@/lib/auth/require-admin'
 
 export default async function IndexarLotePage({
   params,
@@ -8,6 +9,7 @@ export default async function IndexarLotePage({
   searchParams: Promise<{ error?: string }>
 }) {
   const { id } = await params
+  await requireAdminSobreLote(id)
   const { error } = await searchParams
   const aplicarIndexacionConId = aplicarIndexacion.bind(null, id)
 

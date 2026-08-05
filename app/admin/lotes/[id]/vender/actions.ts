@@ -3,10 +3,10 @@
 import { createAdminClient } from '@/lib/supabase/admin'
 import { createClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
-import { requireAdmin } from '@/lib/auth/require-admin'
+import { requireAdminSobreLote } from '@/lib/auth/require-admin'
 
 export async function venderLote(loteId: string, formData: FormData) {
-  await requireAdmin()
+  await requireAdminSobreLote(loteId)
 
   const email = formData.get('email') as string
   const fullName = formData.get('fullName') as string

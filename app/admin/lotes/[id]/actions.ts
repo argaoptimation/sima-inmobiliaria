@@ -3,7 +3,7 @@
 import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { redirect } from 'next/navigation'
-import { requireAdmin, requireAdministrador } from '@/lib/auth/require-admin'
+import { requireAdminSobreLote, requireAdministrador } from '@/lib/auth/require-admin'
 import { tieneDatosTransferencia } from '@/lib/lotes/validar-cuenta-cobro'
 
 function idOVacio(valor: FormDataEntryValue | null): string | null {
@@ -12,7 +12,7 @@ function idOVacio(valor: FormDataEntryValue | null): string | null {
 }
 
 export async function actualizarIdentificador(loteId: string, formData: FormData) {
-  await requireAdmin()
+  await requireAdminSobreLote(loteId)
 
   const identificador = formData.get('identificador') as string
 

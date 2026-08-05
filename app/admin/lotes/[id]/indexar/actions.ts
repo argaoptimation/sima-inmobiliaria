@@ -3,10 +3,10 @@
 import { createClient } from '@/lib/supabase/server'
 import { calcularAjusteIndexacion } from '@/lib/lotes/aplicar-indexacion'
 import { redirect } from 'next/navigation'
-import { requireAdmin } from '@/lib/auth/require-admin'
+import { requireAdminSobreLote } from '@/lib/auth/require-admin'
 
 export async function aplicarIndexacion(loteId: string, formData: FormData) {
-  await requireAdmin()
+  await requireAdminSobreLote(loteId)
 
   const supabase = await createClient()
 
