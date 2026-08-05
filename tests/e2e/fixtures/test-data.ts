@@ -109,7 +109,7 @@ function loadEnvLocal() {
   }
 }
 
-function createAdminClient() {
+export function createAdminClient() {
   loadEnvLocal()
 
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL

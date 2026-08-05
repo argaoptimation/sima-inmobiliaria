@@ -16,7 +16,13 @@ type Pago = {
   moneda_recibida: string | null
 }
 
-export default async function PagosPage() {
+export default async function PagosPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ error?: string }>
+}) {
+  const { error } = await searchParams
+
   const supabase = await createClient()
 
   const {
@@ -69,23 +75,41 @@ export default async function PagosPage() {
 
   const admin = createAdminClient()
 
+  const clienteIdsConPago = [...new Set(pagos.map((pago) => pago.cliente_id))]
+
+  const { data: lotesDeEsosClientes } =
+    clienteIdsConPago.length > 0
+      ? await supabase.from('lotes').select('cliente_id, acreedor_id').in('cliente_id', clienteIdsConPago)
+      : { data: [] }
+
+  const acreedorPorCliente = new Map(
+    (lotesDeEsosClientes ?? []).map((lote) => [lote.cliente_id as string, lote.acreedor_id])
+  )
+
   const pagosConLink = await Promise.all(
     pagos.map(async (pago) => {
+      const sinAcreedorVinculado = !acreedorPorCliente.get(pago.cliente_id)
+
       if (!pago.comprobante_path) {
-        return { ...pago, comprobanteUrl: null }
+        return { ...pago, comprobanteUrl: null, sinAcreedorVinculado }
       }
 
-      const { data, error } = await admin.storage
+      const { data, error: errorSignedUrl } = await admin.storage
         .from('comprobantes')
         .createSignedUrl(pago.comprobante_path, 300)
 
-      return { ...pago, comprobanteUrl: error ? null : data?.signedUrl ?? null }
+      return {
+        ...pago,
+        comprobanteUrl: errorSignedUrl ? null : data?.signedUrl ?? null,
+        sinAcreedorVinculado,
+      }
     })
   )
 
   return (
     <main>
       <h1 className="mb-6 text-xl font-semibold">Pagos</h1>
+      {error && <p className="mb-4 rounded bg-red-100 p-2 text-sm text-red-700">{error}</p>}
       <table className="w-full text-sm">
         <thead>
           <tr className="border-b text-left">
@@ -120,12 +144,27 @@ export default async function PagosPage() {
                   )}
                 </td>
                 <td>{pago.estado}</td>
-                <td>{pago.confirmado_acreedor_por ? 'Sí' : 'No'}</td>
+                <td>
+                  {pago.sinAcreedorVinculado ? (
+                    <span className="font-semibold text-red-700">⚠ Lote sin acreedor vinculado</span>
+                  ) : pago.confirmado_acreedor_por ? (
+                    'Sí'
+                  ) : (
+                    'No'
+                  )}
+                </td>
                 <td>{pago.confirmado_admin_por ? 'Sí' : 'No'}</td>
                 <td>
                   {pago.estado === 'pendiente' &&
                     (pago.comprobante_path ? (
-                      <form action={confirmarEstePago} className="flex flex-col gap-2">
+                      <>
+                        {pago.sinAcreedorVinculado && (
+                          <p className="mb-2 font-semibold text-red-700">
+                            ⚠ No se puede confirmar: este lote todavía no tiene un acreedor
+                            vinculado. Asignalo desde el detalle del lote.
+                          </p>
+                        )}
+                        <form action={confirmarEstePago} className="flex flex-col gap-2">
                         <label className="text-xs text-gray-500">
                           Monto recibido (opcional, para cierre de caja)
                           <input
@@ -151,7 +190,8 @@ export default async function PagosPage() {
                         <button type="submit" className="self-start underline">
                           Confirmar mi parte
                         </button>
-                      </form>
+                        </form>
+                      </>
                     ) : (
                       <span className="text-gray-500">Esperando comprobante</span>
                     ))}

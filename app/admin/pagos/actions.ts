@@ -3,6 +3,7 @@
 import { createClient } from '@/lib/supabase/server'
 import { imputarPagoFIFO } from '@/lib/pagos/imputar-fifo'
 import { revalidatePath } from 'next/cache'
+import { redirect } from 'next/navigation'
 
 export async function confirmarPago(pagoId: string, formData: FormData) {
   const supabase = await createClient()
@@ -36,19 +37,25 @@ export async function confirmarPago(pagoId: string, formData: FormData) {
     return
   }
 
-  if (perfil.role === 'acreedor') {
-    const { data: lote } = await supabase
-      .from('lotes')
-      .select('acreedor_id')
-      .eq('cliente_id', pago.cliente_id)
-      .single()
+  // Resolucion unica del lote del cliente de este pago: se reusa mas abajo
+  // para la imputacion FIFO, evitando una segunda consulta redundante.
+  const { data: lote } = await supabase
+    .from('lotes')
+    .select('id, acreedor_id')
+    .eq('cliente_id', pago.cliente_id)
+    .single()
 
-    if (!lote || lote.acreedor_id !== user.id) {
-      // No es el acreedor de este lote -- mismo tratamiento que no ser
-      // acreedor en absoluto para este pago puntual.
-      revalidatePath('/admin/pagos')
-      return
-    }
+  if (perfil.role === 'acreedor' && (!lote || lote.acreedor_id !== user.id)) {
+    // No es el acreedor de este lote -- ya sea porque el lote pertenece a
+    // otro acreedor, o porque todavia no tiene ninguno asignado. En ambos
+    // casos el rechazo debe ser visible (no un fallo silencioso): sin esta
+    // senal, un lote sin acreedor deja el pago trabado para siempre sin que
+    // nadie note que hay algo pendiente de resolver.
+    redirect(
+      `/admin/pagos?error=${encodeURIComponent(
+        'No sos el acreedor vinculado a este lote, o el lote todavía no tiene un acreedor asignado.'
+      )}`
+    )
   }
 
   const campoPor = perfil.role === 'acreedor' ? 'confirmado_acreedor_por' : 'confirmado_admin_por'
@@ -89,21 +96,10 @@ export async function confirmarPago(pagoId: string, formData: FormData) {
     .eq('estado', 'pendiente')
     .not('confirmado_acreedor_por', 'is', null)
     .not('confirmado_admin_por', 'is', null)
-    .select('id, cliente_id, monto')
+    .select('id, monto')
     .single()
 
-  if (errorClaim || !pagoClaimado) {
-    revalidatePath('/admin/pagos')
-    return
-  }
-
-  const { data: lote } = await supabase
-    .from('lotes')
-    .select('id')
-    .eq('cliente_id', pagoClaimado.cliente_id)
-    .single()
-
-  if (!lote) {
+  if (errorClaim || !pagoClaimado || !lote) {
     revalidatePath('/admin/pagos')
     return
   }
