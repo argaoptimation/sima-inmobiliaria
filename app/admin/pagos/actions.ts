@@ -25,7 +25,7 @@ export async function confirmarPago(pagoId: string, formData: FormData) {
 
   const { data: pago } = await supabase
     .from('pagos')
-    .select('comprobante_path')
+    .select('comprobante_path, cliente_id')
     .eq('id', pagoId)
     .single()
 
@@ -34,6 +34,21 @@ export async function confirmarPago(pagoId: string, formData: FormData) {
     // no hay evidencia que revisar.
     revalidatePath('/admin/pagos')
     return
+  }
+
+  if (perfil.role === 'acreedor') {
+    const { data: lote } = await supabase
+      .from('lotes')
+      .select('acreedor_id')
+      .eq('cliente_id', pago.cliente_id)
+      .single()
+
+    if (!lote || lote.acreedor_id !== user.id) {
+      // No es el acreedor de este lote -- mismo tratamiento que no ser
+      // acreedor en absoluto para este pago puntual.
+      revalidatePath('/admin/pagos')
+      return
+    }
   }
 
   const campoPor = perfil.role === 'acreedor' ? 'confirmado_acreedor_por' : 'confirmado_admin_por'
