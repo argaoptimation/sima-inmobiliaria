@@ -160,8 +160,9 @@ export default async function PagosPage({
                       <>
                         {pago.sinAcreedorVinculado && (
                           <p className="mb-2 font-semibold text-red-700">
-                            ⚠ No se puede confirmar: este lote todavía no tiene un acreedor
-                            vinculado. Asignalo desde el detalle del lote.
+                            ⚠ Este lote todavía no tiene un acreedor vinculado. Podés confirmar
+                            tu parte, pero el pago no se va a completar hasta asignar uno desde
+                            el detalle del lote.
                           </p>
                         )}
                         <form action={confirmarEstePago} className="flex flex-col gap-2">
