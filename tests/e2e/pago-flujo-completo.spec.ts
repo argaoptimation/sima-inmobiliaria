@@ -92,7 +92,7 @@ test.describe('Flujo completo de pago con confirmación cruzada', () => {
     // limpiamos cookies del contexto y volvemos a loguear (ver utils/login.ts).
     await test.step('login como acreedor y confirmación de su parte', async () => {
       await logout(page)
-      await login(page, fixtures.acreedor.email, fixtures.password)
+      await login(page, fixtures.acreedorConDatos.email, fixtures.password)
       await page.goto('/admin/pagos')
 
       const filaPago = filaPorComprobante(page)
