@@ -19,8 +19,8 @@ export default async function ImportarLotesPage({
       <p className="mb-4 text-sm text-gray-600">
         Pegá una fila por lote, tal cual se copia de una planilla de Excel (las columnas
         separadas por tabulación, no por comas). El orden de las columnas tiene que ser:
-        Identificador, Ubicación, Precio total, Moneda (USD o ARS), Cantidad de cuotas, Monto de
-        cada cuota, Fecha de la primera cuota (AAAA-MM-DD). Si alguna fila tiene un error, no se
+        Identificador, Ubicación, Precio total, Moneda (USD o ARS). Las cuotas no se cargan acá:
+        se definen más adelante, cuando el lote se vende. Si alguna fila tiene un error, no se
         crea ningún lote hasta que las corrijas todas — así evitamos cargas parciales o con datos
         mal tipeados.
       </p>
@@ -35,7 +35,7 @@ export default async function ImportarLotesPage({
           required
           rows={10}
           placeholder={
-            'Loteo San Martín - Lote 1\tRuta 9 km 12\t15000\tUSD\t24\t625\t2026-09-01\nLoteo San Martín - Lote 2\tRuta 9 km 12\t16000\tUSD\t24\t666.67\t2026-09-01'
+            'Loteo San Martín - Lote 1\tRuta 9 km 12\t15000\tUSD\nLoteo San Martín - Lote 2\tRuta 9 km 12\t16000\tUSD'
           }
           className="rounded border px-3 py-2 font-mono text-sm"
         />

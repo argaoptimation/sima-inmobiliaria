@@ -3,21 +3,12 @@ export interface LoteAImportar {
   ubicacion: string
   precioTotal: number
   moneda: 'USD' | 'ARS'
-  cantidadCuotas: number
-  montoCuotaBase: number
-  fechaPrimeraCuota: string
 }
 
 export function parsearLoteImportado(fila: string[], numeroFila: number): LoteAImportar | string {
-  const [
-    identificador,
-    ubicacion,
-    precioTotalTexto,
-    moneda,
-    cantidadCuotasTexto,
-    montoCuotaBaseTexto,
-    fechaPrimeraCuota,
-  ] = fila.map((celda) => celda?.trim() ?? '')
+  const [identificador, ubicacion, precioTotalTexto, moneda] = fila.map(
+    (celda) => celda?.trim() ?? ''
+  )
 
   if (!identificador) return `Fila ${numeroFila}: falta el identificador`
   if (!ubicacion) return `Fila ${numeroFila}: falta la ubicación`
@@ -31,29 +22,7 @@ export function parsearLoteImportado(fila: string[], numeroFila: number): LoteAI
     return `Fila ${numeroFila}: la moneda tiene que ser USD o ARS ("${moneda}")`
   }
 
-  const cantidadCuotas = Number(cantidadCuotasTexto)
-  if (!cantidadCuotasTexto || !Number.isInteger(cantidadCuotas) || cantidadCuotas <= 0) {
-    return `Fila ${numeroFila}: cantidad de cuotas inválida ("${cantidadCuotasTexto}")`
-  }
-
-  const montoCuotaBase = Number(montoCuotaBaseTexto)
-  if (!montoCuotaBaseTexto || !Number.isFinite(montoCuotaBase) || montoCuotaBase <= 0) {
-    return `Fila ${numeroFila}: monto de cuota inválido ("${montoCuotaBaseTexto}")`
-  }
-
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(fechaPrimeraCuota)) {
-    return `Fila ${numeroFila}: fecha inválida, tiene que ser AAAA-MM-DD ("${fechaPrimeraCuota}")`
-  }
-
-  return {
-    identificador,
-    ubicacion,
-    precioTotal,
-    moneda,
-    cantidadCuotas,
-    montoCuotaBase,
-    fechaPrimeraCuota,
-  }
+  return { identificador, ubicacion, precioTotal, moneda }
 }
 
 export function parsearTextoImportacion(
