@@ -22,6 +22,8 @@ export default async function LotesPage() {
     redirect('/login')
   }
 
+  const esVendedorOCobrador = perfilPropio!.role === 'vendedor' || perfilPropio!.role === 'cobrador'
+
   let queryLotes = supabase
     .from('lotes')
     .select('id, identificador, moneda, estado, cantidad_cuotas')
@@ -31,15 +33,21 @@ export default async function LotesPage() {
     queryLotes = queryLotes.eq('acreedor_id', user!.id)
   }
 
+  if (esVendedorOCobrador) {
+    queryLotes = queryLotes.eq('estado', 'disponible')
+  }
+
   const { data: lotes } = await queryLotes
 
   return (
     <main>
       <div className="mb-6 flex items-center justify-between">
         <h1 className="text-xl font-semibold">Lotes</h1>
-        <a href="/admin/lotes/nuevo" className="rounded bg-black px-3 py-2 text-sm text-white">
-          + Nuevo lote
-        </a>
+        {!esVendedorOCobrador && (
+          <a href="/admin/lotes/nuevo" className="rounded bg-black px-3 py-2 text-sm text-white">
+            + Nuevo lote
+          </a>
+        )}
       </div>
       <table className="w-full text-sm">
         <thead>
@@ -47,7 +55,7 @@ export default async function LotesPage() {
             <th className="py-2">Identificador</th>
             <th>Moneda</th>
             <th>Estado</th>
-            <th>Cuotas</th>
+            {!esVendedorOCobrador && <th>Cuotas</th>}
             <th></th>
           </tr>
         </thead>
@@ -57,20 +65,39 @@ export default async function LotesPage() {
               <td className="py-2">{lote.identificador}</td>
               <td>{lote.moneda}</td>
               <td>{lote.estado}</td>
-              <td>{lote.cantidad_cuotas}</td>
+              {!esVendedorOCobrador && <td>{lote.cantidad_cuotas}</td>}
               <td>
-                <a href={`/admin/lotes/${lote.id}`} className="text-sm underline">
-                  Ver detalle
-                </a>
-                {lote.estado !== 'vendido' && (
-                  <a href={`/admin/lotes/${lote.id}/vender`} className="ml-3 text-sm underline">
-                    Vender / asignar cliente
+                {esVendedorOCobrador ? (
+                  <a href={`/admin/lotes/${lote.id}/reservar`} className="text-sm underline">
+                    Reservar
                   </a>
-                )}
-                {lote.moneda === 'ARS' && (
-                  <a href={`/admin/lotes/${lote.id}/indexar`} className="ml-3 text-sm underline">
-                    Indexar
-                  </a>
+                ) : (
+                  <>
+                    <a href={`/admin/lotes/${lote.id}`} className="text-sm underline">
+                      Ver detalle
+                    </a>
+                    {lote.estado === 'disponible' && (
+                      <a
+                        href={`/admin/lotes/${lote.id}/reservar`}
+                        className="ml-3 text-sm underline"
+                      >
+                        Reservar
+                      </a>
+                    )}
+                    {lote.estado !== 'vendido' && (
+                      <a href={`/admin/lotes/${lote.id}/vender`} className="ml-3 text-sm underline">
+                        Vender / asignar cliente
+                      </a>
+                    )}
+                    {lote.moneda === 'ARS' && (
+                      <a
+                        href={`/admin/lotes/${lote.id}/indexar`}
+                        className="ml-3 text-sm underline"
+                      >
+                        Indexar
+                      </a>
+                    )}
+                  </>
                 )}
               </td>
             </tr>
