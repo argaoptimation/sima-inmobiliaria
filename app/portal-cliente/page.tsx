@@ -2,6 +2,17 @@ import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { calcularEstadoCobranza } from '@/lib/cobranza/estado-cliente'
 import { redirect } from 'next/navigation'
+import { logout } from '@/app/login/actions'
+
+function BotonCerrarSesion() {
+  return (
+    <form action={logout}>
+      <button type="submit" className="text-sm underline">
+        Cerrar sesión
+      </button>
+    </form>
+  )
+}
 
 export default async function PortalClientePage() {
   const supabase = await createClient()
@@ -23,7 +34,8 @@ export default async function PortalClientePage() {
   if (!lote) {
     return (
       <main className="mx-auto mt-24 max-w-md p-6 text-center">
-        <p>Todavía no tenés un lote asignado.</p>
+        <p className="mb-4">Todavía no tenés un lote asignado.</p>
+        <BotonCerrarSesion />
       </main>
     )
   }
@@ -74,7 +86,10 @@ export default async function PortalClientePage() {
 
   return (
     <main className="mx-auto mt-12 max-w-2xl p-6">
-      <h1 className="mb-2 text-xl font-semibold">{lote.identificador}</h1>
+      <div className="mb-2 flex items-center justify-between">
+        <h1 className="text-xl font-semibold">{lote.identificador}</h1>
+        <BotonCerrarSesion />
+      </div>
       <p className="mb-2 text-sm">
         Estado:{' '}
         <span

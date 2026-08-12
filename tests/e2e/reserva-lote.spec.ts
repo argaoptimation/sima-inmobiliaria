@@ -137,7 +137,9 @@ test.describe('Reserva de lote (fase 1: texto + comprobante de seña)', () => {
     await page.goto(`/admin/lotes/${loteId}/reservar`)
 
     await expect(page.getByText('Este lote ya no está disponible para reservar')).toBeVisible()
-    await expect(page.locator('form')).toHaveCount(0)
+    // 'main form' (no 'form' a secas): el nav de arriba ahora tiene su propio
+    // <form> para el botón de cerrar sesión, fuera de <main>.
+    await expect(page.locator('main form')).toHaveCount(0)
   })
 
   test('vendedor y cobrador no pueden abrir el detalle del lote ni ven Pagos/Usuarios', async ({
