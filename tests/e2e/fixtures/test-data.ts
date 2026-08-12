@@ -180,7 +180,7 @@ async function buscarUsuarioPorEmail(admin: AdminClient, email: string) {
 const ERRORES_TRANSITORIOS = ['JWT issued at future']
 
 async function conReintentoTransitorio<T extends { error: { message: string } | null }>(
-  operacion: () => Promise<T>,
+  operacion: () => PromiseLike<T>,
   intentos = 3
 ): Promise<T> {
   let resultado = await operacion()

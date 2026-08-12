@@ -168,6 +168,13 @@ test.describe('Reserva de lote (fase 1: texto + comprobante de seña)', () => {
     await expect(page).toHaveURL(/\/admin\/lotes$/)
   })
 
+  test('vendedor no puede abrir /admin/lotes/nuevo navegando directo por URL', async ({ page }) => {
+    await login(page, fixtures.vendedorSinLotes.email, fixtures.password)
+    await page.goto('/admin/lotes/nuevo')
+    await page.waitForURL('**/admin/lotes')
+    await expect(page).toHaveURL(/\/admin\/lotes$/)
+  })
+
   test('vendedor y cobrador no pueden abrir /admin/usuarios navegando directo por URL', async ({
     page,
   }) => {

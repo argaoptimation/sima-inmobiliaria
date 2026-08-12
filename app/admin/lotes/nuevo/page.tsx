@@ -1,3 +1,5 @@
+import { createClient } from '@/lib/supabase/server'
+import { redirect } from 'next/navigation'
 import { crearLote } from '../actions'
 
 export default async function NuevoLotePage({
@@ -6,6 +8,30 @@ export default async function NuevoLotePage({
   searchParams: Promise<{ error?: string }>
 }) {
   const { error } = await searchParams
+
+  const supabase = await createClient()
+
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
+
+  if (!user) {
+    redirect('/login')
+  }
+
+  const { data: perfilPropio } = await supabase
+    .from('profiles')
+    .select('role')
+    .eq('id', user!.id)
+    .single()
+
+  if (!perfilPropio) {
+    redirect('/login')
+  }
+
+  if (perfilPropio!.role === 'vendedor' || perfilPropio!.role === 'cobrador') {
+    redirect('/admin/lotes')
+  }
 
   return (
     <main className="max-w-md">
