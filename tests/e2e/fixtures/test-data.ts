@@ -162,6 +162,43 @@ async function buscarUsuarioPorEmail(admin: AdminClient, email: string) {
 }
 
 /**
+ * Errores transitorios de la infraestructura de Supabase (no de nuestro
+ * código) que aparecen en la PRIMERA llamada a PostgREST de un proceso
+ * "frío", después de un rato sin usar el proyecto.
+ *
+ * Caso observado: "JWT issued at future". Con las API keys nuevas
+ * (`sb_secret_...`), el gateway de Supabase cambia la key por un JWT
+ * interno de vida corta; si el nodo que lo emite tiene el reloj unos
+ * milisegundos adelantado respecto del nodo que lo valida, el `iat` cae
+ * "en el futuro" y la request se rechaza. Nada de esto lo controla este
+ * repo: el reloj local está en hora (verificado contra la fecha HTTP que
+ * devuelve el propio Supabase) y la llamada siguiente funciona siempre.
+ *
+ * Se reintenta SOLO esta familia de errores, y pocas veces: cualquier
+ * otro error se propaga tal cual, para no tapar fallas reales.
+ */
+const ERRORES_TRANSITORIOS = ['JWT issued at future']
+
+async function conReintentoTransitorio<T extends { error: { message: string } | null }>(
+  operacion: () => Promise<T>,
+  intentos = 3
+): Promise<T> {
+  let resultado = await operacion()
+
+  for (let intento = 1; intento < intentos; intento++) {
+    const mensaje = resultado.error?.message
+    if (!mensaje || !ERRORES_TRANSITORIOS.some((t) => mensaje.includes(t))) {
+      return resultado
+    }
+
+    await new Promise((r) => setTimeout(r, 500 * intento))
+    resultado = await operacion()
+  }
+
+  return resultado
+}
+
+/**
  * Crea (o reutiliza) un usuario de auth ya confirmado, sin enviar ningún
  * email, y sincroniza su fila en `profiles`.
  */
@@ -194,15 +231,17 @@ async function ensureTestUser(
     userId = data.user.id
   }
 
-  const { error: errorProfile } = await admin.from('profiles').upsert({
-    id: userId,
-    role: config.role,
-    full_name: config.fullName,
-    alias: config.datosTransferencia?.alias ?? null,
-    banco: config.datosTransferencia?.banco ?? null,
-    cbu: config.datosTransferencia?.cbu ?? null,
-    titular: config.datosTransferencia?.titular ?? null,
-  })
+  const { error: errorProfile } = await conReintentoTransitorio(() =>
+    admin.from('profiles').upsert({
+      id: userId,
+      role: config.role,
+      full_name: config.fullName,
+      alias: config.datosTransferencia?.alias ?? null,
+      banco: config.datosTransferencia?.banco ?? null,
+      cbu: config.datosTransferencia?.cbu ?? null,
+      titular: config.datosTransferencia?.titular ?? null,
+    })
+  )
 
   if (errorProfile) {
     throw new Error(`No se pudo upsertear el profile de ${config.email}: ${errorProfile.message}`)
