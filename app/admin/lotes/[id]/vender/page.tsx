@@ -48,6 +48,8 @@ export default async function VenderLotePage({
       </div>
       <h1 className="mb-6 text-xl font-semibold">Vender lote y dar de alta al cliente</h1>
 
+      {error && <p className="mb-4 rounded bg-red-100 p-2 text-sm text-red-700">{error}</p>}
+
       {lote!.estado !== 'reservado' ? (
         <p className="mb-4 rounded bg-amber-100 p-2 text-sm text-amber-800">
           Este lote no está en estado reservado (estado actual: {lote!.estado}), no se puede
@@ -73,8 +75,6 @@ export default async function VenderLotePage({
               </p>
             </div>
           )}
-
-          {error && <p className="mb-4 rounded bg-red-100 p-2 text-sm text-red-700">{error}</p>}
 
           <form action={venderLoteConId} className="flex flex-col gap-3">
             <input

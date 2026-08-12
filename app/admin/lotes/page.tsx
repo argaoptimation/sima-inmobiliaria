@@ -265,7 +265,7 @@ export default async function LotesPage({
                         Reservar
                       </a>
                     )}
-                    {lote.estado === 'reservado' && (
+                    {perfilPropio!.role === 'administrador' && lote.estado === 'reservado' && (
                       <a href={`/admin/lotes/${lote.id}/vender`} className="ml-3 text-sm underline">
                         Vender / asignar cliente
                       </a>
