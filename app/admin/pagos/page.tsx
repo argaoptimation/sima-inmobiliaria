@@ -43,6 +43,10 @@ export default async function PagosPage({
     redirect('/login')
   }
 
+  if (perfilPropio!.role === 'vendedor' || perfilPropio!.role === 'cobrador') {
+    redirect('/admin/lotes')
+  }
+
   const columnasPago =
     'id, monto, moneda, comprobante_path, estado, confirmado_acreedor_por, confirmado_admin_por, cliente_id, monto_recibido, moneda_recibida'
 
