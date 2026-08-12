@@ -22,16 +22,16 @@ export async function reservarLote(loteId: string, formData: FormData) {
     .eq('id', user!.id)
     .single()
 
-  const nombreCompleto = (formData.get('nombreCompleto') as string).trim()
-  const dni = (formData.get('dni') as string).trim()
-  const domicilio = (formData.get('domicilio') as string).trim()
-  const email = (formData.get('email') as string).trim()
-  const telefono = (formData.get('telefono') as string).trim()
+  const nombreCompleto = ((formData.get('nombreCompleto') as string) || '').trim()
+  const dni = ((formData.get('dni') as string) || '').trim()
+  const domicilio = ((formData.get('domicilio') as string) || '').trim()
+  const email = ((formData.get('email') as string) || '').trim()
+  const telefono = ((formData.get('telefono') as string) || '').trim()
   const telefonoAlternativo = ((formData.get('telefonoAlternativo') as string) || '').trim() || null
-  const estadoCivil = (formData.get('estadoCivil') as string).trim()
+  const estadoCivil = ((formData.get('estadoCivil') as string) || '').trim()
   const instrumentacion = ((formData.get('instrumentacion') as string) || '').trim() || null
   const montoSena = Number(formData.get('montoSena'))
-  const monedaSena = (formData.get('monedaSena') as string).trim()
+  const monedaSena = ((formData.get('monedaSena') as string) || '').trim()
   const recibidoPor = ((formData.get('recibidoPor') as string) || '').trim() || null
   const recibidoPorOtro = ((formData.get('recibidoPorOtro') as string) || '').trim() || null
   const comprobante = formData.get('comprobante') as File
@@ -65,9 +65,31 @@ export async function reservarLote(loteId: string, formData: FormData) {
     )
   }
 
-  if (!Number.isFinite(montoSena) || montoSena <= 0) {
+  if (!Number.isFinite(montoSena) || montoSena <= 0 || montoSena > 999999999999.99) {
     redirect(
       `/admin/lotes/${loteId}/reservar?error=${encodeURIComponent('Ingresá un monto de seña válido, mayor a cero')}`
+    )
+  }
+
+  const ESTADOS_CIVILES_VALIDOS = ['soltero', 'casado', 'divorciado', 'viudo']
+  const MONEDAS_VALIDAS = ['USD', 'ARS']
+  const INSTRUMENTACIONES_VALIDAS = ['boleto', 'escritura']
+
+  if (!ESTADOS_CIVILES_VALIDOS.includes(estadoCivil)) {
+    redirect(
+      `/admin/lotes/${loteId}/reservar?error=${encodeURIComponent('Estado civil inválido')}`
+    )
+  }
+
+  if (!MONEDAS_VALIDAS.includes(monedaSena)) {
+    redirect(
+      `/admin/lotes/${loteId}/reservar?error=${encodeURIComponent('Moneda de la seña inválida')}`
+    )
+  }
+
+  if (instrumentacion && !INSTRUMENTACIONES_VALIDAS.includes(instrumentacion)) {
+    redirect(
+      `/admin/lotes/${loteId}/reservar?error=${encodeURIComponent('Instrumentación inválida')}`
     )
   }
 
