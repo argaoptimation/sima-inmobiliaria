@@ -43,24 +43,6 @@ export default async function NuevoLotePage({
           <option value="USD">USD</option>
           <option value="ARS">ARS</option>
         </select>
-        <input
-          name="cantidadCuotas"
-          type="number"
-          min="1"
-          placeholder="Cantidad de cuotas"
-          required
-          className="rounded border px-3 py-2"
-        />
-        <input
-          name="montoCuotaBase"
-          type="number"
-          step="0.01"
-          min="0"
-          placeholder="Monto de cada cuota"
-          required
-          className="rounded border px-3 py-2"
-        />
-        <input name="fechaPrimeraCuota" type="date" required className="rounded border px-3 py-2" />
         <button type="submit" className="rounded bg-black px-3 py-2 text-white">
           Crear lote
         </button>
