@@ -22,16 +22,16 @@ export async function reservarLote(loteId: string, formData: FormData) {
     .eq('id', user!.id)
     .single()
 
-  const nombreCompleto = formData.get('nombreCompleto') as string
-  const dni = formData.get('dni') as string
-  const domicilio = formData.get('domicilio') as string
-  const email = formData.get('email') as string
-  const telefono = formData.get('telefono') as string
+  const nombreCompleto = (formData.get('nombreCompleto') as string).trim()
+  const dni = (formData.get('dni') as string).trim()
+  const domicilio = (formData.get('domicilio') as string).trim()
+  const email = (formData.get('email') as string).trim()
+  const telefono = (formData.get('telefono') as string).trim()
   const telefonoAlternativo = ((formData.get('telefonoAlternativo') as string) || '').trim() || null
-  const estadoCivil = formData.get('estadoCivil') as string
+  const estadoCivil = (formData.get('estadoCivil') as string).trim()
   const instrumentacion = ((formData.get('instrumentacion') as string) || '').trim() || null
   const montoSena = Number(formData.get('montoSena'))
-  const monedaSena = formData.get('monedaSena') as string
+  const monedaSena = (formData.get('monedaSena') as string).trim()
   const recibidoPor = ((formData.get('recibidoPor') as string) || '').trim() || null
   const recibidoPorOtro = ((formData.get('recibidoPorOtro') as string) || '').trim() || null
   const comprobante = formData.get('comprobante') as File
@@ -47,6 +47,27 @@ export async function reservarLote(loteId: string, formData: FormData) {
   if (!comprobante || comprobante.size === 0) {
     redirect(
       `/admin/lotes/${loteId}/reservar?error=${encodeURIComponent('Subí el comprobante de la seña')}`
+    )
+  }
+
+  const camposObligatoriosCompletos =
+    nombreCompleto.trim() &&
+    dni.trim() &&
+    domicilio.trim() &&
+    email.trim() &&
+    telefono.trim() &&
+    estadoCivil.trim() &&
+    monedaSena.trim()
+
+  if (!camposObligatoriosCompletos) {
+    redirect(
+      `/admin/lotes/${loteId}/reservar?error=${encodeURIComponent('Completá todos los campos obligatorios')}`
+    )
+  }
+
+  if (!Number.isFinite(montoSena) || montoSena <= 0) {
+    redirect(
+      `/admin/lotes/${loteId}/reservar?error=${encodeURIComponent('Ingresá un monto de seña válido, mayor a cero')}`
     )
   }
 
@@ -77,14 +98,18 @@ export async function reservarLote(loteId: string, formData: FormData) {
     )
   }
 
-  const comprobantePath = `reservas/${loteId}/${Date.now()}-${comprobante.name}`
+  const nombreArchivoSeguro = comprobante.name.replace(/[^a-zA-Z0-9._-]/g, '_')
+  const comprobantePath = `reservas/${loteId}/${Date.now()}-${nombreArchivoSeguro}`
 
   const { error: errorUpload } = await admin.storage
     .from('comprobantes')
     .upload(comprobantePath, comprobante)
 
   if (errorUpload) {
-    redirect(`/admin/lotes/${loteId}/reservar?error=${encodeURIComponent(errorUpload.message)}`)
+    console.error('Error al subir el comprobante de la seña:', errorUpload)
+    redirect(
+      `/admin/lotes/${loteId}/reservar?error=${encodeURIComponent('No se pudo subir el comprobante. Probá de nuevo.')}`
+    )
   }
 
   const { error: errorReserva } = await admin.from('reservas').insert({
@@ -106,7 +131,10 @@ export async function reservarLote(loteId: string, formData: FormData) {
   })
 
   if (errorReserva) {
-    redirect(`/admin/lotes/${loteId}/reservar?error=${encodeURIComponent(errorReserva.message)}`)
+    console.error('Error al guardar la reserva:', errorReserva)
+    redirect(
+      `/admin/lotes/${loteId}/reservar?error=${encodeURIComponent('No se pudo guardar la reserva. Probá de nuevo.')}`
+    )
   }
 
   redirect('/admin/lotes')
