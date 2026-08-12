@@ -212,9 +212,9 @@ export default async function LotesPage({
         <button type="submit" className="rounded border px-3 py-2 text-sm">
           Filtrar
         </button>
-        {(filtroMoneda || filtroAcreedorId) && (
+        {(filtroMoneda || filtroAcreedorId || sort || dir) && (
           <a href="/admin/lotes" className="text-sm underline">
-            Limpiar filtros
+            Limpiar filtros y orden
           </a>
         )}
       </form>
