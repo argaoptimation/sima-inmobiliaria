@@ -19,7 +19,7 @@ export async function requireAdmin() {
     .single()
 
   if (!profile || (profile.role !== 'administrador' && profile.role !== 'acreedor')) {
-    redirect('/login')
+    redirect('/admin/lotes')
   }
 }
 
@@ -63,7 +63,7 @@ export async function requireAdminSobreLote(loteId: string) {
     .single()
 
   if (!profile || (profile.role !== 'administrador' && profile.role !== 'acreedor')) {
-    redirect('/login')
+    redirect('/admin/lotes')
   }
 
   if (profile!.role === 'acreedor') {
