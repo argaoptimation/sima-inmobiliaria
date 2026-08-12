@@ -33,6 +33,14 @@ export default async function UsuariosPage({
     redirect('/login')
   }
 
+  // Mismo criterio que /admin/pagos: vendedor y cobrador tienen acceso
+  // acotado a /admin (solo lotes disponibles + reservar + su propio perfil).
+  // La nav ya no les muestra el link "Usuarios", pero la URL escrita a mano
+  // tiene que rebotar igual, no renderizar la pantalla.
+  if (perfilPropio!.role === 'vendedor' || perfilPropio!.role === 'cobrador') {
+    redirect('/admin/lotes')
+  }
+
   if (perfilPropio!.role !== 'administrador') {
     const { data: misLotes } = await supabase
       .from('lotes')

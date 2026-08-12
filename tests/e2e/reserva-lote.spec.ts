@@ -2,7 +2,7 @@ import { test, expect, Page } from '@playwright/test'
 import { readFileSync } from 'node:fs'
 import path from 'node:path'
 import { ensureTestFixtures, createAdminClient, TestFixtures } from './fixtures/test-data'
-import { login } from './utils/login'
+import { login, logout } from './utils/login'
 
 const COMPROBANTE_PATH = path.join(__dirname, 'fixtures', 'comprobante-test.pdf')
 const COMPROBANTE_BYTES = readFileSync(COMPROBANTE_PATH)
@@ -166,6 +166,25 @@ test.describe('Reserva de lote (fase 1: texto + comprobante de seña)', () => {
     await page.goto('/admin/pagos')
     await page.waitForURL('**/admin/lotes')
     await expect(page).toHaveURL(/\/admin\/lotes$/)
+  })
+
+  test('vendedor y cobrador no pueden abrir /admin/usuarios navegando directo por URL', async ({
+    page,
+  }) => {
+    await test.step('vendedor', async () => {
+      await login(page, fixtures.vendedorSinLotes.email, fixtures.password)
+      await page.goto('/admin/usuarios')
+      await page.waitForURL('**/admin/lotes')
+      await expect(page).toHaveURL(/\/admin\/lotes$/)
+    })
+
+    await test.step('cobrador', async () => {
+      await logout(page)
+      await login(page, fixtures.cobrador.email, fixtures.password)
+      await page.goto('/admin/usuarios')
+      await page.waitForURL('**/admin/lotes')
+      await expect(page).toHaveURL(/\/admin\/lotes$/)
+    })
   })
 
   test('el selector "recibido por" permite elegir a alguien de la lista o escribir un nombre libre', async ({
