@@ -41,7 +41,7 @@ export async function requireAdministrador() {
     .single()
 
   if (!profile || profile.role !== 'administrador') {
-    redirect('/login')
+    redirect('/admin/lotes')
   }
 }
 
