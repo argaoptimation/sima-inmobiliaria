@@ -21,6 +21,19 @@ export default async function NuevoLotePage({
           required
           className="rounded border px-3 py-2"
         />
+        <input
+          name="ubicacion"
+          placeholder="Ubicación (opcional)"
+          className="rounded border px-3 py-2"
+        />
+        <input
+          name="precioTotal"
+          type="number"
+          step="0.01"
+          min="0"
+          placeholder="Precio total del lote (opcional)"
+          className="rounded border px-3 py-2"
+        />
         <select name="moneda" required className="rounded border px-3 py-2">
           <option value="USD">USD</option>
           <option value="ARS">ARS</option>

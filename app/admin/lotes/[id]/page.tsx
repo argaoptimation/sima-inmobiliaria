@@ -2,7 +2,7 @@ import { createClient } from '@/lib/supabase/server'
 import { calcularEstadoCobranza } from '@/lib/cobranza/estado-cliente'
 import { notFound, redirect } from 'next/navigation'
 import { requireAdminOAcreedor } from '@/lib/auth/require-admin'
-import { actualizarIdentificador, actualizarCobro, eliminarLote } from './actions'
+import { actualizarDatosGenerales, actualizarCobro, eliminarLote } from './actions'
 import { BotonEliminarLote } from './BotonEliminarLote'
 import { tieneDatosTransferencia } from '@/lib/lotes/validar-cuenta-cobro'
 
@@ -33,7 +33,7 @@ export default async function LoteDetallePage({
   const { data: lote } = await supabase
     .from('lotes')
     .select(
-      'id, identificador, moneda, estado, cliente_id, admin_id, acreedor_id, vendedor_id, cuenta_cobro_id'
+      'id, identificador, moneda, estado, cliente_id, admin_id, acreedor_id, vendedor_id, cuenta_cobro_id, ubicacion, precio_total'
     )
     .eq('id', id)
     .single()
@@ -83,7 +83,7 @@ export default async function LoteDetallePage({
       persona.id === lote!.cuenta_cobro_id
   )
 
-  const actualizarIdentificadorConId = actualizarIdentificador.bind(null, id)
+  const actualizarDatosGeneralesConId = actualizarDatosGenerales.bind(null, id)
   const actualizarCobroConId = actualizarCobro.bind(null, id)
   const eliminarLoteConId = eliminarLote.bind(null, id)
 
@@ -100,6 +100,12 @@ export default async function LoteDetallePage({
 
       <p className="mb-1 text-sm">Moneda: {lote!.moneda}</p>
       <p className="mb-1 text-sm">Estado: {lote!.estado}</p>
+      {lote!.ubicacion && <p className="mb-1 text-sm">Ubicación: {lote!.ubicacion}</p>}
+      {lote!.precio_total && (
+        <p className="mb-1 text-sm">
+          Precio total: {lote!.precio_total} {lote!.moneda}
+        </p>
+      )}
       {cliente && <p className="mb-1 text-sm">Cliente: {cliente.full_name}</p>}
       {estado && (
         <p className="mb-4 text-sm">
@@ -149,15 +155,38 @@ export default async function LoteDetallePage({
         </tbody>
       </table>
 
-      <h2 className="mb-2 mt-8 text-lg font-semibold">Identificador</h2>
-      <form action={actualizarIdentificadorConId} className="mb-8 flex gap-3">
-        <input
-          name="identificador"
-          defaultValue={lote!.identificador}
-          required
-          className="flex-1 rounded border px-3 py-2"
-        />
-        <button type="submit" className="rounded bg-black px-3 py-2 text-sm text-white">
+      <h2 className="mb-2 mt-8 text-lg font-semibold">Datos generales</h2>
+      <form action={actualizarDatosGeneralesConId} className="mb-8 flex flex-col gap-3">
+        <label className="text-sm">
+          Identificador
+          <input
+            name="identificador"
+            defaultValue={lote!.identificador}
+            required
+            className="mt-1 block w-full rounded border px-3 py-2"
+          />
+        </label>
+        <label className="text-sm">
+          Ubicación
+          <input
+            name="ubicacion"
+            defaultValue={lote!.ubicacion ?? ''}
+            placeholder="Ej: Loteo San Martín, Manzana 3"
+            className="mt-1 block w-full rounded border px-3 py-2"
+          />
+        </label>
+        <label className="text-sm">
+          Precio total del lote
+          <input
+            name="precioTotal"
+            type="number"
+            step="0.01"
+            min="0"
+            defaultValue={lote!.precio_total ?? ''}
+            className="mt-1 block w-full rounded border px-3 py-2"
+          />
+        </label>
+        <button type="submit" className="self-start rounded bg-black px-3 py-2 text-sm text-white">
           Guardar
         </button>
       </form>

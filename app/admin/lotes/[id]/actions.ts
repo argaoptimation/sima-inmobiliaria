@@ -11,13 +11,19 @@ function idOVacio(valor: FormDataEntryValue | null): string | null {
   return texto && texto.trim() ? texto : null
 }
 
-export async function actualizarIdentificador(loteId: string, formData: FormData) {
+export async function actualizarDatosGenerales(loteId: string, formData: FormData) {
   await requireAdminSobreLote(loteId)
 
   const identificador = formData.get('identificador') as string
+  const ubicacion = ((formData.get('ubicacion') as string) || '').trim() || null
+  const precioTotalTexto = ((formData.get('precioTotal') as string) || '').trim()
+  const precioTotal = precioTotalTexto ? Number(precioTotalTexto) : null
 
   const supabase = await createClient()
-  const { error } = await supabase.from('lotes').update({ identificador }).eq('id', loteId)
+  const { error } = await supabase
+    .from('lotes')
+    .update({ identificador, ubicacion, precio_total: precioTotal })
+    .eq('id', loteId)
 
   if (error) {
     redirect(`/admin/lotes/${loteId}?error=${encodeURIComponent(error.message)}`)

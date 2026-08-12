@@ -15,6 +15,9 @@ export async function crearLote(formData: FormData) {
   const cantidadCuotas = Number(formData.get('cantidadCuotas'))
   const montoCuotaBase = Number(formData.get('montoCuotaBase'))
   const fechaPrimeraCuota = formData.get('fechaPrimeraCuota') as string
+  const ubicacion = ((formData.get('ubicacion') as string) || '').trim() || null
+  const precioTotalTexto = ((formData.get('precioTotal') as string) || '').trim()
+  const precioTotal = precioTotalTexto ? Number(precioTotalTexto) : null
 
   const { data: lote, error: errorLote } = await supabase
     .from('lotes')
@@ -24,6 +27,8 @@ export async function crearLote(formData: FormData) {
       cantidad_cuotas: cantidadCuotas,
       monto_cuota_base: montoCuotaBase,
       fecha_primera_cuota: fechaPrimeraCuota,
+      ubicacion,
+      precio_total: precioTotal,
     })
     .select()
     .single()
