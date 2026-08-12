@@ -65,9 +65,9 @@ export async function reservarLote(loteId: string, formData: FormData) {
     )
   }
 
-  if (!Number.isFinite(montoSena) || montoSena <= 0 || montoSena > 999999999999.99) {
+  if (!Number.isFinite(montoSena) || montoSena < 0 || montoSena > 999999999999.99) {
     redirect(
-      `/admin/lotes/${loteId}/reservar?error=${encodeURIComponent('Ingresá un monto de seña válido, mayor a cero')}`
+      `/admin/lotes/${loteId}/reservar?error=${encodeURIComponent('El monto de la seña no puede ser negativo')}`
     )
   }
 
