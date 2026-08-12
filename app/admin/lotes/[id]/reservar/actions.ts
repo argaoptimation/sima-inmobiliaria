@@ -109,7 +109,7 @@ export async function reservarLote(loteId: string, formData: FormData) {
     })
     .eq('id', loteId)
     .eq('estado', 'disponible')
-    .select('id')
+    .select('id, admin_id, acreedor_id, cuenta_cobro_id')
     .single()
 
   if (errorLote || !loteReservado) {
@@ -118,6 +118,29 @@ export async function reservarLote(loteId: string, formData: FormData) {
         'Este lote ya no está disponible para reservar'
       )}`
     )
+  }
+
+  // Si se reasignó vendedor_id y la cuenta de cobro apuntaba al vendedor que
+  // acabamos de reemplazar (no al admin ni al acreedor), queda apuntando a
+  // alguien ya no asociado al lote. La limpiamos best-effort: la reserva ya
+  // quedó tomada, esto no debe hacer fallar el flujo principal.
+  if (
+    nuevoVendedorId &&
+    loteReservado.cuenta_cobro_id &&
+    loteReservado.cuenta_cobro_id !== loteReservado.admin_id &&
+    loteReservado.cuenta_cobro_id !== loteReservado.acreedor_id
+  ) {
+    const { error: errorLimpiarCuentaCobro } = await admin
+      .from('lotes')
+      .update({ cuenta_cobro_id: null })
+      .eq('id', loteId)
+
+    if (errorLimpiarCuentaCobro) {
+      console.error(
+        'No se pudo limpiar cuenta_cobro_id tras reasignar vendedor:',
+        errorLimpiarCuentaCobro
+      )
+    }
   }
 
   const nombreArchivoSeguro = comprobante.name.replace(/[^a-zA-Z0-9._-]/g, '_')
