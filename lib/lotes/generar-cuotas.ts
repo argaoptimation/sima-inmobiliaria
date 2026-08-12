@@ -13,11 +13,22 @@ function sumarMeses(fechaISO: string, meses: number): string {
 export function generarCuotas(
   cantidadCuotas: number,
   montoCuotaBase: number,
-  fechaPrimeraCuota: string
+  fechaPrimeraCuota: string,
+  precioTotal?: number
 ): CuotaGenerada[] {
-  return Array.from({ length: cantidadCuotas }, (_, i) => ({
-    numero: i + 1,
-    montoBase: montoCuotaBase,
-    fechaVencimiento: sumarMeses(fechaPrimeraCuota, i),
-  }))
+  const totalACerrar = precioTotal !== undefined ? Math.round(precioTotal * 100) / 100 : null
+
+  return Array.from({ length: cantidadCuotas }, (_, i) => {
+    const esUltima = i === cantidadCuotas - 1
+    const monto =
+      esUltima && totalACerrar !== null
+        ? Math.round((totalACerrar - montoCuotaBase * (cantidadCuotas - 1)) * 100) / 100
+        : montoCuotaBase
+
+    return {
+      numero: i + 1,
+      montoBase: monto,
+      fechaVencimiento: sumarMeses(fechaPrimeraCuota, i),
+    }
+  })
 }
