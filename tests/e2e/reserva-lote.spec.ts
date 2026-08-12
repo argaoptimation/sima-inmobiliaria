@@ -260,4 +260,108 @@ test.describe('Reserva de lote (fase 1: texto + comprobante de seña)', () => {
     expect(reserva?.recibido_por).toBeNull()
     expect(reserva?.recibido_por_otro).toBe('Persona Externa Sin Cuenta')
   })
+
+  test('el administrador puede cancelar la reserva de un lote, aunque no la haya hecho él', async ({
+    page,
+  }) => {
+    const loteId = await crearLoteDisponible(`E2E Lote Cancelar Admin ${Date.now()}`)
+
+    await login(page, fixtures.vendedorSinLotes.email, fixtures.password)
+    await page.goto(`/admin/lotes/${loteId}/reservar`)
+    await completarDatosBasicosDeReserva(page)
+    await page.getByRole('button', { name: 'Confirmar reserva' }).click()
+    await page.waitForURL('**/admin/lotes')
+
+    await logout(page)
+    await login(page, fixtures.admin.email, fixtures.password)
+    await page.goto(`/admin/lotes/${loteId}`)
+
+    page.once('dialog', (dialog) => dialog.accept())
+    await page.getByRole('button', { name: 'Cancelar reserva' }).click()
+    await page.waitForURL('**/admin/lotes')
+
+    const admin = createAdminClient()
+    const { data: lote } = await admin
+      .from('lotes')
+      .select('estado, vendedor_id')
+      .eq('id', loteId)
+      .single()
+    expect(lote?.estado).toBe('disponible')
+    expect(lote?.vendedor_id).toBeNull()
+
+    const { data: reserva } = await admin
+      .from('reservas')
+      .select('cancelada_por, cancelada_at')
+      .eq('lote_id', loteId)
+      .single()
+    expect(reserva?.cancelada_at).not.toBeNull()
+    expect(reserva?.cancelada_por).toBe(fixtures.admin.id)
+  })
+
+  test('un vendedor puede cancelar la reserva que él mismo cargó, desde "Lotes que reservaste"', async ({
+    page,
+  }) => {
+    const identificadorLote = `E2E Lote Cancelar Vendedor ${Date.now()}`
+    const loteId = await crearLoteDisponible(identificadorLote)
+
+    await login(page, fixtures.vendedorSinLotes.email, fixtures.password)
+    await page.goto(`/admin/lotes/${loteId}/reservar`)
+    await completarDatosBasicosDeReserva(page)
+    await page.getByRole('button', { name: 'Confirmar reserva' }).click()
+    await page.waitForURL('**/admin/lotes')
+
+    // El vendedor de prueba acumula reservas de otros tests en la misma
+    // corrida -- hay que apuntar al botón de ESTA fila puntual, no
+    // "Cancelar reserva" a secas (ambiguo si hay más de una reserva activa).
+    // Y hay que buscarla específicamente dentro de la tabla "Lotes que
+    // reservaste" (la primera de la página): una vez cancelada, el MISMO
+    // identificador vuelve a aparecer -- correctamente -- en la tabla de
+    // "Lotes disponibles" de abajo, así que un locator sin acotar a tabla
+    // nunca bajaría a 0.
+    const tablaMisReservas = page.locator('table').first()
+    const filaDeEsteLote = tablaMisReservas.getByRole('row', { name: identificadorLote })
+    page.once('dialog', (dialog) => dialog.accept())
+    await filaDeEsteLote.getByRole('button', { name: 'Cancelar reserva' }).click()
+    await page.waitForURL('**/admin/lotes')
+
+    const admin = createAdminClient()
+    await expect(async () => {
+      const { data: lote } = await admin.from('lotes').select('estado').eq('id', loteId).single()
+      expect(lote?.estado).toBe('disponible')
+    }).toPass({ timeout: 5000 })
+
+    // La action redirige a la MISMA url (/admin/lotes) donde ya estábamos --
+    // forzamos una navegación real para confirmar que la UI también refleja
+    // el cambio, no solo la base de datos.
+    await page.goto('/admin/lotes')
+    await expect(page.locator('table').first().getByRole('row', { name: identificadorLote })).toHaveCount(0)
+  })
+
+  test('un vendedor no ve ni puede cancelar la reserva de otro vendedor', async ({ page }) => {
+    const identificadorLote = `E2E Lote Cancelar Ajena ${Date.now()}`
+    const loteId = await crearLoteDisponible(identificadorLote)
+
+    await login(page, fixtures.vendedorSinLotes.email, fixtures.password)
+    await page.goto(`/admin/lotes/${loteId}/reservar`)
+    await completarDatosBasicosDeReserva(page)
+    await page.getByRole('button', { name: 'Confirmar reserva' }).click()
+    await page.waitForURL('**/admin/lotes')
+
+    // El cobrador no cargó esta reserva -- no le aparece en "Lotes que
+    // reservaste", así que no tiene forma de ver ni de clickear un botón
+    // "Cancelar reserva" para algo que no es suyo.
+    await logout(page)
+    await login(page, fixtures.cobrador.email, fixtures.password)
+    await page.goto('/admin/lotes')
+
+    await expect(page.getByText(identificadorLote, { exact: true })).toHaveCount(0)
+
+    const admin = createAdminClient()
+    const { data: loteSinCambios } = await admin
+      .from('lotes')
+      .select('estado')
+      .eq('id', loteId)
+      .single()
+    expect(loteSinCambios?.estado).toBe('reservado')
+  })
 })

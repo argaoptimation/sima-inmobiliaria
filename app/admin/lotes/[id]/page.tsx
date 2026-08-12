@@ -4,7 +4,9 @@ import { calcularEstadoCobranza } from '@/lib/cobranza/estado-cliente'
 import { notFound, redirect } from 'next/navigation'
 import { requireAdminOAcreedor } from '@/lib/auth/require-admin'
 import { actualizarDatosGenerales, actualizarCobro, eliminarLote } from './actions'
+import { cancelarReserva } from '../actions'
 import { BotonEliminarLote } from './BotonEliminarLote'
+import { BotonCancelarReserva } from '../BotonCancelarReserva'
 import { tieneDatosTransferencia } from '@/lib/lotes/validar-cuenta-cobro'
 
 export default async function LoteDetallePage({
@@ -118,6 +120,7 @@ export default async function LoteDetallePage({
   const actualizarDatosGeneralesConId = actualizarDatosGenerales.bind(null, id)
   const actualizarCobroConId = actualizarCobro.bind(null, id)
   const eliminarLoteConId = eliminarLote.bind(null, id)
+  const cancelarReservaConId = cancelarReserva.bind(null, id)
 
   return (
     <main className="max-w-2xl">
@@ -126,9 +129,14 @@ export default async function LoteDetallePage({
       </a>
       <div className="mb-6 flex items-center justify-between">
         <h1 className="text-xl font-semibold">{lote!.identificador}</h1>
-        {perfilPropio!.role === 'administrador' && (
-          <BotonEliminarLote eliminarLoteAction={eliminarLoteConId} />
-        )}
+        <div className="flex gap-2">
+          {perfilPropio!.role === 'administrador' && lote!.estado === 'reservado' && (
+            <BotonCancelarReserva cancelarReservaAction={cancelarReservaConId} />
+          )}
+          {perfilPropio!.role === 'administrador' && (
+            <BotonEliminarLote eliminarLoteAction={eliminarLoteConId} />
+          )}
+        </div>
       </div>
 
       {error && <p className="mb-4 rounded bg-red-100 p-2 text-sm text-red-700">{error}</p>}

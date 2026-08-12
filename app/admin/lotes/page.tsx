@@ -1,7 +1,26 @@
 import { createClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
+import { cancelarReserva } from './actions'
+import { BotonCancelarReserva } from './BotonCancelarReserva'
 
-export default async function LotesPage() {
+const COLUMNAS_ORDENABLES = ['identificador', 'ubicacion', 'precio_total', 'moneda', 'estado'] as const
+type ColumnaOrdenable = (typeof COLUMNAS_ORDENABLES)[number]
+
+const ETIQUETAS_COLUMNA: Record<ColumnaOrdenable, string> = {
+  identificador: 'Identificador',
+  ubicacion: 'Ubicación',
+  precio_total: 'Precio total',
+  moneda: 'Moneda',
+  estado: 'Estado',
+}
+
+export default async function LotesPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ sort?: string; dir?: string; moneda?: string; acreedor?: string }>
+}) {
+  const { sort, dir, moneda: filtroMoneda, acreedor: filtroAcreedorId } = await searchParams
+
   const supabase = await createClient()
 
   const {
@@ -24,10 +43,15 @@ export default async function LotesPage() {
 
   const esVendedorOCobrador = perfilPropio!.role === 'vendedor' || perfilPropio!.role === 'cobrador'
 
+  const columnaOrden: ColumnaOrdenable = COLUMNAS_ORDENABLES.includes(sort as ColumnaOrdenable)
+    ? (sort as ColumnaOrdenable)
+    : 'identificador'
+  const ordenAscendente = dir !== 'desc'
+
   let queryLotes = supabase
     .from('lotes')
     .select('id, identificador, moneda, estado, cantidad_cuotas, ubicacion, precio_total, acreedor_id')
-    .order('created_at', { ascending: false })
+    .order(columnaOrden, { ascending: ordenAscendente })
 
   if (perfilPropio!.role === 'acreedor') {
     queryLotes = queryLotes.eq('acreedor_id', user!.id)
@@ -37,7 +61,20 @@ export default async function LotesPage() {
     queryLotes = queryLotes.eq('estado', 'disponible')
   }
 
+  if (filtroMoneda) {
+    queryLotes = queryLotes.eq('moneda', filtroMoneda)
+  }
+
+  if (filtroAcreedorId && perfilPropio!.role !== 'acreedor') {
+    queryLotes = queryLotes.eq('acreedor_id', filtroAcreedorId)
+  }
+
   const { data: lotes } = await queryLotes
+
+  const { data: todosLosAcreedores } =
+    perfilPropio!.role !== 'acreedor'
+      ? await supabase.from('profiles').select('id, full_name').eq('role', 'acreedor').order('full_name')
+      : { data: [] }
 
   const acreedorIds = [...new Set((lotes ?? []).map((lote) => lote.acreedor_id).filter(Boolean))]
 
@@ -55,6 +92,7 @@ export default async function LotesPage() {
       .from('reservas')
       .select('lote_id')
       .eq('created_by', user!.id)
+      .is('cancelada_at', null)
 
     reservasPropias = data ?? []
   }
@@ -69,6 +107,15 @@ export default async function LotesPage() {
           .in('id', idsLotesReservadosPorMi)
           .order('created_at', { ascending: false })
       : { data: [] }
+
+  function urlOrden(columna: ColumnaOrdenable) {
+    const params = new URLSearchParams()
+    if (filtroMoneda) params.set('moneda', filtroMoneda)
+    if (filtroAcreedorId) params.set('acreedor', filtroAcreedorId)
+    params.set('sort', columna)
+    params.set('dir', columnaOrden === columna && ordenAscendente ? 'desc' : 'asc')
+    return `/admin/lotes?${params.toString()}`
+  }
 
   return (
     <main>
@@ -100,20 +147,29 @@ export default async function LotesPage() {
                   <th>Precio total</th>
                   <th>Moneda</th>
                   <th>Estado</th>
+                  <th></th>
                 </tr>
               </thead>
               <tbody>
-                {misLotesReservados!.map((lote) => (
-                  <tr key={lote.id} className="border-b">
-                    <td className="py-2">{lote.identificador}</td>
-                    <td>{lote.ubicacion ?? '—'}</td>
-                    <td>
-                      {lote.precio_total ? `${lote.precio_total} ${lote.moneda}` : '—'}
-                    </td>
-                    <td>{lote.moneda}</td>
-                    <td>{lote.estado}</td>
-                  </tr>
-                ))}
+                {misLotesReservados!.map((lote) => {
+                  const cancelarReservaConId = cancelarReserva.bind(null, lote.id)
+                  return (
+                    <tr key={lote.id} className="border-b">
+                      <td className="py-2">{lote.identificador}</td>
+                      <td>{lote.ubicacion ?? '—'}</td>
+                      <td>
+                        {lote.precio_total ? `${lote.precio_total} ${lote.moneda}` : '—'}
+                      </td>
+                      <td>{lote.moneda}</td>
+                      <td>{lote.estado}</td>
+                      <td>
+                        {lote.estado === 'reservado' && (
+                          <BotonCancelarReserva cancelarReservaAction={cancelarReservaConId} />
+                        )}
+                      </td>
+                    </tr>
+                  )
+                })}
               </tbody>
             </table>
           )}
@@ -121,14 +177,59 @@ export default async function LotesPage() {
         </>
       )}
 
+      <form method="get" className="mb-4 flex flex-wrap items-end gap-3">
+        <input type="hidden" name="sort" value={columnaOrden} />
+        <input type="hidden" name="dir" value={ordenAscendente ? 'asc' : 'desc'} />
+        <label className="text-sm">
+          Moneda
+          <select
+            name="moneda"
+            defaultValue={filtroMoneda ?? ''}
+            className="mt-1 block rounded border px-3 py-2"
+          >
+            <option value="">Todas</option>
+            <option value="USD">USD</option>
+            <option value="ARS">ARS</option>
+          </select>
+        </label>
+        {perfilPropio!.role !== 'acreedor' && (
+          <label className="text-sm">
+            Acreedor
+            <select
+              name="acreedor"
+              defaultValue={filtroAcreedorId ?? ''}
+              className="mt-1 block rounded border px-3 py-2"
+            >
+              <option value="">Todos</option>
+              {(todosLosAcreedores ?? []).map((persona) => (
+                <option key={persona.id} value={persona.id}>
+                  {persona.full_name}
+                </option>
+              ))}
+            </select>
+          </label>
+        )}
+        <button type="submit" className="rounded border px-3 py-2 text-sm">
+          Filtrar
+        </button>
+        {(filtroMoneda || filtroAcreedorId) && (
+          <a href="/admin/lotes" className="text-sm underline">
+            Limpiar filtros
+          </a>
+        )}
+      </form>
+
       <table className="w-full text-sm">
         <thead>
           <tr className="border-b text-left">
-            <th className="py-2">Identificador</th>
-            <th>Ubicación</th>
-            <th>Precio total</th>
-            <th>Moneda</th>
-            <th>Estado</th>
+            {COLUMNAS_ORDENABLES.map((columna) => (
+              <th key={columna} className="py-2">
+                <a href={urlOrden(columna)} className="underline">
+                  {ETIQUETAS_COLUMNA[columna]}
+                  {columnaOrden === columna ? (ordenAscendente ? ' ▲' : ' ▼') : ''}
+                </a>
+              </th>
+            ))}
             <th>Acreedor</th>
             {!esVendedorOCobrador && <th>Cuotas</th>}
             <th></th>
