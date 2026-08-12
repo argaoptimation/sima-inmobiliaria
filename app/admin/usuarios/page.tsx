@@ -1,5 +1,5 @@
 import { createClient } from '@/lib/supabase/server'
-import { redirect } from 'next/navigation'
+import { requireAdminOAcreedor } from '@/lib/auth/require-admin'
 import {
   crearUsuarioStaff,
   actualizarNombreStaff,
@@ -13,33 +13,24 @@ export default async function UsuariosPage({
   searchParams: Promise<{ error?: string; editar?: string }>
 }) {
   const { error, editar } = await searchParams
+
+  // Mismo criterio que /admin/pagos: vendedor y cobrador tienen acceso
+  // acotado a /admin (solo lotes disponibles + reservar + su propio perfil).
+  // La nav ya no les muestra el link "Usuarios", pero la URL escrita a mano
+  // tiene que rebotar igual, no renderizar la pantalla.
+  await requireAdminOAcreedor()
+
   const supabase = await createClient()
 
   const {
     data: { user },
   } = await supabase.auth.getUser()
 
-  if (!user) {
-    redirect('/login')
-  }
-
   const { data: perfilPropio } = await supabase
     .from('profiles')
     .select('role')
     .eq('id', user!.id)
     .single()
-
-  if (!perfilPropio) {
-    redirect('/login')
-  }
-
-  // Mismo criterio que /admin/pagos: vendedor y cobrador tienen acceso
-  // acotado a /admin (solo lotes disponibles + reservar + su propio perfil).
-  // La nav ya no les muestra el link "Usuarios", pero la URL escrita a mano
-  // tiene que rebotar igual, no renderizar la pantalla.
-  if (perfilPropio!.role === 'vendedor' || perfilPropio!.role === 'cobrador') {
-    redirect('/admin/lotes')
-  }
 
   if (perfilPropio!.role !== 'administrador') {
     const { data: misLotes } = await supabase

@@ -1,6 +1,6 @@
 import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
-import { redirect } from 'next/navigation'
+import { requireAdminOAcreedor } from '@/lib/auth/require-admin'
 import { confirmarPago } from './actions'
 
 type Pago = {
@@ -23,29 +23,19 @@ export default async function PagosPage({
 }) {
   const { error } = await searchParams
 
+  await requireAdminOAcreedor()
+
   const supabase = await createClient()
 
   const {
     data: { user },
   } = await supabase.auth.getUser()
 
-  if (!user) {
-    redirect('/login')
-  }
-
   const { data: perfilPropio } = await supabase
     .from('profiles')
     .select('role')
     .eq('id', user!.id)
     .single()
-
-  if (!perfilPropio) {
-    redirect('/login')
-  }
-
-  if (perfilPropio!.role === 'vendedor' || perfilPropio!.role === 'cobrador') {
-    redirect('/admin/lotes')
-  }
 
   const columnasPago =
     'id, monto, moneda, comprobante_path, estado, confirmado_acreedor_por, confirmado_admin_por, cliente_id, monto_recibido, moneda_recibida'

@@ -1,6 +1,7 @@
 import { createClient } from '@/lib/supabase/server'
 import { calcularEstadoCobranza } from '@/lib/cobranza/estado-cliente'
 import { notFound, redirect } from 'next/navigation'
+import { requireAdminOAcreedor } from '@/lib/auth/require-admin'
 import { actualizarIdentificador, actualizarCobro, eliminarLote } from './actions'
 import { BotonEliminarLote } from './BotonEliminarLote'
 import { tieneDatosTransferencia } from '@/lib/lotes/validar-cuenta-cobro'
@@ -15,29 +16,19 @@ export default async function LoteDetallePage({
   const { id } = await params
   const { error, editarUsuario } = await searchParams
 
+  await requireAdminOAcreedor()
+
   const supabase = await createClient()
 
   const {
     data: { user },
   } = await supabase.auth.getUser()
 
-  if (!user) {
-    redirect('/login')
-  }
-
   const { data: perfilPropio } = await supabase
     .from('profiles')
     .select('role')
     .eq('id', user!.id)
     .single()
-
-  if (!perfilPropio) {
-    redirect('/login')
-  }
-
-  if (perfilPropio!.role === 'vendedor' || perfilPropio!.role === 'cobrador') {
-    redirect('/admin/lotes')
-  }
 
   const { data: lote } = await supabase
     .from('lotes')
