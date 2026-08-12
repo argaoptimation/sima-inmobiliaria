@@ -110,6 +110,13 @@ Notas:
 - `instrumentacion` y `telefono_alternativo` son los únicos campos
   opcionales de la lista original; el resto son obligatorios para poder
   guardar la reserva.
+- `instrumentacion` en esta etapa es puramente informativo (qué espera el
+  comprador, boleto o escritura), sin ninguna lógica de la reserva atada a
+  su valor — no cambia validaciones ni el flujo. La reserva es solo la
+  seña; todavía no hay documento firmado. La obligatoriedad real (y
+  probablemente la carga del documento firmado en sí) pertenece a la
+  tanda de "pase a vendido", que es donde ese boleto/escritura pasa a ser
+  un requisito real para poder marcar el lote como `vendido`.
 - `monto_sena`/`moneda_sena` sigue el mismo patrón ya usado en
   `pagos.monto_recibido`/`moneda_recibida`: moneda libre, independiente de
   `lotes.moneda`, sin conversión automática.
