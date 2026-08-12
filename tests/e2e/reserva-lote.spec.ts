@@ -161,6 +161,21 @@ test.describe('Reserva de lote (fase 1: texto + comprobante de seña)', () => {
     })
   })
 
+  test('el listado de lotes de un vendedor solo muestra lotes disponibles', async ({ page }) => {
+    const identificadorVisible = `E2E Lote Visible Para Vendedor ${Date.now()}`
+    const identificadorOculto = `E2E Lote Oculto Para Vendedor ${Date.now()}`
+    await crearLoteDisponible(identificadorVisible)
+    const loteReservadoId = await crearLoteDisponible(identificadorOculto)
+    const admin = createAdminClient()
+    await admin.from('lotes').update({ estado: 'reservado' }).eq('id', loteReservadoId)
+
+    await login(page, fixtures.vendedorSinLotes.email, fixtures.password)
+    await page.goto('/admin/lotes')
+
+    await expect(page.getByText(identificadorVisible, { exact: true })).toBeVisible()
+    await expect(page.getByText(identificadorOculto, { exact: true })).toHaveCount(0)
+  })
+
   test('vendedor no puede abrir /admin/pagos navegando directo por URL', async ({ page }) => {
     await login(page, fixtures.vendedorSinLotes.email, fixtures.password)
     await page.goto('/admin/pagos')
