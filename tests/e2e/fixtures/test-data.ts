@@ -59,6 +59,16 @@ export const TEST_USERS = {
     fullName: 'E2E Acreedor Secundario',
     role: 'acreedor' as const,
   },
+  cobrador: {
+    email: 'test-cobrador@sima-e2e.invalid',
+    fullName: 'E2E Cobrador',
+    role: 'cobrador' as const,
+  },
+  vendedorSinLotes: {
+    email: 'test-vendedor-sin-lotes@sima-e2e.invalid',
+    fullName: 'E2E Vendedor Sin Lotes',
+    role: 'vendedor' as const,
+  },
 }
 
 export interface TestFixtures {
@@ -68,6 +78,8 @@ export interface TestFixtures {
   acreedorSecundario: { id: string; email: string }
   vendedorLoteA: { id: string; email: string }
   vendedorLoteB: { id: string; email: string }
+  cobrador: { id: string; email: string }
+  vendedorSinLotes: { id: string; email: string }
   cliente: { id: string; email: string }
   password: string
   loteId: string
@@ -158,7 +170,7 @@ async function ensureTestUser(
   config: {
     email: string
     fullName: string
-    role: 'administrador' | 'acreedor' | 'vendedor' | 'cliente'
+    role: 'administrador' | 'acreedor' | 'vendedor' | 'cliente' | 'cobrador'
     datosTransferencia?: { alias: string; banco: string; titular: string; cbu?: string }
   }
 ) {
@@ -225,6 +237,8 @@ export async function ensureTestFixtures(): Promise<TestFixtures> {
     acreedorSecundario,
     vendedorLoteA,
     vendedorLoteB,
+    cobrador,
+    vendedorSinLotes,
   ] = await Promise.all([
     ensureTestUser(admin, TEST_USERS.administrador),
     ensureTestUser(admin, TEST_USERS.acreedor),
@@ -247,6 +261,8 @@ export async function ensureTestFixtures(): Promise<TestFixtures> {
       ...TEST_USERS.vendedorLoteB,
       datosTransferencia: { alias: 'vendedor.b', banco: 'Banco B', titular: 'E2E Vendedor B SA' },
     }),
+    ensureTestUser(admin, TEST_USERS.cobrador),
+    ensureTestUser(admin, TEST_USERS.vendedorSinLotes),
   ])
 
   // --- Limpieza: borramos cualquier lote previo del cliente de prueba y todo
@@ -359,6 +375,8 @@ export async function ensureTestFixtures(): Promise<TestFixtures> {
     acreedorSecundario,
     vendedorLoteA,
     vendedorLoteB,
+    cobrador,
+    vendedorSinLotes,
     cliente,
     password: TEST_PASSWORD,
     loteId: lote.id,
