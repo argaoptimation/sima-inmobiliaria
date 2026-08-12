@@ -19,6 +19,14 @@ export async function crearLote(formData: FormData) {
   const precioTotalTexto = ((formData.get('precioTotal') as string) || '').trim()
   const precioTotal = precioTotalTexto ? Number(precioTotalTexto) : null
 
+  if (!ubicacion || !precioTotal || !Number.isFinite(precioTotal) || precioTotal <= 0) {
+    redirect(
+      `/admin/lotes/nuevo?error=${encodeURIComponent(
+        'La ubicación y el precio total del lote son obligatorios'
+      )}`
+    )
+  }
+
   const { data: lote, error: errorLote } = await supabase
     .from('lotes')
     .insert({

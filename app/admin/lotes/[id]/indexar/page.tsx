@@ -15,6 +15,9 @@ export default async function IndexarLotePage({
 
   return (
     <main className="max-w-md">
+      <a href={`/admin/lotes/${id}`} className="mb-4 inline-block text-sm underline">
+        ← Volver al lote
+      </a>
       <h1 className="mb-6 text-xl font-semibold">Aplicar ajuste por índice</h1>
       {error && <p className="mb-4 rounded bg-red-100 p-2 text-sm text-red-700">{error}</p>}
       <form action={aplicarIndexacionConId} className="flex flex-col gap-3">

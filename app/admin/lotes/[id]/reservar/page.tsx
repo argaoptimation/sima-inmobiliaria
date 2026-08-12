@@ -41,17 +41,15 @@ export default async function ReservarLotePage({
 
   return (
     <main className="max-w-md">
+      <a href="/admin/lotes" className="mb-4 inline-block text-sm underline">
+        ← Volver a Lotes
+      </a>
       <h1 className="mb-6 text-xl font-semibold">Reservar {lote!.identificador}</h1>
 
       {lote!.estado !== 'disponible' ? (
-        <>
-          <p className="mb-4 rounded bg-amber-100 p-2 text-sm text-amber-800">
-            Este lote ya no está disponible para reservar (estado actual: {lote!.estado}).
-          </p>
-          <a href="/admin/lotes" className="text-sm underline">
-            Volver a Lotes
-          </a>
-        </>
+        <p className="mb-4 rounded bg-amber-100 p-2 text-sm text-amber-800">
+          Este lote ya no está disponible para reservar (estado actual: {lote!.estado}).
+        </p>
       ) : (
         <form action={reservarLoteConId} className="flex flex-col gap-3">
           {error && <p className="rounded bg-red-100 p-2 text-sm text-red-700">{error}</p>}

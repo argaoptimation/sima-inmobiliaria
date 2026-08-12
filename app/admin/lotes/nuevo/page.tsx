@@ -12,6 +12,9 @@ export default async function NuevoLotePage({
 
   return (
     <main className="max-w-md">
+      <a href="/admin/lotes" className="mb-4 inline-block text-sm underline">
+        ← Volver a Lotes
+      </a>
       <h1 className="mb-6 text-xl font-semibold">Nuevo lote</h1>
       {error && <p className="mb-4 rounded bg-red-100 p-2 text-sm text-red-700">{error}</p>}
       <form action={crearLote} className="flex flex-col gap-3">
@@ -23,7 +26,8 @@ export default async function NuevoLotePage({
         />
         <input
           name="ubicacion"
-          placeholder="Ubicación (opcional)"
+          placeholder="Ubicación"
+          required
           className="rounded border px-3 py-2"
         />
         <input
@@ -31,7 +35,8 @@ export default async function NuevoLotePage({
           type="number"
           step="0.01"
           min="0"
-          placeholder="Precio total del lote (opcional)"
+          placeholder="Precio total del lote"
+          required
           className="rounded border px-3 py-2"
         />
         <select name="moneda" required className="rounded border px-3 py-2">

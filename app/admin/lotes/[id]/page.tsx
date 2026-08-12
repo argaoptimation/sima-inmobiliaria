@@ -1,4 +1,5 @@
 import { createClient } from '@/lib/supabase/server'
+import { createAdminClient } from '@/lib/supabase/admin'
 import { calcularEstadoCobranza } from '@/lib/cobranza/estado-cliente'
 import { notFound, redirect } from 'next/navigation'
 import { requireAdminOAcreedor } from '@/lib/auth/require-admin'
@@ -68,6 +69,37 @@ export default async function LoteDetallePage({
     ? await supabase.from('profiles').select('full_name').eq('id', lote!.cliente_id).single()
     : { data: null }
 
+  const { data: reserva } = await supabase
+    .from('reservas')
+    .select(
+      'nombre_completo, dni, domicilio, email, telefono, telefono_alternativo, estado_civil, instrumentacion, monto_sena, moneda_sena, recibido_por, recibido_por_otro, comprobante_sena_path, created_at'
+    )
+    .eq('lote_id', id)
+    .order('created_at', { ascending: false })
+    .limit(1)
+    .maybeSingle()
+
+  let reservaComprobanteUrl: string | null = null
+  let reservaRecibidoPorNombre: string | null = null
+
+  if (reserva) {
+    const admin = createAdminClient()
+
+    const { data: signedUrl } = await admin.storage
+      .from('comprobantes')
+      .createSignedUrl(reserva.comprobante_sena_path, 300)
+    reservaComprobanteUrl = signedUrl?.signedUrl ?? null
+
+    if (reserva.recibido_por) {
+      const { data: persona } = await supabase
+        .from('profiles')
+        .select('full_name')
+        .eq('id', reserva.recibido_por)
+        .single()
+      reservaRecibidoPorNombre = persona?.full_name ?? null
+    }
+  }
+
   const { data: staff } = await supabase
     .from('profiles')
     .select('id, full_name, role, alias, banco, titular')
@@ -89,6 +121,9 @@ export default async function LoteDetallePage({
 
   return (
     <main className="max-w-2xl">
+      <a href="/admin/lotes" className="mb-4 inline-block text-sm underline">
+        ← Volver a Lotes
+      </a>
       <div className="mb-6 flex items-center justify-between">
         <h1 className="text-xl font-semibold">{lote!.identificador}</h1>
         {perfilPropio!.role === 'administrador' && (
@@ -124,7 +159,46 @@ export default async function LoteDetallePage({
         </p>
       )}
 
+      {reserva && (
+        <>
+          <h2 className="mb-2 mt-6 text-lg font-semibold">Reserva</h2>
+          <p className="mb-1 text-sm">Comprador: {reserva.nombre_completo}</p>
+          <p className="mb-1 text-sm">DNI: {reserva.dni}</p>
+          <p className="mb-1 text-sm">Domicilio: {reserva.domicilio}</p>
+          <p className="mb-1 text-sm">
+            Contacto: {reserva.email} · {reserva.telefono}
+            {reserva.telefono_alternativo && ` · ${reserva.telefono_alternativo}`}
+          </p>
+          <p className="mb-1 text-sm">Estado civil: {reserva.estado_civil}</p>
+          {reserva.instrumentacion && (
+            <p className="mb-1 text-sm">Instrumentación prevista: {reserva.instrumentacion}</p>
+          )}
+          <p className="mb-1 text-sm font-medium">
+            Seña: {reserva.monto_sena} {reserva.moneda_sena}
+          </p>
+          <p className="mb-1 text-sm">
+            Recibida por: {reservaRecibidoPorNombre ?? reserva.recibido_por_otro}
+          </p>
+          <p className="mb-4 text-sm">
+            {reservaComprobanteUrl ? (
+              <a href={reservaComprobanteUrl} target="_blank" className="underline">
+                Ver comprobante de la seña
+              </a>
+            ) : (
+              <span className="text-gray-500">Comprobante no disponible</span>
+            )}
+          </p>
+        </>
+      )}
+
       <h2 className="mb-2 mt-6 text-lg font-semibold">Cuotas</h2>
+      {lote!.estado !== 'vendido' && (
+        <p className="mb-2 text-sm text-amber-700">
+          Este lote todavía no está vendido — la tabla de abajo es la estructura de cuotas
+          planificada, no una deuda real. Todavía no hay ningún cliente que la deba, así que
+          ninguna cuota puede estar "vencida" hasta que el lote pase a vendido.
+        </p>
+      )}
       <table className="w-full text-sm">
         <thead>
           <tr className="border-b text-left">
@@ -137,7 +211,8 @@ export default async function LoteDetallePage({
         </thead>
         <tbody>
           {cuotas?.map((cuota) => {
-            const vencida = cuota.saldo_pendiente > 0 && cuota.fecha_vencimiento < hoy
+            const vencida =
+              lote!.estado === 'vendido' && cuota.saldo_pendiente > 0 && cuota.fecha_vencimiento < hoy
             return (
               <tr key={cuota.id} className="border-b">
                 <td className="py-2">{cuota.numero}</td>
