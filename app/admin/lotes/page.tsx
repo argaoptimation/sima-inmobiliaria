@@ -75,9 +75,14 @@ export default async function LotesPage() {
       <div className="mb-6 flex items-center justify-between">
         <h1 className="text-xl font-semibold">Lotes</h1>
         {!esVendedorOCobrador && (
-          <a href="/admin/lotes/nuevo" className="rounded bg-black px-3 py-2 text-sm text-white">
-            + Nuevo lote
-          </a>
+          <div className="flex gap-3">
+            <a href="/admin/lotes/importar" className="rounded border px-3 py-2 text-sm">
+              Importar varios
+            </a>
+            <a href="/admin/lotes/nuevo" className="rounded bg-black px-3 py-2 text-sm text-white">
+              + Nuevo lote
+            </a>
+          </div>
         )}
       </div>
 
