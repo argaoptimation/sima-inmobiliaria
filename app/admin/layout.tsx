@@ -23,13 +23,15 @@ export default async function AdminLayout({ children }: { children: React.ReactN
     redirect('/login')
   }
 
-  if (profile.role !== 'administrador' && profile.role !== 'acreedor') {
+  const rolesConAcceso = ['administrador', 'acreedor', 'vendedor', 'cobrador']
+
+  if (!rolesConAcceso.includes(profile.role)) {
     redirect('/')
   }
 
   return (
     <div>
-      <NavAdmin />
+      <NavAdmin role={profile.role} />
       <div className="p-6">{children}</div>
     </div>
   )

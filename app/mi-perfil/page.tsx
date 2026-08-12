@@ -35,7 +35,9 @@ export default async function MiPerfilPage({
 
   return (
     <>
-      {(perfil!.role === 'administrador' || perfil!.role === 'acreedor') && <NavAdmin />}
+      {['administrador', 'acreedor', 'vendedor', 'cobrador'].includes(perfil!.role) && (
+        <NavAdmin role={perfil!.role} />
+      )}
       <main className="mx-auto mt-12 max-w-md p-6">
       <h1 className="mb-6 text-xl font-semibold">Mi perfil</h1>
       {error && <p className="mb-4 rounded bg-red-100 p-2 text-sm text-red-700">{error}</p>}

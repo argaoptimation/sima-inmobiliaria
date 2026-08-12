@@ -35,6 +35,10 @@ export default async function LoteDetallePage({
     redirect('/login')
   }
 
+  if (perfilPropio!.role === 'vendedor' || perfilPropio!.role === 'cobrador') {
+    redirect('/admin/lotes')
+  }
+
   const { data: lote } = await supabase
     .from('lotes')
     .select(

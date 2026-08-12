@@ -26,7 +26,9 @@ export default async function Home() {
     redirect('/portal-cliente')
   }
 
-  if (profile.role === 'administrador' || profile.role === 'acreedor') {
+  const rolesConAcceso = ['administrador', 'acreedor', 'vendedor', 'cobrador']
+
+  if (rolesConAcceso.includes(profile.role)) {
     redirect('/admin')
   }
 
