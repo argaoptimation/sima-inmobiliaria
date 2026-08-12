@@ -143,21 +143,43 @@ test.describe('Reserva de lote (fase 1: texto + comprobante de seña)', () => {
   test('vendedor y cobrador no pueden abrir el detalle del lote ni ven Pagos/Usuarios', async ({
     page,
   }) => {
-    const loteId = await crearLoteDisponible(`E2E Lote Detalle Bloqueado ${Date.now()}`)
+    await test.step('vendedor', async () => {
+      const loteId = await crearLoteDisponible(`E2E Lote Detalle Bloqueado Vendedor ${Date.now()}`)
 
-    await login(page, fixtures.vendedorSinLotes.email, fixtures.password)
+      await login(page, fixtures.vendedorSinLotes.email, fixtures.password)
 
-    await test.step('no puede abrir el detalle', async () => {
-      await page.goto(`/admin/lotes/${loteId}`)
-      await page.waitForURL('**/admin/lotes')
-      await expect(page).toHaveURL(/\/admin\/lotes$/)
+      await test.step('no puede abrir el detalle', async () => {
+        await page.goto(`/admin/lotes/${loteId}`)
+        await page.waitForURL('**/admin/lotes')
+        await expect(page).toHaveURL(/\/admin\/lotes$/)
+      })
+
+      await test.step('no ve Pagos ni Usuarios en la nav', async () => {
+        await page.goto('/admin/lotes')
+        await expect(page.getByRole('link', { name: 'Pagos' })).toHaveCount(0)
+        await expect(page.getByRole('link', { name: 'Usuarios' })).toHaveCount(0)
+        await expect(page.getByRole('link', { name: 'Mi perfil' })).toBeVisible()
+      })
     })
 
-    await test.step('no ve Pagos ni Usuarios en la nav', async () => {
-      await page.goto('/admin/lotes')
-      await expect(page.getByRole('link', { name: 'Pagos' })).toHaveCount(0)
-      await expect(page.getByRole('link', { name: 'Usuarios' })).toHaveCount(0)
-      await expect(page.getByRole('link', { name: 'Mi perfil' })).toBeVisible()
+    await test.step('cobrador', async () => {
+      const loteId = await crearLoteDisponible(`E2E Lote Detalle Bloqueado Cobrador ${Date.now()}`)
+
+      await logout(page)
+      await login(page, fixtures.cobrador.email, fixtures.password)
+
+      await test.step('no puede abrir el detalle', async () => {
+        await page.goto(`/admin/lotes/${loteId}`)
+        await page.waitForURL('**/admin/lotes')
+        await expect(page).toHaveURL(/\/admin\/lotes$/)
+      })
+
+      await test.step('no ve Pagos ni Usuarios en la nav', async () => {
+        await page.goto('/admin/lotes')
+        await expect(page.getByRole('link', { name: 'Pagos' })).toHaveCount(0)
+        await expect(page.getByRole('link', { name: 'Usuarios' })).toHaveCount(0)
+        await expect(page.getByRole('link', { name: 'Mi perfil' })).toBeVisible()
+      })
     })
   })
 
