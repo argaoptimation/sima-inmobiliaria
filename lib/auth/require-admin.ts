@@ -79,27 +79,10 @@ export async function requireAdminSobreLote(loteId: string) {
   }
 }
 
-export async function requireAdminOAcreedor() {
-  const supabase = await createClient()
-
-  const {
-    data: { user },
-  } = await supabase.auth.getUser()
-
-  if (!user) {
-    redirect('/login')
-  }
-
-  const { data: profile } = await supabase
-    .from('profiles')
-    .select('role')
-    .eq('id', user!.id)
-    .single()
-
-  if (!profile || (profile.role !== 'administrador' && profile.role !== 'acreedor')) {
-    redirect('/admin/lotes')
-  }
-}
+// Mismo chequeo que requireAdmin(): alias con nombre mas descriptivo para
+// los call sites que bloquean paginas enteras a vendedor/cobrador (evita
+// mantener dos copias identicas de la misma logica).
+export const requireAdminOAcreedor = requireAdmin
 
 export async function requireAccesoParaReservar(loteId: string) {
   const supabase = await createClient()
