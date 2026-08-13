@@ -19,7 +19,7 @@ import { resolve } from 'node:path'
 // ejercitar todo lo que pasa DESPUÉS del login.
 // -----------------------------------------------------------------------------
 
-export const TEST_PASSWORD = 'TestSima123!'
+export const TEST_PASSWORD = 'Sima123!'
 
 // Dominio .invalid (RFC 2606): reservado para que nunca sea una dirección
 // real ni resoluble. Cero riesgo de mandar un email a una persona real.
