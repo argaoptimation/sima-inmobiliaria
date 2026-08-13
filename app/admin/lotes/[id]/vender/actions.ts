@@ -181,6 +181,7 @@ export async function venderLote(loteId: string, formData: FormData) {
       .from('pagos')
       .insert({
         cliente_id: clienteId,
+        lote_id: loteId,
         monto: reserva.monto_sena,
         moneda: reserva.moneda_sena,
         comprobante_path: reserva.comprobante_sena_path,

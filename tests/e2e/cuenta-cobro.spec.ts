@@ -49,7 +49,7 @@ test.describe('Cuenta de cobro por lote', () => {
     await test.step('el cliente ve los datos de transferencia del acreedor asignado al pagar', async () => {
       await logout(page)
       await login(page, fixtures.cliente.email, fixtures.password)
-      await page.goto('/portal-cliente')
+      await page.goto(`/portal-cliente/lotes/${fixtures.loteId}`)
 
       const filaCuota1 = page.locator('main table').nth(0).locator('tbody tr').nth(0)
       await filaCuota1.getByRole('link', { name: 'Pagar cuota' }).click()

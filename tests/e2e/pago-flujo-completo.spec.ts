@@ -38,7 +38,7 @@ test.describe('Flujo completo de pago con confirmación cruzada', () => {
     // 1. Login como cliente de prueba y estado inicial del portal.
     await test.step('cliente ve sus 3 cuotas en estado normal', async () => {
       await login(page, fixtures.cliente.email, fixtures.password)
-      await expect(page).toHaveURL(/\/portal-cliente/)
+      await page.goto(`/portal-cliente/lotes/${fixtures.loteId}`)
 
       await expect(page.getByRole('heading', { name: 'E2E Test Lote' })).toBeVisible()
       await expect(page.getByText('normal', { exact: true })).toBeVisible()
@@ -81,6 +81,7 @@ test.describe('Flujo completo de pago con confirmación cruzada', () => {
     // 4. El pago recién creado debe verse en "Mis pagos" sin advertencia de
     // comprobante faltante.
     await test.step('el pago aparece en "Mis pagos" sin advertencia de comprobante', async () => {
+      await page.goto(`/portal-cliente/lotes/${fixtures.loteId}`)
       const filaPago = filaPorComprobante(page)
       await expect(filaPago).toBeVisible()
       await expect(filaPago).toContainText('1500')
@@ -100,8 +101,9 @@ test.describe('Flujo completo de pago con confirmación cruzada', () => {
 
       await filaPago.getByRole('button', { name: 'Confirmar mi parte' }).click()
 
-      // Columna "Confirmado acreedor" (5ta celda, índice 3).
-      await expect(filaPago.locator('td').nth(3)).toHaveText('Sí')
+      // Columna "Confirmado acreedor" (6ta celda, índice 4 -- la tabla de
+      // /admin/pagos ahora arranca con una columna "Lote").
+      await expect(filaPago.locator('td').nth(4)).toHaveText('Sí')
     })
 
     // 6. Admin ve que el acreedor ya confirmó y confirma su propia parte, lo
@@ -112,12 +114,12 @@ test.describe('Flujo completo de pago con confirmación cruzada', () => {
       await page.goto('/admin/pagos')
 
       const filaPago = filaPorComprobante(page)
-      await expect(filaPago.locator('td').nth(3)).toHaveText('Sí') // Confirmado acreedor
+      await expect(filaPago.locator('td').nth(4)).toHaveText('Sí') // Confirmado acreedor
 
       await filaPago.getByRole('button', { name: 'Confirmar mi parte' }).click()
 
-      // Estado (3ra celda, índice 2) pasa a "confirmado".
-      await expect(filaPago.locator('td').nth(2)).toHaveText('confirmado')
+      // Estado (4ta celda, índice 3 -- la tabla arranca con una columna "Lote").
+      await expect(filaPago.locator('td').nth(3)).toHaveText('confirmado')
     })
 
     // 7. La aserción central del test: el FIFO de 1500 sobre cuota 1 (saldo
@@ -125,7 +127,7 @@ test.describe('Flujo completo de pago con confirmación cruzada', () => {
     await test.step('el saldo de las cuotas quedó imputado correctamente (FIFO)', async () => {
       await logout(page)
       await login(page, fixtures.cliente.email, fixtures.password)
-      await expect(page).toHaveURL(/\/portal-cliente/)
+      await page.goto(`/portal-cliente/lotes/${fixtures.loteId}`)
 
       const filasCuotas = page.locator('main table').nth(0).locator('tbody tr')
       await expect(filasCuotas.nth(0).locator('td').nth(3)).toHaveText('0 USD') // cuota 1

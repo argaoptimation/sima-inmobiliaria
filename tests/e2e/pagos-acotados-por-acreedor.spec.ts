@@ -16,6 +16,7 @@ const NOMBRE_COMPROBANTE = `e2e-pagos-acotados-${Date.now()}.pdf`
  */
 async function registrarPagoConComprobante(page: Page, fixtures: TestFixtures, nombreArchivo: string) {
   await login(page, fixtures.cliente.email, fixtures.password)
+  await page.goto(`/portal-cliente/lotes/${fixtures.loteId}`)
 
   const filaCuota1 = page.locator('main table').nth(0).locator('tbody tr').nth(0)
   await filaCuota1.getByRole('link', { name: 'Pagar cuota' }).click()
@@ -51,6 +52,7 @@ test.describe('Confirmación de pagos acotada al acreedor del lote', () => {
   }) => {
     await test.step('el cliente registra un pago y sube comprobante', async () => {
       await login(page, fixtures.cliente.email, fixtures.password)
+      await page.goto(`/portal-cliente/lotes/${fixtures.loteId}`)
 
       const filaCuota1 = page.locator('main table').nth(0).locator('tbody tr').nth(0)
       await filaCuota1.getByRole('link', { name: 'Pagar cuota' }).click()
@@ -190,7 +192,7 @@ test.describe('Confirmación de pagos acotada al acreedor del lote', () => {
         await page.goto('/admin/pagos')
 
         const filaAdmin = page.locator('tr', { has: page.locator(`a[href*="${nombreComprobante}"]`) })
-        await expect(filaAdmin.locator('td').nth(3)).toHaveText('No')
+        await expect(filaAdmin.locator('td').nth(4)).toHaveText('No')
       })
     } finally {
       // Probablemente ya quedó así por la maniobra de arriba, pero
