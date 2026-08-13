@@ -81,6 +81,7 @@ export async function venderLote(loteId: string, formData: FormData) {
     id: invited.user.id,
     role: 'cliente',
     full_name: fullName,
+    email,
   })
 
   if (errorProfile) {

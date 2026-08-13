@@ -30,7 +30,7 @@ export async function crearUsuarioStaff(formData: FormData) {
 
   const { error: errorProfile } = await admin
     .from('profiles')
-    .insert({ id: invited.user.id, role, full_name: fullName })
+    .insert({ id: invited.user.id, role, full_name: fullName, email })
 
   if (errorProfile) {
     redirect(`/admin/usuarios?error=${encodeURIComponent(errorProfile.message)}`)
