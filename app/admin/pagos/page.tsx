@@ -12,6 +12,7 @@ type Pago = {
   confirmado_acreedor_por: string | null
   confirmado_admin_por: string | null
   cliente_id: string
+  lote_id: string
   monto_recibido: number | null
   moneda_recibida: string | null
 }
@@ -38,24 +39,23 @@ export default async function PagosPage({
     .single()
 
   const columnasPago =
-    'id, monto, moneda, comprobante_path, estado, confirmado_acreedor_por, confirmado_admin_por, cliente_id, monto_recibido, moneda_recibida'
+    'id, monto, moneda, comprobante_path, estado, confirmado_acreedor_por, confirmado_admin_por, cliente_id, lote_id, monto_recibido, moneda_recibida'
 
   let pagos: Pago[] = []
 
   if (perfilPropio!.role === 'acreedor') {
     const { data: misLotes } = await supabase
       .from('lotes')
-      .select('cliente_id')
+      .select('id')
       .eq('acreedor_id', user!.id)
-      .not('cliente_id', 'is', null)
 
-    const clienteIds = [...new Set((misLotes ?? []).map((lote) => lote.cliente_id as string))]
+    const loteIds = (misLotes ?? []).map((lote) => lote.id)
 
-    if (clienteIds.length > 0) {
+    if (loteIds.length > 0) {
       const { data } = await supabase
         .from('pagos')
         .select(columnasPago)
-        .in('cliente_id', clienteIds)
+        .in('lote_id', loteIds)
         .order('created_at', { ascending: false })
       pagos = data ?? []
     }
@@ -69,23 +69,26 @@ export default async function PagosPage({
 
   const admin = createAdminClient()
 
-  const clienteIdsConPago = [...new Set(pagos.map((pago) => pago.cliente_id))]
+  const loteIdsConPago = [...new Set(pagos.map((pago) => pago.lote_id))]
 
-  const { data: lotesDeEsosClientes } =
-    clienteIdsConPago.length > 0
-      ? await supabase.from('lotes').select('cliente_id, acreedor_id').in('cliente_id', clienteIdsConPago)
+  const { data: lotesConPago } =
+    loteIdsConPago.length > 0
+      ? await supabase
+          .from('lotes')
+          .select('id, identificador, acreedor_id')
+          .in('id', loteIdsConPago)
       : { data: [] }
 
-  const acreedorPorCliente = new Map(
-    (lotesDeEsosClientes ?? []).map((lote) => [lote.cliente_id as string, lote.acreedor_id])
-  )
+  const lotePorId = new Map((lotesConPago ?? []).map((lote) => [lote.id, lote]))
 
   const pagosConLink = await Promise.all(
     pagos.map(async (pago) => {
-      const sinAcreedorVinculado = !acreedorPorCliente.get(pago.cliente_id)
+      const lote = lotePorId.get(pago.lote_id)
+      const sinAcreedorVinculado = !lote?.acreedor_id
+      const identificadorLote = lote?.identificador ?? '—'
 
       if (!pago.comprobante_path) {
-        return { ...pago, comprobanteUrl: null, sinAcreedorVinculado }
+        return { ...pago, comprobanteUrl: null, sinAcreedorVinculado, identificadorLote }
       }
 
       const { data, error: errorSignedUrl } = await admin.storage
@@ -96,6 +99,7 @@ export default async function PagosPage({
         ...pago,
         comprobanteUrl: errorSignedUrl ? null : data?.signedUrl ?? null,
         sinAcreedorVinculado,
+        identificadorLote,
       }
     })
   )
@@ -107,7 +111,8 @@ export default async function PagosPage({
       <table className="w-full text-sm">
         <thead>
           <tr className="border-b text-left">
-            <th className="py-2">Monto</th>
+            <th className="py-2">Lote</th>
+            <th>Monto</th>
             <th>Comprobante</th>
             <th>Estado</th>
             <th>Confirmado acreedor</th>
@@ -121,7 +126,8 @@ export default async function PagosPage({
 
             return (
               <tr key={pago.id} className="border-b">
-                <td className="py-2">
+                <td className="py-2">{pago.identificadorLote}</td>
+                <td>
                   {pago.monto} {pago.moneda}
                 </td>
                 <td>
