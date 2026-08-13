@@ -2,6 +2,8 @@ import { createClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
 import { cancelarReserva } from './actions'
 import { BotonCancelarReserva } from './BotonCancelarReserva'
+import { eliminarLote } from './[id]/actions'
+import { BotonEliminarLote } from './[id]/BotonEliminarLote'
 
 const COLUMNAS_ORDENABLES = ['identificador', 'ubicacion', 'precio_total', 'moneda', 'estado'] as const
 type ColumnaOrdenable = (typeof COLUMNAS_ORDENABLES)[number]
@@ -236,53 +238,53 @@ export default async function LotesPage({
           </tr>
         </thead>
         <tbody>
-          {lotes?.map((lote) => (
-            <tr key={lote.id} className="border-b">
-              <td className="py-2">{lote.identificador}</td>
-              <td>{lote.ubicacion ?? '—'}</td>
-              <td>{lote.precio_total ? `${lote.precio_total} ${lote.moneda}` : '—'}</td>
-              <td>{lote.moneda}</td>
-              <td>{lote.estado}</td>
-              <td>
-                {lote.acreedor_id ? nombreAcreedorPorId.get(lote.acreedor_id) ?? '—' : '— sin asignar —'}
-              </td>
-              {!esVendedorOCobrador && <td>{lote.cantidad_cuotas}</td>}
-              <td>
-                {esVendedorOCobrador ? (
-                  <a href={`/admin/lotes/${lote.id}/reservar`} className="text-sm underline">
-                    Reservar
-                  </a>
-                ) : (
-                  <>
-                    <a href={`/admin/lotes/${lote.id}`} className="text-sm underline">
-                      Ver detalle
+          {lotes?.map((lote) => {
+            const eliminarLoteConId = eliminarLote.bind(null, lote.id)
+            return (
+              <tr key={lote.id} className="border-b">
+                <td className="py-2">{lote.identificador}</td>
+                <td>{lote.ubicacion ?? '—'}</td>
+                <td>{lote.precio_total ? `${lote.precio_total} ${lote.moneda}` : '—'}</td>
+                <td>{lote.moneda}</td>
+                <td>{lote.estado}</td>
+                <td>
+                  {lote.acreedor_id ? nombreAcreedorPorId.get(lote.acreedor_id) ?? '—' : '— sin asignar —'}
+                </td>
+                {!esVendedorOCobrador && <td>{lote.cantidad_cuotas}</td>}
+                <td>
+                  {esVendedorOCobrador ? (
+                    <a href={`/admin/lotes/${lote.id}/reservar`} className="text-sm underline">
+                      Reservar
                     </a>
-                    {lote.estado === 'disponible' && (
-                      <a
-                        href={`/admin/lotes/${lote.id}/reservar`}
-                        className="ml-3 text-sm underline"
-                      >
-                        Reservar
+                  ) : (
+                    <div className="flex flex-wrap items-center gap-3">
+                      <a href={`/admin/lotes/${lote.id}`} className="text-sm underline">
+                        Ver detalle
                       </a>
-                    )}
-                    {perfilPropio!.role === 'administrador' && lote.estado === 'reservado' && (
-                      <a href={`/admin/lotes/${lote.id}/vender`} className="ml-3 text-sm underline">
-                        Vender / asignar cliente
-                      </a>
-                    )}
-                    {lote.moneda === 'ARS' && (
-                      <a
-                        href={`/admin/lotes/${lote.id}/indexar`}
-                        className="ml-3 text-sm underline"
-                      >
-                        Indexar
-                      </a>
-                    )}
-                  </>
-                )}
-              </td>
-            </tr>
-          ))}
+                      {lote.estado === 'disponible' && (
+                        <a href={`/admin/lotes/${lote.id}/reservar`} className="text-sm underline">
+                          Reservar
+                        </a>
+                      )}
+                      {perfilPropio!.role === 'administrador' && lote.estado === 'reservado' && (
+                        <a href={`/admin/lotes/${lote.id}/vender`} className="text-sm underline">
+                          Vender / asignar cliente
+                        </a>
+                      )}
+                      {lote.moneda === 'ARS' && (
+                        <a href={`/admin/lotes/${lote.id}/indexar`} className="text-sm underline">
+                          Indexar
+                        </a>
+                      )}
+                      {perfilPropio!.role === 'administrador' && (
+                        <BotonEliminarLote eliminarLoteAction={eliminarLoteConId} compacto />
+                      )}
+                    </div>
+                  )}
+                </td>
+              </tr>
+            )
+          })}
         </tbody>
       </table>
     </main>
