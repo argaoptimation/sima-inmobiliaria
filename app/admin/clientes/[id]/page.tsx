@@ -2,7 +2,8 @@ import { createClient } from '@/lib/supabase/server'
 import { requireAdministrador } from '@/lib/auth/require-admin'
 import { calcularEstadoCobranza } from '@/lib/cobranza/estado-cliente'
 import { notFound } from 'next/navigation'
-import { resetearContrasenaCliente } from '../actions'
+import { resetearContrasenaCliente, eliminarCliente } from '../actions'
+import { BotonEliminarUsuario } from '@/app/admin/usuarios/BotonEliminarUsuario'
 
 export default async function ClienteDetallePage({
   params,
@@ -120,6 +121,9 @@ export default async function ClienteDetallePage({
           Guardar
         </button>
       </form>
+
+      <h2 className="mb-2 mt-8 text-lg font-semibold">Eliminar cuenta</h2>
+      <BotonEliminarUsuario eliminarUsuarioAction={eliminarCliente.bind(null, cliente!.id)} />
     </main>
   )
 }

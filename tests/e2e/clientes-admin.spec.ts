@@ -80,4 +80,42 @@ test.describe('Vista de clientes desde Admin', () => {
     await login(page, cliente.email, 'NuevaClave456!')
     await expect(page).toHaveURL(/\/portal-cliente/)
   })
+
+  test('eliminar un cliente sin ningún lote asociado funciona', async ({ page }) => {
+    const cliente = await crearClienteDescartable(`E2E Cliente Sin Lote ${Date.now()}`)
+
+    await login(page, fixtures.admin.email, fixtures.password)
+    await page.goto(`/admin/clientes/${cliente.id}`)
+
+    page.once('dialog', (dialog) => dialog.accept())
+    await page.getByRole('button', { name: 'Eliminar usuario' }).click()
+    await page.waitForURL(/\/admin\/clientes$/)
+
+    const admin = createAdminClient()
+    await expect(async () => {
+      const { data } = await admin.from('profiles').select('id').eq('id', cliente.id).maybeSingle()
+      expect(data).toBeNull()
+    }).toPass({ timeout: 5000 })
+  })
+
+  test('eliminar un cliente CON un lote asociado es rechazado con un mensaje claro', async ({
+    page,
+  }) => {
+    await login(page, fixtures.admin.email, fixtures.password)
+    await page.goto(`/admin/clientes/${fixtures.cliente.id}`)
+
+    page.once('dialog', (dialog) => dialog.accept())
+    await page.getByRole('button', { name: 'Eliminar usuario' }).click()
+    await page.waitForURL(new RegExp(`/admin/clientes/${fixtures.cliente.id}`))
+
+    await expect(page.getByText(/todavía tiene lotes o pagos asociados/)).toBeVisible()
+
+    const admin = createAdminClient()
+    const { data: sigueExistiendo } = await admin
+      .from('profiles')
+      .select('id')
+      .eq('id', fixtures.cliente.id)
+      .maybeSingle()
+    expect(sigueExistiendo).not.toBeNull()
+  })
 })
