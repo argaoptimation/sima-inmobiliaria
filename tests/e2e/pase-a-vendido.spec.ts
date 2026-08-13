@@ -31,7 +31,7 @@ async function crearLoteDisponibleConPrecio(identificador: string, precioTotal: 
 async function reservarLotePorUI(
   page: Page,
   loteId: string,
-  datos: { nombreCompleto: string; email: string; montoSena: string }
+  datos: { nombreCompleto: string; email: string; montoSena: string; monedaSena?: string }
 ) {
   await page.goto(`/admin/lotes/${loteId}/reservar`)
   await page.getByPlaceholder('Nombre completo').fill(datos.nombreCompleto)
@@ -41,6 +41,7 @@ async function reservarLotePorUI(
   await page.getByPlaceholder('Teléfono', { exact: true }).fill('3511234567')
   await page.selectOption('select[name="estadoCivil"]', 'soltero')
   await page.getByPlaceholder('Monto de la seña').fill(datos.montoSena)
+  await page.selectOption('select[name="monedaSena"]', datos.monedaSena ?? 'USD')
   await page.setInputFiles('input[name="comprobante"]', {
     name: `e2e-vender-${Date.now()}.pdf`,
     mimeType: 'application/pdf',
@@ -209,5 +210,142 @@ test.describe('Pase a vendido (fase 2)', () => {
     await page.goto('/admin/lotes')
     const filaReservada = page.locator('table').last().getByRole('row', { name: identificadorDisponible })
     await expect(filaReservada.getByRole('link', { name: 'Vender / asignar cliente' })).toBeVisible()
+  })
+
+  test('vender con seña menor a la primera cuota: se descuenta del saldo_pendiente', async ({
+    page,
+  }) => {
+    const loteId = await crearLoteDisponibleConPrecio(`E2E Seña Menor ${Date.now()}`, 10000)
+
+    await login(page, fixtures.admin.email, fixtures.password)
+    await reservarLotePorUI(page, loteId, {
+      nombreCompleto: 'Comprador Seña Menor',
+      email: `sena.menor.${Date.now()}@sima-e2e.invalid`,
+      montoSena: '500',
+    })
+
+    await page.goto(`/admin/lotes/${loteId}/vender`)
+    await page.getByPlaceholder('Cantidad de cuotas (1 para venta al contado)').fill('10')
+    await page.locator('input[name="fechaPrimeraCuota"]').fill('2026-09-01')
+    await page.getByRole('button', { name: 'Confirmar venta y enviar invitación' }).click()
+    await page.waitForURL('**/admin/lotes')
+
+    const admin = createAdminClient()
+    const { data: lote } = await admin.from('lotes').select('cliente_id').eq('id', loteId).single()
+    const { data: cuotas } = await admin
+      .from('cuotas')
+      .select('id, numero, monto_base, saldo_pendiente')
+      .eq('lote_id', loteId)
+      .order('numero', { ascending: true })
+
+    expect(cuotas?.[0].monto_base).toBe(1000)
+    expect(cuotas?.[0].saldo_pendiente).toBe(500)
+    expect(cuotas?.[1].saldo_pendiente).toBe(1000)
+
+    const { data: pagos } = await admin
+      .from('pagos')
+      .select('id, monto, estado')
+      .eq('cliente_id', lote!.cliente_id)
+    expect(pagos).toHaveLength(1)
+    expect(pagos![0].monto).toBe(500)
+    expect(pagos![0].estado).toBe('confirmado')
+
+    const { data: imputaciones } = await admin
+      .from('pago_imputaciones')
+      .select('cuota_id, monto_imputado')
+      .eq('pago_id', pagos![0].id)
+    expect(imputaciones).toHaveLength(1)
+    expect(imputaciones?.[0].cuota_id).toBe(cuotas![0].id)
+    expect(imputaciones?.[0].monto_imputado).toBe(500)
+  })
+
+  test('vender con seña mayor a la primera cuota: cascadea a la segunda', async ({ page }) => {
+    const loteId = await crearLoteDisponibleConPrecio(`E2E Seña Cascada ${Date.now()}`, 10000)
+
+    await login(page, fixtures.admin.email, fixtures.password)
+    await reservarLotePorUI(page, loteId, {
+      nombreCompleto: 'Comprador Seña Cascada',
+      email: `sena.cascada.${Date.now()}@sima-e2e.invalid`,
+      montoSena: '1500',
+    })
+
+    await page.goto(`/admin/lotes/${loteId}/vender`)
+    await page.getByPlaceholder('Cantidad de cuotas (1 para venta al contado)').fill('10')
+    await page.locator('input[name="fechaPrimeraCuota"]').fill('2026-09-01')
+    await page.getByRole('button', { name: 'Confirmar venta y enviar invitación' }).click()
+    await page.waitForURL('**/admin/lotes')
+
+    const admin = createAdminClient()
+    const { data: cuotas } = await admin
+      .from('cuotas')
+      .select('numero, saldo_pendiente')
+      .eq('lote_id', loteId)
+      .order('numero', { ascending: true })
+
+    expect(cuotas?.[0].saldo_pendiente).toBe(0)
+    expect(cuotas?.[1].saldo_pendiente).toBe(500)
+    expect(cuotas?.[2].saldo_pendiente).toBe(1000)
+  })
+
+  test('vender con seña en moneda distinta a la del lote: no se descuenta nada', async ({
+    page,
+  }) => {
+    const loteId = await crearLoteDisponibleConPrecio(`E2E Seña Moneda Distinta ${Date.now()}`, 10000)
+
+    await login(page, fixtures.admin.email, fixtures.password)
+    await reservarLotePorUI(page, loteId, {
+      nombreCompleto: 'Comprador Seña Moneda Distinta',
+      email: `sena.moneda.${Date.now()}@sima-e2e.invalid`,
+      montoSena: '500',
+      monedaSena: 'ARS',
+    })
+
+    await page.goto(`/admin/lotes/${loteId}/vender`)
+    await page.getByPlaceholder('Cantidad de cuotas (1 para venta al contado)').fill('10')
+    await page.locator('input[name="fechaPrimeraCuota"]').fill('2026-09-01')
+    await page.getByRole('button', { name: 'Confirmar venta y enviar invitación' }).click()
+    await page.waitForURL('**/admin/lotes')
+
+    const admin = createAdminClient()
+    const { data: lote } = await admin.from('lotes').select('cliente_id').eq('id', loteId).single()
+    const { data: cuotas } = await admin
+      .from('cuotas')
+      .select('monto_base, saldo_pendiente')
+      .eq('lote_id', loteId)
+
+    for (const cuota of cuotas ?? []) {
+      expect(cuota.saldo_pendiente).toBe(cuota.monto_base)
+    }
+
+    const { data: pagos } = await admin.from('pagos').select('id').eq('cliente_id', lote!.cliente_id)
+    expect(pagos).toHaveLength(0)
+  })
+
+  test('venta al contado (seña $0): no se crea ningún pago', async ({ page }) => {
+    const loteId = await crearLoteDisponibleConPrecio(`E2E Seña Cero Vendido ${Date.now()}`, 5000)
+
+    await login(page, fixtures.admin.email, fixtures.password)
+    await reservarLotePorUI(page, loteId, {
+      nombreCompleto: 'Comprador Contado Vendido',
+      email: `contado.vendido.${Date.now()}@sima-e2e.invalid`,
+      montoSena: '0',
+    })
+
+    await page.goto(`/admin/lotes/${loteId}/vender`)
+    await page.getByPlaceholder('Cantidad de cuotas (1 para venta al contado)').fill('1')
+    await page.locator('input[name="fechaPrimeraCuota"]').fill('2026-09-01')
+    await page.getByRole('button', { name: 'Confirmar venta y enviar invitación' }).click()
+    await page.waitForURL('**/admin/lotes')
+
+    const admin = createAdminClient()
+    const { data: lote } = await admin.from('lotes').select('cliente_id').eq('id', loteId).single()
+    const { data: pagos } = await admin.from('pagos').select('id').eq('cliente_id', lote!.cliente_id)
+    expect(pagos).toHaveLength(0)
+
+    const { data: cuotas } = await admin
+      .from('cuotas')
+      .select('monto_base, saldo_pendiente')
+      .eq('lote_id', loteId)
+    expect(cuotas?.[0].saldo_pendiente).toBe(cuotas?.[0].monto_base)
   })
 })
