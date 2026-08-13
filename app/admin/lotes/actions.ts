@@ -4,11 +4,13 @@ import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { redirect } from 'next/navigation'
 import { requireAdmin } from '@/lib/auth/require-admin'
+import { validarSeleccionAcreedor } from '@/lib/lotes/validar-seleccion-acreedor'
 
 export async function crearLote(formData: FormData) {
   await requireAdmin()
 
   const supabase = await createClient()
+  const admin = createAdminClient()
 
   const identificador = formData.get('identificador') as string
   const moneda = formData.get('moneda') as 'USD' | 'ARS'
@@ -24,11 +26,66 @@ export async function crearLote(formData: FormData) {
     )
   }
 
+  const acreedorId = ((formData.get('acreedorId') as string) || '').trim()
+  const acreedorNombreNuevo = ((formData.get('acreedorNombreNuevo') as string) || '').trim()
+  const acreedorEmailNuevo = ((formData.get('acreedorEmailNuevo') as string) || '').trim()
+
+  const seleccion = validarSeleccionAcreedor({
+    acreedorId,
+    nombreNuevo: acreedorNombreNuevo,
+    emailNuevo: acreedorEmailNuevo,
+  })
+
+  if (seleccion.tipo === 'invalido') {
+    redirect(`/admin/lotes/nuevo?error=${encodeURIComponent(seleccion.error)}`)
+  }
+
+  let acreedorIdFinal: string
+
+  if (seleccion.tipo === 'nuevo') {
+    const { data: invited, error: errorInvite } = await admin.auth.admin.inviteUserByEmail(
+      seleccion.email
+    )
+
+    if (errorInvite || !invited.user) {
+      redirect(
+        `/admin/lotes/nuevo?error=${encodeURIComponent(errorInvite?.message ?? 'error desconocido')}`
+      )
+    }
+
+    const { error: errorProfile } = await admin.from('profiles').insert({
+      id: invited.user.id,
+      role: 'acreedor',
+      full_name: seleccion.nombre,
+      email: seleccion.email,
+    })
+
+    if (errorProfile) {
+      redirect(`/admin/lotes/nuevo?error=${encodeURIComponent(errorProfile.message)}`)
+    }
+
+    acreedorIdFinal = invited.user.id
+  } else {
+    const { data: acreedorExistente } = await admin
+      .from('profiles')
+      .select('id')
+      .eq('id', seleccion.id)
+      .eq('role', 'acreedor')
+      .maybeSingle()
+
+    if (!acreedorExistente) {
+      redirect(`/admin/lotes/nuevo?error=${encodeURIComponent('El acreedor elegido no es válido')}`)
+    }
+
+    acreedorIdFinal = acreedorExistente!.id
+  }
+
   const { error: errorLote } = await supabase.from('lotes').insert({
     identificador,
     moneda,
     ubicacion,
     precio_total: precioTotal,
+    acreedor_id: acreedorIdFinal,
   })
 
   if (errorLote) {
