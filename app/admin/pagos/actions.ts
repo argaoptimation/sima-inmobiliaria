@@ -26,7 +26,7 @@ export async function confirmarPago(pagoId: string, formData: FormData) {
 
   const { data: pago } = await supabase
     .from('pagos')
-    .select('comprobante_path, cliente_id')
+    .select('comprobante_path, cliente_id, lote_id')
     .eq('id', pagoId)
     .single()
 
@@ -37,12 +37,14 @@ export async function confirmarPago(pagoId: string, formData: FormData) {
     return
   }
 
-  // Resolucion unica del lote del cliente de este pago: se reusa mas abajo
-  // para la imputacion FIFO, evitando una segunda consulta redundante.
+  // Resolucion del lote de este pago via pagos.lote_id (no via cliente_id:
+  // un cliente puede tener varios lotes, cliente_id ya no alcanza). Se reusa
+  // mas abajo para la imputacion FIFO, evitando una segunda consulta
+  // redundante.
   const { data: lote } = await supabase
     .from('lotes')
     .select('id, acreedor_id')
-    .eq('cliente_id', pago.cliente_id)
+    .eq('id', pago.lote_id)
     .single()
 
   if (perfil.role === 'acreedor' && (!lote || lote.acreedor_id !== user.id)) {
