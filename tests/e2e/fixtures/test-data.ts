@@ -236,6 +236,7 @@ async function ensureTestUser(
       id: userId,
       role: config.role,
       full_name: config.fullName,
+      email: config.email,
       alias: config.datosTransferencia?.alias ?? null,
       banco: config.datosTransferencia?.banco ?? null,
       cbu: config.datosTransferencia?.cbu ?? null,
