@@ -69,23 +69,43 @@ export async function venderLote(loteId: string, formData: FormData) {
     )
   }
 
-  const { data: invited, error: errorInvite } = await admin.auth.admin.inviteUserByEmail(email)
+  const { data: clienteExistente } = await admin
+    .from('profiles')
+    .select('id')
+    .eq('email', email)
+    .eq('role', 'cliente')
+    .maybeSingle()
 
-  if (errorInvite || !invited.user) {
-    redirect(
-      `/admin/lotes/${loteId}/vender?error=${encodeURIComponent(errorInvite?.message ?? 'error desconocido')}`
-    )
-  }
+  let clienteId: string
 
-  const { error: errorProfile } = await admin.from('profiles').insert({
-    id: invited.user.id,
-    role: 'cliente',
-    full_name: fullName,
-    email,
-  })
+  if (clienteExistente) {
+    // El comprador ya tiene cuenta (compró otro lote antes) -- se reusa la
+    // misma cuenta en vez de invitar de nuevo (rompería con "duplicate key"
+    // contra profiles_pkey) o crear una segunda cuenta para la misma
+    // persona. No se toca su full_name existente para no pisarlo si el
+    // nombre tipeado esta vez difiere levemente.
+    clienteId = clienteExistente.id
+  } else {
+    const { data: invited, error: errorInvite } = await admin.auth.admin.inviteUserByEmail(email)
 
-  if (errorProfile) {
-    redirect(`/admin/lotes/${loteId}/vender?error=${encodeURIComponent(errorProfile.message)}`)
+    if (errorInvite || !invited.user) {
+      redirect(
+        `/admin/lotes/${loteId}/vender?error=${encodeURIComponent(errorInvite?.message ?? 'error desconocido')}`
+      )
+    }
+
+    const { error: errorProfile } = await admin.from('profiles').insert({
+      id: invited.user.id,
+      role: 'cliente',
+      full_name: fullName,
+      email,
+    })
+
+    if (errorProfile) {
+      redirect(`/admin/lotes/${loteId}/vender?error=${encodeURIComponent(errorProfile.message)}`)
+    }
+
+    clienteId = invited.user.id
   }
 
   const precioTotal = loteActual!.precio_total as number
@@ -102,7 +122,7 @@ export async function venderLote(loteId: string, formData: FormData) {
     .from('lotes')
     .update({
       estado: 'vendido',
-      cliente_id: invited.user.id,
+      cliente_id: clienteId,
       cantidad_cuotas: cantidadCuotas,
       monto_cuota_base: montoCuotaBase,
       fecha_primera_cuota: fechaPrimeraCuota,
@@ -160,7 +180,7 @@ export async function venderLote(loteId: string, formData: FormData) {
     const { data: pagoSena, error: errorPagoSena } = await admin
       .from('pagos')
       .insert({
-        cliente_id: invited.user.id,
+        cliente_id: clienteId,
         monto: reserva.monto_sena,
         moneda: reserva.moneda_sena,
         comprobante_path: reserva.comprobante_sena_path,
