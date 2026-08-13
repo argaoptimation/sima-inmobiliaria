@@ -2,6 +2,7 @@ import { createClient } from '@/lib/supabase/server'
 import { requireAdministrador } from '@/lib/auth/require-admin'
 import { calcularEstadoCobranza } from '@/lib/cobranza/estado-cliente'
 import { notFound } from 'next/navigation'
+import { resetearContrasenaCliente } from '../actions'
 
 export default async function ClienteDetallePage({
   params,
@@ -101,6 +102,24 @@ export default async function ClienteDetallePage({
           </tbody>
         </table>
       )}
+
+      <h2 className="mb-2 text-lg font-semibold">Resetear contraseña</h2>
+      <form
+        action={resetearContrasenaCliente.bind(null, cliente!.id)}
+        className="flex max-w-sm gap-2"
+      >
+        <input
+          name="nuevaContrasena"
+          type="text"
+          placeholder="Nueva contraseña"
+          minLength={6}
+          required
+          className="flex-1 rounded border px-3 py-2"
+        />
+        <button type="submit" className="rounded bg-black px-3 py-2 text-sm text-white">
+          Guardar
+        </button>
+      </form>
     </main>
   )
 }
