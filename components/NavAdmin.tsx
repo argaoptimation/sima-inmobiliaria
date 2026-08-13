@@ -2,6 +2,7 @@ import { logout } from '@/app/login/actions'
 
 export function NavAdmin({ role }: { role: string }) {
   const puedeVerPagosYUsuarios = role === 'administrador' || role === 'acreedor'
+  const esAdministrador = role === 'administrador'
 
   return (
     <nav className="flex items-center justify-between border-b p-4 text-sm">
@@ -9,6 +10,7 @@ export function NavAdmin({ role }: { role: string }) {
         <a href="/admin/lotes">Lotes</a>
         {puedeVerPagosYUsuarios && <a href="/admin/pagos">Pagos</a>}
         {puedeVerPagosYUsuarios && <a href="/admin/usuarios">Usuarios</a>}
+        {esAdministrador && <a href="/admin/clientes">Clientes</a>}
         <a href="/mi-perfil">Mi perfil</a>
       </div>
       <form action={logout}>
