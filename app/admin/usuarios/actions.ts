@@ -1,5 +1,6 @@
 'use server'
 
+import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { redirect } from 'next/navigation'
 import { requireAdministrador } from '@/lib/auth/require-admin'
@@ -53,6 +54,40 @@ export async function actualizarNombreStaff(userId: string, formData: FormData) 
 
   if (error) {
     redirect(`/admin/usuarios?error=${encodeURIComponent(error.message)}`)
+  }
+
+  redirect('/admin/usuarios')
+}
+
+export async function eliminarUsuarioStaff(userId: string) {
+  await requireAdministrador()
+
+  const supabase = await createClient()
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
+
+  if (user!.id === userId) {
+    redirect(
+      `/admin/usuarios?error=${encodeURIComponent('No podés eliminar tu propia cuenta')}`
+    )
+  }
+
+  const admin = createAdminClient()
+  // Borra el usuario de auth.users; profiles.id tiene "on delete cascade"
+  // contra auth.users, así que la fila de profiles se borra sola. Si esta
+  // cuenta todavía está referenciada por algún lote/reserva/pago (varias
+  // columnas de esas tablas apuntan a profiles.id sin cascada), el borrado
+  // falla por la restricción de clave foránea y devolvemos un mensaje claro
+  // en vez del error crudo de Postgres.
+  const { error } = await admin.auth.admin.deleteUser(userId)
+
+  if (error) {
+    redirect(
+      `/admin/usuarios?error=${encodeURIComponent(
+        'No se pudo eliminar: esta cuenta todavía está referenciada en lotes, reservas o pagos existentes'
+      )}`
+    )
   }
 
   redirect('/admin/usuarios')

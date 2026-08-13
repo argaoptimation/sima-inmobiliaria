@@ -4,7 +4,9 @@ import {
   crearUsuarioStaff,
   actualizarNombreStaff,
   actualizarDatosTransferenciaStaff,
+  eliminarUsuarioStaff,
 } from './actions'
+import { BotonEliminarUsuario } from './BotonEliminarUsuario'
 import { tieneDatosTransferencia } from '@/lib/lotes/validar-cuenta-cobro'
 
 export default async function UsuariosPage({
@@ -94,7 +96,7 @@ export default async function UsuariosPage({
 
   const { data: staff } = await supabase
     .from('profiles')
-    .select('id, full_name, role, alias, banco, cbu, titular')
+    .select('id, full_name, role, email, alias, banco, cbu, titular')
     .in('role', ['administrador', 'acreedor', 'vendedor', 'cobrador'])
     .order('role')
 
@@ -130,6 +132,7 @@ export default async function UsuariosPage({
           <tr className="border-b text-left">
             <th className="py-2">Nombre</th>
             <th>Rol</th>
+            <th>Email</th>
             <th>Datos de transferencia</th>
             <th></th>
           </tr>
@@ -138,6 +141,7 @@ export default async function UsuariosPage({
           {staff?.map((persona) => {
             const actualizarNombreConId = actualizarNombreStaff.bind(null, persona.id)
             const actualizarDatosConId = actualizarDatosTransferenciaStaff.bind(null, persona.id)
+            const eliminarUsuarioConId = eliminarUsuarioStaff.bind(null, persona.id)
             const tieneDatos = tieneDatosTransferencia({
               alias: persona.alias,
               banco: persona.banco,
@@ -147,7 +151,7 @@ export default async function UsuariosPage({
             if (editar === persona.id) {
               return (
                 <tr key={persona.id} className="border-b">
-                  <td colSpan={4} className="py-3">
+                  <td colSpan={5} className="py-3">
                     <form action={actualizarNombreConId} className="mb-3 flex gap-2">
                       <input
                         name="fullName"
@@ -206,6 +210,7 @@ export default async function UsuariosPage({
               <tr key={persona.id} className="border-b">
                 <td className="py-2">{persona.full_name}</td>
                 <td>{persona.role}</td>
+                <td>{persona.email ?? '—'}</td>
                 <td>
                   {tieneDatos ? (
                     `${persona.titular} · ${persona.alias} · ${persona.banco}`
@@ -214,9 +219,14 @@ export default async function UsuariosPage({
                   )}
                 </td>
                 <td>
-                  <a href={`/admin/usuarios?editar=${persona.id}`} className="underline">
-                    Editar
-                  </a>
+                  <div className="flex items-center gap-3">
+                    <a href={`/admin/usuarios?editar=${persona.id}`} className="underline">
+                      Editar
+                    </a>
+                    {persona.id !== user!.id && (
+                      <BotonEliminarUsuario eliminarUsuarioAction={eliminarUsuarioConId} />
+                    )}
+                  </div>
                 </td>
               </tr>
             )
