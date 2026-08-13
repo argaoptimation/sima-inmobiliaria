@@ -3,10 +3,13 @@ export interface LoteAImportar {
   ubicacion: string
   precioTotal: number
   moneda: 'USD' | 'ARS'
+  acreedorEmail: string
 }
 
+const REGEX_EMAIL = /^\S+@\S+\.\S+$/
+
 export function parsearLoteImportado(fila: string[], numeroFila: number): LoteAImportar | string {
-  const [identificador, ubicacion, precioTotalTexto, moneda] = fila.map(
+  const [identificador, ubicacion, precioTotalTexto, moneda, acreedorEmail] = fila.map(
     (celda) => celda?.trim() ?? ''
   )
 
@@ -22,7 +25,11 @@ export function parsearLoteImportado(fila: string[], numeroFila: number): LoteAI
     return `Fila ${numeroFila}: la moneda tiene que ser USD o ARS ("${moneda}")`
   }
 
-  return { identificador, ubicacion, precioTotal, moneda }
+  if (!acreedorEmail || !REGEX_EMAIL.test(acreedorEmail)) {
+    return `Fila ${numeroFila}: email de acreedor inválido ("${acreedorEmail}")`
+  }
+
+  return { identificador, ubicacion, precioTotal, moneda, acreedorEmail }
 }
 
 export function parsearTextoImportacion(
