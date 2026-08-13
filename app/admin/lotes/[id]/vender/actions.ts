@@ -1,10 +1,12 @@
 'use server'
 
 import { createAdminClient } from '@/lib/supabase/admin'
+import { createClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
 import { requireAdministrador } from '@/lib/auth/require-admin'
 import { calcularMontoCuota } from '@/lib/lotes/calcular-monto-cuota'
 import { generarCuotas } from '@/lib/lotes/generar-cuotas'
+import { imputarPagoFIFO } from '@/lib/pagos/imputar-fifo'
 
 export async function venderLote(loteId: string, formData: FormData) {
   await requireAdministrador()
@@ -34,11 +36,16 @@ export async function venderLote(loteId: string, formData: FormData) {
     )
   }
 
+  const supabase = await createClient()
+  const {
+    data: { user: adminUser },
+  } = await supabase.auth.getUser()
+
   const admin = createAdminClient()
 
   const { data: loteActual, error: errorLoteActual } = await admin
     .from('lotes')
-    .select('estado, precio_total')
+    .select('estado, precio_total, moneda')
     .eq('id', loteId)
     .single()
 
@@ -112,18 +119,99 @@ export async function venderLote(loteId: string, formData: FormData) {
     )
   }
 
-  const { error: errorCuotas } = await admin.from('cuotas').insert(
-    cuotas.map((cuota) => ({
-      lote_id: loteId,
-      numero: cuota.numero,
-      monto_base: cuota.montoBase,
-      saldo_pendiente: cuota.montoBase,
-      fecha_vencimiento: cuota.fechaVencimiento,
-    }))
-  )
+  const { data: cuotasCreadas, error: errorCuotas } = await admin
+    .from('cuotas')
+    .insert(
+      cuotas.map((cuota) => ({
+        lote_id: loteId,
+        numero: cuota.numero,
+        monto_base: cuota.montoBase,
+        saldo_pendiente: cuota.montoBase,
+        fecha_vencimiento: cuota.fechaVencimiento,
+      }))
+    )
+    .select('id, numero, saldo_pendiente')
 
-  if (errorCuotas) {
-    redirect(`/admin/lotes/${loteId}/vender?error=${encodeURIComponent(errorCuotas.message)}`)
+  if (errorCuotas || !cuotasCreadas) {
+    redirect(
+      `/admin/lotes/${loteId}/vender?error=${encodeURIComponent(
+        errorCuotas?.message ?? 'error desconocido'
+      )}`
+    )
+  }
+
+  // Descuento de la seña de la reserva en las cuotas recien generadas: si
+  // hay una reserva activa con seña > 0 en la misma moneda del lote, se
+  // registra como un pago ya confirmado (la seña ya se verifico al
+  // reservar, con su propio comprobante) y se reparte en cascada con el
+  // mismo FIFO que un pago normal. Si la moneda de la seña difiere de la
+  // del lote, no se descuenta nada automatico -- mismo criterio de "sin
+  // conversion de moneda" que el resto del proyecto.
+  const { data: reserva } = await admin
+    .from('reservas')
+    .select('monto_sena, moneda_sena, comprobante_sena_path')
+    .eq('lote_id', loteId)
+    .order('created_at', { ascending: false })
+    .limit(1)
+    .maybeSingle()
+
+  if (reserva && reserva.monto_sena > 0 && reserva.moneda_sena === loteActual!.moneda) {
+    const { data: pagoSena, error: errorPagoSena } = await admin
+      .from('pagos')
+      .insert({
+        cliente_id: invited.user.id,
+        monto: reserva.monto_sena,
+        moneda: reserva.moneda_sena,
+        comprobante_path: reserva.comprobante_sena_path,
+        estado: 'confirmado',
+        confirmado_admin_por: adminUser!.id,
+        confirmado_admin_at: new Date().toISOString(),
+      })
+      .select('id')
+      .single()
+
+    if (errorPagoSena || !pagoSena) {
+      redirect(
+        `/admin/lotes/${loteId}/vender?error=${encodeURIComponent(
+          `La venta se completó pero no se pudo registrar la seña como pago: ${errorPagoSena?.message ?? 'error desconocido'}`
+        )}`
+      )
+    }
+
+    const cuotasOrdenadas = [...cuotasCreadas]
+      .sort((a, b) => a.numero - b.numero)
+      .map((cuota) => ({ id: cuota.id, saldoPendiente: cuota.saldo_pendiente }))
+    const resultado = imputarPagoFIFO(reserva.monto_sena, cuotasOrdenadas)
+
+    for (const imputacion of resultado.imputaciones) {
+      const { error: errorImputacion } = await admin.from('pago_imputaciones').insert({
+        pago_id: pagoSena!.id,
+        cuota_id: imputacion.cuotaId,
+        monto_imputado: imputacion.montoImputado,
+      })
+
+      if (errorImputacion) {
+        redirect(
+          `/admin/lotes/${loteId}/vender?error=${encodeURIComponent(
+            `La venta y la seña se registraron, pero falló aplicar el descuento a una cuota: ${errorImputacion.message}`
+          )}`
+        )
+      }
+
+      const cuota = cuotasOrdenadas.find((c) => c.id === imputacion.cuotaId)!
+      const { error: errorSaldo } = await admin
+        .from('cuotas')
+        .update({ saldo_pendiente: cuota.saldoPendiente - imputacion.montoImputado })
+        .eq('id', imputacion.cuotaId)
+
+      if (errorSaldo) {
+        redirect(
+          `/admin/lotes/${loteId}/vender?error=${encodeURIComponent(
+            `La venta y la seña se registraron, pero falló actualizar el saldo de una cuota: ${errorSaldo.message}`
+          )}`
+        )
+      }
+    }
   }
 
   redirect('/admin/lotes')
