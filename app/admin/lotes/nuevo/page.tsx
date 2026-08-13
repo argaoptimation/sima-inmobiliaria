@@ -1,3 +1,4 @@
+import { createClient } from '@/lib/supabase/server'
 import { requireAdminOAcreedor } from '@/lib/auth/require-admin'
 import { crearLote } from '../actions'
 
@@ -9,6 +10,13 @@ export default async function NuevoLotePage({
   const { error } = await searchParams
 
   await requireAdminOAcreedor()
+
+  const supabase = await createClient()
+  const { data: acreedores } = await supabase
+    .from('profiles')
+    .select('id, full_name')
+    .eq('role', 'acreedor')
+    .order('full_name')
 
   return (
     <main className="max-w-md">
@@ -43,6 +51,38 @@ export default async function NuevoLotePage({
           <option value="USD">USD</option>
           <option value="ARS">ARS</option>
         </select>
+
+        <label className="text-sm">
+          Acreedor
+          <select
+            name="acreedorId"
+            required
+            defaultValue=""
+            className="mt-1 block w-full rounded border px-3 py-2"
+          >
+            <option value="" disabled>
+              — Elegí un acreedor —
+            </option>
+            {(acreedores ?? []).map((persona) => (
+              <option key={persona.id} value={persona.id}>
+                {persona.full_name}
+              </option>
+            ))}
+            <option value="__nuevo__">+ Crear nuevo acreedor</option>
+          </select>
+        </label>
+        <input
+          name="acreedorNombreNuevo"
+          placeholder="Si elegiste 'Crear nuevo acreedor': nombre completo"
+          className="rounded border px-3 py-2"
+        />
+        <input
+          name="acreedorEmailNuevo"
+          type="email"
+          placeholder="Si elegiste 'Crear nuevo acreedor': email"
+          className="rounded border px-3 py-2"
+        />
+
         <button type="submit" className="rounded bg-black px-3 py-2 text-white">
           Crear lote
         </button>
