@@ -2,13 +2,13 @@
 
 import { createAdminClient } from '@/lib/supabase/admin'
 import { redirect } from 'next/navigation'
-import { requireAdmin, requireAdministrador } from '@/lib/auth/require-admin'
+import { requireAdministrador } from '@/lib/auth/require-admin'
 import { tieneDatosTransferencia } from '@/lib/lotes/validar-cuenta-cobro'
 
 const ROLES_STAFF = ['acreedor', 'vendedor', 'cobrador'] as const
 
 export async function crearUsuarioStaff(formData: FormData) {
-  await requireAdmin()
+  await requireAdministrador()
 
   const email = formData.get('email') as string
   const fullName = formData.get('fullName') as string

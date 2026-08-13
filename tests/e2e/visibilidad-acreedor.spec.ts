@@ -58,4 +58,13 @@ test.describe('Visibilidad acotada acreedor-vendedor', () => {
       await expect(page).toHaveURL(/\/admin\/lotes$/)
     })
   })
+
+  test('el acreedor no puede invitar nuevas cuentas de staff (exclusivo del administrador)', async ({
+    page,
+  }) => {
+    await login(page, fixtures.acreedorConDatos.email, fixtures.password)
+    await page.goto('/admin/usuarios')
+
+    await expect(page.getByRole('button', { name: 'Invitar' })).toHaveCount(0)
+  })
 })
