@@ -1,5 +1,5 @@
 import { createClient } from '@/lib/supabase/server'
-import { redirect } from 'next/navigation'
+import { notFound, redirect } from 'next/navigation'
 import { registrarPago } from './actions'
 import { tieneDatosTransferencia } from '@/lib/lotes/validar-cuenta-cobro'
 
@@ -23,15 +23,29 @@ export default async function PagarCuotaPage({
     redirect('/login')
   }
 
+  const { data: cuota } = await supabase
+    .from('cuotas')
+    .select('lote_id')
+    .eq('id', id)
+    .maybeSingle()
+
+  if (!cuota) {
+    notFound()
+  }
+
   const { data: lote } = await supabase
     .from('lotes')
-    .select('cuenta_cobro_id')
-    .eq('cliente_id', user!.id)
+    .select('cliente_id, cuenta_cobro_id')
+    .eq('id', cuota!.lote_id)
     .single()
+
+  if (!lote || lote.cliente_id !== user!.id) {
+    notFound()
+  }
 
   let cuentaCobro: { alias: string | null; banco: string | null; cbu: string | null; titular: string | null } | null = null
 
-  if (lote?.cuenta_cobro_id) {
+  if (lote.cuenta_cobro_id) {
     const { data } = await supabase
       .from('profiles')
       .select('alias, banco, cbu, titular')
