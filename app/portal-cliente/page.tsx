@@ -1,5 +1,4 @@
 import { createClient } from '@/lib/supabase/server'
-import { createAdminClient } from '@/lib/supabase/admin'
 import { calcularEstadoCobranza } from '@/lib/cobranza/estado-cliente'
 import { redirect } from 'next/navigation'
 import { logout } from '@/app/login/actions'
@@ -25,13 +24,13 @@ export default async function PortalClientePage() {
     redirect('/login')
   }
 
-  const { data: lote } = await supabase
+  const { data: lotes } = await supabase
     .from('lotes')
     .select('id, identificador, moneda')
-    .eq('cliente_id', user.id)
-    .single()
+    .eq('cliente_id', user!.id)
+    .order('identificador')
 
-  if (!lote) {
+  if (!lotes || lotes.length === 0) {
     return (
       <main className="mx-auto mt-24 max-w-md p-6 text-center">
         <p className="mb-4">Todavía no tenés un lote asignado.</p>
@@ -40,149 +39,69 @@ export default async function PortalClientePage() {
     )
   }
 
-  const { data: cuotas } = await supabase
-    .from('cuotas')
-    .select('id, numero, monto_base, saldo_pendiente, fecha_vencimiento')
-    .eq('lote_id', lote.id)
-    .order('numero', { ascending: true })
-
   const hoy = new Date().toISOString().slice(0, 10)
-  const estado = calcularEstadoCobranza(
-    (cuotas ?? []).map((cuota) => ({
-      saldoPendiente: cuota.saldo_pendiente,
-      fechaVencimiento: cuota.fecha_vencimiento,
-    })),
-    hoy
-  )
 
-  const primeraImpaga = cuotas?.find((cuota) => cuota.saldo_pendiente > 0)
+  const lotesConEstado = await Promise.all(
+    lotes.map(async (lote) => {
+      const { data: cuotas } = await supabase
+        .from('cuotas')
+        .select('saldo_pendiente, fecha_vencimiento')
+        .eq('lote_id', lote.id)
 
-  const totalPendiente = (cuotas ?? []).reduce(
-    (acumulado, cuota) => acumulado + cuota.saldo_pendiente,
-    0
-  )
+      const estado = calcularEstadoCobranza(
+        (cuotas ?? []).map((cuota) => ({
+          saldoPendiente: cuota.saldo_pendiente,
+          fechaVencimiento: cuota.fecha_vencimiento,
+        })),
+        hoy
+      )
 
-  const { data: pagos } = await supabase
-    .from('pagos')
-    .select('id, monto, moneda, estado, comprobante_path')
-    .eq('cliente_id', user.id)
-    .order('created_at', { ascending: false })
-
-  const admin = createAdminClient()
-
-  const pagosConLink = await Promise.all(
-    (pagos ?? []).map(async (pago) => {
-      if (!pago.comprobante_path) {
-        return { ...pago, comprobanteUrl: null }
-      }
-
-      const { data, error } = await admin.storage
-        .from('comprobantes')
-        .createSignedUrl(pago.comprobante_path, 300)
-
-      return { ...pago, comprobanteUrl: error ? null : data?.signedUrl ?? null }
+      return { ...lote, estado }
     })
   )
 
   return (
     <main className="mx-auto mt-12 max-w-2xl p-6">
-      <div className="mb-2 flex items-center justify-between">
-        <h1 className="text-xl font-semibold">{lote.identificador}</h1>
+      <div className="mb-6 flex items-center justify-between">
+        <h1 className="text-xl font-semibold">Tus lotes</h1>
         <BotonCerrarSesion />
       </div>
-      <p className="mb-2 text-sm">
-        Estado:{' '}
-        <span
-          className={
-            estado === 'normal'
-              ? 'text-green-700'
-              : estado === 'moroso'
-                ? 'text-amber-700'
-                : 'text-red-700'
-          }
-        >
-          {estado}
-        </span>
-      </p>
-      <p className="mb-6 text-sm font-medium">
-        Total pendiente: {totalPendiente} {lote.moneda}
-      </p>
       <table className="w-full text-sm">
         <thead>
           <tr className="border-b text-left">
-            <th className="py-2">Cuota</th>
-            <th>Vencimiento</th>
-            <th>Monto base</th>
-            <th>Saldo pendiente</th>
+            <th className="py-2">Lote</th>
+            <th>Moneda</th>
+            <th>Estado</th>
             <th></th>
           </tr>
         </thead>
         <tbody>
-          {cuotas?.map((cuota) => (
-            <tr key={cuota.id} className="border-b">
-              <td className="py-2">{cuota.numero}</td>
-              <td>{cuota.fecha_vencimiento}</td>
+          {lotesConEstado.map((lote) => (
+            <tr key={lote.id} className="border-b">
+              <td className="py-2">{lote.identificador}</td>
+              <td>{lote.moneda}</td>
               <td>
-                {cuota.monto_base} {lote.moneda}
+                <span
+                  className={
+                    lote.estado === 'normal'
+                      ? 'text-green-700'
+                      : lote.estado === 'moroso'
+                        ? 'text-amber-700'
+                        : 'text-red-700'
+                  }
+                >
+                  {lote.estado}
+                </span>
               </td>
               <td>
-                {cuota.saldo_pendiente} {lote.moneda}
-              </td>
-              <td>
-                {primeraImpaga?.id === cuota.id && (
-                  <a href={`/portal-cliente/pagar/${cuota.id}`} className="underline">
-                    Pagar cuota
-                  </a>
-                )}
+                <a href={`/portal-cliente/lotes/${lote.id}`} className="underline">
+                  Ver detalle
+                </a>
               </td>
             </tr>
           ))}
         </tbody>
       </table>
-
-      <h2 className="mb-2 mt-10 text-lg font-semibold">Mis pagos</h2>
-      {pagosConLink.length === 0 ? (
-        <p className="text-sm text-gray-600">Todavía no registraste ningún pago.</p>
-      ) : (
-        <table className="w-full text-sm">
-          <thead>
-            <tr className="border-b text-left">
-              <th className="py-2">Monto</th>
-              <th>Estado</th>
-              <th>Comprobante</th>
-            </tr>
-          </thead>
-          <tbody>
-            {pagosConLink.map((pago) => (
-              <tr key={pago.id} className="border-b">
-                <td className="py-2">
-                  {pago.monto} {pago.moneda}
-                </td>
-                <td>{pago.estado}</td>
-                <td>
-                  {!pago.comprobante_path ? (
-                    <span className="text-amber-700">
-                      ⚠ Falta subir comprobante ·{' '}
-                      <a
-                        href={`/portal-cliente/pagos/${pago.id}/comprobante`}
-                        className="underline"
-                      >
-                        Subir
-                      </a>
-                    </span>
-                  ) : pago.comprobanteUrl ? (
-                    <a href={pago.comprobanteUrl} target="_blank" className="underline">
-                      Ver comprobante
-                    </a>
-                  ) : (
-                    <span className="text-gray-500">Comprobante no disponible</span>
-                  )}
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      )}
     </main>
   )
 }
