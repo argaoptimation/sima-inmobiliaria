@@ -87,7 +87,7 @@ test.describe('Contador de pagos pendientes en la nav', () => {
     // /admin/pagos), así que esperar por waitForURL no sirve como señal de
     // que el servidor terminó de procesar el submit. Esperamos, en cambio, a
     // que la columna "Confirmado acreedor" refleje el resultado real.
-    await expect(fila.locator('td').nth(4)).toHaveText('Sí')
+    await expect(fila.locator('td').nth(5)).toHaveText('Sí')
 
     await page.goto('/admin/lotes')
     await expect(page.getByRole('link', { name: /^Pagos/ })).toHaveText('Pagos')

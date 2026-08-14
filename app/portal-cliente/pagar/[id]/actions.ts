@@ -51,6 +51,7 @@ export async function registrarPago(cuotaId: string, formData: FormData) {
       lote_id: cuota!.lote_id,
       monto,
       moneda,
+      motivo: 'cuota',
     })
     .select('id')
     .single()

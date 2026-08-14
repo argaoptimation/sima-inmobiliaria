@@ -206,6 +206,7 @@ export async function venderLote(loteId: string, formData: FormData) {
         monto: reserva.monto_sena,
         moneda: reserva.moneda_sena,
         comprobante_path: reserva.comprobante_sena_path,
+        motivo: 'sena',
         estado: 'confirmado',
         confirmado_admin_por: adminUser!.id,
         confirmado_admin_at: new Date().toISOString(),

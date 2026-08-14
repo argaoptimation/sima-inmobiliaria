@@ -8,6 +8,7 @@ type Pago = {
   monto: number
   moneda: string
   comprobante_path: string | null
+  motivo: string
   estado: string
   confirmado_acreedor_por: string | null
   confirmado_admin_por: string | null
@@ -39,7 +40,7 @@ export default async function PagosPage({
     .single()
 
   const columnasPago =
-    'id, monto, moneda, comprobante_path, estado, confirmado_acreedor_por, confirmado_admin_por, cliente_id, lote_id, monto_recibido, moneda_recibida'
+    'id, monto, moneda, comprobante_path, motivo, estado, confirmado_acreedor_por, confirmado_admin_por, cliente_id, lote_id, monto_recibido, moneda_recibida'
 
   let pagos: Pago[] = []
 
@@ -112,6 +113,7 @@ export default async function PagosPage({
         <thead>
           <tr className="border-b text-left">
             <th className="py-2">Lote</th>
+            <th>Motivo</th>
             <th>Monto</th>
             <th>Comprobante</th>
             <th>Estado</th>
@@ -127,6 +129,7 @@ export default async function PagosPage({
             return (
               <tr key={pago.id} className="border-b">
                 <td className="py-2">{pago.identificadorLote}</td>
+                <td>{pago.motivo === 'sena' ? 'Seña' : 'Cuota'}</td>
                 <td>
                   {pago.monto} {pago.moneda}
                 </td>
