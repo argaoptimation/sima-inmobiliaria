@@ -3,6 +3,9 @@ import { NextResponse, type NextRequest } from 'next/server'
 
 const RUTAS_PUBLICAS = ['/login', '/set-password', '/auth/confirm']
 
+// '/login/recuperar-contrasena' ya matchea con el prefijo '/login' de
+// arriba (startsWith), no hace falta agregarla aparte a esta lista.
+
 export async function updateSession(request: NextRequest) {
   let response = NextResponse.next({ request })
 

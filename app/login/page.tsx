@@ -30,6 +30,9 @@ export default async function LoginPage({
           Ingresar
         </button>
       </form>
+      <a href="/login/recuperar-contrasena" className="mt-4 inline-block text-sm underline">
+        ¿Olvidaste tu contraseña?
+      </a>
     </main>
   )
 }
