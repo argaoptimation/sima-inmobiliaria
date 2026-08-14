@@ -19,9 +19,9 @@ const ETIQUETAS_COLUMNA: Record<ColumnaOrdenable, string> = {
 export default async function LotesPage({
   searchParams,
 }: {
-  searchParams: Promise<{ sort?: string; dir?: string; moneda?: string; acreedor?: string }>
+  searchParams: Promise<{ sort?: string; dir?: string; moneda?: string; acreedor?: string; q?: string }>
 }) {
-  const { sort, dir, moneda: filtroMoneda, acreedor: filtroAcreedorId } = await searchParams
+  const { sort, dir, moneda: filtroMoneda, acreedor: filtroAcreedorId, q: filtroTexto } = await searchParams
 
   const supabase = await createClient()
 
@@ -71,6 +71,10 @@ export default async function LotesPage({
     queryLotes = queryLotes.eq('acreedor_id', filtroAcreedorId)
   }
 
+  if (filtroTexto) {
+    queryLotes = queryLotes.ilike('identificador', `%${filtroTexto}%`)
+  }
+
   const { data: lotes } = await queryLotes
 
   const { data: todosLosAcreedores } =
@@ -114,6 +118,7 @@ export default async function LotesPage({
     const params = new URLSearchParams()
     if (filtroMoneda) params.set('moneda', filtroMoneda)
     if (filtroAcreedorId) params.set('acreedor', filtroAcreedorId)
+    if (filtroTexto) params.set('q', filtroTexto)
     params.set('sort', columna)
     params.set('dir', columnaOrden === columna && ordenAscendente ? 'desc' : 'asc')
     return `/admin/lotes?${params.toString()}`
@@ -183,6 +188,16 @@ export default async function LotesPage({
         <input type="hidden" name="sort" value={columnaOrden} />
         <input type="hidden" name="dir" value={ordenAscendente ? 'asc' : 'desc'} />
         <label className="text-sm">
+          Buscar
+          <input
+            type="text"
+            name="q"
+            placeholder="Buscar identificador"
+            defaultValue={filtroTexto ?? ''}
+            className="mt-1 block rounded border px-3 py-2"
+          />
+        </label>
+        <label className="text-sm">
           Moneda
           <select
             name="moneda"
@@ -214,7 +229,7 @@ export default async function LotesPage({
         <button type="submit" className="rounded border px-3 py-2 text-sm">
           Filtrar
         </button>
-        {(filtroMoneda || filtroAcreedorId || sort || dir) && (
+        {(filtroMoneda || filtroAcreedorId || filtroTexto || sort || dir) && (
           <a href="/admin/lotes" className="text-sm underline">
             Limpiar filtros y orden
           </a>
