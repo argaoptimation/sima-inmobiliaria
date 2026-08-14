@@ -47,6 +47,25 @@ export async function eliminarLote(loteId: string) {
     )
   }
 
+  // reservas.lote_id referencia lotes con "on delete cascade" -- sin este
+  // chequeo, borrar un lote "reservado" se lleva puesta la reserva entera
+  // (seña, datos del comprador, fotos de DNI) en silencio, porque un lote
+  // reservado todavía no tiene cliente_id ni cuotas y ninguno de los otros
+  // chequeos de esta función lo detecta.
+  const { count: reservasActivas } = await supabase
+    .from('reservas')
+    .select('id', { count: 'exact', head: true })
+    .eq('lote_id', loteId)
+    .is('cancelada_at', null)
+
+  if (reservasActivas && reservasActivas > 0) {
+    redirect(
+      `/admin/lotes/${loteId}?error=${encodeURIComponent(
+        'No se puede eliminar: este lote tiene una reserva activa'
+      )}`
+    )
+  }
+
   const { data: cuotas } = await supabase.from('cuotas').select('id').eq('lote_id', loteId)
   const cuotaIds = (cuotas ?? []).map((cuota) => cuota.id)
 
