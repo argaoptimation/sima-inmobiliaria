@@ -174,4 +174,27 @@ test.describe('Fotos en la reserva', () => {
 
     expect(reserva?.dni_conyuge_path).toBeTruthy()
   })
+
+  test('el detalle del lote muestra los links de las fotos subidas', async ({ page }) => {
+    const loteId = await crearLoteDisponible(
+      `E2E Fotos Detalle ${Date.now()}`,
+      fixtures.acreedorConDatos.id
+    )
+
+    await login(page, fixtures.admin.email, fixtures.password)
+    await page.goto(`/admin/lotes/${loteId}/reservar`)
+    await completarCamposBasicos(page, 'casado')
+    await subirArchivo(page, 'input[name="dniFrente"]', `e2e-dni-frente-${Date.now()}.pdf`)
+    await subirArchivo(page, 'input[name="dniDorso"]', `e2e-dni-dorso-${Date.now()}.pdf`)
+    await subirArchivo(page, 'input[name="dniConyuge"]', `e2e-dni-conyuge-${Date.now()}.pdf`)
+    await page.getByRole('button', { name: 'Confirmar reserva' }).click()
+    await page.waitForURL('**/admin/lotes')
+
+    await page.goto(`/admin/lotes/${loteId}`)
+
+    await expect(page.getByRole('link', { name: 'Ver DNI (frente)' })).toBeVisible()
+    await expect(page.getByRole('link', { name: 'Ver DNI (dorso)' })).toBeVisible()
+    await expect(page.getByRole('link', { name: 'Ver DNI del cónyuge' })).toBeVisible()
+    await expect(page.getByRole('link', { name: 'Ver sentencia de divorcio' })).toHaveCount(0)
+  })
 })

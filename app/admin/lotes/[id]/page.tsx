@@ -74,7 +74,7 @@ export default async function LoteDetallePage({
   const { data: reserva } = await supabase
     .from('reservas')
     .select(
-      'nombre_completo, dni, domicilio, email, telefono, telefono_alternativo, estado_civil, instrumentacion, monto_sena, moneda_sena, recibido_por, recibido_por_otro, comprobante_sena_path, created_at'
+      'nombre_completo, dni, domicilio, email, telefono, telefono_alternativo, estado_civil, instrumentacion, monto_sena, moneda_sena, recibido_por, recibido_por_otro, comprobante_sena_path, dni_frente_path, dni_dorso_path, dni_conyuge_path, sentencia_divorcio_path, created_at'
     )
     .eq('lote_id', id)
     .order('created_at', { ascending: false })
@@ -83,6 +83,10 @@ export default async function LoteDetallePage({
 
   let reservaComprobanteUrl: string | null = null
   let reservaRecibidoPorNombre: string | null = null
+  let reservaDniFrenteUrl: string | null = null
+  let reservaDniDorsoUrl: string | null = null
+  let reservaDniConyugeUrl: string | null = null
+  let reservaSentenciaDivorcioUrl: string | null = null
 
   if (reserva) {
     const admin = createAdminClient()
@@ -91,6 +95,34 @@ export default async function LoteDetallePage({
       .from('comprobantes')
       .createSignedUrl(reserva.comprobante_sena_path, 300)
     reservaComprobanteUrl = signedUrl?.signedUrl ?? null
+
+    if (reserva.dni_frente_path) {
+      const { data: dniFrenteSigned } = await admin.storage
+        .from('comprobantes')
+        .createSignedUrl(reserva.dni_frente_path, 300)
+      reservaDniFrenteUrl = dniFrenteSigned?.signedUrl ?? null
+    }
+
+    if (reserva.dni_dorso_path) {
+      const { data: dniDorsoSigned } = await admin.storage
+        .from('comprobantes')
+        .createSignedUrl(reserva.dni_dorso_path, 300)
+      reservaDniDorsoUrl = dniDorsoSigned?.signedUrl ?? null
+    }
+
+    if (reserva.dni_conyuge_path) {
+      const { data: dniConyugeSigned } = await admin.storage
+        .from('comprobantes')
+        .createSignedUrl(reserva.dni_conyuge_path, 300)
+      reservaDniConyugeUrl = dniConyugeSigned?.signedUrl ?? null
+    }
+
+    if (reserva.sentencia_divorcio_path) {
+      const { data: sentenciaSigned } = await admin.storage
+        .from('comprobantes')
+        .createSignedUrl(reserva.sentencia_divorcio_path, 300)
+      reservaSentenciaDivorcioUrl = sentenciaSigned?.signedUrl ?? null
+    }
 
     if (reserva.recibido_por) {
       const { data: persona } = await supabase
@@ -196,6 +228,46 @@ export default async function LoteDetallePage({
               <span className="text-gray-500">Comprobante no disponible</span>
             )}
           </p>
+          <p className="mb-1 text-sm">
+            {reservaDniFrenteUrl ? (
+              <a href={reservaDniFrenteUrl} target="_blank" className="underline">
+                Ver DNI (frente)
+              </a>
+            ) : (
+              <span className="text-gray-500">DNI (frente) no disponible</span>
+            )}
+          </p>
+          <p className="mb-1 text-sm">
+            {reservaDniDorsoUrl ? (
+              <a href={reservaDniDorsoUrl} target="_blank" className="underline">
+                Ver DNI (dorso)
+              </a>
+            ) : (
+              <span className="text-gray-500">DNI (dorso) no disponible</span>
+            )}
+          </p>
+          {reserva.dni_conyuge_path && (
+            <p className="mb-1 text-sm">
+              {reservaDniConyugeUrl ? (
+                <a href={reservaDniConyugeUrl} target="_blank" className="underline">
+                  Ver DNI del cónyuge
+                </a>
+              ) : (
+                <span className="text-gray-500">DNI del cónyuge no disponible</span>
+              )}
+            </p>
+          )}
+          {reserva.sentencia_divorcio_path && (
+            <p className="mb-4 text-sm">
+              {reservaSentenciaDivorcioUrl ? (
+                <a href={reservaSentenciaDivorcioUrl} target="_blank" className="underline">
+                  Ver sentencia de divorcio
+                </a>
+              ) : (
+                <span className="text-gray-500">Sentencia de divorcio no disponible</span>
+              )}
+            </p>
+          )}
         </>
       )}
 
