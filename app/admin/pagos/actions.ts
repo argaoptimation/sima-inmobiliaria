@@ -62,6 +62,23 @@ export async function confirmarPago(pagoId: string, formData: FormData) {
 
   const campoPor = perfil.role === 'acreedor' ? 'confirmado_acreedor_por' : 'confirmado_admin_por'
   const campoAt = perfil.role === 'acreedor' ? 'confirmado_acreedor_at' : 'confirmado_admin_at'
+  const campoOtroPor =
+    perfil.role === 'acreedor' ? 'confirmado_admin_por' : 'confirmado_acreedor_por'
+  const campoOtroAt = perfil.role === 'acreedor' ? 'confirmado_admin_at' : 'confirmado_acreedor_at'
+
+  const montoVisto = Number(formData.get('montoVisto'))
+  const montoIngresado = Number(formData.get('monto'))
+
+  if (!Number.isFinite(montoVisto) || !Number.isFinite(montoIngresado) || montoIngresado < 0) {
+    redirect(`/admin/pagos?error=${encodeURIComponent('Monto inválido')}`)
+  }
+
+  // Si el monto que se envía difiere del que esta misma pantalla mostraba al
+  // cargar, hubo una edicion real (no solo un submit sin tocar el campo): se
+  // actualiza pago.monto y se limpia la confirmacion del OTRO rol, si ya
+  // estaba cargada -- nadie puede quedar "confirmando" un numero que en
+  // realidad nunca vio ni acepto.
+  const huboEdicion = montoIngresado !== montoVisto
 
   // Bookkeeping opcional para el cierre de caja del acreedor/admin: el monto
   // realmente recibido (a menudo en pesos) puede diferir del monto imputado
@@ -73,20 +90,39 @@ export async function confirmarPago(pagoId: string, formData: FormData) {
   const montoRecibidoValido =
     Number.isFinite(montoRecibidoNumero) && montoRecibidoNumero >= 0
 
-  const { error: errorConfirmacion } = await supabase
+  // Guarda atomica: el UPDATE solo pega si el pago SIGUE pendiente y el
+  // monto SIGUE siendo el que esta pantalla vio al cargar. Si otro
+  // confirmador ya lo cambio (o ya se termino de confirmar) mientras tanto,
+  // esto no afecta ninguna fila -- se rechaza en vez de pisar en silencio lo
+  // que el otro rol ya cargo.
+  const { data: pagoActualizado, error: errorConfirmacion } = await supabase
     .from('pagos')
     .update({
+      monto: montoIngresado,
       [campoPor]: user.id,
       [campoAt]: new Date().toISOString(),
+      ...(huboEdicion ? { [campoOtroPor]: null, [campoOtroAt]: null } : {}),
       ...(montoRecibidoValido
         ? { monto_recibido: montoRecibidoNumero, moneda_recibida: monedaRecibida }
         : {}),
     })
     .eq('id', pagoId)
+    .eq('estado', 'pendiente')
+    .eq('monto', montoVisto)
+    .select('id')
+    .maybeSingle()
 
   if (errorConfirmacion) {
     revalidatePath('/admin/pagos')
     return
+  }
+
+  if (!pagoActualizado) {
+    redirect(
+      `/admin/pagos?error=${encodeURIComponent(
+        'El monto cambió desde que abriste esta pantalla (ahora figura un valor distinto) o el pago ya se terminó de confirmar. Revisalo antes de confirmar.'
+      )}`
+    )
   }
 
   // Claim atomico: solo un llamador puede ganar este UPDATE, ya sea contra

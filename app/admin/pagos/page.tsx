@@ -166,6 +166,19 @@ export default async function PagosPage({
                           </p>
                         )}
                         <form action={confirmarEstePago} className="flex flex-col gap-2">
+                        <input type="hidden" name="montoVisto" value={pago.monto} />
+                        <label className="text-xs text-gray-500">
+                          Monto a confirmar
+                          <input
+                            name="monto"
+                            type="number"
+                            step="0.01"
+                            min="0"
+                            defaultValue={pago.monto}
+                            required
+                            className="mt-1 block rounded border px-2 py-1"
+                          />
+                        </label>
                         <label className="text-xs text-gray-500">
                           Monto recibido (opcional, para cierre de caja)
                           <input
