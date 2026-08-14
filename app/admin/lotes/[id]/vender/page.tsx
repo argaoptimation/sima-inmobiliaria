@@ -8,11 +8,27 @@ export default async function VenderLotePage({
   searchParams,
 }: {
   params: Promise<{ id: string }>
-  searchParams: Promise<{ error?: string }>
+  searchParams: Promise<{
+    error?: string
+    confirmarClienteId?: string
+    nombreEncontrado?: string
+    fullName?: string
+    email?: string
+    cantidadCuotas?: string
+    fechaPrimeraCuota?: string
+  }>
 }) {
   const { id } = await params
   await requireAdministrador()
-  const { error } = await searchParams
+  const {
+    error,
+    confirmarClienteId,
+    nombreEncontrado,
+    fullName: fullNamePreservado,
+    email: emailPreservado,
+    cantidadCuotas: cantidadCuotasPreservada,
+    fechaPrimeraCuota: fechaPrimeraCuotaPreservada,
+  } = await searchParams
 
   const supabase = await createClient()
 
@@ -76,11 +92,28 @@ export default async function VenderLotePage({
             </div>
           )}
 
+          {confirmarClienteId && (
+            <div className="mb-4 rounded border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900">
+              <p className="font-medium">Ya existe una cuenta de cliente con ese email</p>
+              <p className="mt-1">
+                Nombre en esa cuenta: <span className="font-medium">{nombreEncontrado}</span>
+              </p>
+              <p className="mt-1">
+                Si confirmás, este lote se va a asociar a esa cuenta ya existente (no se manda
+                ningún mail de invitación nuevo). Revisá que sea la persona correcta antes de
+                confirmar.
+              </p>
+            </div>
+          )}
+
           <form action={venderLoteConId} className="flex flex-col gap-3">
+            {confirmarClienteId && (
+              <input type="hidden" name="confirmarClienteExistente" value={confirmarClienteId} />
+            )}
             <input
               name="fullName"
               placeholder="Nombre completo del comprador"
-              defaultValue={reserva?.nombre_completo ?? ''}
+              defaultValue={fullNamePreservado ?? reserva?.nombre_completo ?? ''}
               required
               className="rounded border px-3 py-2"
             />
@@ -88,7 +121,7 @@ export default async function VenderLotePage({
               name="email"
               type="email"
               placeholder="Email del comprador"
-              defaultValue={reserva?.email ?? ''}
+              defaultValue={emailPreservado ?? reserva?.email ?? ''}
               required
               className="rounded border px-3 py-2"
             />
@@ -98,6 +131,7 @@ export default async function VenderLotePage({
               min="1"
               step="1"
               placeholder="Cantidad de cuotas (1 para venta al contado)"
+              defaultValue={cantidadCuotasPreservada ?? ''}
               required
               className="rounded border px-3 py-2"
             />
@@ -106,12 +140,15 @@ export default async function VenderLotePage({
               <input
                 name="fechaPrimeraCuota"
                 type="date"
+                defaultValue={fechaPrimeraCuotaPreservada ?? ''}
                 required
                 className="mt-1 block w-full rounded border px-3 py-2"
               />
             </label>
             <button type="submit" className="rounded bg-black px-3 py-2 text-white">
-              Confirmar venta y enviar invitación
+              {confirmarClienteId
+                ? 'Confirmar venta con esta cuenta existente'
+                : 'Confirmar venta y enviar invitación'}
             </button>
           </form>
         </>

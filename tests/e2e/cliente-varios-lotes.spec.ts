@@ -39,7 +39,17 @@ async function venderLotePorUI(
   await page.getByPlaceholder('Cantidad de cuotas (1 para venta al contado)').fill('1')
   await page.locator('input[name="fechaPrimeraCuota"]').fill('2026-09-01')
   await page.getByRole('button', { name: 'Confirmar venta y enviar invitación' }).click()
-  await page.waitForURL('**/admin/lotes')
+
+  // Si el email ya es de un cliente existente, el primer submit NO completa
+  // la venta: vuelve a esta misma pantalla con el cartel de confirmación
+  // (para que el admin vea el nombre real de la cuenta encontrada antes de
+  // asociar el lote) y hace falta un segundo click para confirmar.
+  await page.waitForURL((url) => url.pathname === '/admin/lotes' || url.searchParams.has('confirmarClienteId'))
+
+  if (page.url().includes('confirmarClienteId')) {
+    await page.getByRole('button', { name: 'Confirmar venta con esta cuenta existente' }).click()
+    await page.waitForURL('**/admin/lotes')
+  }
 }
 
 /**
@@ -95,6 +105,73 @@ test.describe('Cliente con varios lotes', () => {
       .select('id', { count: 'exact', head: true })
       .eq('email', emailComprador)
     expect(count).toBe(1)
+  })
+
+  test('vender a un email de cliente existente muestra el nombre real antes de asociar el lote, y no lo asocia hasta confirmar', async ({
+    page,
+  }) => {
+    const emailComprador = `comprador.confirmacion.${Date.now()}@sima-e2e.invalid`
+    const nombreReal = 'Comprador Confirmacion Real'
+
+    const loteAId = await crearLoteReservadoListoParaVender(
+      `E2E Confirmacion Lote A ${Date.now()}`,
+      5000,
+      fixtures.acreedorConDatos.id
+    )
+    const loteBId = await crearLoteReservadoListoParaVender(
+      `E2E Confirmacion Lote B ${Date.now()}`,
+      8000,
+      fixtures.acreedorConDatos.id
+    )
+
+    await login(page, fixtures.admin.email, fixtures.password)
+
+    // Primera venta: crea la cuenta con el nombre real.
+    await venderLotePorUI(page, loteAId, { email: emailComprador, fullName: nombreReal })
+
+    // Segunda venta al mismo email, mismo tipeo (no es un typo, es la misma
+    // persona) -- el admin escribe un nombre DISTINTO a propósito, para
+    // simular el escenario real que motivó este chequeo: si el admin
+    // tipeara mal el nombre pero el email coincidiera con una cuenta real ya
+    // existente, el cartel tiene que mostrar el nombre REAL de esa cuenta
+    // (no el que el admin acaba de tipear), para que pueda darse cuenta si
+    // se equivocó de persona.
+    await page.goto(`/admin/lotes/${loteBId}/vender`)
+    await page.getByPlaceholder('Nombre completo del comprador').fill('Nombre Tipeado Distinto')
+    await page.getByPlaceholder('Email del comprador').fill(emailComprador)
+    await page.getByPlaceholder('Cantidad de cuotas (1 para venta al contado)').fill('1')
+    await page.locator('input[name="fechaPrimeraCuota"]').fill('2026-09-01')
+    await page.getByRole('button', { name: 'Confirmar venta y enviar invitación' }).click()
+    await page.waitForURL((url) => url.searchParams.has('confirmarClienteId'))
+
+    await expect(page.getByText('Ya existe una cuenta de cliente con ese email')).toBeVisible()
+    await expect(page.getByText(nombreReal)).toBeVisible()
+
+    // Todavía no confirmó -- el lote B NO tiene que quedar asociado.
+    const admin = createAdminClient()
+    const { data: loteBAntes } = await admin
+      .from('lotes')
+      .select('cliente_id, estado')
+      .eq('id', loteBId)
+      .single()
+    expect(loteBAntes?.cliente_id).toBeNull()
+    expect(loteBAntes?.estado).toBe('reservado')
+
+    // Ahora sí confirma -- recién ahí se asocia.
+    await page.getByRole('button', { name: 'Confirmar venta con esta cuenta existente' }).click()
+    await page.waitForURL('**/admin/lotes')
+
+    const { data: loteADespues } = await admin
+      .from('lotes')
+      .select('cliente_id')
+      .eq('id', loteAId)
+      .single()
+    const { data: loteBDespues } = await admin
+      .from('lotes')
+      .select('cliente_id')
+      .eq('id', loteBId)
+      .single()
+    expect(loteBDespues?.cliente_id).toBe(loteADespues?.cliente_id)
   })
 
   test('el portal del cliente lista todos sus lotes', async ({ page }) => {

@@ -71,7 +71,7 @@ export async function venderLote(loteId: string, formData: FormData) {
 
   const { data: clienteExistente } = await admin
     .from('profiles')
-    .select('id')
+    .select('id, full_name')
     .eq('email', email)
     .eq('role', 'cliente')
     .maybeSingle()
@@ -84,6 +84,27 @@ export async function venderLote(loteId: string, formData: FormData) {
     // contra profiles_pkey) o crear una segunda cuenta para la misma
     // persona. No se toca su full_name existente para no pisarlo si el
     // nombre tipeado esta vez difiere levemente.
+    //
+    // Antes de asociar el lote, se exige una confirmación explícita del
+    // admin: si tipeó mal el email, este chequeo podría enganchar el lote a
+    // la cuenta de OTRA persona real sin que nadie lo note. El primer
+    // submit nunca trae `confirmarClienteExistente` todavía, así que
+    // siempre se corta acá la primera vez y se le muestra al admin el
+    // nombre real de la cuenta encontrada antes de completar la venta.
+    const confirmado = (formData.get('confirmarClienteExistente') as string) === clienteExistente.id
+
+    if (!confirmado) {
+      const params = new URLSearchParams({
+        confirmarClienteId: clienteExistente.id,
+        nombreEncontrado: clienteExistente.full_name ?? '',
+        fullName,
+        email,
+        cantidadCuotas: String(cantidadCuotas),
+        fechaPrimeraCuota,
+      })
+      redirect(`/admin/lotes/${loteId}/vender?${params.toString()}`)
+    }
+
     clienteId = clienteExistente.id
   } else {
     const { data: invited, error: errorInvite } = await admin.auth.admin.inviteUserByEmail(email)
