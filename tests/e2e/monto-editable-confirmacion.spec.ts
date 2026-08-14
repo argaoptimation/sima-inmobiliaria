@@ -127,7 +127,7 @@ test.describe('Monto editable al confirmar un pago', () => {
 
   test('confirmar con un monto ya desactualizado es rechazado, sin pisar la corrección ajena', async ({
     page,
-    context,
+    browser,
   }) => {
     const { pagoId, nombreArchivo } = await crearPagoPendienteConComprobante(
       `e2e-obsoleto-${Date.now()}.pdf`,
@@ -140,15 +140,18 @@ test.describe('Monto editable al confirmar un pago', () => {
     let fila = filaPorComprobante(page, nombreArchivo)
     await expect(fila.getByLabel('Monto a confirmar')).toHaveValue('50')
 
-    // Mientras tanto, el acreedor (en otra pestaña) corrige a 500 y confirma.
-    const paginaAcreedor = await context.newPage()
+    // Mientras tanto, el acreedor (en una sesión de browser SEPARADA -- no
+    // solo una pestaña nueva del mismo contexto, que compartiría las cookies
+    // de sesión del admin y arruinaría el escenario) corrige a 500 y confirma.
+    const contextoAcreedor = await browser.newContext()
+    const paginaAcreedor = await contextoAcreedor.newPage()
     await login(paginaAcreedor, fixtures.acreedorConDatos.email, fixtures.password)
     await paginaAcreedor.goto('/admin/pagos')
     const filaAcreedor = filaPorComprobante(paginaAcreedor, nombreArchivo)
     await filaAcreedor.getByLabel('Monto a confirmar').fill('500')
     await filaAcreedor.getByRole('button', { name: 'Confirmar mi parte' }).click()
     await expect(filaAcreedor.locator('td').nth(1)).toHaveText('500 USD')
-    await paginaAcreedor.close()
+    await contextoAcreedor.close()
 
     // El admin, sin refrescar, intenta confirmar con el 50 viejo que sigue en su pantalla.
     await fila.getByRole('button', { name: 'Confirmar mi parte' }).click()
@@ -159,11 +162,13 @@ test.describe('Monto editable al confirmar un pago', () => {
     const admin = createAdminClient()
     const { data: pago } = await admin
       .from('pagos')
-      .select('monto, confirmado_admin_por')
+      .select('monto, confirmado_admin_por, confirmado_acreedor_por')
       .eq('id', pagoId)
       .single()
     expect(pago?.monto).toBe(500)
     expect(pago?.confirmado_admin_por).toBeNull()
+    // La corrección del acreedor no quedó pisada por el submit obsoleto del admin.
+    expect(pago?.confirmado_acreedor_por).toBeTruthy()
   })
 
   test('caso feliz: monto corregido y confirmado por ambos dispara el FIFO con el monto correcto', async ({
