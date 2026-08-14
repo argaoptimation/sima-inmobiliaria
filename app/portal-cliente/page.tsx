@@ -13,6 +13,17 @@ function BotonCerrarSesion() {
   )
 }
 
+function AccionesHeader() {
+  return (
+    <div className="flex items-center gap-4">
+      <a href="/portal-cliente/mi-perfil" className="text-sm underline">
+        Mi perfil
+      </a>
+      <BotonCerrarSesion />
+    </div>
+  )
+}
+
 export default async function PortalClientePage() {
   const supabase = await createClient()
 
@@ -34,7 +45,9 @@ export default async function PortalClientePage() {
     return (
       <main className="mx-auto mt-24 max-w-md p-6 text-center">
         <p className="mb-4">Todavía no tenés un lote asignado.</p>
-        <BotonCerrarSesion />
+        <div className="flex justify-center">
+          <AccionesHeader />
+        </div>
       </main>
     )
   }
@@ -64,7 +77,7 @@ export default async function PortalClientePage() {
     <main className="mx-auto mt-12 max-w-2xl p-6">
       <div className="mb-6 flex items-center justify-between">
         <h1 className="text-xl font-semibold">Tus lotes</h1>
-        <BotonCerrarSesion />
+        <AccionesHeader />
       </div>
       <table className="w-full text-sm">
         <thead>
