@@ -1,6 +1,7 @@
 import { createClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
 import { NavAdmin } from '@/components/NavAdmin'
+import { contarPagosPendientes } from '@/lib/pagos-pendientes'
 
 export default async function AdminLayout({ children }: { children: React.ReactNode }) {
   const supabase = await createClient()
@@ -29,9 +30,11 @@ export default async function AdminLayout({ children }: { children: React.ReactN
     redirect('/')
   }
 
+  const pagosPendientes = await contarPagosPendientes(supabase, profile.role, user.id)
+
   return (
     <div>
-      <NavAdmin role={profile.role} />
+      <NavAdmin role={profile.role} pagosPendientes={pagosPendientes} />
       <div className="p-6">{children}</div>
     </div>
   )

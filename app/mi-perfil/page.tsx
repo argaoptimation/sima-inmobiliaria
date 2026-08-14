@@ -2,6 +2,7 @@ import { createClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
 import { actualizarNombre, actualizarDatosTransferencia } from './actions'
 import { NavAdmin } from '@/components/NavAdmin'
+import { contarPagosPendientes } from '@/lib/pagos-pendientes'
 
 export default async function MiPerfilPage({
   searchParams,
@@ -33,10 +34,12 @@ export default async function MiPerfilPage({
     redirect('/portal-cliente')
   }
 
+  const pagosPendientes = await contarPagosPendientes(supabase, perfil!.role, user!.id)
+
   return (
     <>
       {['administrador', 'acreedor', 'vendedor', 'cobrador'].includes(perfil!.role) && (
-        <NavAdmin role={perfil!.role} />
+        <NavAdmin role={perfil!.role} pagosPendientes={pagosPendientes} />
       )}
       <main className="mx-auto mt-12 max-w-md p-6">
       <h1 className="mb-6 text-xl font-semibold">Mi perfil</h1>
