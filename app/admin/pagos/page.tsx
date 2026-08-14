@@ -21,9 +21,9 @@ type Pago = {
 export default async function PagosPage({
   searchParams,
 }: {
-  searchParams: Promise<{ error?: string }>
+  searchParams: Promise<{ error?: string; q?: string }>
 }) {
-  const { error } = await searchParams
+  const { error, q: filtroTexto } = await searchParams
 
   await requireAdminOAcreedor()
 
@@ -42,6 +42,35 @@ export default async function PagosPage({
   const columnasPago =
     'id, monto, moneda, comprobante_path, motivo, estado, confirmado_acreedor_por, confirmado_admin_por, cliente_id, lote_id, monto_recibido, moneda_recibida'
 
+  let loteIdsBusqueda: string[] | null = null
+
+  if (filtroTexto) {
+    const { data: lotesPorIdentificador } = await supabase
+      .from('lotes')
+      .select('id')
+      .ilike('identificador', `%${filtroTexto}%`)
+
+    const { data: clientesPorNombre } = await supabase
+      .from('profiles')
+      .select('id')
+      .eq('role', 'cliente')
+      .ilike('full_name', `%${filtroTexto}%`)
+
+    const clienteIds = (clientesPorNombre ?? []).map((cliente) => cliente.id)
+
+    const { data: lotesPorCliente } =
+      clienteIds.length > 0
+        ? await supabase.from('lotes').select('id').in('cliente_id', clienteIds)
+        : { data: [] }
+
+    loteIdsBusqueda = [
+      ...new Set([
+        ...(lotesPorIdentificador ?? []).map((lote) => lote.id),
+        ...(lotesPorCliente ?? []).map((lote) => lote.id),
+      ]),
+    ]
+  }
+
   let pagos: Pago[] = []
 
   if (perfilPropio!.role === 'acreedor') {
@@ -50,7 +79,12 @@ export default async function PagosPage({
       .select('id')
       .eq('acreedor_id', user!.id)
 
-    const loteIds = (misLotes ?? []).map((lote) => lote.id)
+    let loteIds = (misLotes ?? []).map((lote) => lote.id)
+
+    if (loteIdsBusqueda !== null) {
+      const busquedaSet = new Set(loteIdsBusqueda)
+      loteIds = loteIds.filter((id) => busquedaSet.has(id))
+    }
 
     if (loteIds.length > 0) {
       const { data } = await supabase
@@ -61,11 +95,22 @@ export default async function PagosPage({
       pagos = data ?? []
     }
   } else {
-    const { data } = await supabase
-      .from('pagos')
-      .select(columnasPago)
-      .order('created_at', { ascending: false })
-    pagos = data ?? []
+    if (loteIdsBusqueda !== null) {
+      if (loteIdsBusqueda.length > 0) {
+        const { data } = await supabase
+          .from('pagos')
+          .select(columnasPago)
+          .in('lote_id', loteIdsBusqueda)
+          .order('created_at', { ascending: false })
+        pagos = data ?? []
+      }
+    } else {
+      const { data } = await supabase
+        .from('pagos')
+        .select(columnasPago)
+        .order('created_at', { ascending: false })
+      pagos = data ?? []
+    }
   }
 
   const admin = createAdminClient()
@@ -82,14 +127,26 @@ export default async function PagosPage({
 
   const lotePorId = new Map((lotesConPago ?? []).map((lote) => [lote.id, lote]))
 
+  const clienteIdsConPago = [...new Set(pagos.map((pago) => pago.cliente_id))]
+
+  const { data: clientesConPago } =
+    clienteIdsConPago.length > 0
+      ? await supabase.from('profiles').select('id, full_name').in('id', clienteIdsConPago)
+      : { data: [] }
+
+  const nombreClientePorId = new Map(
+    (clientesConPago ?? []).map((cliente) => [cliente.id, cliente.full_name])
+  )
+
   const pagosConLink = await Promise.all(
     pagos.map(async (pago) => {
       const lote = lotePorId.get(pago.lote_id)
       const sinAcreedorVinculado = !lote?.acreedor_id
       const identificadorLote = lote?.identificador ?? '—'
+      const nombreCliente = nombreClientePorId.get(pago.cliente_id) ?? '—'
 
       if (!pago.comprobante_path) {
-        return { ...pago, comprobanteUrl: null, sinAcreedorVinculado, identificadorLote }
+        return { ...pago, comprobanteUrl: null, sinAcreedorVinculado, identificadorLote, nombreCliente }
       }
 
       const { data, error: errorSignedUrl } = await admin.storage
@@ -101,6 +158,7 @@ export default async function PagosPage({
         comprobanteUrl: errorSignedUrl ? null : data?.signedUrl ?? null,
         sinAcreedorVinculado,
         identificadorLote,
+        nombreCliente,
       }
     })
   )
@@ -109,10 +167,31 @@ export default async function PagosPage({
     <main>
       <h1 className="mb-6 text-xl font-semibold">Pagos</h1>
       {error && <p className="mb-4 rounded bg-red-100 p-2 text-sm text-red-700">{error}</p>}
+      <form method="get" className="mb-4 flex flex-wrap items-end gap-3">
+        <label className="text-sm">
+          Buscar
+          <input
+            type="text"
+            name="q"
+            placeholder="Buscar cliente o lote"
+            defaultValue={filtroTexto ?? ''}
+            className="mt-1 block rounded border px-3 py-2"
+          />
+        </label>
+        <button type="submit" className="rounded border px-3 py-2 text-sm">
+          Filtrar
+        </button>
+        {filtroTexto && (
+          <a href="/admin/pagos" className="text-sm underline">
+            Limpiar búsqueda
+          </a>
+        )}
+      </form>
       <table className="w-full text-sm">
         <thead>
           <tr className="border-b text-left">
             <th className="py-2">Lote</th>
+            <th>Cliente</th>
             <th>Motivo</th>
             <th>Monto</th>
             <th>Comprobante</th>
@@ -129,6 +208,7 @@ export default async function PagosPage({
             return (
               <tr key={pago.id} className="border-b">
                 <td className="py-2">{pago.identificadorLote}</td>
+                <td>{pago.nombreCliente}</td>
                 <td>{pago.motivo === 'sena' ? 'Seña' : 'Cuota'}</td>
                 <td>
                   {pago.monto} {pago.moneda}
