@@ -1,4 +1,4 @@
-import { test, expect } from '@playwright/test'
+import { test, expect, Page } from '@playwright/test'
 import { readFileSync } from 'node:fs'
 import path from 'node:path'
 import { ensureTestFixtures, createAdminClient, TestFixtures } from './fixtures/test-data'
@@ -6,6 +6,19 @@ import { login } from './utils/login'
 
 const COMPROBANTE_PATH = path.join(__dirname, 'fixtures', 'comprobante-test.pdf')
 const COMPROBANTE_BYTES = readFileSync(COMPROBANTE_PATH)
+
+// La base de e2e es compartida con otros specs de este mismo suite que a
+// propósito dejan pagos pendientes sin confirmar (ej.
+// pagos-acotados-por-acreedor.spec.ts) tocando el mismo lote/acreedor fijo
+// de fixtures -- así que el contador real de "Pagos pendientes" NUNCA se
+// puede asumir en 0 al arrancar cada test. En vez de eso, se lee el valor
+// actual como línea de base y se comparan DELTAS antes/después de cada
+// acción, sin importar cuánto haya quedado pendiente de antes.
+async function leerContadorPagos(page: Page) {
+  const texto = await page.getByRole('link', { name: /^Pagos/ }).textContent()
+  const match = texto?.match(/\((\d+)\)/)
+  return match ? Number(match[1]) : 0
+}
 
 // Nota: `ensureTestFixtures()` NO es memoizada -- cada llamada borra y
 // vuelve a crear el lote (y el lote secundario) de prueba desde cero. Por
@@ -64,13 +77,13 @@ test.describe('Contador de pagos pendientes en la nav', () => {
   }) => {
     await login(page, fixtures.acreedorConDatos.email, fixtures.password)
     await page.goto('/admin/lotes')
-    await expect(page.getByRole('link', { name: /^Pagos/ })).toHaveText('Pagos')
+    const base = await leerContadorPagos(page)
 
     const nombreArchivo = `e2e-contador-${Date.now()}.pdf`
     await crearPagoPendiente(nombreArchivo, fixtures.loteId, fixtures.cliente.id, true)
 
     await page.goto('/admin/lotes')
-    await expect(page.getByRole('link', { name: /^Pagos/ })).toHaveText('Pagos (1)')
+    expect(await leerContadorPagos(page)).toBe(base + 1)
 
     await page.goto('/admin/pagos')
     // Los Server Actions de Next.js no escriben el pagoId en el atributo
@@ -90,10 +103,14 @@ test.describe('Contador de pagos pendientes en la nav', () => {
     await expect(fila.locator('td').nth(6)).toHaveText('Sí')
 
     await page.goto('/admin/lotes')
-    await expect(page.getByRole('link', { name: /^Pagos/ })).toHaveText('Pagos')
+    expect(await leerContadorPagos(page)).toBe(base)
   })
 
   test('un pago sin comprobante todavía no cuenta', async ({ page }) => {
+    await login(page, fixtures.acreedorConDatos.email, fixtures.password)
+    await page.goto('/admin/lotes')
+    const base = await leerContadorPagos(page)
+
     await crearPagoPendiente(
       `e2e-sin-comprobante-${Date.now()}.pdf`,
       fixtures.loteId,
@@ -101,12 +118,15 @@ test.describe('Contador de pagos pendientes en la nav', () => {
       false
     )
 
-    await login(page, fixtures.acreedorConDatos.email, fixtures.password)
     await page.goto('/admin/lotes')
-    await expect(page.getByRole('link', { name: /^Pagos/ })).toHaveText('Pagos')
+    expect(await leerContadorPagos(page)).toBe(base)
   })
 
   test('un acreedor no cuenta pagos de lotes que no son suyos', async ({ page }) => {
+    await login(page, fixtures.acreedorConDatos.email, fixtures.password)
+    await page.goto('/admin/lotes')
+    const base = await leerContadorPagos(page)
+
     await crearPagoPendiente(
       `e2e-lote-ajeno-${Date.now()}.pdf`,
       fixtures.loteSecundarioId,
@@ -114,9 +134,8 @@ test.describe('Contador de pagos pendientes en la nav', () => {
       true
     )
 
-    await login(page, fixtures.acreedorConDatos.email, fixtures.password)
     await page.goto('/admin/lotes')
-    await expect(page.getByRole('link', { name: /^Pagos/ })).toHaveText('Pagos')
+    expect(await leerContadorPagos(page)).toBe(base)
   })
 
   test('el admin cuenta pagos de cualquier lote', async ({ page }) => {
