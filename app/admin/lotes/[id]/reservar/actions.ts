@@ -35,6 +35,10 @@ export async function reservarLote(loteId: string, formData: FormData) {
   const recibidoPor = ((formData.get('recibidoPor') as string) || '').trim() || null
   const recibidoPorOtro = ((formData.get('recibidoPorOtro') as string) || '').trim() || null
   const comprobante = formData.get('comprobante') as File
+  const dniFrente = formData.get('dniFrente') as File
+  const dniDorso = formData.get('dniDorso') as File
+  const dniConyuge = formData.get('dniConyuge') as File | null
+  const sentenciaDivorcio = formData.get('sentenciaDivorcio') as File | null
 
   if (!tieneRecibidoPorValido({ recibidoPor, recibidoPorOtro })) {
     redirect(
@@ -47,6 +51,12 @@ export async function reservarLote(loteId: string, formData: FormData) {
   if (!comprobante || comprobante.size === 0) {
     redirect(
       `/admin/lotes/${loteId}/reservar?error=${encodeURIComponent('Subí el comprobante de la seña')}`
+    )
+  }
+
+  if (!dniFrente || dniFrente.size === 0 || !dniDorso || dniDorso.size === 0) {
+    redirect(
+      `/admin/lotes/${loteId}/reservar?error=${encodeURIComponent('Subí las fotos del DNI (frente y dorso)')}`
     )
   }
 
@@ -78,6 +88,22 @@ export async function reservarLote(loteId: string, formData: FormData) {
   if (!ESTADOS_CIVILES_VALIDOS.includes(estadoCivil)) {
     redirect(
       `/admin/lotes/${loteId}/reservar?error=${encodeURIComponent('Estado civil inválido')}`
+    )
+  }
+
+  if (estadoCivil === 'casado' && (!dniConyuge || dniConyuge.size === 0)) {
+    redirect(
+      `/admin/lotes/${loteId}/reservar?error=${encodeURIComponent(
+        'Subí el DNI del cónyuge (elegiste "Casado/a")'
+      )}`
+    )
+  }
+
+  if (estadoCivil === 'divorciado' && (!sentenciaDivorcio || sentenciaDivorcio.size === 0)) {
+    redirect(
+      `/admin/lotes/${loteId}/reservar?error=${encodeURIComponent(
+        'Subí la sentencia de divorcio (elegiste "Divorciado/a")'
+      )}`
     )
   }
 
@@ -157,6 +183,62 @@ export async function reservarLote(loteId: string, formData: FormData) {
     )
   }
 
+  async function subirArchivoReserva(archivo: File, tipo: string) {
+    const nombreSeguro = archivo.name.replace(/[^a-zA-Z0-9._-]/g, '_')
+    const filePath = `reservas/${loteId}/${tipo}-${Date.now()}-${nombreSeguro}`
+    const { error } = await admin.storage.from('comprobantes').upload(filePath, archivo)
+    return { filePath, error }
+  }
+
+  const { filePath: dniFrentePath, error: errorDniFrente } = await subirArchivoReserva(
+    dniFrente,
+    'dni-frente'
+  )
+  if (errorDniFrente) {
+    console.error('Error al subir el DNI frente:', errorDniFrente)
+    redirect(
+      `/admin/lotes/${loteId}/reservar?error=${encodeURIComponent('No se pudo subir el DNI (frente). Probá de nuevo.')}`
+    )
+  }
+
+  const { filePath: dniDorsoPath, error: errorDniDorso } = await subirArchivoReserva(
+    dniDorso,
+    'dni-dorso'
+  )
+  if (errorDniDorso) {
+    console.error('Error al subir el DNI dorso:', errorDniDorso)
+    redirect(
+      `/admin/lotes/${loteId}/reservar?error=${encodeURIComponent('No se pudo subir el DNI (dorso). Probá de nuevo.')}`
+    )
+  }
+
+  let dniConyugePath: string | null = null
+  if (dniConyuge && dniConyuge.size > 0) {
+    const { filePath, error: errorDniConyuge } = await subirArchivoReserva(dniConyuge, 'dni-conyuge')
+    if (errorDniConyuge) {
+      console.error('Error al subir el DNI del cónyuge:', errorDniConyuge)
+      redirect(
+        `/admin/lotes/${loteId}/reservar?error=${encodeURIComponent('No se pudo subir el DNI del cónyuge. Probá de nuevo.')}`
+      )
+    }
+    dniConyugePath = filePath
+  }
+
+  let sentenciaDivorcioPath: string | null = null
+  if (sentenciaDivorcio && sentenciaDivorcio.size > 0) {
+    const { filePath, error: errorSentencia } = await subirArchivoReserva(
+      sentenciaDivorcio,
+      'sentencia-divorcio'
+    )
+    if (errorSentencia) {
+      console.error('Error al subir la sentencia de divorcio:', errorSentencia)
+      redirect(
+        `/admin/lotes/${loteId}/reservar?error=${encodeURIComponent('No se pudo subir la sentencia de divorcio. Probá de nuevo.')}`
+      )
+    }
+    sentenciaDivorcioPath = filePath
+  }
+
   const { error: errorReserva } = await admin.from('reservas').insert({
     lote_id: loteId,
     nombre_completo: nombreCompleto,
@@ -172,6 +254,10 @@ export async function reservarLote(loteId: string, formData: FormData) {
     recibido_por: recibidoPor,
     recibido_por_otro: recibidoPorOtro,
     comprobante_sena_path: comprobantePath,
+    dni_frente_path: dniFrentePath,
+    dni_dorso_path: dniDorsoPath,
+    dni_conyuge_path: dniConyugePath,
+    sentencia_divorcio_path: sentenciaDivorcioPath,
     created_by: user!.id,
   })
 

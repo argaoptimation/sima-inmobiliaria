@@ -166,6 +166,39 @@ export default async function ReservarLotePage({
             />
           </label>
 
+          <label className="text-sm">
+            DNI - frente
+            <input
+              name="dniFrente"
+              type="file"
+              className="mt-1 block w-full rounded border px-3 py-2"
+            />
+          </label>
+          <label className="text-sm">
+            DNI - dorso
+            <input
+              name="dniDorso"
+              type="file"
+              className="mt-1 block w-full rounded border px-3 py-2"
+            />
+          </label>
+          <label className="text-sm">
+            DNI del cónyuge (solo si elegiste &quot;Casado/a&quot; arriba)
+            <input
+              name="dniConyuge"
+              type="file"
+              className="mt-1 block w-full rounded border px-3 py-2"
+            />
+          </label>
+          <label className="text-sm">
+            Sentencia de divorcio (solo si elegiste &quot;Divorciado/a&quot; arriba)
+            <input
+              name="sentenciaDivorcio"
+              type="file"
+              className="mt-1 block w-full rounded border px-3 py-2"
+            />
+          </label>
+
           <button type="submit" className="rounded bg-black px-3 py-2 text-white">
             Confirmar reserva
           </button>

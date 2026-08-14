@@ -47,6 +47,16 @@ async function reservarLotePorUI(
     mimeType: 'application/pdf',
     buffer: COMPROBANTE_BYTES,
   })
+  await page.setInputFiles('input[name="dniFrente"]', {
+    name: `e2e-dni-frente-${Date.now()}.pdf`,
+    mimeType: 'application/pdf',
+    buffer: COMPROBANTE_BYTES,
+  })
+  await page.setInputFiles('input[name="dniDorso"]', {
+    name: `e2e-dni-dorso-${Date.now()}.pdf`,
+    mimeType: 'application/pdf',
+    buffer: COMPROBANTE_BYTES,
+  })
   await page.getByRole('button', { name: 'Confirmar reserva' }).click()
   await page.waitForURL('**/admin/lotes')
 }
