@@ -105,6 +105,9 @@ export default async function ClienteDetallePage({
       )}
 
       <h2 className="mb-2 text-lg font-semibold">Resetear contraseña</h2>
+      <p className="mb-2 text-sm text-gray-600">
+        Mínimo 8 caracteres, incluyendo un signo (ej. ! ? . # -)
+      </p>
       <form
         action={resetearContrasenaCliente.bind(null, cliente!.id)}
         className="flex max-w-sm gap-2"
@@ -113,7 +116,7 @@ export default async function ClienteDetallePage({
           name="nuevaContrasena"
           type="text"
           placeholder="Nueva contraseña"
-          minLength={6}
+          minLength={8}
           required
           className="flex-1 rounded border px-3 py-2"
         />

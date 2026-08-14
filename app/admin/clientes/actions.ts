@@ -3,17 +3,16 @@
 import { createAdminClient } from '@/lib/supabase/admin'
 import { redirect } from 'next/navigation'
 import { requireAdministrador } from '@/lib/auth/require-admin'
+import { esContrasenaValida, mensajeContrasenaInvalida } from '@/lib/auth/validar-contrasena'
 
 export async function resetearContrasenaCliente(clienteId: string, formData: FormData) {
   await requireAdministrador()
 
   const nuevaContrasena = (formData.get('nuevaContrasena') as string)?.trim()
 
-  if (!nuevaContrasena || nuevaContrasena.length < 6) {
+  if (!nuevaContrasena || !esContrasenaValida(nuevaContrasena)) {
     redirect(
-      `/admin/clientes/${clienteId}?error=${encodeURIComponent(
-        'La contraseña tiene que tener al menos 6 caracteres'
-      )}`
+      `/admin/clientes/${clienteId}?error=${encodeURIComponent(mensajeContrasenaInvalida())}`
     )
   }
 
