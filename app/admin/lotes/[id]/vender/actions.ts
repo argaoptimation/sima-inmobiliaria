@@ -295,12 +295,22 @@ export async function venderLote(loteId: string, formData: FormData) {
       redirect(`/admin/lotes/${loteId}/vender?${params.toString()}`)
     }
 
+    if (montosManualesRaw.some((valor) => valor.trim() === '')) {
+      redirectVenderConError(
+        loteId,
+        'Completá el monto de todas las cuotas',
+        construirParamsVenderPreservados(formData, clienteExistenteParaPreservar, clienteNuevoIdParaPreservar)
+      )
+    }
+
     const montosManuales = montosManualesRaw.map((valor) => Number(valor))
     if (!montosManuales.every((monto) => Number.isFinite(monto) && monto >= 0)) {
+      const params = construirParamsVenderPreservados(formData, clienteExistenteParaPreservar, clienteNuevoIdParaPreservar)
+      montosManualesRaw.forEach((valor, indice) => params.set(`cuotaMonto${indice + 1}`, valor))
       redirectVenderConError(
         loteId,
         'Los montos de las cuotas tienen que ser números válidos, no negativos',
-        construirParamsVenderPreservados(formData, clienteExistenteParaPreservar, clienteNuevoIdParaPreservar)
+        params
       )
     }
 
@@ -312,18 +322,22 @@ export async function venderLote(loteId: string, formData: FormData) {
       const documentoFirmado = formData.get('documentoFirmado') as File
 
       if (!documentoFirmado || documentoFirmado.size === 0) {
+        const params = construirParamsVenderPreservados(formData, clienteExistenteParaPreservar, clienteNuevoIdParaPreservar)
+        montosManualesRaw.forEach((valor, indice) => params.set(`cuotaMonto${indice + 1}`, valor))
         redirectVenderConError(
           loteId,
           'Subí el documento firmado (boleto o escritura)',
-          construirParamsVenderPreservados(formData, clienteExistenteParaPreservar, clienteNuevoIdParaPreservar)
+          params
         )
       }
 
       if (excedeTamanioMaximo(documentoFirmado)) {
+        const params = construirParamsVenderPreservados(formData, clienteExistenteParaPreservar, clienteNuevoIdParaPreservar)
+        montosManualesRaw.forEach((valor, indice) => params.set(`cuotaMonto${indice + 1}`, valor))
         redirectVenderConError(
           loteId,
           `El documento firmado pesa más de ${MAX_ARCHIVO_MB} MB — subí uno más liviano.`,
-          construirParamsVenderPreservados(formData, clienteExistenteParaPreservar, clienteNuevoIdParaPreservar)
+          params
         )
       }
 
@@ -331,10 +345,12 @@ export async function venderLote(loteId: string, formData: FormData) {
 
       if (errorSubidaDocumento) {
         console.error('Error al subir el documento firmado:', errorSubidaDocumento)
+        const params = construirParamsVenderPreservados(formData, clienteExistenteParaPreservar, clienteNuevoIdParaPreservar)
+        montosManualesRaw.forEach((valor, indice) => params.set(`cuotaMonto${indice + 1}`, valor))
         redirectVenderConError(
           loteId,
           'No se pudo subir el documento firmado. Probá de nuevo.',
-          construirParamsVenderPreservados(formData, clienteExistenteParaPreservar, clienteNuevoIdParaPreservar)
+          params
         )
       }
 
@@ -352,6 +368,14 @@ export async function venderLote(loteId: string, formData: FormData) {
       redirectVenderConError(
         loteId,
         'Falta el documento firmado, volvé a intentarlo desde el principio',
+        construirParamsVenderPreservados(formData, clienteExistenteParaPreservar, clienteNuevoIdParaPreservar)
+      )
+    }
+
+    if (!documentoFirmadoPathConfirmado.startsWith(`ventas/${loteId}/`)) {
+      redirectVenderConError(
+        loteId,
+        'El documento firmado no corresponde a este lote, volvé a intentarlo desde el principio',
         construirParamsVenderPreservados(formData, clienteExistenteParaPreservar, clienteNuevoIdParaPreservar)
       )
     }

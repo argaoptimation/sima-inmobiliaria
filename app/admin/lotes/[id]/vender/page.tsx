@@ -146,6 +146,12 @@ export default async function VenderLotePage({
               <p className="font-medium">Revisá el balance antes de confirmar</p>
               <p className="mt-1">Suma total de las cuotas cargadas: {sumaManual}</p>
               {lote!.precio_total && <p>Precio de lista del lote: {lote!.precio_total}</p>}
+              {reserva && reserva.monto_sena > 0 && (
+                <p>
+                  Seña ya registrada: {reserva.monto_sena} {reserva.moneda_sena} (se descuenta de la
+                  cuota 1 al confirmar)
+                </p>
+              )}
               {diferenciaManual !== null && (
                 <p className="mt-1 font-medium">
                   Diferencia respecto al precio de lista: {diferenciaManual > 0 ? '+' : ''}
@@ -205,6 +211,7 @@ export default async function VenderLotePage({
                     step="0.01"
                     min="0"
                     placeholder={`Cuota ${indice + 1}`}
+                    defaultValue={montosManuales[indice] ?? ''}
                     required
                     className="rounded border px-3 py-2"
                   />
