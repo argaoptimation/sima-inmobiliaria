@@ -13,6 +13,7 @@ export function NavAdmin({ role, pagosPendientes }: { role: string; pagosPendien
         )}
         {puedeVerPagosYUsuarios && <a href="/admin/usuarios">Usuarios</a>}
         {esAdministrador && <a href="/admin/clientes">Clientes</a>}
+        {esAdministrador && <a href="/admin/cuentas-externas">Cuentas externas</a>}
         <a href="/mi-perfil">Mi perfil</a>
       </div>
       <form action={logout}>
