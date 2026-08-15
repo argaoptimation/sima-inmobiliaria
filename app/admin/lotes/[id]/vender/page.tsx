@@ -20,7 +20,7 @@ export default async function VenderLotePage({
     dniPerfil?: string
     modo?: string
     documentoFirmadoPath?: string
-    clienteIdYaResuelto?: string
+    clienteNuevoId?: string
     [cuotaMontoKey: string]: string | undefined
   }>
 }) {
@@ -38,7 +38,7 @@ export default async function VenderLotePage({
     dniPerfil,
     modo: modoPreservado,
     documentoFirmadoPath,
-    clienteIdYaResuelto,
+    clienteNuevoId,
   } = sp
 
   await requireAdministrador()
@@ -159,6 +159,7 @@ export default async function VenderLotePage({
             {confirmarClienteId && (
               <input type="hidden" name="confirmarClienteExistente" value={confirmarClienteId} />
             )}
+            {clienteNuevoId && <input type="hidden" name="clienteNuevoId" value={clienteNuevoId} />}
 
             {mostrarPasoConfirmarMontos ? (
               <>
@@ -172,7 +173,6 @@ export default async function VenderLotePage({
                   value={fechaPrimeraCuotaPreservada ?? ''}
                 />
                 <input type="hidden" name="documentoFirmadoPath" value={documentoFirmadoPath ?? ''} />
-                <input type="hidden" name="clienteIdYaResuelto" value={clienteIdYaResuelto ?? ''} />
                 {montosManuales.map((monto, indice) => (
                   <input key={indice} type="hidden" name={`cuotaMonto${indice + 1}`} value={monto} />
                 ))}
@@ -192,7 +192,6 @@ export default async function VenderLotePage({
                   name="fechaPrimeraCuota"
                   value={fechaPrimeraCuotaPreservada ?? ''}
                 />
-                <input type="hidden" name="clienteIdYaResuelto" value={clienteIdYaResuelto ?? ''} />
                 {lote!.precio_total && (
                   <p className="text-sm text-gray-600">
                     Precio de lista del lote: {lote!.precio_total} — cargá el monto de cada cuota.
