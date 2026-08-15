@@ -69,9 +69,20 @@ export async function venderLote(loteId: string, formData: FormData) {
     )
   }
 
+  // Reserva más reciente de este lote: se usa tanto para completar/copiar
+  // los datos del cliente (dni, domicilio, telefono) más abajo como para el
+  // descuento de la seña en las cuotas, al final de la función.
+  const { data: reserva } = await admin
+    .from('reservas')
+    .select('monto_sena, moneda_sena, comprobante_sena_path, dni, domicilio, telefono')
+    .eq('lote_id', loteId)
+    .order('created_at', { ascending: false })
+    .limit(1)
+    .maybeSingle()
+
   const { data: clienteExistente } = await admin
     .from('profiles')
-    .select('id, full_name')
+    .select('id, full_name, dni, domicilio, telefono')
     .eq('email', email)
     .eq('role', 'cliente')
     .maybeSingle()
@@ -94,6 +105,10 @@ export async function venderLote(loteId: string, formData: FormData) {
     const confirmado = (formData.get('confirmarClienteExistente') as string) === clienteExistente.id
 
     if (!confirmado) {
+      const dniNoCoincide = Boolean(
+        reserva?.dni && clienteExistente.dni && reserva.dni !== clienteExistente.dni
+      )
+
       const params = new URLSearchParams({
         confirmarClienteId: clienteExistente.id,
         nombreEncontrado: clienteExistente.full_name ?? '',
@@ -101,12 +116,54 @@ export async function venderLote(loteId: string, formData: FormData) {
         email,
         cantidadCuotas: String(cantidadCuotas),
         fechaPrimeraCuota,
+        ...(dniNoCoincide
+          ? { dniReserva: reserva!.dni as string, dniPerfil: clienteExistente.dni as string }
+          : {}),
       })
       redirect(`/admin/lotes/${loteId}/vender?${params.toString()}`)
     }
 
     clienteId = clienteExistente.id
+
+    // Solo se completan los campos que el perfil todavia no tenga cargados
+    // -- nunca se pisa un valor ya guardado, podria ser una correccion
+    // manual posterior a un error de tipeo en una reserva vieja.
+    const datosFaltantes: Record<string, string> = {}
+    if (!clienteExistente.dni && reserva?.dni) datosFaltantes.dni = reserva.dni
+    if (!clienteExistente.domicilio && reserva?.domicilio) datosFaltantes.domicilio = reserva.domicilio
+    if (!clienteExistente.telefono && reserva?.telefono) datosFaltantes.telefono = reserva.telefono
+
+    if (Object.keys(datosFaltantes).length > 0) {
+      const { error: errorCompletarDatos } = await admin
+        .from('profiles')
+        .update(datosFaltantes)
+        .eq('id', clienteExistente.id)
+
+      if (errorCompletarDatos) {
+        // No bloquea la venta -- ni siquiera un choque de DNI con otro
+        // cliente (23505). Queda para completar a mano despues desde la
+        // ficha del cliente si hace falta.
+        console.error('No se pudieron completar datos del cliente existente:', errorCompletarDatos)
+      }
+    }
   } else {
+    let dniParaNuevoCliente = reserva?.dni ?? null
+
+    if (dniParaNuevoCliente) {
+      const { data: dniYaUsado } = await admin
+        .from('profiles')
+        .select('id')
+        .eq('dni', dniParaNuevoCliente)
+        .maybeSingle()
+
+      if (dniYaUsado) {
+        // El DNI de la reserva ya pertenece a otro cliente (typo o
+        // coincidencia) -- no bloquea el alta, se guarda sin DNI y se
+        // puede completar despues a mano desde la ficha del cliente.
+        dniParaNuevoCliente = null
+      }
+    }
+
     const { data: invited, error: errorInvite } = await admin.auth.admin.inviteUserByEmail(email)
 
     if (errorInvite || !invited.user) {
@@ -115,18 +172,35 @@ export async function venderLote(loteId: string, formData: FormData) {
       )
     }
 
-    const { error: errorProfile } = await admin.from('profiles').insert({
-      id: invited.user.id,
-      role: 'cliente',
+    const nuevoPerfil = {
+      id: invited!.user.id,
+      role: 'cliente' as const,
       full_name: fullName,
       email,
-    })
-
-    if (errorProfile) {
-      redirect(`/admin/lotes/${loteId}/vender?error=${encodeURIComponent(errorProfile.message)}`)
+      dni: dniParaNuevoCliente,
+      domicilio: reserva?.domicilio ?? null,
+      telefono: reserva?.telefono ?? null,
     }
 
-    clienteId = invited.user.id
+    const { error: errorProfile } = await admin.from('profiles').insert(nuevoPerfil)
+
+    if (errorProfile) {
+      if (errorProfile.code === '23505' && nuevoPerfil.dni) {
+        // Choque de DNI justo en este instante (otro alta simultanea) --
+        // reintenta sin DNI en vez de bloquear la venta.
+        const { error: errorProfileSinDni } = await admin
+          .from('profiles')
+          .insert({ ...nuevoPerfil, dni: null })
+
+        if (errorProfileSinDni) {
+          redirect(`/admin/lotes/${loteId}/vender?error=${encodeURIComponent(errorProfileSinDni.message)}`)
+        }
+      } else {
+        redirect(`/admin/lotes/${loteId}/vender?error=${encodeURIComponent(errorProfile.message)}`)
+      }
+    }
+
+    clienteId = invited!.user.id
   }
 
   const precioTotal = loteActual!.precio_total as number
@@ -189,14 +263,6 @@ export async function venderLote(loteId: string, formData: FormData) {
   // mismo FIFO que un pago normal. Si la moneda de la seña difiere de la
   // del lote, no se descuenta nada automatico -- mismo criterio de "sin
   // conversion de moneda" que el resto del proyecto.
-  const { data: reserva } = await admin
-    .from('reservas')
-    .select('monto_sena, moneda_sena, comprobante_sena_path')
-    .eq('lote_id', loteId)
-    .order('created_at', { ascending: false })
-    .limit(1)
-    .maybeSingle()
-
   if (reserva && reserva.monto_sena > 0 && reserva.moneda_sena === loteActual!.moneda) {
     const { data: pagoSena, error: errorPagoSena } = await admin
       .from('pagos')

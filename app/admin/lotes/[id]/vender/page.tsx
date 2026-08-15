@@ -16,6 +16,8 @@ export default async function VenderLotePage({
     email?: string
     cantidadCuotas?: string
     fechaPrimeraCuota?: string
+    dniReserva?: string
+    dniPerfil?: string
   }>
 }) {
   const { id } = await params
@@ -28,6 +30,8 @@ export default async function VenderLotePage({
     email: emailPreservado,
     cantidadCuotas: cantidadCuotasPreservada,
     fechaPrimeraCuota: fechaPrimeraCuotaPreservada,
+    dniReserva,
+    dniPerfil,
   } = await searchParams
 
   const supabase = await createClient()
@@ -103,6 +107,13 @@ export default async function VenderLotePage({
                 ningún mail de invitación nuevo). Revisá que sea la persona correcta antes de
                 confirmar.
               </p>
+              {dniReserva && dniPerfil && (
+                <p className="mt-2">
+                  El DNI de esta reserva ({dniReserva}) no coincide con el que ya tenía guardado (
+                  {dniPerfil}). Se mantiene el guardado; si es un error, corregilo después desde la
+                  ficha del cliente.
+                </p>
+              )}
             </div>
           )}
 
