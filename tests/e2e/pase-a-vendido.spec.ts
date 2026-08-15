@@ -35,7 +35,7 @@ async function reservarLotePorUI(
 ) {
   await page.goto(`/admin/lotes/${loteId}/reservar`)
   await page.getByPlaceholder('Nombre completo').fill(datos.nombreCompleto)
-  await page.getByPlaceholder('DNI').fill('30111222')
+  await page.getByPlaceholder('DNI', { exact: true }).fill('30111222')
   await page.getByPlaceholder('Domicilio').fill('Calle Falsa 123')
   await page.getByPlaceholder('Email').fill(datos.email)
   await page.getByPlaceholder('Teléfono', { exact: true }).fill('3511234567')

@@ -31,7 +31,7 @@ async function crearLoteDisponible(identificador: string, acreedorId?: string) {
 
 async function completarDatosBasicosDeReserva(page: Page) {
   await page.getByPlaceholder('Nombre completo').fill('Comprador E2E')
-  await page.getByPlaceholder('DNI').fill('30111222')
+  await page.getByPlaceholder('DNI', { exact: true }).fill('30111222')
   await page.getByPlaceholder('Domicilio').fill('Calle Falsa 123')
   await page.getByPlaceholder('Email').fill('comprador.e2e@sima-demo.invalid')
   await page.getByPlaceholder('Teléfono', { exact: true }).fill('3511234567')

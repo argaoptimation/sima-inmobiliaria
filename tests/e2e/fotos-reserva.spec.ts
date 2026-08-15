@@ -37,7 +37,7 @@ function subirArchivo(page: Page, selector: string, nombre: string) {
 
 async function completarCamposBasicos(page: Page, estadoCivil: string) {
   await page.getByPlaceholder('Nombre completo').fill('Comprador Fotos E2E')
-  await page.getByPlaceholder('DNI').fill('30111222')
+  await page.getByPlaceholder('DNI', { exact: true }).fill('30111222')
   await page.getByPlaceholder('Domicilio').fill('Calle Falsa 123')
   await page.getByPlaceholder('Email').fill(`fotos.e2e.${Date.now()}@sima-e2e.invalid`)
   await page.getByPlaceholder('Teléfono', { exact: true }).fill('3511234567')
