@@ -239,4 +239,67 @@ test.describe('Múltiples participantes por lote', () => {
 
     await expect(page.getByText('Participantes adicionales')).not.toBeVisible()
   })
+
+  test('un participante adicional puede elegirse como cuenta de cobro; alguien no asociado, no', async ({
+    page,
+  }) => {
+    const admin = createAdminClient()
+
+    await login(page, fixtures.admin.email, fixtures.password)
+    await page.goto(`/admin/lotes/${fixtures.loteSecundarioId}`)
+
+    // E2E Vendedor A no es acreedor/vendedor/admin de loteSecundario (esos
+    // son acreedorSecundario y vendedorLoteB, ver fixtures/test-data.ts) y sí
+    // tiene datos de transferencia -- opción válida para este caso.
+    // Todavía no es participante de este lote: la opción existe en el
+    // selector (es global), pero el submit se rechaza.
+    await page.selectOption('select[name="cuentaCobroId"]', { label: 'E2E Vendedor A (vendedor)' })
+    await page.getByRole('button', { name: 'Guardar cobro' }).click()
+    await expect(
+      page.getByText(
+        'La cuenta de cobro tiene que ser el admin, el acreedor, el vendedor o un participante adicional de este lote'
+      )
+    ).toBeVisible()
+
+    try {
+      await page.selectOption('select[name="participanteId"]', { label: 'E2E Vendedor A (vendedor)' })
+      await page.getByRole('button', { name: 'Agregar participante' }).click()
+      // getByText matchearía también las opciones homónimas de los <select>
+      // de "Cuenta de cobro actual" y "Agregar participante": se acota al
+      // <li> de la lista, mismo criterio que el resto del suite.
+      await expect(page.locator('li', { hasText: 'E2E Vendedor A (vendedor)' })).toBeVisible()
+
+      await page.selectOption('select[name="cuentaCobroId"]', { label: 'E2E Vendedor A (vendedor)' })
+      await page.getByRole('button', { name: 'Guardar cobro' }).click()
+
+      // El submit exitoso de un Server Action no dispara una navegación de
+      // browser tradicional que Playwright pueda esperar automáticamente
+      // tras el click -- sin esta espera, el reload de abajo puede llegar
+      // antes de que la mutación se haya confirmado. Mismo criterio de
+      // polling de lectura-después-de-escritura que el resto del suite.
+      await expect
+        .poll(
+          async () => {
+            const { data: lote } = await admin
+              .from('lotes')
+              .select('cuenta_cobro_id')
+              .eq('id', fixtures.loteSecundarioId)
+              .single()
+            return lote?.cuenta_cobro_id ?? null
+          },
+          { timeout: 10000 }
+        )
+        .toBe(fixtures.vendedorLoteA.id)
+
+      await page.reload()
+      await expect(page.locator('select[name="cuentaCobroId"]')).toHaveValue(fixtures.vendedorLoteA.id)
+    } finally {
+      await admin.from('lotes').update({ cuenta_cobro_id: null }).eq('id', fixtures.loteSecundarioId)
+      await admin
+        .from('lote_participantes')
+        .delete()
+        .eq('lote_id', fixtures.loteSecundarioId)
+        .eq('profile_id', fixtures.vendedorLoteA.id)
+    }
+  })
 })

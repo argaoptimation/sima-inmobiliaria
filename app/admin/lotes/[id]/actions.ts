@@ -135,16 +135,25 @@ export async function actualizarCobro(loteId: string, formData: FormData) {
 
   if (cuentaCobroId) {
     const idsAsociados = [adminId, acreedorId, vendedorId]
+    const admin = createAdminClient()
 
     if (!idsAsociados.includes(cuentaCobroId)) {
-      redirect(
-        `/admin/lotes/${loteId}?error=${encodeURIComponent(
-          'La cuenta de cobro tiene que ser el admin, el acreedor o el vendedor que se está asignando a este lote'
-        )}`
-      )
+      const { data: participanteCoincide } = await admin
+        .from('lote_participantes')
+        .select('id')
+        .eq('lote_id', loteId)
+        .eq('profile_id', cuentaCobroId)
+        .maybeSingle()
+
+      if (!participanteCoincide) {
+        redirect(
+          `/admin/lotes/${loteId}?error=${encodeURIComponent(
+            'La cuenta de cobro tiene que ser el admin, el acreedor, el vendedor o un participante adicional de este lote'
+          )}`
+        )
+      }
     }
 
-    const admin = createAdminClient()
     const { data: persona } = await admin
       .from('profiles')
       .select('id, alias, banco, titular')
