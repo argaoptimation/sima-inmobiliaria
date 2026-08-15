@@ -5,8 +5,53 @@ import { createClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
 import { requireAdministrador } from '@/lib/auth/require-admin'
 import { calcularMontoCuota } from '@/lib/lotes/calcular-monto-cuota'
-import { generarCuotas } from '@/lib/lotes/generar-cuotas'
+import { generarCuotas, generarCuotasManual, CuotaGenerada } from '@/lib/lotes/generar-cuotas'
 import { imputarPagoFIFO } from '@/lib/pagos/imputar-fifo'
+import { excedeTamanioMaximo, MAX_ARCHIVO_MB } from '@/lib/storage/validar-tamanio-archivo'
+
+function construirParamsVenderPreservados(
+  formData: FormData,
+  clienteExistenteConfirmado: { id: string; nombre: string } | null,
+  clienteIdYaResuelto: string
+): URLSearchParams {
+  const params = new URLSearchParams({
+    fullName: (formData.get('fullName') as string) || '',
+    email: (formData.get('email') as string) || '',
+    cantidadCuotas: (formData.get('cantidadCuotas') as string) || '',
+    fechaPrimeraCuota: (formData.get('fechaPrimeraCuota') as string) || '',
+  })
+
+  const modoFormulario = (formData.get('modo') as string) || ''
+  if (modoFormulario) {
+    params.set('modo', modoFormulario)
+  }
+
+  if (clienteExistenteConfirmado) {
+    params.set('confirmarClienteId', clienteExistenteConfirmado.id)
+    params.set('nombreEncontrado', clienteExistenteConfirmado.nombre)
+  }
+
+  // El cliente (nuevo o ya confirmado) que se resolvió en un paso anterior
+  // de este mismo flujo multi-paso -- se preserva para que el próximo
+  // submit no lo vuelva a buscar por email. Si lo hiciera, encontraría la
+  // cuenta que este mismo flujo acaba de crear/confirmar un instante antes
+  // y la trataría como si fuera una cuenta ajena preexistente, pidiendo una
+  // confirmación espuria y perdiendo los montos/documento recién cargados.
+  if (clienteIdYaResuelto) {
+    params.set('clienteIdYaResuelto', clienteIdYaResuelto)
+  }
+
+  return params
+}
+
+function redirectVenderConError(
+  loteId: string,
+  mensaje: string,
+  paramsPreservados: URLSearchParams
+): never {
+  paramsPreservados.set('error', mensaje)
+  redirect(`/admin/lotes/${loteId}/vender?${paramsPreservados.toString()}`)
+}
 
 export async function venderLote(loteId: string, formData: FormData) {
   await requireAdministrador()
@@ -15,6 +60,8 @@ export async function venderLote(loteId: string, formData: FormData) {
   const fullName = ((formData.get('fullName') as string) || '').trim()
   const cantidadCuotas = Number(formData.get('cantidadCuotas'))
   const fechaPrimeraCuota = formData.get('fechaPrimeraCuota') as string
+  const modo = ((formData.get('modo') as string) || 'automatico').trim()
+  const clienteIdYaResuelto = ((formData.get('clienteIdYaResuelto') as string) || '').trim()
 
   if (!email || !fullName) {
     redirect(
@@ -31,9 +78,7 @@ export async function venderLote(loteId: string, formData: FormData) {
   }
 
   if (!fechaPrimeraCuota) {
-    redirect(
-      `/admin/lotes/${loteId}/vender?error=${encodeURIComponent('Ingresá la fecha de la primera cuota')}`
-    )
+    redirect(`/admin/lotes/${loteId}/vender?error=${encodeURIComponent('Ingresá la fecha de la primera cuota')}`)
   }
 
   const supabase = await createClient()
@@ -42,6 +87,13 @@ export async function venderLote(loteId: string, formData: FormData) {
   } = await supabase.auth.getUser()
 
   const admin = createAdminClient()
+
+  async function subirDocumentoFirmado(archivo: File): Promise<{ filePath: string; error: unknown }> {
+    const nombreSeguro = archivo.name.replace(/[^a-zA-Z0-9._-]/g, '_')
+    const filePath = `ventas/${loteId}/documento-${Date.now()}-${nombreSeguro}`
+    const { error } = await admin.storage.from('comprobantes').upload(filePath, archivo)
+    return { filePath, error }
+  }
 
   const { data: loteActual, error: errorLoteActual } = await admin
     .from('lotes')
@@ -80,132 +132,262 @@ export async function venderLote(loteId: string, formData: FormData) {
     .limit(1)
     .maybeSingle()
 
-  const { data: clienteExistente } = await admin
-    .from('profiles')
-    .select('id, full_name, dni, domicilio, telefono')
-    .eq('email', email)
-    .eq('role', 'cliente')
-    .maybeSingle()
-
   let clienteId: string
+  let clienteExistenteParaPreservar: { id: string; nombre: string } | null = null
 
-  if (clienteExistente) {
-    // El comprador ya tiene cuenta (compró otro lote antes) -- se reusa la
-    // misma cuenta en vez de invitar de nuevo (rompería con "duplicate key"
-    // contra profiles_pkey) o crear una segunda cuenta para la misma
-    // persona. No se toca su full_name existente para no pisarlo si el
-    // nombre tipeado esta vez difiere levemente.
-    //
-    // Antes de asociar el lote, se exige una confirmación explícita del
-    // admin: si tipeó mal el email, este chequeo podría enganchar el lote a
-    // la cuenta de OTRA persona real sin que nadie lo note. El primer
-    // submit nunca trae `confirmarClienteExistente` todavía, así que
-    // siempre se corta acá la primera vez y se le muestra al admin el
-    // nombre real de la cuenta encontrada antes de completar la venta.
-    const confirmado = (formData.get('confirmarClienteExistente') as string) === clienteExistente.id
+  if (clienteIdYaResuelto) {
+    // Ya se resolvió (creó o confirmó) en un paso anterior de este mismo
+    // flujo multi-paso -- no hace falta buscarlo de nuevo por email. Si lo
+    // hiciéramos, encontraríamos la cuenta que este mismo flujo acaba de
+    // crear/confirmar y la trataríamos como si fuera una cuenta ajena
+    // preexistente, pidiendo una confirmación espuria y perdiendo los
+    // montos/documento ya cargados en el paso anterior.
+    clienteId = clienteIdYaResuelto
+  } else {
+    const { data: clienteExistente } = await admin
+      .from('profiles')
+      .select('id, full_name, dni, domicilio, telefono')
+      .eq('email', email)
+      .eq('role', 'cliente')
+      .maybeSingle()
 
-    if (!confirmado) {
-      const dniNoCoincide = Boolean(
-        reserva?.dni && clienteExistente.dni && reserva.dni !== clienteExistente.dni
-      )
+    if (clienteExistente) {
+      // El comprador ya tiene cuenta (compró otro lote antes) -- se reusa la
+      // misma cuenta en vez de invitar de nuevo (rompería con "duplicate key"
+      // contra profiles_pkey) o crear una segunda cuenta para la misma
+      // persona. No se toca su full_name existente para no pisarlo si el
+      // nombre tipeado esta vez difiere levemente.
+      //
+      // Antes de asociar el lote, se exige una confirmación explícita del
+      // admin: si tipeó mal el email, este chequeo podría enganchar el lote a
+      // la cuenta de OTRA persona real sin que nadie lo note. El primer
+      // submit nunca trae `confirmarClienteExistente` todavía, así que
+      // siempre se corta acá la primera vez y se le muestra al admin el
+      // nombre real de la cuenta encontrada antes de completar la venta.
+      const confirmado = (formData.get('confirmarClienteExistente') as string) === clienteExistente.id
 
-      const params = new URLSearchParams({
-        confirmarClienteId: clienteExistente.id,
-        nombreEncontrado: clienteExistente.full_name ?? '',
-        fullName,
+      if (!confirmado) {
+        const dniNoCoincide = Boolean(
+          reserva?.dni && clienteExistente.dni && reserva.dni !== clienteExistente.dni
+        )
+
+        const params = new URLSearchParams({
+          confirmarClienteId: clienteExistente.id,
+          nombreEncontrado: clienteExistente.full_name ?? '',
+          fullName,
+          email,
+          cantidadCuotas: String(cantidadCuotas),
+          fechaPrimeraCuota,
+          modo,
+          ...(dniNoCoincide
+            ? { dniReserva: reserva!.dni as string, dniPerfil: clienteExistente.dni as string }
+            : {}),
+        })
+        redirect(`/admin/lotes/${loteId}/vender?${params.toString()}`)
+      }
+
+      clienteId = clienteExistente.id
+
+      // Solo se completan los campos que el perfil todavia no tenga cargados
+      // -- nunca se pisa un valor ya guardado, podria ser una correccion
+      // manual posterior a un error de tipeo en una reserva vieja.
+      const datosFaltantes: Record<string, string> = {}
+      if (!clienteExistente.dni && reserva?.dni) datosFaltantes.dni = reserva.dni
+      if (!clienteExistente.domicilio && reserva?.domicilio) datosFaltantes.domicilio = reserva.domicilio
+      if (!clienteExistente.telefono && reserva?.telefono) datosFaltantes.telefono = reserva.telefono
+
+      if (Object.keys(datosFaltantes).length > 0) {
+        const { error: errorCompletarDatos } = await admin
+          .from('profiles')
+          .update(datosFaltantes)
+          .eq('id', clienteExistente.id)
+
+        if (errorCompletarDatos) {
+          // No bloquea la venta -- ni siquiera un choque de DNI con otro
+          // cliente (23505). Queda para completar a mano despues desde la
+          // ficha del cliente si hace falta.
+          console.error('No se pudieron completar datos del cliente existente:', errorCompletarDatos)
+        }
+      }
+
+      clienteExistenteParaPreservar = { id: clienteExistente.id, nombre: clienteExistente.full_name ?? '' }
+    } else {
+      let dniParaNuevoCliente = reserva?.dni ?? null
+
+      if (dniParaNuevoCliente) {
+        const { data: dniYaUsado } = await admin
+          .from('profiles')
+          .select('id')
+          .eq('dni', dniParaNuevoCliente)
+          .maybeSingle()
+
+        if (dniYaUsado) {
+          // El DNI de la reserva ya pertenece a otro cliente (typo o
+          // coincidencia) -- no bloquea el alta, se guarda sin DNI y se
+          // puede completar despues a mano desde la ficha del cliente.
+          dniParaNuevoCliente = null
+        }
+      }
+
+      const { data: invited, error: errorInvite } = await admin.auth.admin.inviteUserByEmail(email)
+
+      if (errorInvite || !invited.user) {
+        redirect(
+          `/admin/lotes/${loteId}/vender?error=${encodeURIComponent(errorInvite?.message ?? 'error desconocido')}`
+        )
+      }
+
+      const nuevoPerfil = {
+        id: invited!.user.id,
+        role: 'cliente' as const,
+        full_name: fullName,
         email,
-        cantidadCuotas: String(cantidadCuotas),
-        fechaPrimeraCuota,
-        ...(dniNoCoincide
-          ? { dniReserva: reserva!.dni as string, dniPerfil: clienteExistente.dni as string }
-          : {}),
-      })
+        dni: dniParaNuevoCliente,
+        domicilio: reserva?.domicilio ?? null,
+        telefono: reserva?.telefono ?? null,
+      }
+
+      const { error: errorProfile } = await admin.from('profiles').insert(nuevoPerfil)
+
+      if (errorProfile) {
+        if (errorProfile.code === '23505' && nuevoPerfil.dni) {
+          // Choque de DNI justo en este instante (otro alta simultanea) --
+          // reintenta sin DNI en vez de bloquear la venta.
+          const { error: errorProfileSinDni } = await admin
+            .from('profiles')
+            .insert({ ...nuevoPerfil, dni: null })
+
+          if (errorProfileSinDni) {
+            redirect(`/admin/lotes/${loteId}/vender?error=${encodeURIComponent(errorProfileSinDni.message)}`)
+          }
+        } else {
+          redirect(`/admin/lotes/${loteId}/vender?error=${encodeURIComponent(errorProfile.message)}`)
+        }
+      }
+
+      clienteId = invited!.user.id
+    }
+  }
+
+  let montoCuotaBase: number | null
+  let cuotas: CuotaGenerada[]
+  let documentoFirmadoPath: string
+
+  if (modo === 'manual') {
+    const montosManualesRaw: string[] = []
+    for (let i = 1; i <= cantidadCuotas; i++) {
+      const valor = formData.get(`cuotaMonto${i}`)
+      if (valor === null) break
+      montosManualesRaw.push(valor as string)
+    }
+
+    if (montosManualesRaw.length !== cantidadCuotas) {
+      // Todavía no cargó los montos -- redirige agregando modo=manual (y
+      // lo ya preservado) para que la página muestre el campo por cuota.
+      const params = construirParamsVenderPreservados(formData, clienteExistenteParaPreservar, clienteId)
       redirect(`/admin/lotes/${loteId}/vender?${params.toString()}`)
     }
 
-    clienteId = clienteExistente.id
-
-    // Solo se completan los campos que el perfil todavia no tenga cargados
-    // -- nunca se pisa un valor ya guardado, podria ser una correccion
-    // manual posterior a un error de tipeo en una reserva vieja.
-    const datosFaltantes: Record<string, string> = {}
-    if (!clienteExistente.dni && reserva?.dni) datosFaltantes.dni = reserva.dni
-    if (!clienteExistente.domicilio && reserva?.domicilio) datosFaltantes.domicilio = reserva.domicilio
-    if (!clienteExistente.telefono && reserva?.telefono) datosFaltantes.telefono = reserva.telefono
-
-    if (Object.keys(datosFaltantes).length > 0) {
-      const { error: errorCompletarDatos } = await admin
-        .from('profiles')
-        .update(datosFaltantes)
-        .eq('id', clienteExistente.id)
-
-      if (errorCompletarDatos) {
-        // No bloquea la venta -- ni siquiera un choque de DNI con otro
-        // cliente (23505). Queda para completar a mano despues desde la
-        // ficha del cliente si hace falta.
-        console.error('No se pudieron completar datos del cliente existente:', errorCompletarDatos)
-      }
-    }
-  } else {
-    let dniParaNuevoCliente = reserva?.dni ?? null
-
-    if (dniParaNuevoCliente) {
-      const { data: dniYaUsado } = await admin
-        .from('profiles')
-        .select('id')
-        .eq('dni', dniParaNuevoCliente)
-        .maybeSingle()
-
-      if (dniYaUsado) {
-        // El DNI de la reserva ya pertenece a otro cliente (typo o
-        // coincidencia) -- no bloquea el alta, se guarda sin DNI y se
-        // puede completar despues a mano desde la ficha del cliente.
-        dniParaNuevoCliente = null
-      }
-    }
-
-    const { data: invited, error: errorInvite } = await admin.auth.admin.inviteUserByEmail(email)
-
-    if (errorInvite || !invited.user) {
-      redirect(
-        `/admin/lotes/${loteId}/vender?error=${encodeURIComponent(errorInvite?.message ?? 'error desconocido')}`
+    const montosManuales = montosManualesRaw.map((valor) => Number(valor))
+    if (!montosManuales.every((monto) => Number.isFinite(monto) && monto >= 0)) {
+      redirectVenderConError(
+        loteId,
+        'Los montos de las cuotas tienen que ser números válidos, no negativos',
+        construirParamsVenderPreservados(formData, clienteExistenteParaPreservar, clienteId)
       )
     }
 
-    const nuevoPerfil = {
-      id: invited!.user.id,
-      role: 'cliente' as const,
-      full_name: fullName,
-      email,
-      dni: dniParaNuevoCliente,
-      domicilio: reserva?.domicilio ?? null,
-      telefono: reserva?.telefono ?? null,
-    }
+    const confirmado = (formData.get('confirmarMontosManual') as string) === 'true'
 
-    const { error: errorProfile } = await admin.from('profiles').insert(nuevoPerfil)
+    if (!confirmado) {
+      // Paso de carga de montos: acá se sube el documento (una sola vez) y
+      // se redirige a la pantalla de balance para que confirme.
+      const documentoFirmado = formData.get('documentoFirmado') as File
 
-    if (errorProfile) {
-      if (errorProfile.code === '23505' && nuevoPerfil.dni) {
-        // Choque de DNI justo en este instante (otro alta simultanea) --
-        // reintenta sin DNI en vez de bloquear la venta.
-        const { error: errorProfileSinDni } = await admin
-          .from('profiles')
-          .insert({ ...nuevoPerfil, dni: null })
-
-        if (errorProfileSinDni) {
-          redirect(`/admin/lotes/${loteId}/vender?error=${encodeURIComponent(errorProfileSinDni.message)}`)
-        }
-      } else {
-        redirect(`/admin/lotes/${loteId}/vender?error=${encodeURIComponent(errorProfile.message)}`)
+      if (!documentoFirmado || documentoFirmado.size === 0) {
+        redirectVenderConError(
+          loteId,
+          'Subí el documento firmado (boleto o escritura)',
+          construirParamsVenderPreservados(formData, clienteExistenteParaPreservar, clienteId)
+        )
       }
+
+      if (excedeTamanioMaximo(documentoFirmado)) {
+        redirectVenderConError(
+          loteId,
+          `El documento firmado pesa más de ${MAX_ARCHIVO_MB} MB — subí uno más liviano.`,
+          construirParamsVenderPreservados(formData, clienteExistenteParaPreservar, clienteId)
+        )
+      }
+
+      const { filePath, error: errorSubidaDocumento } = await subirDocumentoFirmado(documentoFirmado)
+
+      if (errorSubidaDocumento) {
+        console.error('Error al subir el documento firmado:', errorSubidaDocumento)
+        redirectVenderConError(
+          loteId,
+          'No se pudo subir el documento firmado. Probá de nuevo.',
+          construirParamsVenderPreservados(formData, clienteExistenteParaPreservar, clienteId)
+        )
+      }
+
+      const params = construirParamsVenderPreservados(formData, clienteExistenteParaPreservar, clienteId)
+      montosManuales.forEach((monto, indice) => params.set(`cuotaMonto${indice + 1}`, String(monto)))
+      params.set('documentoFirmadoPath', filePath)
+      redirect(`/admin/lotes/${loteId}/vender?${params.toString()}`)
     }
 
-    clienteId = invited!.user.id
-  }
+    // Confirmado: el documento ya se subió en el paso anterior, viene como
+    // input oculto -- no se vuelve a pedir.
+    const documentoFirmadoPathConfirmado = ((formData.get('documentoFirmadoPath') as string) || '').trim()
 
-  const precioTotal = loteActual!.precio_total as number
-  const montoCuotaBase = calcularMontoCuota(precioTotal, cantidadCuotas)
-  const cuotas = generarCuotas(cantidadCuotas, montoCuotaBase, fechaPrimeraCuota, precioTotal)
+    if (!documentoFirmadoPathConfirmado) {
+      redirectVenderConError(
+        loteId,
+        'Falta el documento firmado, volvé a intentarlo desde el principio',
+        construirParamsVenderPreservados(formData, clienteExistenteParaPreservar, clienteId)
+      )
+    }
+
+    documentoFirmadoPath = documentoFirmadoPathConfirmado
+    montoCuotaBase = null
+    cuotas = generarCuotasManual(montosManuales, fechaPrimeraCuota)
+  } else {
+    const documentoFirmado = formData.get('documentoFirmado') as File
+
+    if (!documentoFirmado || documentoFirmado.size === 0) {
+      redirectVenderConError(
+        loteId,
+        'Subí el documento firmado (boleto o escritura)',
+        construirParamsVenderPreservados(formData, clienteExistenteParaPreservar, clienteId)
+      )
+    }
+
+    if (excedeTamanioMaximo(documentoFirmado)) {
+      redirectVenderConError(
+        loteId,
+        `El documento firmado pesa más de ${MAX_ARCHIVO_MB} MB — subí uno más liviano.`,
+        construirParamsVenderPreservados(formData, clienteExistenteParaPreservar, clienteId)
+      )
+    }
+
+    const { filePath, error: errorSubidaDocumento } = await subirDocumentoFirmado(documentoFirmado)
+
+    if (errorSubidaDocumento) {
+      console.error('Error al subir el documento firmado:', errorSubidaDocumento)
+      redirectVenderConError(
+        loteId,
+        'No se pudo subir el documento firmado. Probá de nuevo.',
+        construirParamsVenderPreservados(formData, clienteExistenteParaPreservar, clienteId)
+      )
+    }
+
+    documentoFirmadoPath = filePath
+
+    const precioTotal = loteActual!.precio_total as number
+    montoCuotaBase = calcularMontoCuota(precioTotal, cantidadCuotas)
+    cuotas = generarCuotas(cantidadCuotas, montoCuotaBase, fechaPrimeraCuota, precioTotal)
+  }
 
   // Claim atomico: solo vende si el lote SIGUE reservado en este instante
   // (mismo patron que reservarLote / cancelarReserva). Si esto no pega, ya
@@ -221,6 +403,7 @@ export async function venderLote(loteId: string, formData: FormData) {
       cantidad_cuotas: cantidadCuotas,
       monto_cuota_base: montoCuotaBase,
       fecha_primera_cuota: fechaPrimeraCuota,
+      documento_firmado_path: documentoFirmadoPath,
     })
     .eq('id', loteId)
     .eq('estado', 'reservado')

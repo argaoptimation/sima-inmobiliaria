@@ -74,6 +74,11 @@ async function venderLotePorUI(page: Page, loteId: string, datos: { email: strin
   await page.getByPlaceholder('Email del comprador').fill(datos.email)
   await page.getByPlaceholder('Cantidad de cuotas (1 para venta al contado)').fill('1')
   await page.locator('input[name="fechaPrimeraCuota"]').fill('2026-09-01')
+  await page.setInputFiles('input[name="documentoFirmado"]', {
+    name: `e2e-documento-${Date.now()}.pdf`,
+    mimeType: 'application/pdf',
+    buffer: COMPROBANTE_BYTES,
+  })
   await page.getByRole('button', { name: 'Confirmar venta y enviar invitación' }).click()
   await page.waitForURL(
     (url) => url.pathname === '/admin/lotes' || url.searchParams.has('confirmarClienteId')
@@ -147,6 +152,11 @@ test.describe('Datos del cliente al vender', () => {
 
     await venderLotePorUI(page, loteId, { email, fullName: 'Cliente Sin Datos' })
     if (page.url().includes('confirmarClienteId')) {
+      await page.setInputFiles('input[name="documentoFirmado"]', {
+        name: `e2e-documento-${Date.now()}.pdf`,
+        mimeType: 'application/pdf',
+        buffer: COMPROBANTE_BYTES,
+      })
       await page.getByRole('button', { name: 'Confirmar venta con esta cuenta existente' }).click()
     }
     await page.waitForURL('**/admin/lotes')
@@ -197,6 +207,11 @@ test.describe('Datos del cliente al vender', () => {
     await expect(page.getByText(/no coincide con el que ya tenía guardado/)).toBeVisible()
     await expect(page.getByText(dniOriginal, { exact: false })).toBeVisible()
 
+    await page.setInputFiles('input[name="documentoFirmado"]', {
+      name: `e2e-documento-${Date.now()}.pdf`,
+      mimeType: 'application/pdf',
+      buffer: COMPROBANTE_BYTES,
+    })
     await page.getByRole('button', { name: 'Confirmar venta con esta cuenta existente' }).click()
     await page.waitForURL('**/admin/lotes')
 

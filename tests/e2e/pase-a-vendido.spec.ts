@@ -132,6 +132,11 @@ test.describe('Pase a vendido (fase 2)', () => {
 
     await page.getByPlaceholder('Cantidad de cuotas (1 para venta al contado)').fill('3')
     await page.locator('input[name="fechaPrimeraCuota"]').fill('2026-09-01')
+    await page.setInputFiles('input[name="documentoFirmado"]', {
+      name: `e2e-documento-${Date.now()}.pdf`,
+      mimeType: 'application/pdf',
+      buffer: COMPROBANTE_BYTES,
+    })
     await page.getByRole('button', { name: 'Confirmar venta y enviar invitación' }).click()
     await page.waitForURL('**/admin/lotes')
 
@@ -176,6 +181,11 @@ test.describe('Pase a vendido (fase 2)', () => {
     await page.getByPlaceholder('Email del comprador').fill(emailCompradorReal)
     await page.getByPlaceholder('Cantidad de cuotas (1 para venta al contado)').fill('1')
     await page.locator('input[name="fechaPrimeraCuota"]').fill('2026-09-01')
+    await page.setInputFiles('input[name="documentoFirmado"]', {
+      name: `e2e-documento-${Date.now()}.pdf`,
+      mimeType: 'application/pdf',
+      buffer: COMPROBANTE_BYTES,
+    })
     await page.getByRole('button', { name: 'Confirmar venta y enviar invitación' }).click()
     await page.waitForURL('**/admin/lotes')
 
@@ -237,6 +247,11 @@ test.describe('Pase a vendido (fase 2)', () => {
     await page.goto(`/admin/lotes/${loteId}/vender`)
     await page.getByPlaceholder('Cantidad de cuotas (1 para venta al contado)').fill('10')
     await page.locator('input[name="fechaPrimeraCuota"]').fill('2026-09-01')
+    await page.setInputFiles('input[name="documentoFirmado"]', {
+      name: `e2e-documento-${Date.now()}.pdf`,
+      mimeType: 'application/pdf',
+      buffer: COMPROBANTE_BYTES,
+    })
     await page.getByRole('button', { name: 'Confirmar venta y enviar invitación' }).click()
     await page.waitForURL('**/admin/lotes')
 
@@ -282,6 +297,11 @@ test.describe('Pase a vendido (fase 2)', () => {
     await page.goto(`/admin/lotes/${loteId}/vender`)
     await page.getByPlaceholder('Cantidad de cuotas (1 para venta al contado)').fill('10')
     await page.locator('input[name="fechaPrimeraCuota"]').fill('2026-09-01')
+    await page.setInputFiles('input[name="documentoFirmado"]', {
+      name: `e2e-documento-${Date.now()}.pdf`,
+      mimeType: 'application/pdf',
+      buffer: COMPROBANTE_BYTES,
+    })
     await page.getByRole('button', { name: 'Confirmar venta y enviar invitación' }).click()
     await page.waitForURL('**/admin/lotes')
 
@@ -313,6 +333,11 @@ test.describe('Pase a vendido (fase 2)', () => {
     await page.goto(`/admin/lotes/${loteId}/vender`)
     await page.getByPlaceholder('Cantidad de cuotas (1 para venta al contado)').fill('10')
     await page.locator('input[name="fechaPrimeraCuota"]').fill('2026-09-01')
+    await page.setInputFiles('input[name="documentoFirmado"]', {
+      name: `e2e-documento-${Date.now()}.pdf`,
+      mimeType: 'application/pdf',
+      buffer: COMPROBANTE_BYTES,
+    })
     await page.getByRole('button', { name: 'Confirmar venta y enviar invitación' }).click()
     await page.waitForURL('**/admin/lotes')
 
@@ -344,6 +369,11 @@ test.describe('Pase a vendido (fase 2)', () => {
     await page.goto(`/admin/lotes/${loteId}/vender`)
     await page.getByPlaceholder('Cantidad de cuotas (1 para venta al contado)').fill('1')
     await page.locator('input[name="fechaPrimeraCuota"]').fill('2026-09-01')
+    await page.setInputFiles('input[name="documentoFirmado"]', {
+      name: `e2e-documento-${Date.now()}.pdf`,
+      mimeType: 'application/pdf',
+      buffer: COMPROBANTE_BYTES,
+    })
     await page.getByRole('button', { name: 'Confirmar venta y enviar invitación' }).click()
     await page.waitForURL('**/admin/lotes')
 
