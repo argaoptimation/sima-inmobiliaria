@@ -3,6 +3,7 @@
 import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { redirect } from 'next/navigation'
+import { excedeTamanioMaximo } from '@/lib/storage/validar-tamanio-archivo'
 
 export async function subirComprobante(pagoId: string, formData: FormData) {
   const supabase = await createClient()
@@ -37,6 +38,14 @@ export async function subirComprobante(pagoId: string, formData: FormData) {
   if (!comprobante || comprobante.size === 0) {
     redirect(
       `/portal-cliente/pagos/${pagoId}/comprobante?error=${encodeURIComponent('Seleccioná un archivo')}`
+    )
+  }
+
+  if (excedeTamanioMaximo(comprobante)) {
+    redirect(
+      `/portal-cliente/pagos/${pagoId}/comprobante?error=${encodeURIComponent(
+        'El comprobante pesa más de 15 MB — subí uno más liviano.'
+      )}`
     )
   }
 

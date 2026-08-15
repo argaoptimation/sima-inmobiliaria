@@ -69,4 +69,25 @@ test.describe('Límite de tamaño de archivo en subidas', () => {
     const { data: lote } = await admin.from('lotes').select('estado').eq('id', loteId).single()
     expect(lote?.estado).toBe('disponible')
   })
+
+  test('un comprobante de pago de más de 15 MB se rechaza en el portal del cliente', async ({
+    page,
+  }) => {
+    await login(page, fixtures.cliente.email, fixtures.password)
+
+    const cuotaId = fixtures.cuotaIds[0]
+    await page.goto(`/portal-cliente/pagar/${cuotaId}`)
+    await page.getByPlaceholder('Monto transferido').fill('1000')
+    await page.getByRole('button', { name: 'Ya transferí' }).click()
+    await page.waitForURL('**/portal-cliente/pagos/**/comprobante')
+
+    await page.setInputFiles('input[name="comprobante"]', {
+      name: 'comprobante-pago-grande.pdf',
+      mimeType: 'application/pdf',
+      buffer: ARCHIVO_GRANDE,
+    })
+    await page.getByRole('button', { name: 'Finalizar' }).click()
+
+    await expect(page.getByText(/pesa más de 15 MB/)).toBeVisible()
+  })
 })
