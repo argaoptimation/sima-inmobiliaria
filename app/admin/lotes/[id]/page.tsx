@@ -4,6 +4,7 @@ import { calcularEstadoCobranza } from '@/lib/cobranza/estado-cliente'
 import { notFound, redirect } from 'next/navigation'
 import { requireAdminOAcreedor } from '@/lib/auth/require-admin'
 import { actualizarDatosGenerales, actualizarCobro, eliminarLote } from './actions'
+import { agregarParticipante, quitarParticipante } from './participantes-actions'
 import { cancelarReserva } from '../actions'
 import { BotonEliminarLote } from './BotonEliminarLote'
 import { BotonCancelarReserva } from '../BotonCancelarReserva'
@@ -149,6 +150,50 @@ export default async function LoteDetallePage({
       persona.id === lote!.cuenta_cobro_id
   )
 
+  const { data: participantes } = await supabase
+    .from('lote_participantes')
+    .select('id, profile_id, cuenta_externa_id, etiqueta')
+    .eq('lote_id', id)
+    .order('created_at', { ascending: true })
+
+  const profileIdsParticipantes = (participantes ?? [])
+    .map((p) => p.profile_id)
+    .filter((pid): pid is string => pid !== null)
+  const cuentaExternaIdsParticipantes = (participantes ?? [])
+    .map((p) => p.cuenta_externa_id)
+    .filter((cid): cid is string => cid !== null)
+
+  const { data: profilesParticipantes } =
+    profileIdsParticipantes.length > 0
+      ? await supabase.from('profiles').select('id, full_name, role').in('id', profileIdsParticipantes)
+      : { data: [] }
+
+  const { data: cuentasExternasParticipantes } =
+    cuentaExternaIdsParticipantes.length > 0
+      ? await supabase.from('cuentas_externas').select('id, nombre').in('id', cuentaExternaIdsParticipantes)
+      : { data: [] }
+
+  function nombreParticipante(participante: {
+    profile_id: string | null
+    cuenta_externa_id: string | null
+  }) {
+    if (participante.profile_id) {
+      const persona = profilesParticipantes?.find((p) => p.id === participante.profile_id)
+      return persona ? `${persona.full_name} (${persona.role})` : 'Persona eliminada'
+    }
+    const cuentaExterna = cuentasExternasParticipantes?.find(
+      (c) => c.id === participante.cuenta_externa_id
+    )
+    return cuentaExterna ? `${cuentaExterna.nombre} (cuenta externa)` : 'Cuenta externa eliminada'
+  }
+
+  const participantesElegibles = (staff ?? []).filter(
+    (persona) =>
+      persona.id !== lote!.admin_id &&
+      persona.id !== lote!.acreedor_id &&
+      persona.id !== lote!.vendedor_id
+  )
+
   const { data: cuentasExternas } = await supabase
     .from('cuentas_externas')
     .select('id, nombre')
@@ -156,6 +201,7 @@ export default async function LoteDetallePage({
 
   const actualizarDatosGeneralesConId = actualizarDatosGenerales.bind(null, id)
   const actualizarCobroConId = actualizarCobro.bind(null, id)
+  const agregarParticipanteConId = agregarParticipante.bind(null, id)
   const eliminarLoteConId = eliminarLote.bind(null, id)
   const cancelarReservaConId = cancelarReserva.bind(null, id)
 
@@ -450,6 +496,61 @@ export default async function LoteDetallePage({
         <button type="submit" className="self-start rounded bg-black px-3 py-2 text-sm text-white">
           Guardar cobro
         </button>
+          </form>
+
+          <h2 className="mb-2 mt-8 text-lg font-semibold">Participantes adicionales</h2>
+          <p className="mb-3 text-sm text-gray-600">
+            Gente que comparte la comisión de este lote sin ser el admin, el acreedor ni el vendedor
+            principal (ej. un segundo vendedor). Todavía no se cargan montos acá — eso es una pantalla
+            aparte que viene después.
+          </p>
+          {(participantes ?? []).length === 0 ? (
+            <p className="mb-4 text-sm text-gray-600">Sin participantes adicionales todavía.</p>
+          ) : (
+            <ul className="mb-4 flex flex-col gap-2">
+              {participantes!.map((participante) => (
+                <li key={participante.id} className="flex items-center justify-between text-sm">
+                  <span>
+                    {nombreParticipante(participante)}
+                    {participante.etiqueta && ` — ${participante.etiqueta}`}
+                  </span>
+                  <form action={quitarParticipante.bind(null, id, participante.id)}>
+                    <button type="submit" className="text-red-700 underline">
+                      Quitar
+                    </button>
+                  </form>
+                </li>
+              ))}
+            </ul>
+          )}
+          <form action={agregarParticipanteConId} className="flex max-w-sm flex-col gap-3">
+            <label className="text-sm">
+              Agregar participante
+              <select name="participanteId" className="mt-1 block w-full rounded border px-3 py-2">
+                <option value="">— elegir —</option>
+                {participantesElegibles.map((persona) => (
+                  <option key={persona.id} value={persona.id}>
+                    {persona.full_name} ({persona.role})
+                  </option>
+                ))}
+                {(cuentasExternas ?? []).map((cuentaExterna) => (
+                  <option key={cuentaExterna.id} value={`externa:${cuentaExterna.id}`}>
+                    {cuentaExterna.nombre} (cuenta externa)
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label className="text-sm">
+              Etiqueta (opcional)
+              <input
+                name="etiqueta"
+                placeholder="Ej: Vendedor 2"
+                className="mt-1 block w-full rounded border px-3 py-2"
+              />
+            </label>
+            <button type="submit" className="self-start rounded bg-black px-3 py-2 text-sm text-white">
+              Agregar participante
+            </button>
           </form>
         </>
       )}

@@ -182,6 +182,19 @@ export async function eliminarCuentaExterna(cuentaExternaId: string) {
     )
   }
 
+  const { count: comoParticipante } = await supabase
+    .from('lote_participantes')
+    .select('id', { count: 'exact', head: true })
+    .eq('cuenta_externa_id', cuentaExternaId)
+
+  if (comoParticipante && comoParticipante > 0) {
+    redirect(
+      `/admin/cuentas-externas/${cuentaExternaId}?error=${encodeURIComponent(
+        'No se puede eliminar: está agregada como participante adicional de algún lote'
+      )}`
+    )
+  }
+
   const { error } = await supabase.from('cuentas_externas').delete().eq('id', cuentaExternaId)
 
   if (error) {
