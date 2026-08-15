@@ -72,7 +72,7 @@ test.describe('Vista de clientes desde Admin', () => {
     await page.goto(`/admin/clientes/${cliente.id}`)
 
     await page.getByPlaceholder('Nueva contraseña').fill('NuevaClave456!')
-    await page.getByRole('button', { name: 'Guardar' }).click()
+    await page.getByRole('button', { name: 'Guardar', exact: true }).click()
     await page.waitForURL(new RegExp(`/admin/clientes/${cliente.id}`))
     await expect(page.getByText('Contraseña actualizada')).toBeVisible()
 

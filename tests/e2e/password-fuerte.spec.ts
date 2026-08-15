@@ -18,7 +18,7 @@ test.describe('Contraseña fuerte obligatoria', () => {
     // Pasa el minLength del navegador (8) pero no tiene ningún signo, asi
     // que el chequeo del servidor tiene que rechazarla igual.
     await page.getByPlaceholder('Nueva contraseña').fill('abcdefgh')
-    await page.getByRole('button', { name: 'Guardar' }).click()
+    await page.getByRole('button', { name: 'Guardar', exact: true }).click()
 
     await expect(page.getByText(/al menos 8 caracteres.*signo/)).toBeVisible()
   })
