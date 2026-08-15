@@ -60,6 +60,16 @@ export async function confirmarPago(pagoId: string, formData: FormData) {
     )
   }
 
+  // Para acreedor, el chequeo de arriba ya garantiza `lote` no nulo. Para
+  // admin no hay ningun chequeo previo -- sin este guard, un lote no
+  // encontrado (ej. falla transitoria de la consulta) tira una excepcion sin
+  // manejar mas abajo, en vez del mismo patron de rechazo prolijo que usa el
+  // resto de la funcion.
+  if (!lote) {
+    revalidatePath('/admin/pagos')
+    return
+  }
+
   const campoPor = perfil.role === 'acreedor' ? 'confirmado_acreedor_por' : 'confirmado_admin_por'
   const campoAt = perfil.role === 'acreedor' ? 'confirmado_acreedor_at' : 'confirmado_admin_at'
   const campoOtroPor =
