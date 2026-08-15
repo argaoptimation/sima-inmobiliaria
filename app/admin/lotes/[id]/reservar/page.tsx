@@ -124,7 +124,7 @@ export default async function ReservarLotePage({
             </p>
           ))}
 
-        <form action={reservarLoteConId} noValidate className="flex flex-col gap-3">
+        <form action={reservarLoteConId} className="flex flex-col gap-3">
           {error && <p className="rounded bg-red-100 p-2 text-sm text-red-700">{error}</p>}
 
           <input

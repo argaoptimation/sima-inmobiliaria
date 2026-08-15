@@ -29,7 +29,7 @@ test.describe('Preservar datos tipeados si falta un campo obligatorio al reserva
     fixtures = await ensureTestFixtures()
   })
 
-  test('si falta un campo obligatorio, los demás campos tipeados no se pierden', async ({ page }) => {
+  test('si falta un campo obligatorio al reservar (sin adjuntar fotos de DNI), los demás campos tipeados no se pierden', async ({ page }) => {
     const loteId = await crearLoteDisponible(`E2E Preservar Datos ${Date.now()}`)
 
     await login(page, fixtures.admin.email, fixtures.password)
@@ -38,7 +38,7 @@ test.describe('Preservar datos tipeados si falta un campo obligatorio al reserva
     await page.getByPlaceholder('Nombre completo').fill('Comprador Preservado')
     await page.getByPlaceholder('DNI', { exact: true }).fill('30222333')
     await page.getByPlaceholder('Domicilio').fill('Calle Preservada 456')
-    // Deliberadamente sin completar el email -- falta un campo obligatorio.
+    await page.getByPlaceholder('Email').fill('comprador.preservado@sima-e2e.invalid')
     await page.getByPlaceholder('Teléfono', { exact: true }).fill('3511112222')
     await page.selectOption('select[name="estadoCivil"]', 'soltero')
     await page.getByPlaceholder('Monto de la seña').fill('750')
@@ -47,23 +47,18 @@ test.describe('Preservar datos tipeados si falta un campo obligatorio al reserva
       mimeType: 'application/pdf',
       buffer: COMPROBANTE_BYTES,
     })
-    await page.setInputFiles('input[name="dniFrente"]', {
-      name: `e2e-dni-frente-${Date.now()}.pdf`,
-      mimeType: 'application/pdf',
-      buffer: COMPROBANTE_BYTES,
-    })
-    await page.setInputFiles('input[name="dniDorso"]', {
-      name: `e2e-dni-dorso-${Date.now()}.pdf`,
-      mimeType: 'application/pdf',
-      buffer: COMPROBANTE_BYTES,
-    })
+    // Deliberadamente NO adjunta dniFrente/dniDorso -- no tienen `required`
+    // en el HTML (no se puede expresar "obligatorio salvo..." sin JS), así
+    // que el navegador deja enviar el formulario y el error lo tira el
+    // servidor -- el escenario real que dispara la preservación.
 
     await page.getByRole('button', { name: 'Confirmar reserva' }).click()
 
-    await expect(page.getByText('Completá todos los campos obligatorios')).toBeVisible()
+    await expect(page.getByText('Subí las fotos del DNI (frente y dorso)')).toBeVisible()
     await expect(page.getByPlaceholder('Nombre completo')).toHaveValue('Comprador Preservado')
     await expect(page.getByPlaceholder('DNI', { exact: true })).toHaveValue('30222333')
     await expect(page.getByPlaceholder('Domicilio')).toHaveValue('Calle Preservada 456')
+    await expect(page.getByPlaceholder('Email')).toHaveValue('comprador.preservado@sima-e2e.invalid')
     await expect(page.getByPlaceholder('Teléfono', { exact: true })).toHaveValue('3511112222')
     await expect(page.getByPlaceholder('Monto de la seña')).toHaveValue('750')
   })
@@ -95,11 +90,19 @@ test.describe('Preservar datos tipeados si falta un campo obligatorio al reserva
 
     await expect(page.getByPlaceholder('Nombre completo')).toHaveValue('Cliente Preservado')
 
-    // Sin subir el comprobante -- dispara el primer error real del
-    // formulario sin haber tocado ningún otro campo.
+    // Completa lo mínimo que falta para que sea un submit real, sin
+    // adjuntar las fotos de DNI (no tienen `required` -- el navegador deja
+    // enviar, y el error lo tira el servidor).
+    await page.selectOption('select[name="estadoCivil"]', 'soltero')
+    await page.getByPlaceholder('Monto de la seña').fill('300')
+    await page.setInputFiles('input[name="comprobante"]', {
+      name: `e2e-comprobante-${Date.now()}.pdf`,
+      mimeType: 'application/pdf',
+      buffer: COMPROBANTE_BYTES,
+    })
     await page.getByRole('button', { name: 'Confirmar reserva' }).click()
 
-    await expect(page.getByText('Subí el comprobante de la seña')).toBeVisible()
+    await expect(page.getByText('Subí las fotos del DNI (frente y dorso)')).toBeVisible()
     await expect(page.getByPlaceholder('Nombre completo')).toHaveValue('Cliente Preservado')
     await expect(page.getByPlaceholder('DNI', { exact: true })).toHaveValue(dni)
     await expect(page.getByPlaceholder('Domicilio')).toHaveValue('Domicilio Precargado 999')
