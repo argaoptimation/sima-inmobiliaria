@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test'
-import { ensureTestFixtures, TestFixtures } from './fixtures/test-data'
+import { createAdminClient, ensureTestFixtures, TestFixtures } from './fixtures/test-data'
 import { login } from './utils/login'
 
 test.describe('Cuentas externas', () => {
@@ -7,6 +7,21 @@ test.describe('Cuentas externas', () => {
 
   test.beforeAll(async () => {
     fixtures = await ensureTestFixtures()
+
+    // Limpieza de cuentas externas que hayan quedado de corridas anteriores
+    // de ESTE spec: cada test usa un nombre con timestamp para no chocar
+    // entre sí, así que no se borran solas. Sin esto, cada re-ejecución deja
+    // basura acumulada en `cuentas_externas` (y sus movimientos).
+    const admin = createAdminClient()
+    const { data: cuentasViejas } = await admin
+      .from('cuentas_externas')
+      .select('id')
+      .ilike('nombre', 'E2E %')
+    const idsCuentasViejas = (cuentasViejas ?? []).map((c) => c.id)
+    if (idsCuentasViejas.length > 0) {
+      await admin.from('cuentas_externas_movimientos').delete().in('cuenta_externa_id', idsCuentasViejas)
+      await admin.from('cuentas_externas').delete().in('id', idsCuentasViejas)
+    }
   })
 
   test('crear una cuenta externa con deuda inicial y verla en el listado con el saldo correcto', async ({
