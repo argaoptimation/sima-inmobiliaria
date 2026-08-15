@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { generarCuotas } from './generar-cuotas'
+import { generarCuotas, generarCuotasManual } from './generar-cuotas'
 
 describe('generarCuotas', () => {
   it('genera la cantidad de cuotas pedida, una por mes, con el mismo monto', () => {
@@ -45,5 +45,29 @@ describe('generarCuotas', () => {
   it('con precioTotal y una sola cuota, la cuota unica es el precio total exacto', () => {
     const cuotas = generarCuotas(1, 5000, '2026-08-01', 5000)
     expect(cuotas).toEqual([{ numero: 1, montoBase: 5000, fechaVencimiento: '2026-08-01' }])
+  })
+})
+
+describe('generarCuotasManual', () => {
+  it('arma las cuotas con los montos dados, una por mes, sin ajustar nada', () => {
+    const cuotas = generarCuotasManual([1200, 1200, 1000, 1000, 800], '2026-08-01')
+
+    expect(cuotas).toEqual([
+      { numero: 1, montoBase: 1200, fechaVencimiento: '2026-08-01' },
+      { numero: 2, montoBase: 1200, fechaVencimiento: '2026-09-01' },
+      { numero: 3, montoBase: 1000, fechaVencimiento: '2026-10-01' },
+      { numero: 4, montoBase: 1000, fechaVencimiento: '2026-11-01' },
+      { numero: 5, montoBase: 800, fechaVencimiento: '2026-12-01' },
+    ])
+  })
+
+  it('la suma de los montos no tiene por qué coincidir con nada -- se usan tal cual', () => {
+    const cuotas = generarCuotasManual([500, 500], '2026-01-01')
+    const suma = cuotas.reduce((acc, c) => acc + c.montoBase, 0)
+    expect(suma).toBe(1000)
+  })
+
+  it('devuelve un array vacío si no hay montos', () => {
+    expect(generarCuotasManual([], '2026-08-01')).toEqual([])
   })
 })

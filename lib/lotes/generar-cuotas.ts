@@ -32,3 +32,11 @@ export function generarCuotas(
     }
   })
 }
+
+export function generarCuotasManual(montos: number[], fechaPrimeraCuota: string): CuotaGenerada[] {
+  return montos.map((monto, indice) => ({
+    numero: indice + 1,
+    montoBase: monto,
+    fechaVencimiento: sumarMeses(fechaPrimeraCuota, indice),
+  }))
+}
