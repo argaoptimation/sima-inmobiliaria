@@ -44,6 +44,14 @@ const nextConfig: NextConfig = {
     // específicamente en esas rutas públicas.
     proxyClientMaxBodySize: '100mb',
   },
+  async headers() {
+    return [
+      {
+        source: '/:path*',
+        headers: [{ key: 'Referrer-Policy', value: 'same-origin' }],
+      },
+    ]
+  },
 };
 
 export default nextConfig;

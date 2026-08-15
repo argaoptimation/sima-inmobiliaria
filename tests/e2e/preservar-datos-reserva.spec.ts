@@ -108,5 +108,10 @@ test.describe('Preservar datos tipeados si falta un campo obligatorio al reserva
     await expect(page.getByPlaceholder('Domicilio')).toHaveValue('Domicilio Precargado 999')
     await expect(page.getByPlaceholder('Email')).toHaveValue(email)
     await expect(page.getByPlaceholder('Teléfono', { exact: true })).toHaveValue('3518888888')
+
+    // El propio motivo de que dniPreservado exista (en vez de reusar el
+    // param `dni` del buscador): un error de validación NO debe volver a
+    // disparar el bloque de búsqueda con su aviso "Encontramos a...".
+    await expect(page.getByText(/Encontramos a/)).toHaveCount(0)
   })
 })
