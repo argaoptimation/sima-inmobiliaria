@@ -26,9 +26,13 @@ test.describe('Cuentas externas', () => {
 
     await page.waitForURL(/\/admin\/cuentas-externas\/.+$/)
 
-    await page.goto('/admin/cuentas-externas')
-    const fila = page.getByRole('row', { name: new RegExp(nombre) })
-    await expect(fila).toContainText('2000 USD')
+    // Hay una demora corta y real de lectura-despues-de-escritura entre el
+    // insert del movimiento inicial y que aparezca en una navegacion fresca
+    // al listado -- se reintenta la navegacion en vez de asumir un sleep fijo.
+    await expect(async () => {
+      await page.goto('/admin/cuentas-externas')
+      await expect(page.getByRole('row', { name: new RegExp(nombre) })).toContainText('2000 USD')
+    }).toPass({ timeout: 10000 })
   })
 
   test('crear una cuenta externa sin banco es rechazado', async ({ page }) => {

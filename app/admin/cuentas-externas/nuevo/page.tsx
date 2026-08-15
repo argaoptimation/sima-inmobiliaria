@@ -23,15 +23,15 @@ export default async function NuevaCuentaExternaPage({
         </label>
         <label className="text-sm">
           Titular de la cuenta
-          <input name="titular" required className="mt-1 block w-full rounded border px-3 py-2" />
+          <input name="titular" className="mt-1 block w-full rounded border px-3 py-2" />
         </label>
         <label className="text-sm">
           Alias
-          <input name="alias" required className="mt-1 block w-full rounded border px-3 py-2" />
+          <input name="alias" className="mt-1 block w-full rounded border px-3 py-2" />
         </label>
         <label className="text-sm">
           Banco
-          <input name="banco" required className="mt-1 block w-full rounded border px-3 py-2" />
+          <input name="banco" className="mt-1 block w-full rounded border px-3 py-2" />
         </label>
         <label className="text-sm">
           CBU (opcional)
