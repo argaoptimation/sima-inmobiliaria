@@ -1,6 +1,11 @@
 import { test, expect } from '@playwright/test'
+import path from 'node:path'
+import { readFileSync } from 'node:fs'
 import { createAdminClient, ensureTestFixtures, TestFixtures } from './fixtures/test-data'
 import { login } from './utils/login'
+
+const COMPROBANTE_PATH = path.join(__dirname, 'fixtures', 'comprobante-test.pdf')
+const COMPROBANTE_BYTES = readFileSync(COMPROBANTE_PATH)
 
 test.describe('Cuentas externas', () => {
   let fixtures: TestFixtures
@@ -285,6 +290,96 @@ test.describe('Cuentas externas', () => {
       // creada quedaría referenciada por FK, haciendo fallar en silencio el
       // borrado por nombre "E2E %" del beforeAll de este mismo archivo en la
       // próxima corrida.
+      const admin = createAdminClient()
+      await admin.from('lotes').update({ cuenta_cobro_externa_id: null }).eq('id', fixtures.loteId)
+    }
+  })
+
+  test('confirmar un pago redirigido a una cuenta externa: alcanza con el admin, se genera el crédito', async ({
+    page,
+  }) => {
+    await login(page, fixtures.admin.email, fixtures.password)
+
+    await page.goto('/admin/cuentas-externas/nuevo')
+    const nombreCuentaExterna = `E2E Credito Auto ${Date.now()}`
+    await page.getByLabel('Nombre del destinatario').fill(nombreCuentaExterna)
+    await page.getByLabel('Titular de la cuenta').fill('Corralón Crédito')
+    await page.getByLabel('Alias').fill('corralon.credito')
+    await page.getByLabel('Banco').fill('Banco Test')
+    await page.getByRole('button', { name: 'Crear cuenta externa' }).click()
+    // Regex de UUID, no ".+$" -- misma razón documentada en los otros tests
+    // de este archivo.
+    await page.waitForURL(/\/admin\/cuentas-externas\/[0-9a-f-]{36}$/)
+    const cuentaExternaId = page.url().split('/').pop()!
+
+    try {
+      await page.goto(`/admin/lotes/${fixtures.loteId}`)
+      await page.selectOption('select[name="cuentaCobroId"]', {
+        label: `${nombreCuentaExterna} (cuenta externa)`,
+      })
+      await page.getByRole('button', { name: 'Guardar cobro' }).click()
+
+      // Hay que esperar a que el guardado se confirme (mismo patrón que el
+      // test de más arriba de esta misma suite) ANTES de limpiar cookies y
+      // cambiar de usuario: si se navega a /login mientras el submit del
+      // form todavía está en curso, esa navegación cancela la anterior y la
+      // asignación de cuenta_cobro_externa_id nunca llega a persistirse.
+      await expect(async () => {
+        await page.reload()
+        await expect(page.locator('select[name="cuentaCobroId"]')).toHaveValue(
+          new RegExp(`^externa:`)
+        )
+      }).toPass({ timeout: 10000 })
+
+      // El flujo exacto de "pagar una cuota" (nombres de botones/links) sigue
+      // el mismo patrón verificado en pago-flujo-completo.spec.ts: el link
+      // "Pagar" de la brief no existe tal cual en la UI real -- hay un paso
+      // intermedio de "Monto transferido" + moneda + "Ya transferí" antes de
+      // llegar a la pantalla de subir el comprobante.
+      const nombreComprobante = `e2e-credito-auto-${Date.now()}.pdf`
+
+      await page.context().clearCookies()
+      await login(page, fixtures.cliente.email, fixtures.password)
+      await page.goto(`/portal-cliente/lotes/${fixtures.loteId}`)
+
+      const filaCuota1 = page.locator('main table').nth(0).locator('tbody tr').nth(0)
+      await filaCuota1.getByRole('link', { name: 'Pagar cuota' }).click()
+      await page.waitForURL(/\/portal-cliente\/pagar\//)
+
+      await page.getByPlaceholder('Monto transferido').fill('1000')
+      await page.selectOption('select[name="moneda"]', 'USD')
+      await page.getByRole('button', { name: 'Ya transferí' }).click()
+      await page.waitForURL(/\/portal-cliente\/pagos\/.+\/comprobante$/)
+
+      await page.setInputFiles('input[name="comprobante"]', {
+        name: nombreComprobante,
+        mimeType: 'application/pdf',
+        buffer: COMPROBANTE_BYTES,
+      })
+      await page.getByRole('button', { name: 'Finalizar' }).click()
+      await page.waitForURL(/\/portal-cliente$/)
+
+      await page.context().clearCookies()
+      await login(page, fixtures.admin.email, fixtures.password)
+      await page.goto('/admin/pagos')
+      const fila = page
+        .locator('main table tbody tr')
+        .filter({ has: page.locator(`a[href*="${nombreComprobante}"]`) })
+      await expect(fila.getByText('— (cuenta externa)')).toBeVisible()
+      await fila.getByRole('button', { name: 'Confirmar mi parte' }).click()
+
+      // Misma demora corta y real de lectura-después-de-escritura ya
+      // documentada en este archivo: se reintenta la navegación al detalle de
+      // la cuenta externa en vez de asumir que el crédito ya está visible en
+      // la primera carga.
+      await expect(async () => {
+        await page.goto(`/admin/cuentas-externas/${cuentaExternaId}`)
+        await expect(page.getByText('Crédito (le pagamos)')).toBeVisible()
+      }).toPass({ timeout: 10000 })
+    } finally {
+      // fixtures.loteId es compartido con otros specs -- se limpia la
+      // asignación de cuenta de cobro externa para no dejarles un estado
+      // inesperado.
       const admin = createAdminClient()
       await admin.from('lotes').update({ cuenta_cobro_externa_id: null }).eq('id', fixtures.loteId)
     }

@@ -121,7 +121,7 @@ export default async function PagosPage({
     loteIdsConPago.length > 0
       ? await supabase
           .from('lotes')
-          .select('id, identificador, acreedor_id')
+          .select('id, identificador, acreedor_id, cuenta_cobro_externa_id')
           .in('id', loteIdsConPago)
       : { data: [] }
 
@@ -146,7 +146,14 @@ export default async function PagosPage({
       const nombreCliente = nombreClientePorId.get(pago.cliente_id) ?? '—'
 
       if (!pago.comprobante_path) {
-        return { ...pago, comprobanteUrl: null, sinAcreedorVinculado, identificadorLote, nombreCliente }
+        return {
+          ...pago,
+          comprobanteUrl: null,
+          sinAcreedorVinculado,
+          identificadorLote,
+          nombreCliente,
+          cuentaCobroExterna: Boolean(lote?.cuenta_cobro_externa_id),
+        }
       }
 
       const { data, error: errorSignedUrl } = await admin.storage
@@ -159,6 +166,7 @@ export default async function PagosPage({
         sinAcreedorVinculado,
         identificadorLote,
         nombreCliente,
+        cuentaCobroExterna: Boolean(lote?.cuenta_cobro_externa_id),
       }
     })
   )
@@ -228,7 +236,9 @@ export default async function PagosPage({
                 </td>
                 <td>{pago.estado}</td>
                 <td>
-                  {pago.sinAcreedorVinculado ? (
+                  {pago.cuentaCobroExterna ? (
+                    <span className="text-gray-500">— (cuenta externa)</span>
+                  ) : pago.sinAcreedorVinculado ? (
                     <span className="font-semibold text-red-700">⚠ Lote sin acreedor vinculado</span>
                   ) : pago.confirmado_acreedor_por ? (
                     'Sí'

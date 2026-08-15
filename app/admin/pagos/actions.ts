@@ -26,7 +26,7 @@ export async function confirmarPago(pagoId: string, formData: FormData) {
 
   const { data: pago } = await supabase
     .from('pagos')
-    .select('comprobante_path, cliente_id, lote_id')
+    .select('comprobante_path, cliente_id, lote_id, moneda, motivo')
     .eq('id', pagoId)
     .single()
 
@@ -43,7 +43,7 @@ export async function confirmarPago(pagoId: string, formData: FormData) {
   // redundante.
   const { data: lote } = await supabase
     .from('lotes')
-    .select('id, acreedor_id')
+    .select('id, acreedor_id, identificador, cuenta_cobro_externa_id')
     .eq('id', pago.lote_id)
     .single()
 
@@ -127,19 +127,62 @@ export async function confirmarPago(pagoId: string, formData: FormData) {
 
   // Claim atomico: solo un llamador puede ganar este UPDATE, ya sea contra
   // una carrera de doble click o contra un reintento tras una falla parcial.
-  const { data: pagoClaimado, error: errorClaim } = await supabase
-    .from('pagos')
-    .update({ estado: 'confirmado' })
-    .eq('id', pagoId)
-    .eq('estado', 'pendiente')
-    .not('confirmado_acreedor_por', 'is', null)
-    .not('confirmado_admin_por', 'is', null)
-    .select('id, monto')
-    .single()
+  // Si el lote redirige el cobro a una cuenta externa (sin login), alcanza
+  // con la confirmacion del admin -- no tiene sentido pedirle a alguien sin
+  // cuenta que confirme nada. Dos ramas explicitas (en vez de armar un solo
+  // query condicional) para que quede clara la diferencia exacta entre
+  // ambos casos, sin depender de como encadena internamente el builder.
+  const { data: pagoClaimado, error: errorClaim } = lote!.cuenta_cobro_externa_id
+    ? await supabase
+        .from('pagos')
+        .update({ estado: 'confirmado' })
+        .eq('id', pagoId)
+        .eq('estado', 'pendiente')
+        .not('confirmado_admin_por', 'is', null)
+        .select('id, monto')
+        .single()
+    : await supabase
+        .from('pagos')
+        .update({ estado: 'confirmado' })
+        .eq('id', pagoId)
+        .eq('estado', 'pendiente')
+        .not('confirmado_acreedor_por', 'is', null)
+        .not('confirmado_admin_por', 'is', null)
+        .select('id, monto')
+        .single()
 
   if (errorClaim || !pagoClaimado || !lote) {
     revalidatePath('/admin/pagos')
     return
+  }
+
+  if (lote.cuenta_cobro_externa_id) {
+    const { data: cliente } = await supabase
+      .from('profiles')
+      .select('full_name')
+      .eq('id', pago.cliente_id)
+      .single()
+
+    const conceptoMovimiento = `Pago de ${pago.motivo === 'sena' ? 'seña' : 'cuota'} — Lote ${
+      lote.identificador
+    } — ${cliente?.full_name ?? 'cliente'}`
+
+    const { error: errorMovimientoExterno } = await supabase.from('cuentas_externas_movimientos').insert({
+      cuenta_externa_id: lote.cuenta_cobro_externa_id,
+      tipo: 'credito',
+      monto: pagoClaimado.monto,
+      moneda: pago.moneda,
+      concepto: conceptoMovimiento,
+      pago_id: pagoClaimado.id,
+      cargado_por: user.id,
+    })
+
+    if (errorMovimientoExterno) {
+      // El pago ya quedo "confirmado" y el FIFO de abajo sigue corriendo --
+      // no revertimos nada, pero queda para revision manual el hecho de que
+      // no se registro el credito en la cuenta externa.
+      console.error('No se pudo registrar el crédito en la cuenta externa:', errorMovimientoExterno)
+    }
   }
 
   const { data: cuotas } = await supabase
