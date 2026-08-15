@@ -6,6 +6,7 @@ import { redirect } from 'next/navigation'
 import { requireAccesoParaReservar } from '@/lib/auth/require-admin'
 import { tieneRecibidoPorValido } from '@/lib/reservas/validar-recibido-por'
 import { vendedorIdAlReservar } from '@/lib/lotes/asignar-vendedor-al-reservar'
+import { excedeTamanioMaximo } from '@/lib/storage/validar-tamanio-archivo'
 
 export async function reservarLote(loteId: string, formData: FormData) {
   await requireAccesoParaReservar(loteId)
@@ -54,9 +55,33 @@ export async function reservarLote(loteId: string, formData: FormData) {
     )
   }
 
+  if (excedeTamanioMaximo(comprobante)) {
+    redirect(
+      `/admin/lotes/${loteId}/reservar?error=${encodeURIComponent(
+        'El comprobante de la seña pesa más de 15 MB — subí uno más liviano.'
+      )}`
+    )
+  }
+
   if (!dniFrente || dniFrente.size === 0 || !dniDorso || dniDorso.size === 0) {
     redirect(
       `/admin/lotes/${loteId}/reservar?error=${encodeURIComponent('Subí las fotos del DNI (frente y dorso)')}`
+    )
+  }
+
+  if (excedeTamanioMaximo(dniFrente)) {
+    redirect(
+      `/admin/lotes/${loteId}/reservar?error=${encodeURIComponent(
+        'La foto del DNI (frente) pesa más de 15 MB — subí una más liviana.'
+      )}`
+    )
+  }
+
+  if (excedeTamanioMaximo(dniDorso)) {
+    redirect(
+      `/admin/lotes/${loteId}/reservar?error=${encodeURIComponent(
+        'La foto del DNI (dorso) pesa más de 15 MB — subí una más liviana.'
+      )}`
     )
   }
 
@@ -99,10 +124,26 @@ export async function reservarLote(loteId: string, formData: FormData) {
     )
   }
 
+  if (dniConyuge && dniConyuge.size > 0 && excedeTamanioMaximo(dniConyuge)) {
+    redirect(
+      `/admin/lotes/${loteId}/reservar?error=${encodeURIComponent(
+        'La foto del DNI del cónyuge pesa más de 15 MB — subí una más liviana.'
+      )}`
+    )
+  }
+
   if (estadoCivil === 'divorciado' && (!sentenciaDivorcio || sentenciaDivorcio.size === 0)) {
     redirect(
       `/admin/lotes/${loteId}/reservar?error=${encodeURIComponent(
         'Subí la sentencia de divorcio (elegiste "Divorciado/a")'
+      )}`
+    )
+  }
+
+  if (sentenciaDivorcio && sentenciaDivorcio.size > 0 && excedeTamanioMaximo(sentenciaDivorcio)) {
+    redirect(
+      `/admin/lotes/${loteId}/reservar?error=${encodeURIComponent(
+        'La sentencia de divorcio pesa más de 15 MB — subí una más liviana.'
       )}`
     )
   }

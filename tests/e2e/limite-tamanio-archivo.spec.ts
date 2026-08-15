@@ -1,0 +1,72 @@
+import { test, expect } from '@playwright/test'
+import { ensureTestFixtures, createAdminClient, TestFixtures } from './fixtures/test-data'
+import { login } from './utils/login'
+
+const ARCHIVO_GRANDE = Buffer.alloc(16 * 1024 * 1024)
+const ARCHIVO_CHICO = Buffer.from('contenido de prueba chico')
+
+async function crearLoteDisponible(identificador: string) {
+  const admin = createAdminClient()
+  const { data: lote, error } = await admin
+    .from('lotes')
+    .insert({
+      identificador,
+      moneda: 'USD',
+      estado: 'disponible',
+      cantidad_cuotas: 1,
+      monto_cuota_base: 1,
+    })
+    .select('id')
+    .single()
+
+  if (error || !lote) {
+    throw new Error(`No se pudo crear el lote disponible de prueba: ${error?.message}`)
+  }
+
+  return lote.id as string
+}
+
+test.describe('Límite de tamaño de archivo en subidas', () => {
+  let fixtures: TestFixtures
+
+  test.beforeAll(async () => {
+    fixtures = await ensureTestFixtures()
+  })
+
+  test('un comprobante de seña de más de 15 MB se rechaza al reservar', async ({ page }) => {
+    const loteId = await crearLoteDisponible(`E2E Lote Archivo Grande ${Date.now()}`)
+
+    await login(page, fixtures.admin.email, fixtures.password)
+    await page.goto(`/admin/lotes/${loteId}/reservar`)
+
+    await page.getByPlaceholder('Nombre completo').fill('Comprador E2E')
+    await page.getByPlaceholder('DNI', { exact: true }).fill('30111222')
+    await page.getByPlaceholder('Domicilio').fill('Calle Falsa 123')
+    await page.getByPlaceholder('Email').fill('comprador.archivo.grande@sima-demo.invalid')
+    await page.getByPlaceholder('Teléfono', { exact: true }).fill('3511234567')
+    await page.selectOption('select[name="estadoCivil"]', 'soltero')
+    await page.getByPlaceholder('Monto de la seña').fill('500')
+    await page.setInputFiles('input[name="comprobante"]', {
+      name: 'comprobante-grande.pdf',
+      mimeType: 'application/pdf',
+      buffer: ARCHIVO_GRANDE,
+    })
+    await page.setInputFiles('input[name="dniFrente"]', {
+      name: 'dni-frente.pdf',
+      mimeType: 'application/pdf',
+      buffer: ARCHIVO_CHICO,
+    })
+    await page.setInputFiles('input[name="dniDorso"]', {
+      name: 'dni-dorso.pdf',
+      mimeType: 'application/pdf',
+      buffer: ARCHIVO_CHICO,
+    })
+    await page.getByRole('button', { name: 'Confirmar reserva' }).click()
+
+    await expect(page.getByText(/pesa más de 15 MB/)).toBeVisible()
+
+    const admin = createAdminClient()
+    const { data: lote } = await admin.from('lotes').select('estado').eq('id', loteId).single()
+    expect(lote?.estado).toBe('disponible')
+  })
+})
