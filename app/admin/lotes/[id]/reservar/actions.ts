@@ -6,7 +6,7 @@ import { redirect } from 'next/navigation'
 import { requireAccesoParaReservar } from '@/lib/auth/require-admin'
 import { tieneRecibidoPorValido } from '@/lib/reservas/validar-recibido-por'
 import { vendedorIdAlReservar } from '@/lib/lotes/asignar-vendedor-al-reservar'
-import { excedeTamanioMaximo } from '@/lib/storage/validar-tamanio-archivo'
+import { excedeTamanioMaximo, MAX_ARCHIVO_MB } from '@/lib/storage/validar-tamanio-archivo'
 
 export async function reservarLote(loteId: string, formData: FormData) {
   await requireAccesoParaReservar(loteId)
@@ -58,7 +58,7 @@ export async function reservarLote(loteId: string, formData: FormData) {
   if (excedeTamanioMaximo(comprobante)) {
     redirect(
       `/admin/lotes/${loteId}/reservar?error=${encodeURIComponent(
-        'El comprobante de la seña pesa más de 15 MB — subí uno más liviano.'
+        `El comprobante de la seña pesa más de ${MAX_ARCHIVO_MB} MB — subí uno más liviano.`
       )}`
     )
   }
@@ -72,7 +72,7 @@ export async function reservarLote(loteId: string, formData: FormData) {
   if (excedeTamanioMaximo(dniFrente)) {
     redirect(
       `/admin/lotes/${loteId}/reservar?error=${encodeURIComponent(
-        'La foto del DNI (frente) pesa más de 15 MB — subí una más liviana.'
+        `La foto del DNI (frente) pesa más de ${MAX_ARCHIVO_MB} MB — subí una más liviana.`
       )}`
     )
   }
@@ -80,7 +80,7 @@ export async function reservarLote(loteId: string, formData: FormData) {
   if (excedeTamanioMaximo(dniDorso)) {
     redirect(
       `/admin/lotes/${loteId}/reservar?error=${encodeURIComponent(
-        'La foto del DNI (dorso) pesa más de 15 MB — subí una más liviana.'
+        `La foto del DNI (dorso) pesa más de ${MAX_ARCHIVO_MB} MB — subí una más liviana.`
       )}`
     )
   }
@@ -127,7 +127,7 @@ export async function reservarLote(loteId: string, formData: FormData) {
   if (dniConyuge && dniConyuge.size > 0 && excedeTamanioMaximo(dniConyuge)) {
     redirect(
       `/admin/lotes/${loteId}/reservar?error=${encodeURIComponent(
-        'La foto del DNI del cónyuge pesa más de 15 MB — subí una más liviana.'
+        `La foto del DNI del cónyuge pesa más de ${MAX_ARCHIVO_MB} MB — subí una más liviana.`
       )}`
     )
   }
@@ -143,7 +143,7 @@ export async function reservarLote(loteId: string, formData: FormData) {
   if (sentenciaDivorcio && sentenciaDivorcio.size > 0 && excedeTamanioMaximo(sentenciaDivorcio)) {
     redirect(
       `/admin/lotes/${loteId}/reservar?error=${encodeURIComponent(
-        'La sentencia de divorcio pesa más de 15 MB — subí una más liviana.'
+        `La sentencia de divorcio pesa más de ${MAX_ARCHIVO_MB} MB — subí una más liviana.`
       )}`
     )
   }
