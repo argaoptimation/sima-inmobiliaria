@@ -8,6 +8,39 @@ import { tieneRecibidoPorValido } from '@/lib/reservas/validar-recibido-por'
 import { vendedorIdAlReservar } from '@/lib/lotes/asignar-vendedor-al-reservar'
 import { excedeTamanioMaximo, MAX_ARCHIVO_MB } from '@/lib/storage/validar-tamanio-archivo'
 
+const CAMPOS_PRESERVABLES: Array<[string, string]> = [
+  ['nombreCompleto', 'nombreCompleto'],
+  ['dniPreservado', 'dni'],
+  ['domicilio', 'domicilio'],
+  ['email', 'email'],
+  ['telefono', 'telefono'],
+  ['telefonoAlternativo', 'telefonoAlternativo'],
+  ['estadoCivil', 'estadoCivil'],
+  ['instrumentacion', 'instrumentacion'],
+  ['montoSena', 'montoSena'],
+  ['monedaSena', 'monedaSena'],
+  ['recibidoPor', 'recibidoPor'],
+  ['recibidoPorOtro', 'recibidoPorOtro'],
+]
+
+function construirParamsPreservados(formData: FormData): URLSearchParams {
+  const params = new URLSearchParams()
+
+  for (const [nombreParam, nombreCampo] of CAMPOS_PRESERVABLES) {
+    if (formData.has(nombreCampo)) {
+      params.set(nombreParam, (formData.get(nombreCampo) as string) || '')
+    }
+  }
+
+  return params
+}
+
+function redirectConError(loteId: string, formData: FormData, mensaje: string): never {
+  const params = construirParamsPreservados(formData)
+  params.set('error', mensaje)
+  redirect(`/admin/lotes/${loteId}/reservar?${params.toString()}`)
+}
+
 export async function reservarLote(loteId: string, formData: FormData) {
   await requireAccesoParaReservar(loteId)
 
@@ -42,46 +75,38 @@ export async function reservarLote(loteId: string, formData: FormData) {
   const sentenciaDivorcio = formData.get('sentenciaDivorcio') as File | null
 
   if (!tieneRecibidoPorValido({ recibidoPor, recibidoPorOtro })) {
-    redirect(
-      `/admin/lotes/${loteId}/reservar?error=${encodeURIComponent(
-        'Indicá quién recibió la seña, de la lista o escribiendo el nombre'
-      )}`
-    )
+    redirectConError(loteId, formData, 'Indicá quién recibió la seña, de la lista o escribiendo el nombre')
   }
 
   if (!comprobante || comprobante.size === 0) {
-    redirect(
-      `/admin/lotes/${loteId}/reservar?error=${encodeURIComponent('Subí el comprobante de la seña')}`
-    )
+    redirectConError(loteId, formData, 'Subí el comprobante de la seña')
   }
 
   if (excedeTamanioMaximo(comprobante)) {
-    redirect(
-      `/admin/lotes/${loteId}/reservar?error=${encodeURIComponent(
-        `El comprobante de la seña pesa más de ${MAX_ARCHIVO_MB} MB — subí uno más liviano.`
-      )}`
+    redirectConError(
+      loteId,
+      formData,
+      `El comprobante de la seña pesa más de ${MAX_ARCHIVO_MB} MB — subí uno más liviano.`
     )
   }
 
   if (!dniFrente || dniFrente.size === 0 || !dniDorso || dniDorso.size === 0) {
-    redirect(
-      `/admin/lotes/${loteId}/reservar?error=${encodeURIComponent('Subí las fotos del DNI (frente y dorso)')}`
-    )
+    redirectConError(loteId, formData, 'Subí las fotos del DNI (frente y dorso)')
   }
 
   if (excedeTamanioMaximo(dniFrente)) {
-    redirect(
-      `/admin/lotes/${loteId}/reservar?error=${encodeURIComponent(
-        `La foto del DNI (frente) pesa más de ${MAX_ARCHIVO_MB} MB — subí una más liviana.`
-      )}`
+    redirectConError(
+      loteId,
+      formData,
+      `La foto del DNI (frente) pesa más de ${MAX_ARCHIVO_MB} MB — subí una más liviana.`
     )
   }
 
   if (excedeTamanioMaximo(dniDorso)) {
-    redirect(
-      `/admin/lotes/${loteId}/reservar?error=${encodeURIComponent(
-        `La foto del DNI (dorso) pesa más de ${MAX_ARCHIVO_MB} MB — subí una más liviana.`
-      )}`
+    redirectConError(
+      loteId,
+      formData,
+      `La foto del DNI (dorso) pesa más de ${MAX_ARCHIVO_MB} MB — subí una más liviana.`
     )
   }
 
@@ -95,15 +120,11 @@ export async function reservarLote(loteId: string, formData: FormData) {
     monedaSena.trim()
 
   if (!camposObligatoriosCompletos) {
-    redirect(
-      `/admin/lotes/${loteId}/reservar?error=${encodeURIComponent('Completá todos los campos obligatorios')}`
-    )
+    redirectConError(loteId, formData, 'Completá todos los campos obligatorios')
   }
 
   if (!Number.isFinite(montoSena) || montoSena < 0 || montoSena > 999999999999.99) {
-    redirect(
-      `/admin/lotes/${loteId}/reservar?error=${encodeURIComponent('El monto de la seña no puede ser negativo')}`
-    )
+    redirectConError(loteId, formData, 'El monto de la seña no puede ser negativo')
   }
 
   const ESTADOS_CIVILES_VALIDOS = ['soltero', 'casado', 'divorciado', 'viudo']
@@ -111,53 +132,39 @@ export async function reservarLote(loteId: string, formData: FormData) {
   const INSTRUMENTACIONES_VALIDAS = ['boleto', 'escritura']
 
   if (!ESTADOS_CIVILES_VALIDOS.includes(estadoCivil)) {
-    redirect(
-      `/admin/lotes/${loteId}/reservar?error=${encodeURIComponent('Estado civil inválido')}`
-    )
+    redirectConError(loteId, formData, 'Estado civil inválido')
   }
 
   if (estadoCivil === 'casado' && (!dniConyuge || dniConyuge.size === 0)) {
-    redirect(
-      `/admin/lotes/${loteId}/reservar?error=${encodeURIComponent(
-        'Subí el DNI del cónyuge (elegiste "Casado/a")'
-      )}`
-    )
+    redirectConError(loteId, formData, 'Subí el DNI del cónyuge (elegiste "Casado/a")')
   }
 
   if (dniConyuge && dniConyuge.size > 0 && excedeTamanioMaximo(dniConyuge)) {
-    redirect(
-      `/admin/lotes/${loteId}/reservar?error=${encodeURIComponent(
-        `La foto del DNI del cónyuge pesa más de ${MAX_ARCHIVO_MB} MB — subí una más liviana.`
-      )}`
+    redirectConError(
+      loteId,
+      formData,
+      `La foto del DNI del cónyuge pesa más de ${MAX_ARCHIVO_MB} MB — subí una más liviana.`
     )
   }
 
   if (estadoCivil === 'divorciado' && (!sentenciaDivorcio || sentenciaDivorcio.size === 0)) {
-    redirect(
-      `/admin/lotes/${loteId}/reservar?error=${encodeURIComponent(
-        'Subí la sentencia de divorcio (elegiste "Divorciado/a")'
-      )}`
-    )
+    redirectConError(loteId, formData, 'Subí la sentencia de divorcio (elegiste "Divorciado/a")')
   }
 
   if (sentenciaDivorcio && sentenciaDivorcio.size > 0 && excedeTamanioMaximo(sentenciaDivorcio)) {
-    redirect(
-      `/admin/lotes/${loteId}/reservar?error=${encodeURIComponent(
-        `La sentencia de divorcio pesa más de ${MAX_ARCHIVO_MB} MB — subí una más liviana.`
-      )}`
+    redirectConError(
+      loteId,
+      formData,
+      `La sentencia de divorcio pesa más de ${MAX_ARCHIVO_MB} MB — subí una más liviana.`
     )
   }
 
   if (!MONEDAS_VALIDAS.includes(monedaSena)) {
-    redirect(
-      `/admin/lotes/${loteId}/reservar?error=${encodeURIComponent('Moneda de la seña inválida')}`
-    )
+    redirectConError(loteId, formData, 'Moneda de la seña inválida')
   }
 
   if (instrumentacion && !INSTRUMENTACIONES_VALIDAS.includes(instrumentacion)) {
-    redirect(
-      `/admin/lotes/${loteId}/reservar?error=${encodeURIComponent('Instrumentación inválida')}`
-    )
+    redirectConError(loteId, formData, 'Instrumentación inválida')
   }
 
   const admin = createAdminClient()

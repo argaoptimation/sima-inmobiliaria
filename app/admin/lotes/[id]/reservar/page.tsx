@@ -8,10 +8,40 @@ export default async function ReservarLotePage({
   searchParams,
 }: {
   params: Promise<{ id: string }>
-  searchParams: Promise<{ error?: string; dni?: string }>
+  searchParams: Promise<{
+    error?: string
+    dni?: string
+    nombreCompleto?: string
+    dniPreservado?: string
+    domicilio?: string
+    email?: string
+    telefono?: string
+    telefonoAlternativo?: string
+    estadoCivil?: string
+    instrumentacion?: string
+    montoSena?: string
+    monedaSena?: string
+    recibidoPor?: string
+    recibidoPorOtro?: string
+  }>
 }) {
   const { id } = await params
-  const { error, dni: dniBuscado } = await searchParams
+  const {
+    error,
+    dni: dniBuscado,
+    nombreCompleto: nombreCompletoPreservado,
+    dniPreservado,
+    domicilio: domicilioPreservado,
+    email: emailPreservado,
+    telefono: telefonoPreservado,
+    telefonoAlternativo: telefonoAlternativoPreservado,
+    estadoCivil: estadoCivilPreservado,
+    instrumentacion: instrumentacionPreservado,
+    montoSena: montoSenaPreservado,
+    monedaSena: monedaSenaPreservado,
+    recibidoPor: recibidoPorPreservado,
+    recibidoPorOtro: recibidoPorOtroPreservado,
+  } = await searchParams
 
   await requireAccesoParaReservar(id)
 
@@ -94,27 +124,27 @@ export default async function ReservarLotePage({
             </p>
           ))}
 
-        <form action={reservarLoteConId} className="flex flex-col gap-3">
+        <form action={reservarLoteConId} noValidate className="flex flex-col gap-3">
           {error && <p className="rounded bg-red-100 p-2 text-sm text-red-700">{error}</p>}
 
           <input
             name="nombreCompleto"
             placeholder="Nombre completo"
-            defaultValue={clienteEncontrado?.full_name ?? ''}
+            defaultValue={nombreCompletoPreservado ?? clienteEncontrado?.full_name ?? ''}
             required
             className="rounded border px-3 py-2"
           />
           <input
             name="dni"
             placeholder="DNI"
-            defaultValue={clienteEncontrado?.dni ?? dniBuscado ?? ''}
+            defaultValue={dniPreservado ?? clienteEncontrado?.dni ?? dniBuscado ?? ''}
             required
             className="rounded border px-3 py-2"
           />
           <input
             name="domicilio"
             placeholder="Domicilio"
-            defaultValue={clienteEncontrado?.domicilio ?? ''}
+            defaultValue={domicilioPreservado ?? clienteEncontrado?.domicilio ?? ''}
             required
             className="rounded border px-3 py-2"
           />
@@ -122,20 +152,21 @@ export default async function ReservarLotePage({
             name="email"
             type="email"
             placeholder="Email"
-            defaultValue={clienteEncontrado?.email ?? ''}
+            defaultValue={emailPreservado ?? clienteEncontrado?.email ?? ''}
             required
             className="rounded border px-3 py-2"
           />
           <input
             name="telefono"
             placeholder="Teléfono"
-            defaultValue={clienteEncontrado?.telefono ?? ''}
+            defaultValue={telefonoPreservado ?? clienteEncontrado?.telefono ?? ''}
             required
             className="rounded border px-3 py-2"
           />
           <input
             name="telefonoAlternativo"
             placeholder="Teléfono alternativo (opcional)"
+            defaultValue={telefonoAlternativoPreservado ?? ''}
             className="rounded border px-3 py-2"
           />
 
@@ -144,6 +175,7 @@ export default async function ReservarLotePage({
             <select
               name="estadoCivil"
               required
+              defaultValue={estadoCivilPreservado}
               className="mt-1 block w-full rounded border px-3 py-2"
             >
               <option value="soltero">Soltero/a</option>
@@ -157,7 +189,7 @@ export default async function ReservarLotePage({
             Instrumentación prevista (opcional)
             <select
               name="instrumentacion"
-              defaultValue=""
+              defaultValue={instrumentacionPreservado ?? ''}
               className="mt-1 block w-full rounded border px-3 py-2"
             >
               <option value="">— sin definir —</option>
@@ -172,6 +204,7 @@ export default async function ReservarLotePage({
             step="0.01"
             min="0"
             placeholder="Monto de la seña"
+            defaultValue={montoSenaPreservado ?? ''}
             required
             className="rounded border px-3 py-2"
           />
@@ -180,7 +213,7 @@ export default async function ReservarLotePage({
             <select
               name="monedaSena"
               required
-              defaultValue="USD"
+              defaultValue={monedaSenaPreservado ?? 'USD'}
               className="mt-1 block w-full rounded border px-3 py-2"
             >
               <option value="USD">USD</option>
@@ -192,7 +225,7 @@ export default async function ReservarLotePage({
             Quién recibió la seña
             <select
               name="recibidoPor"
-              defaultValue={user!.id}
+              defaultValue={recibidoPorPreservado ?? user!.id}
               className="mt-1 block w-full rounded border px-3 py-2"
             >
               <option value="">— no está en la lista, especificar abajo —</option>
@@ -206,6 +239,7 @@ export default async function ReservarLotePage({
           <input
             name="recibidoPorOtro"
             placeholder="Si no está en la lista: nombre de quien la recibió"
+            defaultValue={recibidoPorOtroPreservado ?? ''}
             className="rounded border px-3 py-2"
           />
 
