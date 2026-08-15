@@ -70,4 +70,70 @@ test.describe('Cuentas externas', () => {
     await page.goto('/admin/cuentas-externas')
     await expect(page).toHaveURL(/\/admin\/lotes$/)
   })
+
+  test('agregar deuda pendiente desde el detalle actualiza el saldo, más de una vez', async ({
+    page,
+  }) => {
+    await login(page, fixtures.admin.email, fixtures.password)
+    await page.goto('/admin/cuentas-externas/nuevo')
+
+    await page.getByLabel('Nombre del destinatario').fill(`E2E Deuda ${Date.now()}`)
+    await page.getByLabel('Titular de la cuenta').fill('Alguien')
+    await page.getByLabel('Alias').fill('alguien.alias')
+    await page.getByLabel('Banco').fill('Banco Test')
+    await page.getByRole('button', { name: 'Crear cuenta externa' }).click()
+    await page.waitForURL(/\/admin\/cuentas-externas\/.+$/)
+    await page.waitForLoadState('networkidle')
+
+    await page.getByLabel('Monto', { exact: true }).fill('1000')
+    await page.getByLabel('Concepto').fill('Primera deuda')
+    await page.getByRole('button', { name: 'Agregar deuda' }).click()
+
+    // Esperar a que el mensaje de guardado aparezca con reintentos por timing
+    await expect(async () => {
+      await expect(page.getByText('Guardado.')).toBeVisible()
+    }).toPass({ timeout: 10000 })
+
+    await page.getByLabel('Monto', { exact: true }).fill('500')
+    await page.getByLabel('Concepto').fill('Segunda deuda')
+    await page.getByRole('button', { name: 'Agregar deuda' }).click()
+
+    // Esperar y reintentar para el segundo agregado también
+    await expect(async () => {
+      await expect(page.getByText('1500 USD')).toBeVisible()
+    }).toPass({ timeout: 10000 })
+    await expect(page.getByText('Primera deuda')).toBeVisible()
+    await expect(page.getByText('Segunda deuda')).toBeVisible()
+  })
+
+  test('editar datos de transferencia y eliminar una cuenta externa sin movimientos', async ({
+    page,
+  }) => {
+    await login(page, fixtures.admin.email, fixtures.password)
+    await page.goto('/admin/cuentas-externas/nuevo')
+
+    await page.getByLabel('Nombre del destinatario').fill(`E2E Editar ${Date.now()}`)
+    await page.getByLabel('Titular de la cuenta').fill('Nombre Original')
+    await page.getByLabel('Alias').fill('alias.original')
+    await page.getByLabel('Banco').fill('Banco Test')
+    await page.getByRole('button', { name: 'Crear cuenta externa' }).click()
+    await page.waitForURL(/\/admin\/cuentas-externas\/.+$/)
+    await page.waitForLoadState('networkidle')
+
+    await page.getByLabel('Titular').fill('Nombre Corregido')
+    await page.getByRole('button', { name: 'Guardar' }).click()
+
+    // Esperar a que se guarde y la página se recargue con el nuevo valor
+    await expect(async () => {
+      await expect(page.getByText('Guardado.')).toBeVisible()
+    }).toPass({ timeout: 10000 })
+
+    await expect(async () => {
+      await expect(page.getByLabel('Titular')).toHaveValue('Nombre Corregido')
+    }).toPass({ timeout: 10000 })
+
+    page.on('dialog', (dialog) => dialog.accept())
+    await page.getByRole('button', { name: 'Eliminar cuenta externa' }).click()
+    await page.waitForURL('**/admin/cuentas-externas')
+  })
 })
