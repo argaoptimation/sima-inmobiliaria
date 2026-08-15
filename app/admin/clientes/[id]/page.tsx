@@ -2,7 +2,7 @@ import { createClient } from '@/lib/supabase/server'
 import { requireAdministrador } from '@/lib/auth/require-admin'
 import { calcularEstadoCobranza } from '@/lib/cobranza/estado-cliente'
 import { notFound } from 'next/navigation'
-import { resetearContrasenaCliente, eliminarCliente } from '../actions'
+import { resetearContrasenaCliente, eliminarCliente, actualizarDatosCliente } from '../actions'
 import { BotonEliminarUsuario } from '@/app/admin/usuarios/BotonEliminarUsuario'
 
 export default async function ClienteDetallePage({
@@ -21,7 +21,7 @@ export default async function ClienteDetallePage({
 
   const { data: cliente } = await supabase
     .from('profiles')
-    .select('id, full_name, email, role')
+    .select('id, full_name, email, role, dni, domicilio, telefono')
     .eq('id', id)
     .maybeSingle()
 
@@ -66,8 +66,13 @@ export default async function ClienteDetallePage({
       <a href="/admin/clientes" className="mb-4 inline-block text-sm underline">
         ← Volver a Clientes
       </a>
-      <h1 className="mb-1 text-xl font-semibold">{cliente!.full_name}</h1>
-      <p className="mb-6 text-sm text-gray-600">{cliente!.email}</p>
+      <div className="mb-6">
+        <h1 className="mb-1 text-xl font-semibold">{cliente!.full_name}</h1>
+        <p className="text-sm text-gray-600">{cliente!.email}</p>
+        {cliente!.dni && <p className="text-sm text-gray-600">DNI: {cliente!.dni}</p>}
+        {cliente!.domicilio && <p className="text-sm text-gray-600">Domicilio: {cliente!.domicilio}</p>}
+        {cliente!.telefono && <p className="text-sm text-gray-600">Teléfono: {cliente!.telefono}</p>}
+      </div>
 
       {error && <p className="mb-4 rounded bg-red-100 p-2 text-sm text-red-700">{error}</p>}
       {ok && <p className="mb-4 rounded bg-green-100 p-2 text-sm text-green-700">{ok}</p>}
@@ -103,6 +108,49 @@ export default async function ClienteDetallePage({
           </tbody>
         </table>
       )}
+
+      <h2 className="mb-2 text-lg font-semibold">Editar datos</h2>
+      <form
+        action={actualizarDatosCliente.bind(null, cliente!.id)}
+        className="mb-8 flex max-w-sm flex-col gap-3"
+      >
+        <label className="text-sm">
+          Nombre completo
+          <input
+            name="fullName"
+            defaultValue={cliente!.full_name}
+            required
+            className="mt-1 block w-full rounded border px-3 py-2"
+          />
+        </label>
+        <label className="text-sm">
+          DNI
+          <input
+            name="dni"
+            defaultValue={cliente!.dni ?? ''}
+            className="mt-1 block w-full rounded border px-3 py-2"
+          />
+        </label>
+        <label className="text-sm">
+          Domicilio
+          <input
+            name="domicilio"
+            defaultValue={cliente!.domicilio ?? ''}
+            className="mt-1 block w-full rounded border px-3 py-2"
+          />
+        </label>
+        <label className="text-sm">
+          Teléfono
+          <input
+            name="telefono"
+            defaultValue={cliente!.telefono ?? ''}
+            className="mt-1 block w-full rounded border px-3 py-2"
+          />
+        </label>
+        <button type="submit" className="self-start rounded bg-black px-3 py-2 text-sm text-white">
+          Guardar datos
+        </button>
+      </form>
 
       <h2 className="mb-2 text-lg font-semibold">Resetear contraseña</h2>
       <p className="mb-2 text-sm text-gray-600">
