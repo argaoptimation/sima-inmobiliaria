@@ -39,7 +39,11 @@ test.describe('Cuentas externas', () => {
     await page.getByLabel('Concepto').fill('Materiales de construcción')
     await page.getByRole('button', { name: 'Crear cuenta externa' }).click()
 
-    await page.waitForURL(/\/admin\/cuentas-externas\/.+$/)
+    // Regex de UUID, no ".+$" -- ese matcheaba tambien la propia URL de
+    // origen "/admin/cuentas-externas/nuevo" (contiene "/admin/cuentas-
+    // externas/" + algo), haciendo que waitForURL resolviera de inmediato
+    // sin esperar la navegacion real si todavia no habia arrancado.
+    await page.waitForURL(/\/admin\/cuentas-externas\/[0-9a-f-]{36}$/)
 
     // Hay una demora corta y real de lectura-despues-de-escritura entre el
     // insert del movimiento inicial y que aparezca en una navegacion fresca
@@ -82,7 +86,11 @@ test.describe('Cuentas externas', () => {
     await page.getByLabel('Alias').fill('alguien.alias')
     await page.getByLabel('Banco').fill('Banco Test')
     await page.getByRole('button', { name: 'Crear cuenta externa' }).click()
-    await page.waitForURL(/\/admin\/cuentas-externas\/.+$/)
+    // Regex de UUID, no ".+$" -- ese matcheaba tambien la propia URL de
+    // origen "/admin/cuentas-externas/nuevo" (contiene "/admin/cuentas-
+    // externas/" + algo), haciendo que waitForURL resolviera de inmediato
+    // sin esperar la navegacion real si todavia no habia arrancado.
+    await page.waitForURL(/\/admin\/cuentas-externas\/[0-9a-f-]{36}$/)
     await page.waitForLoadState('networkidle')
 
     await page.getByLabel('Monto', { exact: true }).fill('1000')
@@ -117,7 +125,11 @@ test.describe('Cuentas externas', () => {
     await page.getByLabel('Alias').fill('alias.original')
     await page.getByLabel('Banco').fill('Banco Test')
     await page.getByRole('button', { name: 'Crear cuenta externa' }).click()
-    await page.waitForURL(/\/admin\/cuentas-externas\/.+$/)
+    // Regex de UUID, no ".+$" -- ese matcheaba tambien la propia URL de
+    // origen "/admin/cuentas-externas/nuevo" (contiene "/admin/cuentas-
+    // externas/" + algo), haciendo que waitForURL resolviera de inmediato
+    // sin esperar la navegacion real si todavia no habia arrancado.
+    await page.waitForURL(/\/admin\/cuentas-externas\/[0-9a-f-]{36}$/)
     await page.waitForLoadState('networkidle')
 
     await page.getByLabel('Titular').fill('Nombre Corregido')
@@ -135,5 +147,100 @@ test.describe('Cuentas externas', () => {
     page.on('dialog', (dialog) => dialog.accept())
     await page.getByRole('button', { name: 'Eliminar cuenta externa' }).click()
     await page.waitForURL('**/admin/cuentas-externas')
+  })
+
+  test('eliminar una cuenta externa con movimientos es rechazado', async ({ page }) => {
+    await login(page, fixtures.admin.email, fixtures.password)
+    await page.goto('/admin/cuentas-externas/nuevo')
+
+    await page.getByLabel('Nombre del destinatario').fill(`E2E No Borrable ${Date.now()}`)
+    await page.getByLabel('Titular de la cuenta').fill('Alguien')
+    await page.getByLabel('Alias').fill('alguien.alias')
+    await page.getByLabel('Banco').fill('Banco Test')
+    await page.getByLabel('Monto').fill('100')
+    await page.getByLabel('Concepto').fill('Deuda que bloquea el borrado')
+    await page.getByRole('button', { name: 'Crear cuenta externa' }).click()
+    // Regex de UUID, no ".+$" -- ese matcheaba tambien la propia URL de
+    // origen "/admin/cuentas-externas/nuevo" (contiene "/admin/cuentas-
+    // externas/" + algo), haciendo que waitForURL resolviera de inmediato
+    // sin esperar la navegacion real si todavia no habia arrancado.
+    await page.waitForURL(/\/admin\/cuentas-externas\/[0-9a-f-]{36}$/)
+    await page.waitForLoadState('networkidle')
+    const cuentaExternaId = page.url().split('/').pop()!
+
+    page.on('dialog', (dialog) => dialog.accept())
+    await page.getByRole('button', { name: 'Eliminar cuenta externa' }).click()
+
+    await expect(async () => {
+      await expect(page.getByText('No se puede eliminar: esta cuenta ya tiene movimientos')).toBeVisible()
+    }).toPass({ timeout: 10000 })
+
+    const admin = createAdminClient()
+    const { data: cuentaExterna } = await admin
+      .from('cuentas_externas')
+      .select('id')
+      .eq('id', cuentaExternaId)
+      .maybeSingle()
+    expect(cuentaExterna).not.toBeNull()
+  })
+
+  test('eliminar una cuenta externa asignada como cuenta de cobro de un lote es rechazado', async ({
+    page,
+  }) => {
+    const admin = createAdminClient()
+
+    await login(page, fixtures.admin.email, fixtures.password)
+    await page.goto('/admin/cuentas-externas/nuevo')
+
+    await page.getByLabel('Nombre del destinatario').fill(`E2E Asignada ${Date.now()}`)
+    await page.getByLabel('Titular de la cuenta').fill('Alguien')
+    await page.getByLabel('Alias').fill('alguien.alias')
+    await page.getByLabel('Banco').fill('Banco Test')
+    await page.getByRole('button', { name: 'Crear cuenta externa' }).click()
+    // Regex de UUID, no ".+$" -- ese matcheaba tambien la propia URL de
+    // origen "/admin/cuentas-externas/nuevo" (contiene "/admin/cuentas-
+    // externas/" + algo), haciendo que waitForURL resolviera de inmediato
+    // sin esperar la navegacion real si todavia no habia arrancado.
+    await page.waitForURL(/\/admin\/cuentas-externas\/[0-9a-f-]{36}$/)
+    const cuentaExternaId = page.url().split('/').pop()!
+
+    // Se asigna directo por base (el selector de cuenta de cobro todavía no
+    // soporta cuentas externas por UI, eso lo agrega la Task 4) para poder
+    // probar el guard de eliminarCuentaExterna de esta tarea de forma
+    // aislada.
+    await admin
+      .from('lotes')
+      .update({ cuenta_cobro_externa_id: cuentaExternaId })
+      .eq('id', fixtures.loteSecundarioId)
+
+    // Mismo fenómeno de lectura-después-de-escritura ya documentado: se
+    // confirma por polling que la asignación ya es visible antes de ejercitar
+    // el guard, para no confundir esa demora con un guard roto.
+    await expect
+      .poll(
+        async () => {
+          const { data: lote } = await admin
+            .from('lotes')
+            .select('cuenta_cobro_externa_id')
+            .eq('id', fixtures.loteSecundarioId)
+            .single()
+          return lote?.cuenta_cobro_externa_id ?? null
+        },
+        { timeout: 10000 }
+      )
+      .toBe(cuentaExternaId)
+
+    try {
+      page.on('dialog', (dialog) => dialog.accept())
+      await page.getByRole('button', { name: 'Eliminar cuenta externa' }).click()
+
+      await expect(async () => {
+        await expect(
+          page.getByText('No se puede eliminar: está asignada como cuenta de cobro de algún lote')
+        ).toBeVisible()
+      }).toPass({ timeout: 10000 })
+    } finally {
+      await admin.from('lotes').update({ cuenta_cobro_externa_id: null }).eq('id', fixtures.loteSecundarioId)
+    }
   })
 })
