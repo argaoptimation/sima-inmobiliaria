@@ -99,7 +99,10 @@ export async function actualizarCobro(loteId: string, formData: FormData) {
   const adminId = idOVacio(formData.get('adminId'))
   const acreedorId = idOVacio(formData.get('acreedorId'))
   const vendedorId = idOVacio(formData.get('vendedorId'))
-  const cuentaCobroId = idOVacio(formData.get('cuentaCobroId'))
+  const cuentaCobroRaw = idOVacio(formData.get('cuentaCobroId'))
+  const esExterna = cuentaCobroRaw?.startsWith('externa:') ?? false
+  const cuentaCobroId = esExterna ? null : cuentaCobroRaw
+  const cuentaCobroExternaId = esExterna ? cuentaCobroRaw!.slice('externa:'.length) : null
 
   const idsAValidar = [adminId, acreedorId, vendedorId].filter(
     (valorId): valorId is string => valorId !== null
@@ -160,6 +163,30 @@ export async function actualizarCobro(loteId: string, formData: FormData) {
     }
   }
 
+  if (cuentaCobroExternaId) {
+    const admin = createAdminClient()
+    const { data: cuentaExterna } = await admin
+      .from('cuentas_externas')
+      .select('id, titular, alias, banco')
+      .eq('id', cuentaCobroExternaId)
+      .maybeSingle()
+
+    if (
+      !cuentaExterna ||
+      !tieneDatosTransferencia({
+        titular: cuentaExterna.titular,
+        alias: cuentaExterna.alias,
+        banco: cuentaExterna.banco,
+      })
+    ) {
+      redirect(
+        `/admin/lotes/${loteId}?error=${encodeURIComponent(
+          'Esa cuenta externa todavía no tiene datos de transferencia completos'
+        )}`
+      )
+    }
+  }
+
   const supabase = await createClient()
   const { error } = await supabase
     .from('lotes')
@@ -168,6 +195,7 @@ export async function actualizarCobro(loteId: string, formData: FormData) {
       acreedor_id: acreedorId,
       vendedor_id: vendedorId,
       cuenta_cobro_id: cuentaCobroId,
+      cuenta_cobro_externa_id: cuentaCobroExternaId,
     })
     .eq('id', loteId)
 

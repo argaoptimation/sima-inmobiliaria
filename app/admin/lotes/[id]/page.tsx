@@ -36,7 +36,7 @@ export default async function LoteDetallePage({
   const { data: lote } = await supabase
     .from('lotes')
     .select(
-      'id, identificador, moneda, estado, cliente_id, admin_id, acreedor_id, vendedor_id, cuenta_cobro_id, ubicacion, precio_total'
+      'id, identificador, moneda, estado, cliente_id, admin_id, acreedor_id, vendedor_id, cuenta_cobro_id, cuenta_cobro_externa_id, ubicacion, precio_total'
     )
     .eq('id', id)
     .single()
@@ -148,6 +148,11 @@ export default async function LoteDetallePage({
       tieneDatosTransferencia({ alias: persona.alias, banco: persona.banco, titular: persona.titular }) ||
       persona.id === lote!.cuenta_cobro_id
   )
+
+  const { data: cuentasExternas } = await supabase
+    .from('cuentas_externas')
+    .select('id, nombre')
+    .order('nombre')
 
   const actualizarDatosGeneralesConId = actualizarDatosGenerales.bind(null, id)
   const actualizarCobroConId = actualizarCobro.bind(null, id)
@@ -420,7 +425,11 @@ export default async function LoteDetallePage({
           Cuenta de cobro actual
           <select
             name="cuentaCobroId"
-            defaultValue={lote!.cuenta_cobro_id ?? ''}
+            defaultValue={
+              lote!.cuenta_cobro_externa_id
+                ? `externa:${lote!.cuenta_cobro_externa_id}`
+                : (lote!.cuenta_cobro_id ?? '')
+            }
             className="mt-1 block w-full rounded border px-3 py-2"
           >
             <option value="">— sin asignar —</option>
@@ -429,6 +438,11 @@ export default async function LoteDetallePage({
                 {persona.full_name} ({persona.role})
                 {!tieneDatosTransferencia({ alias: persona.alias, banco: persona.banco, titular: persona.titular }) &&
                   ' — sin datos de transferencia'}
+              </option>
+            ))}
+            {(cuentasExternas ?? []).map((cuentaExterna) => (
+              <option key={cuentaExterna.id} value={`externa:${cuentaExterna.id}`}>
+                {cuentaExterna.nombre} (cuenta externa)
               </option>
             ))}
           </select>

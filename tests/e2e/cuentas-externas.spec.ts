@@ -243,4 +243,50 @@ test.describe('Cuentas externas', () => {
       await admin.from('lotes').update({ cuenta_cobro_externa_id: null }).eq('id', fixtures.loteSecundarioId)
     }
   })
+
+  test('seleccionar una cuenta externa como cuenta de cobro de un lote, sin asociarla antes', async ({
+    page,
+  }) => {
+    await login(page, fixtures.admin.email, fixtures.password)
+
+    await page.goto('/admin/cuentas-externas/nuevo')
+    const nombreCuentaExterna = `E2E Cobro Externo ${Date.now()}`
+    await page.getByLabel('Nombre del destinatario').fill(nombreCuentaExterna)
+    await page.getByLabel('Titular de la cuenta').fill('Corralón Test')
+    await page.getByLabel('Alias').fill('corralon.test')
+    await page.getByLabel('Banco').fill('Banco Test')
+    await page.getByRole('button', { name: 'Crear cuenta externa' }).click()
+    // Regex de UUID, no ".+$" -- ese matcheaba tambien la propia URL de
+    // origen "/admin/cuentas-externas/nuevo" (contiene "/admin/cuentas-
+    // externas/" + algo), haciendo que waitForURL resolviera de inmediato
+    // sin esperar la navegacion real si todavia no habia arrancado.
+    await page.waitForURL(/\/admin\/cuentas-externas\/[0-9a-f-]{36}$/)
+
+    try {
+      await page.goto(`/admin/lotes/${fixtures.loteId}`)
+      await page.selectOption('select[name="cuentaCobroId"]', {
+        label: `${nombreCuentaExterna} (cuenta externa)`,
+      })
+      await page.getByRole('button', { name: 'Guardar cobro' }).click()
+
+      // Mismo fenómeno de lectura-después-de-escritura ya documentado en
+      // este spec: el update del lote puede no estar visible todavía en la
+      // primera recarga inmediatamente después del redirect.
+      await expect(async () => {
+        await page.reload()
+        await expect(page.locator('select[name="cuentaCobroId"]')).toHaveValue(
+          new RegExp(`^externa:`)
+        )
+      }).toPass({ timeout: 10000 })
+    } finally {
+      // fixtures.loteId es compartido con otros specs (cuenta-cobro.spec.ts,
+      // pase-a-vendido.spec.ts, etc.) -- se limpia la asignación para no
+      // dejarles un estado inesperado, y porque la cuenta externa recién
+      // creada quedaría referenciada por FK, haciendo fallar en silencio el
+      // borrado por nombre "E2E %" del beforeAll de este mismo archivo en la
+      // próxima corrida.
+      const admin = createAdminClient()
+      await admin.from('lotes').update({ cuenta_cobro_externa_id: null }).eq('id', fixtures.loteId)
+    }
+  })
 })
