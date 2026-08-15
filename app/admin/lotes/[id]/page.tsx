@@ -37,7 +37,7 @@ export default async function LoteDetallePage({
   const { data: lote } = await supabase
     .from('lotes')
     .select(
-      'id, identificador, moneda, estado, cliente_id, admin_id, acreedor_id, vendedor_id, cuenta_cobro_id, cuenta_cobro_externa_id, ubicacion, precio_total'
+      'id, identificador, moneda, estado, cliente_id, admin_id, acreedor_id, vendedor_id, cuenta_cobro_id, cuenta_cobro_externa_id, ubicacion, precio_total, documento_firmado_path'
     )
     .eq('id', id)
     .single()
@@ -48,6 +48,15 @@ export default async function LoteDetallePage({
 
   if (perfilPropio!.role === 'acreedor' && lote!.acreedor_id !== user!.id) {
     redirect('/admin/lotes')
+  }
+
+  let documentoFirmadoUrl: string | null = null
+  if (lote!.documento_firmado_path) {
+    const admin = createAdminClient()
+    const { data: documentoSigned } = await admin.storage
+      .from('comprobantes')
+      .createSignedUrl(lote!.documento_firmado_path, 300)
+    documentoFirmadoUrl = documentoSigned?.signedUrl ?? null
   }
 
   const { data: cuotas } = await supabase
@@ -320,6 +329,18 @@ export default async function LoteDetallePage({
             </p>
           )}
         </>
+      )}
+
+      {lote!.estado === 'vendido' && (
+        <p className="mb-4 text-sm">
+          {documentoFirmadoUrl ? (
+            <a href={documentoFirmadoUrl} target="_blank" className="underline">
+              Ver documento firmado
+            </a>
+          ) : (
+            <span className="text-gray-500">Documento firmado no disponible</span>
+          )}
+        </p>
       )}
 
       <h2 className="mb-2 mt-6 text-lg font-semibold">Cuotas</h2>

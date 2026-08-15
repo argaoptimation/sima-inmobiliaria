@@ -216,4 +216,26 @@ test.describe('Vender — documento firmado y cuota manual', () => {
       .order('numero', { ascending: true })
     expect(cuotas?.map((c) => c.monto_base)).toEqual([2500, 1500])
   })
+
+  test('el detalle del lote muestra un link para ver el documento firmado', async ({ page }) => {
+    const admin = createAdminClient()
+    const loteId = await crearLoteReservadoListoParaVender(
+      `E2E Ver Documento ${Date.now()}`,
+      5000,
+      fixtures.acreedorConDatos.id
+    )
+
+    await login(page, fixtures.admin.email, fixtures.password)
+    await page.goto(`/admin/lotes/${loteId}/vender`)
+    await page.getByPlaceholder('Nombre completo del comprador').fill('Comprador Ver Documento')
+    await page.getByPlaceholder('Email del comprador').fill(`ver.documento.${Date.now()}@sima-e2e.invalid`)
+    await page.getByPlaceholder('Cantidad de cuotas (1 para venta al contado)').fill('1')
+    await page.locator('input[name="fechaPrimeraCuota"]').fill('2026-09-01')
+    await adjuntarDocumentoFirmado(page)
+    await page.getByRole('button', { name: 'Confirmar venta y enviar invitación' }).click()
+    await page.waitForURL('**/admin/lotes')
+
+    await page.goto(`/admin/lotes/${loteId}`)
+    await expect(page.getByRole('link', { name: 'Ver documento firmado' })).toBeVisible()
+  })
 })
