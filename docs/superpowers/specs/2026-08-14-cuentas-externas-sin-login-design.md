@@ -88,20 +88,33 @@ Nueva sección en el menú, exclusiva del administrador (mismo patrón que
 gente con login real).
 
 - **Listado**: nombre + saldo actual de cada cuenta externa.
-- **Alta**: nombre del destinatario + datos de transferencia (titular,
-  alias, banco, CBU opcional — mismo shape que ya usa
-  `lib/lotes/validar-cuenta-cobro.ts`), más una deuda inicial opcional
-  (monto, moneda, concepto). Si se completa la deuda inicial, se crea
+- **Alta**: nombre del destinatario + datos de transferencia — titular,
+  alias y banco son **obligatorios** (CBU sigue opcional, mismo criterio
+  que el resto del proyecto), más una deuda inicial opcional (monto,
+  moneda, concepto). Si se completa la deuda inicial, se crea
   automáticamente el primer movimiento (`tipo: 'debito'`).
-- **Detalle**: datos de la cuenta (editables en cualquier momento) +
-  tabla de movimientos (fecha, concepto, tipo, monto, moneda) ordenada
-  por fecha, con el saldo actual bien visible arriba. Un formulario chico
-  para agregar deuda pendiente en cualquier momento (monto + moneda +
-  concepto libre) — no solo al crear la cuenta. Esto es explícitamente
-  distinto de una pantalla genérica de "otros movimientos" compartida
-  entre todos los acreedores (con selector de a quién se le debe/quién
-  debe) — esa pieza más grande queda para después; acá el formulario es
-  específico de cada cuenta externa, simple.
+
+  DECISIÓN (14/08/2026, a pedido de Gabriel): a diferencia de
+  vendedores/acreedores con login (donde el admin invita y la persona
+  completa sus propios datos bancarios después, en otro momento), acá no
+  hay ninguna razón para permitir una cuenta externa incompleta — el
+  admin carga todo de una sola vez, no hay nadie más que vaya a
+  completarlo después. Por eso titular/alias/banco son obligatorios
+  desde el alta, tanto al crear como al editar (nunca se puede guardar
+  con esos tres campos vacíos). El chequeo de "no seleccionable como
+  cuenta de cobro sin datos completos" (ver más abajo) queda igual como
+  resguardo defensivo, pero con esto ya no debería ser una situación real
+  del día a día.
+- **Detalle**: datos de la cuenta (editables en cualquier momento, mismos
+  tres campos obligatorios) + tabla de movimientos (fecha, concepto,
+  tipo, monto, moneda) ordenada por fecha, con el saldo actual bien
+  visible arriba. Un formulario chico para agregar deuda pendiente en
+  cualquier momento (monto + moneda + concepto libre) — no solo al crear
+  la cuenta. Esto es explícitamente distinto de una pantalla genérica de
+  "otros movimientos" compartida entre todos los acreedores (con selector
+  de a quién se le debe/quién debe) — esa pieza más grande queda para
+  después; acá el formulario es específico de cada cuenta externa,
+  simple.
 - **Eliminar**: bloqueado si la cuenta tiene algún movimiento o está
   asignada como `cuenta_cobro_externa_id` de algún lote — mismo criterio
   de "no borrar historial" que ya usa el resto del proyecto
@@ -176,6 +189,8 @@ pieza aparte, fuera de alcance de este spec.
 ## Testing
 
 - Alta de una cuenta externa (con y sin deuda inicial).
+- Prueba negativa: crear o editar una cuenta externa sin titular/alias/
+  banco se rechaza con mensaje claro (los tres son obligatorios).
 - Agregar deuda pendiente desde el detalle, en más de una oportunidad.
 - El saldo mostrado refleja correctamente débitos menos créditos.
 - Seleccionar una cuenta externa como cuenta de cobro de un lote (sin
