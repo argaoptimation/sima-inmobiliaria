@@ -9,36 +9,21 @@ import { generarCuotas, generarCuotasManual, CuotaGenerada } from '@/lib/lotes/g
 import { imputarPagoFIFO } from '@/lib/pagos/imputar-fifo'
 import { excedeTamanioMaximo, MAX_ARCHIVO_MB } from '@/lib/storage/validar-tamanio-archivo'
 
-function construirParamsVenderPreservados(
-  formData: FormData,
-  clienteExistenteConfirmado: { id: string; nombre: string } | null,
-  clienteNuevoId: string
-): URLSearchParams {
+function construirParamsPreservados(formData: FormData): URLSearchParams {
   const params = new URLSearchParams({
     fullName: (formData.get('fullName') as string) || '',
     email: (formData.get('email') as string) || '',
     cantidadCuotas: (formData.get('cantidadCuotas') as string) || '',
     fechaPrimeraCuota: (formData.get('fechaPrimeraCuota') as string) || '',
+    modo: (formData.get('modo') as string) || 'automatico',
   })
 
-  const modoFormulario = (formData.get('modo') as string) || ''
-  if (modoFormulario) {
-    params.set('modo', modoFormulario)
-  }
-
-  if (clienteExistenteConfirmado) {
-    params.set('confirmarClienteId', clienteExistenteConfirmado.id)
-    params.set('nombreEncontrado', clienteExistenteConfirmado.nombre)
-  }
-
-  // Un cliente NUEVO creado por este mismo flujo (no uno preexistente
-  // confirmado -- eso ya lo cubre confirmarClienteId de arriba). Se
-  // preserva para que el próximo submit no vuelva a "descubrir" por
-  // email la cuenta que este mismo flujo acaba de crear y la trate como
-  // si fuera una cuenta ajena, mostrando un cartel de confirmación
-  // espurio y perdiendo los montos/documento ya cargados.
-  if (clienteNuevoId) {
-    params.set('clienteNuevoId', clienteNuevoId)
+  const cantidadCuotas = Number(formData.get('cantidadCuotas')) || 0
+  for (let i = 1; i <= cantidadCuotas; i++) {
+    const valor = formData.get(`cuotaMonto${i}`)
+    if (valor !== null) {
+      params.set(`cuotaMonto${i}`, valor as string)
+    }
   }
 
   return params
@@ -61,7 +46,6 @@ export async function venderLote(loteId: string, formData: FormData) {
   const cantidadCuotas = Number(formData.get('cantidadCuotas'))
   const fechaPrimeraCuota = formData.get('fechaPrimeraCuota') as string
   const modo = ((formData.get('modo') as string) || 'automatico').trim()
-  const clienteNuevoId = ((formData.get('clienteNuevoId') as string) || '').trim()
 
   if (!email || !fullName) {
     redirect(
@@ -132,10 +116,10 @@ export async function venderLote(loteId: string, formData: FormData) {
     .limit(1)
     .maybeSingle()
 
-  let clienteId: string
-  let clienteExistenteParaPreservar: { id: string; nombre: string } | null = null
-  let esClienteNuevo = false
-
+  // Cliente existente por email: chequeo de solo lectura, sin efectos
+  // secundarios -- se hace ANTES de tocar montos/documento porque, si hace
+  // falta confirmación explícita del admin, no tiene sentido haber subido
+  // ya el documento (quedaría huérfano en el storage).
   const { data: clienteExistente } = await admin
     .from('profiles')
     .select('id, full_name, dni, domicilio, telefono')
@@ -144,77 +128,114 @@ export async function venderLote(loteId: string, formData: FormData) {
     .maybeSingle()
 
   if (clienteExistente) {
-    // El comprador ya tiene cuenta -- puede ser porque compró otro lote
-    // antes (cuenta genuinamente preexistente, requiere confirmación
-    // explícita más abajo) o porque este MISMO flujo, en un paso
-    // anterior de esta misma venta, ya la creó (clienteNuevoId lo
-    // certifica: solo se seteó en el momento en que este flujo insertó
-    // esa fila, nunca se confía a ciegas -- siempre se valida contra
-    // esta búsqueda real por email).
-    const confirmadoPorRecienCreado = Boolean(clienteNuevoId) && clienteNuevoId === clienteExistente.id
-    const confirmado =
-      (formData.get('confirmarClienteExistente') as string) === clienteExistente.id ||
-      confirmadoPorRecienCreado
+    // Antes de asociar el lote, se exige una confirmación explícita del
+    // admin: si tipeó mal el email, este chequeo podría enganchar el lote a
+    // la cuenta de OTRA persona real sin que nadie lo note. El primer
+    // submit nunca trae `confirmarClienteExistente` todavía, así que
+    // siempre se corta acá la primera vez y se le muestra al admin el
+    // nombre real de la cuenta encontrada antes de completar la venta.
+    const confirmado = (formData.get('confirmarClienteExistente') as string) === clienteExistente.id
 
     if (!confirmado) {
-      // Antes de asociar el lote, se exige una confirmación explícita del
-      // admin: si tipeó mal el email, este chequeo podría enganchar el lote a
-      // la cuenta de OTRA persona real sin que nadie lo note. El primer
-      // submit nunca trae `confirmarClienteExistente` todavía, así que
-      // siempre se corta acá la primera vez y se le muestra al admin el
-      // nombre real de la cuenta encontrada antes de completar la venta.
       const dniNoCoincide = Boolean(
         reserva?.dni && clienteExistente.dni && reserva.dni !== clienteExistente.dni
       )
 
-      const params = new URLSearchParams({
-        confirmarClienteId: clienteExistente.id,
-        nombreEncontrado: clienteExistente.full_name ?? '',
-        fullName,
-        email,
-        cantidadCuotas: String(cantidadCuotas),
-        fechaPrimeraCuota,
-        modo,
-        ...(dniNoCoincide
-          ? { dniReserva: reserva!.dni as string, dniPerfil: clienteExistente.dni as string }
-          : {}),
-      })
+      const params = construirParamsPreservados(formData)
+      params.set('confirmarClienteId', clienteExistente.id)
+      params.set('nombreEncontrado', clienteExistente.full_name ?? '')
+      if (dniNoCoincide) {
+        params.set('dniReserva', reserva!.dni as string)
+        params.set('dniPerfil', clienteExistente.dni as string)
+      }
       redirect(`/admin/lotes/${loteId}/vender?${params.toString()}`)
     }
+  }
 
+  // Montos manuales: se validan antes de tocar el documento (chequeo
+  // barato, sin I/O) o la cuenta del comprador.
+  let montosManuales: number[] = []
+
+  if (modo === 'manual') {
+    const montosManualesRaw: string[] = []
+    for (let i = 1; i <= cantidadCuotas; i++) {
+      montosManualesRaw.push(((formData.get(`cuotaMonto${i}`) as string) || '').trim())
+    }
+
+    if (montosManualesRaw.some((valor) => valor === '')) {
+      redirectVenderConError(loteId, 'Completá el monto de todas las cuotas', construirParamsPreservados(formData))
+    }
+
+    montosManuales = montosManualesRaw.map((valor) => Number(valor))
+    if (!montosManuales.every((monto) => Number.isFinite(monto) && monto >= 0)) {
+      redirectVenderConError(
+        loteId,
+        'Los montos de las cuotas tienen que ser números válidos, no negativos',
+        construirParamsPreservados(formData)
+      )
+    }
+  }
+
+  // Documento firmado: siempre obligatorio, se sube una sola vez acá --
+  // recién ahora, con todo lo demás ya validado.
+  const documentoFirmado = formData.get('documentoFirmado') as File
+
+  if (!documentoFirmado || documentoFirmado.size === 0) {
+    redirectVenderConError(
+      loteId,
+      'Subí el documento firmado (boleto o escritura)',
+      construirParamsPreservados(formData)
+    )
+  }
+
+  if (excedeTamanioMaximo(documentoFirmado)) {
+    redirectVenderConError(
+      loteId,
+      `El documento firmado pesa más de ${MAX_ARCHIVO_MB} MB — subí uno más liviano.`,
+      construirParamsPreservados(formData)
+    )
+  }
+
+  const { filePath: documentoFirmadoPath, error: errorSubidaDocumento } = await subirDocumentoFirmado(
+    documentoFirmado
+  )
+
+  if (errorSubidaDocumento) {
+    console.error('Error al subir el documento firmado:', errorSubidaDocumento)
+    redirectVenderConError(
+      loteId,
+      'No se pudo subir el documento firmado. Probá de nuevo.',
+      construirParamsPreservados(formData)
+    )
+  }
+
+  // Recién acá, con documento y montos ya validados, se resuelve la cuenta
+  // del comprador -- si es nueva, se crea en este mismo paso, nunca antes.
+  let clienteId: string
+
+  if (clienteExistente) {
     clienteId = clienteExistente.id
 
-    if (confirmadoPorRecienCreado) {
-      // Es la cuenta que este mismo flujo acaba de crear -- ya se
-      // completaron sus datos en el momento de crearla, no hace falta
-      // repetir la completacion de datos faltantes, y NO se muestra el
-      // cartel de "cliente existente" (sería engañoso: no es una cuenta
-      // ajena, es la que se está creando en esta misma venta).
-      esClienteNuevo = true
-    } else {
-      // Solo se completan los campos que el perfil todavia no tenga cargados
-      // -- nunca se pisa un valor ya guardado, podria ser una correccion
-      // manual posterior a un error de tipeo en una reserva vieja.
-      const datosFaltantes: Record<string, string> = {}
-      if (!clienteExistente.dni && reserva?.dni) datosFaltantes.dni = reserva.dni
-      if (!clienteExistente.domicilio && reserva?.domicilio) datosFaltantes.domicilio = reserva.domicilio
-      if (!clienteExistente.telefono && reserva?.telefono) datosFaltantes.telefono = reserva.telefono
+    // Solo se completan los campos que el perfil todavia no tenga cargados
+    // -- nunca se pisa un valor ya guardado, podria ser una correccion
+    // manual posterior a un error de tipeo en una reserva vieja.
+    const datosFaltantes: Record<string, string> = {}
+    if (!clienteExistente.dni && reserva?.dni) datosFaltantes.dni = reserva.dni
+    if (!clienteExistente.domicilio && reserva?.domicilio) datosFaltantes.domicilio = reserva.domicilio
+    if (!clienteExistente.telefono && reserva?.telefono) datosFaltantes.telefono = reserva.telefono
 
-      if (Object.keys(datosFaltantes).length > 0) {
-        const { error: errorCompletarDatos } = await admin
-          .from('profiles')
-          .update(datosFaltantes)
-          .eq('id', clienteExistente.id)
+    if (Object.keys(datosFaltantes).length > 0) {
+      const { error: errorCompletarDatos } = await admin
+        .from('profiles')
+        .update(datosFaltantes)
+        .eq('id', clienteExistente.id)
 
-        if (errorCompletarDatos) {
-          // No bloquea la venta -- ni siquiera un choque de DNI con otro
-          // cliente (23505). Queda para completar a mano despues desde la
-          // ficha del cliente si hace falta.
-          console.error('No se pudieron completar datos del cliente existente:', errorCompletarDatos)
-        }
+      if (errorCompletarDatos) {
+        // No bloquea la venta -- ni siquiera un choque de DNI con otro
+        // cliente (23505). Queda para completar a mano despues desde la
+        // ficha del cliente si hace falta.
+        console.error('No se pudieron completar datos del cliente existente:', errorCompletarDatos)
       }
-
-      clienteExistenteParaPreservar = { id: clienteExistente.id, nombre: clienteExistente.full_name ?? '' }
     }
   } else {
     let dniParaNuevoCliente = reserva?.dni ?? null
@@ -271,150 +292,15 @@ export async function venderLote(loteId: string, formData: FormData) {
     }
 
     clienteId = invited!.user.id
-    esClienteNuevo = true
   }
-
-  const clienteNuevoIdParaPreservar = esClienteNuevo ? clienteId : ''
 
   let montoCuotaBase: number | null
   let cuotas: CuotaGenerada[]
-  let documentoFirmadoPath: string
 
   if (modo === 'manual') {
-    const montosManualesRaw: string[] = []
-    for (let i = 1; i <= cantidadCuotas; i++) {
-      const valor = formData.get(`cuotaMonto${i}`)
-      if (valor === null) break
-      montosManualesRaw.push(valor as string)
-    }
-
-    if (montosManualesRaw.length !== cantidadCuotas) {
-      // Todavía no cargó los montos -- redirige agregando modo=manual (y
-      // lo ya preservado) para que la página muestre el campo por cuota.
-      const params = construirParamsVenderPreservados(formData, clienteExistenteParaPreservar, clienteNuevoIdParaPreservar)
-      redirect(`/admin/lotes/${loteId}/vender?${params.toString()}`)
-    }
-
-    if (montosManualesRaw.some((valor) => valor.trim() === '')) {
-      redirectVenderConError(
-        loteId,
-        'Completá el monto de todas las cuotas',
-        construirParamsVenderPreservados(formData, clienteExistenteParaPreservar, clienteNuevoIdParaPreservar)
-      )
-    }
-
-    const montosManuales = montosManualesRaw.map((valor) => Number(valor))
-    if (!montosManuales.every((monto) => Number.isFinite(monto) && monto >= 0)) {
-      const params = construirParamsVenderPreservados(formData, clienteExistenteParaPreservar, clienteNuevoIdParaPreservar)
-      montosManualesRaw.forEach((valor, indice) => params.set(`cuotaMonto${indice + 1}`, valor))
-      redirectVenderConError(
-        loteId,
-        'Los montos de las cuotas tienen que ser números válidos, no negativos',
-        params
-      )
-    }
-
-    const confirmado = (formData.get('confirmarMontosManual') as string) === 'true'
-
-    if (!confirmado) {
-      // Paso de carga de montos: acá se sube el documento (una sola vez) y
-      // se redirige a la pantalla de balance para que confirme.
-      const documentoFirmado = formData.get('documentoFirmado') as File
-
-      if (!documentoFirmado || documentoFirmado.size === 0) {
-        const params = construirParamsVenderPreservados(formData, clienteExistenteParaPreservar, clienteNuevoIdParaPreservar)
-        montosManualesRaw.forEach((valor, indice) => params.set(`cuotaMonto${indice + 1}`, valor))
-        redirectVenderConError(
-          loteId,
-          'Subí el documento firmado (boleto o escritura)',
-          params
-        )
-      }
-
-      if (excedeTamanioMaximo(documentoFirmado)) {
-        const params = construirParamsVenderPreservados(formData, clienteExistenteParaPreservar, clienteNuevoIdParaPreservar)
-        montosManualesRaw.forEach((valor, indice) => params.set(`cuotaMonto${indice + 1}`, valor))
-        redirectVenderConError(
-          loteId,
-          `El documento firmado pesa más de ${MAX_ARCHIVO_MB} MB — subí uno más liviano.`,
-          params
-        )
-      }
-
-      const { filePath, error: errorSubidaDocumento } = await subirDocumentoFirmado(documentoFirmado)
-
-      if (errorSubidaDocumento) {
-        console.error('Error al subir el documento firmado:', errorSubidaDocumento)
-        const params = construirParamsVenderPreservados(formData, clienteExistenteParaPreservar, clienteNuevoIdParaPreservar)
-        montosManualesRaw.forEach((valor, indice) => params.set(`cuotaMonto${indice + 1}`, valor))
-        redirectVenderConError(
-          loteId,
-          'No se pudo subir el documento firmado. Probá de nuevo.',
-          params
-        )
-      }
-
-      const params = construirParamsVenderPreservados(formData, clienteExistenteParaPreservar, clienteNuevoIdParaPreservar)
-      montosManuales.forEach((monto, indice) => params.set(`cuotaMonto${indice + 1}`, String(monto)))
-      params.set('documentoFirmadoPath', filePath)
-      redirect(`/admin/lotes/${loteId}/vender?${params.toString()}`)
-    }
-
-    // Confirmado: el documento ya se subió en el paso anterior, viene como
-    // input oculto -- no se vuelve a pedir.
-    const documentoFirmadoPathConfirmado = ((formData.get('documentoFirmadoPath') as string) || '').trim()
-
-    if (!documentoFirmadoPathConfirmado) {
-      redirectVenderConError(
-        loteId,
-        'Falta el documento firmado, volvé a intentarlo desde el principio',
-        construirParamsVenderPreservados(formData, clienteExistenteParaPreservar, clienteNuevoIdParaPreservar)
-      )
-    }
-
-    if (!documentoFirmadoPathConfirmado.startsWith(`ventas/${loteId}/`)) {
-      redirectVenderConError(
-        loteId,
-        'El documento firmado no corresponde a este lote, volvé a intentarlo desde el principio',
-        construirParamsVenderPreservados(formData, clienteExistenteParaPreservar, clienteNuevoIdParaPreservar)
-      )
-    }
-
-    documentoFirmadoPath = documentoFirmadoPathConfirmado
     montoCuotaBase = null
     cuotas = generarCuotasManual(montosManuales, fechaPrimeraCuota)
   } else {
-    const documentoFirmado = formData.get('documentoFirmado') as File
-
-    if (!documentoFirmado || documentoFirmado.size === 0) {
-      redirectVenderConError(
-        loteId,
-        'Subí el documento firmado (boleto o escritura)',
-        construirParamsVenderPreservados(formData, clienteExistenteParaPreservar, clienteNuevoIdParaPreservar)
-      )
-    }
-
-    if (excedeTamanioMaximo(documentoFirmado)) {
-      redirectVenderConError(
-        loteId,
-        `El documento firmado pesa más de ${MAX_ARCHIVO_MB} MB — subí uno más liviano.`,
-        construirParamsVenderPreservados(formData, clienteExistenteParaPreservar, clienteNuevoIdParaPreservar)
-      )
-    }
-
-    const { filePath, error: errorSubidaDocumento } = await subirDocumentoFirmado(documentoFirmado)
-
-    if (errorSubidaDocumento) {
-      console.error('Error al subir el documento firmado:', errorSubidaDocumento)
-      redirectVenderConError(
-        loteId,
-        'No se pudo subir el documento firmado. Probá de nuevo.',
-        construirParamsVenderPreservados(formData, clienteExistenteParaPreservar, clienteNuevoIdParaPreservar)
-      )
-    }
-
-    documentoFirmadoPath = filePath
-
     const precioTotal = loteActual!.precio_total as number
     montoCuotaBase = calcularMontoCuota(precioTotal, cantidadCuotas)
     cuotas = generarCuotas(cantidadCuotas, montoCuotaBase, fechaPrimeraCuota, precioTotal)

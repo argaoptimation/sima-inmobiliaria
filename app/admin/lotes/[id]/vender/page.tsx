@@ -2,6 +2,7 @@ import { createClient } from '@/lib/supabase/server'
 import { notFound } from 'next/navigation'
 import { requireAdministrador } from '@/lib/auth/require-admin'
 import { venderLote } from './actions'
+import { CuotasYDocumento } from './CuotasYDocumento'
 
 export default async function VenderLotePage({
   params,
@@ -19,8 +20,6 @@ export default async function VenderLotePage({
     dniReserva?: string
     dniPerfil?: string
     modo?: string
-    documentoFirmadoPath?: string
-    clienteNuevoId?: string
     [cuotaMontoKey: string]: string | undefined
   }>
 }) {
@@ -37,8 +36,6 @@ export default async function VenderLotePage({
     dniReserva,
     dniPerfil,
     modo: modoPreservado,
-    documentoFirmadoPath,
-    clienteNuevoId,
   } = sp
 
   await requireAdministrador()
@@ -65,20 +62,12 @@ export default async function VenderLotePage({
 
   const venderLoteConId = venderLote.bind(null, id)
 
-  const modo = modoPreservado === 'manual' ? 'manual' : 'automatico'
-  const cantidadCuotasNum = cantidadCuotasPreservada ? Number(cantidadCuotasPreservada) : null
-
-  const mostrarPasoMontos = modo === 'manual' && !!cantidadCuotasNum && !documentoFirmadoPath
-  const mostrarPasoConfirmarMontos = modo === 'manual' && !!documentoFirmadoPath
-
-  const montosManuales: string[] =
-    cantidadCuotasNum && (mostrarPasoMontos || mostrarPasoConfirmarMontos)
-      ? Array.from({ length: cantidadCuotasNum }, (_, i) => sp[`cuotaMonto${i + 1}`] ?? '')
-      : []
-
-  const sumaManual = montosManuales.reduce((acc, valor) => acc + (Number(valor) || 0), 0)
-  const diferenciaManual =
-    mostrarPasoConfirmarMontos && lote!.precio_total ? sumaManual - lote!.precio_total : null
+  const modoInicial: 'automatico' | 'manual' = modoPreservado === 'manual' ? 'manual' : 'automatico'
+  const cantidadCuotasInicialNum = cantidadCuotasPreservada ? Number(cantidadCuotasPreservada) : 0
+  const montosInicial: string[] = Array.from(
+    { length: cantidadCuotasInicialNum },
+    (_, i) => sp[`cuotaMonto${i + 1}`] ?? ''
+  )
 
   return (
     <main className="max-w-md">
@@ -101,7 +90,7 @@ export default async function VenderLotePage({
         </p>
       ) : (
         <>
-          {reserva && !mostrarPasoMontos && !mostrarPasoConfirmarMontos && (
+          {reserva && (
             <div className="mb-4 rounded border border-gray-200 bg-gray-50 p-3 text-sm">
               <p className="mb-1 font-medium">Datos de la reserva</p>
               <p>Persona que reservó: {reserva.nombre_completo}</p>
@@ -129,7 +118,8 @@ export default async function VenderLotePage({
               <p className="mt-1">
                 Si confirmás, este lote se va a asociar a esa cuenta ya existente (no se manda
                 ningún mail de invitación nuevo). Revisá que sea la persona correcta antes de
-                confirmar.
+                confirmar. Volvé a adjuntar el documento firmado, ya que no se conserva al volver
+                a esta pantalla.
               </p>
               {dniReserva && dniPerfil && (
                 <p className="mt-2">
@@ -141,159 +131,51 @@ export default async function VenderLotePage({
             </div>
           )}
 
-          {mostrarPasoConfirmarMontos && (
-            <div className="mb-4 rounded border border-blue-300 bg-blue-50 p-3 text-sm text-blue-900">
-              <p className="font-medium">Revisá el balance antes de confirmar</p>
-              <p className="mt-1">Suma total de las cuotas cargadas: {sumaManual}</p>
-              {lote!.precio_total && <p>Precio de lista del lote: {lote!.precio_total}</p>}
-              {reserva && reserva.monto_sena > 0 && (
-                <p>
-                  Seña ya registrada: {reserva.monto_sena} {reserva.moneda_sena} (se descuenta de la
-                  cuota 1 al confirmar)
-                </p>
-              )}
-              {diferenciaManual !== null && (
-                <p className="mt-1 font-medium">
-                  Diferencia respecto al precio de lista: {diferenciaManual > 0 ? '+' : ''}
-                  {diferenciaManual}
-                </p>
-              )}
-            </div>
-          )}
-
           <form action={venderLoteConId} className="flex flex-col gap-3">
             {confirmarClienteId && (
               <input type="hidden" name="confirmarClienteExistente" value={confirmarClienteId} />
             )}
-            {clienteNuevoId && <input type="hidden" name="clienteNuevoId" value={clienteNuevoId} />}
 
-            {mostrarPasoConfirmarMontos ? (
-              <>
-                <input type="hidden" name="modo" value="manual" />
-                <input type="hidden" name="fullName" value={fullNamePreservado ?? ''} />
-                <input type="hidden" name="email" value={emailPreservado ?? ''} />
-                <input type="hidden" name="cantidadCuotas" value={cantidadCuotasPreservada ?? ''} />
-                <input
-                  type="hidden"
-                  name="fechaPrimeraCuota"
-                  value={fechaPrimeraCuotaPreservada ?? ''}
-                />
-                <input type="hidden" name="documentoFirmadoPath" value={documentoFirmadoPath ?? ''} />
-                {montosManuales.map((monto, indice) => (
-                  <input key={indice} type="hidden" name={`cuotaMonto${indice + 1}`} value={monto} />
-                ))}
-                <input type="hidden" name="confirmarMontosManual" value="true" />
-                <button type="submit" className="rounded bg-black px-3 py-2 text-white">
-                  Confirmar venta
-                </button>
-              </>
-            ) : mostrarPasoMontos ? (
-              <>
-                <input type="hidden" name="modo" value="manual" />
-                <input type="hidden" name="fullName" value={fullNamePreservado ?? ''} />
-                <input type="hidden" name="email" value={emailPreservado ?? ''} />
-                <input type="hidden" name="cantidadCuotas" value={cantidadCuotasPreservada ?? ''} />
-                <input
-                  type="hidden"
-                  name="fechaPrimeraCuota"
-                  value={fechaPrimeraCuotaPreservada ?? ''}
-                />
-                {lote!.precio_total && (
-                  <p className="text-sm text-gray-600">
-                    Precio de lista del lote: {lote!.precio_total} — cargá el monto de cada cuota.
-                  </p>
-                )}
-                {Array.from({ length: cantidadCuotasNum ?? 0 }, (_, indice) => (
-                  <input
-                    key={indice}
-                    name={`cuotaMonto${indice + 1}`}
-                    type="number"
-                    step="0.01"
-                    min="0"
-                    placeholder={`Cuota ${indice + 1}`}
-                    defaultValue={montosManuales[indice] ?? ''}
-                    required
-                    className="rounded border px-3 py-2"
-                  />
-                ))}
-                <label className="text-sm">
-                  Documento firmado (boleto de compraventa o escritura)
-                  <input
-                    name="documentoFirmado"
-                    type="file"
-                    className="mt-1 block w-full rounded border px-3 py-2"
-                  />
-                </label>
-                <button type="submit" className="rounded bg-black px-3 py-2 text-white">
-                  Continuar
-                </button>
-              </>
-            ) : (
-              <>
-                <input
-                  name="fullName"
-                  placeholder="Nombre completo del comprador"
-                  defaultValue={fullNamePreservado ?? reserva?.nombre_completo ?? ''}
-                  required
-                  className="rounded border px-3 py-2"
-                />
-                <input
-                  name="email"
-                  type="email"
-                  placeholder="Email del comprador"
-                  defaultValue={emailPreservado ?? reserva?.email ?? ''}
-                  required
-                  className="rounded border px-3 py-2"
-                />
-                <input
-                  name="cantidadCuotas"
-                  type="number"
-                  min="1"
-                  step="1"
-                  placeholder="Cantidad de cuotas (1 para venta al contado)"
-                  defaultValue={cantidadCuotasPreservada ?? ''}
-                  required
-                  className="rounded border px-3 py-2"
-                />
-                <label className="text-sm">
-                  Fecha de la primera cuota
-                  <input
-                    name="fechaPrimeraCuota"
-                    type="date"
-                    defaultValue={fechaPrimeraCuotaPreservada ?? ''}
-                    required
-                    className="mt-1 block w-full rounded border px-3 py-2"
-                  />
-                </label>
+            <input
+              name="fullName"
+              placeholder="Nombre completo del comprador"
+              defaultValue={fullNamePreservado ?? reserva?.nombre_completo ?? ''}
+              required
+              className="rounded border px-3 py-2"
+            />
+            <input
+              name="email"
+              type="email"
+              placeholder="Email del comprador"
+              defaultValue={emailPreservado ?? reserva?.email ?? ''}
+              required
+              className="rounded border px-3 py-2"
+            />
+            <label className="text-sm">
+              Fecha de la primera cuota
+              <input
+                name="fechaPrimeraCuota"
+                type="date"
+                defaultValue={fechaPrimeraCuotaPreservada ?? ''}
+                required
+                className="mt-1 block w-full rounded border px-3 py-2"
+              />
+            </label>
 
-                <fieldset className="rounded border px-3 py-2">
-                  <legend className="text-sm font-medium">Cómo cargar las cuotas</legend>
-                  <label className="mr-4 text-sm">
-                    <input type="radio" name="modo" value="automatico" defaultChecked className="mr-1" />
-                    Automático
-                  </label>
-                  <label className="text-sm">
-                    <input type="radio" name="modo" value="manual" className="mr-1" />
-                    Manual
-                  </label>
-                </fieldset>
+            <CuotasYDocumento
+              precioTotal={lote!.precio_total}
+              montoSenaRegistrada={reserva?.monto_sena ?? null}
+              monedaSena={reserva?.moneda_sena ?? null}
+              cantidadCuotasInicial={cantidadCuotasPreservada ?? ''}
+              modoInicial={modoInicial}
+              montosInicial={montosInicial}
+            />
 
-                <label className="text-sm">
-                  Documento firmado (boleto de compraventa o escritura)
-                  <input
-                    name="documentoFirmado"
-                    type="file"
-                    className="mt-1 block w-full rounded border px-3 py-2"
-                  />
-                </label>
-
-                <button type="submit" className="rounded bg-black px-3 py-2 text-white">
-                  {confirmarClienteId
-                    ? 'Confirmar venta con esta cuenta existente'
-                    : 'Confirmar venta y enviar invitación'}
-                </button>
-              </>
-            )}
+            <button type="submit" className="rounded bg-black px-3 py-2 text-white">
+              {confirmarClienteId
+                ? 'Confirmar venta con esta cuenta existente'
+                : 'Confirmar venta y enviar invitación'}
+            </button>
           </form>
         </>
       )}

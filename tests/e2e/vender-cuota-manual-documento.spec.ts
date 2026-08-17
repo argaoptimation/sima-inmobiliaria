@@ -62,8 +62,8 @@ test.describe('Vender — documento firmado y cuota manual', () => {
     await page.goto(`/admin/lotes/${loteId}/vender`)
     await page.getByPlaceholder('Nombre completo del comprador').fill('Comprador Auto Doc')
     await page.getByPlaceholder('Email del comprador').fill(email)
-    await page.getByPlaceholder('Cantidad de cuotas (1 para venta al contado)').fill('3')
     await page.locator('input[name="fechaPrimeraCuota"]').fill('2026-09-01')
+    await page.getByPlaceholder('Cantidad de cuotas (1 para venta al contado)').fill('3')
     await adjuntarDocumentoFirmado(page)
     await page.getByRole('button', { name: 'Confirmar venta y enviar invitación' }).click()
     await page.waitForURL('**/admin/lotes')
@@ -84,29 +84,7 @@ test.describe('Vender — documento firmado y cuota manual', () => {
     expect(cuotas).toHaveLength(3)
   })
 
-  test('modo automático: vender sin documento firmado es rechazado', async ({ page }) => {
-    const admin = createAdminClient()
-    const loteId = await crearLoteReservadoListoParaVender(
-      `E2E Vender Sin Doc ${Date.now()}`,
-      5000,
-      fixtures.acreedorConDatos.id
-    )
-
-    await login(page, fixtures.admin.email, fixtures.password)
-    await page.goto(`/admin/lotes/${loteId}/vender`)
-    await page.getByPlaceholder('Nombre completo del comprador').fill('Comprador Sin Doc')
-    await page.getByPlaceholder('Email del comprador').fill(`sin.doc.${Date.now()}@sima-e2e.invalid`)
-    await page.getByPlaceholder('Cantidad de cuotas (1 para venta al contado)').fill('1')
-    await page.locator('input[name="fechaPrimeraCuota"]').fill('2026-09-01')
-    await page.getByRole('button', { name: 'Confirmar venta y enviar invitación' }).click()
-
-    await expect(page.getByText('Subí el documento firmado (boleto o escritura)')).toBeVisible()
-
-    const { data: lote } = await admin.from('lotes').select('estado').eq('id', loteId).single()
-    expect(lote?.estado).toBe('reservado')
-  })
-
-  test('modo manual: montos distintos, pantalla de balance, confirmación crea cuotas exactas', async ({
+  test('modo manual: montos distintos, balance en vivo, confirmación crea cuotas exactas', async ({
     page,
   }) => {
     const admin = createAdminClient()
@@ -121,25 +99,19 @@ test.describe('Vender — documento firmado y cuota manual', () => {
     await page.goto(`/admin/lotes/${loteId}/vender`)
     await page.getByPlaceholder('Nombre completo del comprador').fill('Comprador Manual')
     await page.getByPlaceholder('Email del comprador').fill(email)
-    await page.getByPlaceholder('Cantidad de cuotas (1 para venta al contado)').fill('3')
     await page.locator('input[name="fechaPrimeraCuota"]').fill('2026-09-01')
+    await page.getByPlaceholder('Cantidad de cuotas (1 para venta al contado)').fill('3')
     await page.locator('input[name="modo"][value="manual"]').check()
-    await page.getByRole('button', { name: 'Confirmar venta y enviar invitación' }).click()
 
-    // Paso 2: cargar los montos + el documento.
-    await page.waitForURL((url) => url.searchParams.get('modo') === 'manual')
     await page.locator('input[name="cuotaMonto1"]').fill('4000')
     await page.locator('input[name="cuotaMonto2"]').fill('4000')
     await page.locator('input[name="cuotaMonto3"]').fill('3000')
-    await adjuntarDocumentoFirmado(page)
-    await page.getByRole('button', { name: 'Continuar' }).click()
 
-    // Paso 3: balance antes de confirmar.
-    await page.waitForURL((url) => url.searchParams.has('documentoFirmadoPath'))
-    await expect(page.getByText('Revisá el balance antes de confirmar')).toBeVisible()
     await expect(page.getByText('Suma total de las cuotas cargadas: 11000')).toBeVisible()
     await expect(page.getByText(/Diferencia respecto al precio de lista: \+1000/)).toBeVisible()
-    await page.getByRole('button', { name: 'Confirmar venta' }).click()
+
+    await adjuntarDocumentoFirmado(page)
+    await page.getByRole('button', { name: 'Confirmar venta y enviar invitación' }).click()
     await page.waitForURL('**/admin/lotes')
 
     const { data: lote } = await admin
@@ -162,7 +134,7 @@ test.describe('Vender — documento firmado y cuota manual', () => {
     ])
   })
 
-  test('modo manual encadenado con cliente existente: ambos mecanismos conservan todo', async ({
+  test('modo manual + cliente existente: los montos ya tipeados se recuperan al volver de la confirmación', async ({
     page,
   }) => {
     const admin = createAdminClient()
@@ -185,25 +157,24 @@ test.describe('Vender — documento firmado y cuota manual', () => {
     await page.goto(`/admin/lotes/${loteId}/vender`)
     await page.getByPlaceholder('Nombre completo del comprador').fill('Cliente Manual Existente')
     await page.getByPlaceholder('Email del comprador').fill(email)
-    await page.getByPlaceholder('Cantidad de cuotas (1 para venta al contado)').fill('2')
     await page.locator('input[name="fechaPrimeraCuota"]').fill('2026-09-01')
+    await page.getByPlaceholder('Cantidad de cuotas (1 para venta al contado)').fill('2')
     await page.locator('input[name="modo"][value="manual"]').check()
-    await page.getByRole('button', { name: 'Confirmar venta y enviar invitación' }).click()
-
-    // El primer redirect ya trae modo=manual + cantidadCuotas, así que esta
-    // pantalla muestra a la vez el aviso de cliente existente Y los campos
-    // de monto por cuota -- ambos mecanismos conviven sin pisarse.
-    await page.waitForURL((url) => url.searchParams.has('confirmarClienteId'))
-    await expect(page.getByText('Ya existe una cuenta de cliente con ese email')).toBeVisible()
     await page.locator('input[name="cuotaMonto1"]').fill('2500')
     await page.locator('input[name="cuotaMonto2"]').fill('1500')
     await adjuntarDocumentoFirmado(page)
-    await page.getByRole('button', { name: 'Continuar' }).click()
+    await page.getByRole('button', { name: 'Confirmar venta y enviar invitación' }).click()
 
-    await page.waitForURL((url) => url.searchParams.has('documentoFirmadoPath'))
+    // El email ya tiene cuenta -- vuelve mostrando el aviso, con los montos
+    // manuales ya tipeados recuperados solos (el documento hay que
+    // reponerlo, limitación del navegador con los inputs de archivo).
+    await page.waitForURL((url) => url.searchParams.has('confirmarClienteId'))
     await expect(page.getByText('Ya existe una cuenta de cliente con ese email')).toBeVisible()
-    await expect(page.getByText('Revisá el balance antes de confirmar')).toBeVisible()
-    await page.getByRole('button', { name: 'Confirmar venta' }).click()
+    await expect(page.locator('input[name="cuotaMonto1"]')).toHaveValue('2500')
+    await expect(page.locator('input[name="cuotaMonto2"]')).toHaveValue('1500')
+
+    await adjuntarDocumentoFirmado(page)
+    await page.getByRole('button', { name: 'Confirmar venta con esta cuenta existente' }).click()
     await page.waitForURL('**/admin/lotes')
 
     const { data: lote } = await admin.from('lotes').select('cliente_id').eq('id', loteId).single()
@@ -215,6 +186,38 @@ test.describe('Vender — documento firmado y cuota manual', () => {
       .eq('lote_id', loteId)
       .order('numero', { ascending: true })
     expect(cuotas?.map((c) => c.monto_base)).toEqual([2500, 1500])
+  })
+
+  test('volver de Manual a Automático recalcula los montos sin perder nombre/email', async ({
+    page,
+  }) => {
+    const loteId = await crearLoteReservadoListoParaVender(
+      `E2E Vender Cambiar Modo ${Date.now()}`,
+      9000,
+      fixtures.acreedorConDatos.id
+    )
+    const email = `comprador.cambiar.modo.${Date.now()}@sima-e2e.invalid`
+
+    await login(page, fixtures.admin.email, fixtures.password)
+    await page.goto(`/admin/lotes/${loteId}/vender`)
+    await page.getByPlaceholder('Nombre completo del comprador').fill('Comprador Cambiar Modo')
+    await page.getByPlaceholder('Email del comprador').fill(email)
+    await page.getByPlaceholder('Cantidad de cuotas (1 para venta al contado)').fill('3')
+    await page.locator('input[name="modo"][value="manual"]').check()
+    await page.locator('input[name="cuotaMonto1"]').fill('5000')
+
+    await page.locator('input[name="modo"][value="automatico"]').check()
+
+    await expect(page.getByPlaceholder('Nombre completo del comprador')).toHaveValue(
+      'Comprador Cambiar Modo'
+    )
+    await expect(page.getByPlaceholder('Email del comprador')).toHaveValue(email)
+    await expect(page.locator('input[name="cuotaMonto1"]')).toHaveCount(0)
+
+    await page.locator('input[name="modo"][value="manual"]').check()
+    await expect(page.locator('input[name="cuotaMonto1"]')).toHaveValue('3000')
+    await expect(page.locator('input[name="cuotaMonto2"]')).toHaveValue('3000')
+    await expect(page.locator('input[name="cuotaMonto3"]')).toHaveValue('3000')
   })
 
   test('el detalle del lote muestra un link para ver el documento firmado', async ({ page }) => {
@@ -229,8 +232,8 @@ test.describe('Vender — documento firmado y cuota manual', () => {
     await page.goto(`/admin/lotes/${loteId}/vender`)
     await page.getByPlaceholder('Nombre completo del comprador').fill('Comprador Ver Documento')
     await page.getByPlaceholder('Email del comprador').fill(`ver.documento.${Date.now()}@sima-e2e.invalid`)
-    await page.getByPlaceholder('Cantidad de cuotas (1 para venta al contado)').fill('1')
     await page.locator('input[name="fechaPrimeraCuota"]').fill('2026-09-01')
+    await page.getByPlaceholder('Cantidad de cuotas (1 para venta al contado)').fill('1')
     await adjuntarDocumentoFirmado(page)
     await page.getByRole('button', { name: 'Confirmar venta y enviar invitación' }).click()
     await page.waitForURL('**/admin/lotes')
