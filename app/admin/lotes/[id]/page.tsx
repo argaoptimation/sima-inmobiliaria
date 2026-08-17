@@ -344,6 +344,13 @@ export default async function LoteDetallePage({
       )}
 
       <h2 className="mb-2 mt-6 text-lg font-semibold">Cuotas</h2>
+      {perfilPropio!.role === 'administrador' && lote!.estado === 'vendido' && (
+        <p className="mb-2 text-sm">
+          <a href={`/admin/lotes/${id}/distribucion`} className="underline">
+            Ver / editar distribución de cuotas →
+          </a>
+        </p>
+      )}
       {lote!.estado !== 'vendido' && (
         <p className="mb-2 text-sm text-amber-700">
           Este lote todavía no está vendido — la tabla de abajo es la estructura de cuotas
@@ -522,8 +529,16 @@ export default async function LoteDetallePage({
           <h2 className="mb-2 mt-8 text-lg font-semibold">Participantes adicionales</h2>
           <p className="mb-3 text-sm text-gray-600">
             Gente que comparte la comisión de este lote sin ser el admin, el acreedor ni el vendedor
-            principal (ej. un segundo vendedor). Todavía no se cargan montos acá — eso es una pantalla
-            aparte que viene después.
+            principal (ej. un segundo vendedor). Los montos que cobra cada uno se cargan cuota por
+            cuota en{' '}
+            {lote!.estado === 'vendido' ? (
+              <a href={`/admin/lotes/${id}/distribucion`} className="underline">
+                la distribución de cuotas
+              </a>
+            ) : (
+              'la distribución de cuotas'
+            )}
+            .
           </p>
           {(participantes ?? []).length === 0 ? (
             <p className="mb-4 text-sm text-gray-600">Sin participantes adicionales todavía.</p>
