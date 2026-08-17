@@ -220,6 +220,43 @@ test.describe('Vender — documento firmado y cuota manual', () => {
     await expect(page.locator('input[name="cuotaMonto3"]')).toHaveValue('3000')
   })
 
+  test('un documento firmado de más de 15 MB rechaza la venta sin crear ninguna cuenta', async ({
+    page,
+  }) => {
+    const admin = createAdminClient()
+    const loteId = await crearLoteReservadoListoParaVender(
+      `E2E Vender Doc Grande ${Date.now()}`,
+      5000,
+      fixtures.acreedorConDatos.id
+    )
+    const email = `comprador.doc.grande.${Date.now()}@sima-e2e.invalid`
+
+    await login(page, fixtures.admin.email, fixtures.password)
+    await page.goto(`/admin/lotes/${loteId}/vender`)
+    await page.getByPlaceholder('Nombre completo del comprador').fill('Comprador Doc Grande')
+    await page.getByPlaceholder('Email del comprador').fill(email)
+    await page.locator('input[name="fechaPrimeraCuota"]').fill('2026-09-01')
+    await page.getByPlaceholder('Cantidad de cuotas (1 para venta al contado)').fill('1')
+    await page.setInputFiles('input[name="documentoFirmado"]', {
+      name: 'documento-grande.pdf',
+      mimeType: 'application/pdf',
+      buffer: Buffer.alloc(16 * 1024 * 1024),
+    })
+    await page.getByRole('button', { name: 'Confirmar venta y enviar invitación' }).click()
+
+    await expect(page.getByText(/pesa más de 15 MB/)).toBeVisible()
+
+    const { data: lote } = await admin.from('lotes').select('estado').eq('id', loteId).single()
+    expect(lote?.estado).toBe('reservado')
+
+    const { data: perfilCreado } = await admin
+      .from('profiles')
+      .select('id')
+      .eq('email', email)
+      .maybeSingle()
+    expect(perfilCreado).toBeNull()
+  })
+
   test('el detalle del lote muestra un link para ver el documento firmado', async ({ page }) => {
     const admin = createAdminClient()
     const loteId = await crearLoteReservadoListoParaVender(

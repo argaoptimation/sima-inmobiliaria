@@ -2,6 +2,7 @@
 
 import { useState } from 'react'
 import { calcularMontoCuota } from '@/lib/lotes/calcular-monto-cuota'
+import { generarCuotas } from '@/lib/lotes/generar-cuotas'
 
 interface Props {
   precioTotal: number | null
@@ -14,11 +15,8 @@ interface Props {
 
 function calcularMontosAutomaticos(precioTotal: number, cantidadCuotas: number): string[] {
   const base = calcularMontoCuota(precioTotal, cantidadCuotas)
-  return Array.from({ length: cantidadCuotas }, (_, indice) => {
-    const esUltima = indice === cantidadCuotas - 1
-    const monto = esUltima ? Math.round((precioTotal - base * (cantidadCuotas - 1)) * 100) / 100 : base
-    return String(monto)
-  })
+  const cuotas = generarCuotas(cantidadCuotas, base, '2000-01-01', precioTotal)
+  return cuotas.map((cuota) => String(cuota.montoBase))
 }
 
 export function CuotasYDocumento({
@@ -61,7 +59,7 @@ export function CuotasYDocumento({
     })
   }
 
-  const sumaManual = montos.reduce((acc, valor) => acc + (Number(valor) || 0), 0)
+  const sumaManual = Math.round(montos.reduce((acc, valor) => acc + (Number(valor) || 0), 0) * 100) / 100
   const diferencia =
     modo === 'manual' && precioTotal !== null ? Math.round((sumaManual - precioTotal) * 100) / 100 : null
 
