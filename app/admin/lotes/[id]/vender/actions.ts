@@ -53,10 +53,10 @@ export async function venderLote(loteId: string, formData: FormData) {
     )
   }
 
-  if (!Number.isInteger(cantidadCuotas) || cantidadCuotas < 1) {
+  if (!Number.isInteger(cantidadCuotas) || cantidadCuotas < 1 || cantidadCuotas > 600) {
     redirect(
       `/admin/lotes/${loteId}/vender?error=${encodeURIComponent(
-        'La cantidad de cuotas tiene que ser un número entero, mínimo 1'
+        'La cantidad de cuotas tiene que ser un número entero entre 1 y 600'
       )}`
     )
   }

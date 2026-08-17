@@ -64,8 +64,12 @@ export default async function VenderLotePage({
 
   const modoInicial: 'automatico' | 'manual' = modoPreservado === 'manual' ? 'manual' : 'automatico'
   const cantidadCuotasInicialNum = cantidadCuotasPreservada ? Number(cantidadCuotasPreservada) : 0
+  const cantidadCuotasParaMontos =
+    Number.isFinite(cantidadCuotasInicialNum) && cantidadCuotasInicialNum > 0
+      ? Math.min(cantidadCuotasInicialNum, 600)
+      : 0
   const montosInicial: string[] = Array.from(
-    { length: cantidadCuotasInicialNum },
+    { length: cantidadCuotasParaMontos },
     (_, i) => sp[`cuotaMonto${i + 1}`] ?? ''
   )
 

@@ -13,8 +13,13 @@ interface Props {
   montosInicial: string[]
 }
 
+const MAX_CUOTAS = 600
+
 function calcularMontosAutomaticos(precioTotal: number, cantidadCuotas: number): string[] {
   const base = calcularMontoCuota(precioTotal, cantidadCuotas)
+  // La fecha es un placeholder -- este componente solo usa los montos de
+  // cada cuota, no las fechas de vencimiento que generarCuotas() también
+  // calcula.
   const cuotas = generarCuotas(cantidadCuotas, base, '2000-01-01', precioTotal)
   return cuotas.map((cuota) => String(cuota.montoBase))
 }
@@ -29,9 +34,15 @@ export function CuotasYDocumento({
 }: Props) {
   const [cantidadCuotasTexto, setCantidadCuotasTexto] = useState(cantidadCuotasInicial)
   const [modo, setModo] = useState<'automatico' | 'manual'>(modoInicial)
-  const [montos, setMontos] = useState<string[]>(montosInicial)
+  const [montos, setMontos] = useState<string[]>(() => {
+    const cantidadInicialNum = Math.min(Number(cantidadCuotasInicial) || 0, MAX_CUOTAS)
+    if (modoInicial === 'automatico' && precioTotal !== null && cantidadInicialNum > 0) {
+      return calcularMontosAutomaticos(precioTotal, cantidadInicialNum)
+    }
+    return montosInicial
+  })
 
-  const cantidadCuotas = Number(cantidadCuotasTexto) || 0
+  const cantidadCuotas = Math.min(Number(cantidadCuotasTexto) || 0, MAX_CUOTAS)
 
   function recalcularMontos(nuevaCantidad: number, modoActual: 'automatico' | 'manual') {
     if (modoActual === 'automatico' && precioTotal !== null && nuevaCantidad > 0) {
@@ -43,7 +54,7 @@ export function CuotasYDocumento({
 
   function manejarCambioCantidadCuotas(valor: string) {
     setCantidadCuotasTexto(valor)
-    recalcularMontos(Number(valor) || 0, modo)
+    recalcularMontos(Math.min(Number(valor) || 0, MAX_CUOTAS), modo)
   }
 
   function manejarCambioModo(nuevoModo: 'automatico' | 'manual') {
@@ -69,6 +80,7 @@ export function CuotasYDocumento({
         name="cantidadCuotas"
         type="number"
         min="1"
+        max={MAX_CUOTAS}
         step="1"
         placeholder="Cantidad de cuotas (1 para venta al contado)"
         value={cantidadCuotasTexto}
@@ -103,43 +115,50 @@ export function CuotasYDocumento({
         </label>
       </fieldset>
 
-      {modo === 'manual' && cantidadCuotas > 0 && (
-        <>
-          {precioTotal !== null && (
-            <p className="text-sm text-gray-600">Precio de lista del lote: {precioTotal}</p>
+      {modo === 'manual' &&
+        cantidadCuotas > 0 &&
+        Array.from({ length: cantidadCuotas }, (_, indice) => (
+          <input
+            key={indice}
+            name={`cuotaMonto${indice + 1}`}
+            type="number"
+            step="0.01"
+            min="0"
+            placeholder={`Cuota ${indice + 1}`}
+            value={montos[indice] ?? ''}
+            onChange={(evento) => manejarCambioMonto(indice, evento.target.value)}
+            required
+            className="rounded border px-3 py-2"
+          />
+        ))}
+
+      {cantidadCuotas > 0 && precioTotal !== null && (
+        <div className="rounded border border-blue-300 bg-blue-50 p-3 text-sm text-blue-900">
+          <p className="font-medium">Balance</p>
+          <p className="mt-1">Precio de lista del lote: {precioTotal}</p>
+          {modo === 'automatico' ? (
+            <p>
+              {cantidadCuotas} cuota{cantidadCuotas === 1 ? '' : 's'} de {montos[0] ?? ''}
+              {montos.length > 1 && ` (la última: ${montos[montos.length - 1]})`}
+            </p>
+          ) : (
+            <>
+              <p>Suma total de las cuotas cargadas: {sumaManual}</p>
+              {diferencia !== null && (
+                <p className="font-medium">
+                  Diferencia respecto al precio de lista: {diferencia > 0 ? '+' : ''}
+                  {diferencia}
+                </p>
+              )}
+            </>
           )}
-          {Array.from({ length: cantidadCuotas }, (_, indice) => (
-            <input
-              key={indice}
-              name={`cuotaMonto${indice + 1}`}
-              type="number"
-              step="0.01"
-              min="0"
-              placeholder={`Cuota ${indice + 1}`}
-              value={montos[indice] ?? ''}
-              onChange={(evento) => manejarCambioMonto(indice, evento.target.value)}
-              required
-              className="rounded border px-3 py-2"
-            />
-          ))}
-          <div className="rounded border border-blue-300 bg-blue-50 p-3 text-sm text-blue-900">
-            <p className="font-medium">Balance</p>
-            <p className="mt-1">Suma total de las cuotas cargadas: {sumaManual}</p>
-            {precioTotal !== null && <p>Precio de lista del lote: {precioTotal}</p>}
-            {montoSenaRegistrada !== null && montoSenaRegistrada > 0 && (
-              <p>
-                Seña ya registrada: {montoSenaRegistrada} {monedaSena} (se descuenta de la cuota 1
-                al confirmar)
-              </p>
-            )}
-            {diferencia !== null && (
-              <p className="mt-1 font-medium">
-                Diferencia respecto al precio de lista: {diferencia > 0 ? '+' : ''}
-                {diferencia}
-              </p>
-            )}
-          </div>
-        </>
+          {montoSenaRegistrada !== null && montoSenaRegistrada > 0 && (
+            <p>
+              Seña ya registrada: {montoSenaRegistrada} {monedaSena} (se descuenta de las primeras
+              cuotas al confirmar)
+            </p>
+          )}
+        </div>
       )}
 
       <label className="text-sm">

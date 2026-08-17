@@ -255,6 +255,10 @@ test.describe('Vender — documento firmado y cuota manual', () => {
       .eq('email', email)
       .maybeSingle()
     expect(perfilCreado).toBeNull()
+
+    const { data: listaUsuarios } = await admin.auth.admin.listUsers()
+    const usuarioCreado = listaUsuarios?.users.find((usuario) => usuario.email === email)
+    expect(usuarioCreado).toBeUndefined()
   })
 
   test('el detalle del lote muestra un link para ver el documento firmado', async ({ page }) => {
