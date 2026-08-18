@@ -3,7 +3,13 @@ import { createAdminClient } from '@/lib/supabase/admin'
 import { calcularEstadoCobranza } from '@/lib/cobranza/estado-cliente'
 import { notFound, redirect } from 'next/navigation'
 import { requireAdminOAcreedor } from '@/lib/auth/require-admin'
-import { actualizarDatosGenerales, actualizarCobro, eliminarLote } from './actions'
+import {
+  actualizarDatosGenerales,
+  actualizarCobro,
+  eliminarLote,
+  subirDocumentoLote,
+  eliminarDocumentoLote,
+} from './actions'
 import { agregarParticipante, quitarParticipante } from './participantes-actions'
 import { cancelarReserva } from '../actions'
 import { BotonEliminarLote } from './BotonEliminarLote'
@@ -208,11 +214,39 @@ export default async function LoteDetallePage({
     .select('id, nombre')
     .order('nombre')
 
+  const { data: documentos } = await supabase
+    .from('lote_documentos')
+    .select('id, path, descripcion, subido_por, created_at')
+    .eq('lote_id', id)
+    .order('created_at', { ascending: false })
+
+  const subidoPorIds = [...new Set((documentos ?? []).map((d) => d.subido_por))]
+  const { data: subidoPorPersonas } =
+    subidoPorIds.length > 0
+      ? await supabase.from('profiles').select('id, full_name').in('id', subidoPorIds)
+      : { data: [] }
+  const nombreSubidoPorId = new Map((subidoPorPersonas ?? []).map((persona) => [persona.id, persona.full_name]))
+
+  const adminDocumentos = createAdminClient()
+  const documentosConUrl = await Promise.all(
+    (documentos ?? []).map(async (documento) => {
+      const { data: signedUrl } = await adminDocumentos.storage
+        .from('comprobantes')
+        .createSignedUrl(documento.path, 300)
+      return {
+        ...documento,
+        url: signedUrl?.signedUrl ?? null,
+        nombreSubidoPor: nombreSubidoPorId.get(documento.subido_por) ?? '—',
+      }
+    })
+  )
+
   const actualizarDatosGeneralesConId = actualizarDatosGenerales.bind(null, id)
   const actualizarCobroConId = actualizarCobro.bind(null, id)
   const agregarParticipanteConId = agregarParticipante.bind(null, id)
   const eliminarLoteConId = eliminarLote.bind(null, id)
   const cancelarReservaConId = cancelarReserva.bind(null, id)
+  const subirDocumentoConId = subirDocumentoLote.bind(null, id)
 
   return (
     <main className="max-w-2xl">
@@ -430,6 +464,52 @@ export default async function LoteDetallePage({
         </label>
         <button type="submit" className="self-start rounded bg-black px-3 py-2 text-sm text-white">
           Guardar
+        </button>
+      </form>
+
+      <h2 className="mb-2 mt-8 text-lg font-semibold">Documentos</h2>
+      {documentosConUrl.length === 0 ? (
+        <p className="mb-3 text-sm text-gray-600">Todavía no se subió ningún documento.</p>
+      ) : (
+        <ul className="mb-3 flex flex-col gap-2">
+          {documentosConUrl.map((documento) => {
+            const eliminarDocumentoConId = eliminarDocumentoLote.bind(null, documento.id, id)
+            return (
+              <li key={documento.id} className="flex items-center gap-3 text-sm">
+                {documento.url ? (
+                  <a href={documento.url} target="_blank" className="underline">
+                    {documento.descripcion}
+                  </a>
+                ) : (
+                  <span>{documento.descripcion} (link no disponible)</span>
+                )}
+                <span className="text-gray-500">— subido por {documento.nombreSubidoPor}</span>
+                <form action={eliminarDocumentoConId}>
+                  <button type="submit" className="text-sm text-red-700 underline">
+                    Eliminar
+                  </button>
+                </form>
+              </li>
+            )
+          })}
+        </ul>
+      )}
+      <form action={subirDocumentoConId} className="mb-8 flex flex-col gap-3">
+        <label className="text-sm">
+          Descripción
+          <input
+            name="descripcion"
+            placeholder="Ej: Plano del lote"
+            required
+            className="mt-1 block w-full rounded border px-3 py-2"
+          />
+        </label>
+        <label className="text-sm">
+          Archivo
+          <input name="archivo" type="file" required className="mt-1 block w-full rounded border px-3 py-2" />
+        </label>
+        <button type="submit" className="self-start rounded bg-black px-3 py-2 text-sm text-white">
+          Subir documento
         </button>
       </form>
 

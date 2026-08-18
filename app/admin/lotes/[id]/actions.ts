@@ -5,6 +5,7 @@ import { createAdminClient } from '@/lib/supabase/admin'
 import { redirect } from 'next/navigation'
 import { requireAdminSobreLote, requireAdministrador } from '@/lib/auth/require-admin'
 import { tieneDatosTransferencia } from '@/lib/lotes/validar-cuenta-cobro'
+import { excedeTamanioMaximo, MAX_ARCHIVO_MB } from '@/lib/storage/validar-tamanio-archivo'
 
 function idOVacio(valor: FormDataEntryValue | null): string | null {
   const texto = valor as string | null
@@ -207,6 +208,84 @@ export async function actualizarCobro(loteId: string, formData: FormData) {
       cuenta_cobro_externa_id: cuentaCobroExternaId,
     })
     .eq('id', loteId)
+
+  if (error) {
+    redirect(`/admin/lotes/${loteId}?error=${encodeURIComponent(error.message)}`)
+  }
+
+  redirect(`/admin/lotes/${loteId}`)
+}
+
+export async function subirDocumentoLote(loteId: string, formData: FormData) {
+  await requireAdminSobreLote(loteId)
+
+  const descripcion = ((formData.get('descripcion') as string) || '').trim()
+  const archivo = formData.get('archivo') as File
+
+  if (!descripcion) {
+    redirect(
+      `/admin/lotes/${loteId}?error=${encodeURIComponent('Ingresá una descripción para el documento')}`
+    )
+  }
+
+  if (!archivo || archivo.size === 0) {
+    redirect(`/admin/lotes/${loteId}?error=${encodeURIComponent('Elegí un archivo para subir')}`)
+  }
+
+  if (excedeTamanioMaximo(archivo)) {
+    redirect(
+      `/admin/lotes/${loteId}?error=${encodeURIComponent(
+        `El archivo pesa más de ${MAX_ARCHIVO_MB} MB — subí uno más liviano.`
+      )}`
+    )
+  }
+
+  const supabase = await createClient()
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
+
+  const admin = createAdminClient()
+  const nombreSeguro = archivo.name.replace(/[^a-zA-Z0-9._-]/g, '_')
+  const path = `lotes/${loteId}/documento-${Date.now()}-${nombreSeguro}`
+
+  const { error: errorSubida } = await admin.storage.from('comprobantes').upload(path, archivo)
+
+  if (errorSubida) {
+    redirect(
+      `/admin/lotes/${loteId}?error=${encodeURIComponent('No se pudo subir el archivo. Probá de nuevo.')}`
+    )
+  }
+
+  const { error: errorInsert } = await supabase.from('lote_documentos').insert({
+    lote_id: loteId,
+    path,
+    descripcion,
+    subido_por: user!.id,
+  })
+
+  if (errorInsert) {
+    redirect(`/admin/lotes/${loteId}?error=${encodeURIComponent(errorInsert.message)}`)
+  }
+
+  redirect(`/admin/lotes/${loteId}`)
+}
+
+export async function eliminarDocumentoLote(documentoId: string, loteId: string) {
+  await requireAdminSobreLote(loteId)
+
+  const supabase = await createClient()
+
+  // El .eq('lote_id', loteId) es una segunda barrera además de
+  // requireAdminSobreLote: sin esto, alguien con permiso sobre SU lote
+  // podría borrar la fila de un documento de OTRO lote si adivinara su id,
+  // ya que requireAdminSobreLote solo valida el loteId recibido, no que
+  // documentoId realmente pertenezca a ese lote.
+  const { error } = await supabase
+    .from('lote_documentos')
+    .delete()
+    .eq('id', documentoId)
+    .eq('lote_id', loteId)
 
   if (error) {
     redirect(`/admin/lotes/${loteId}?error=${encodeURIComponent(error.message)}`)
