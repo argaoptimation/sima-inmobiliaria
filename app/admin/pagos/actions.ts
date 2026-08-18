@@ -4,6 +4,7 @@ import { createClient } from '@/lib/supabase/server'
 import { imputarPagoFIFO } from '@/lib/pagos/imputar-fifo'
 import { revalidatePath } from 'next/cache'
 import { redirect } from 'next/navigation'
+import { requireAdministrador } from '@/lib/auth/require-admin'
 
 export async function confirmarPago(pagoId: string, formData: FormData) {
   const supabase = await createClient()
@@ -232,6 +233,142 @@ export async function confirmarPago(pagoId: string, formData: FormData) {
     if (errorSaldo) {
       revalidatePath('/admin/pagos')
       return
+    }
+  }
+
+  revalidatePath('/admin/pagos')
+  revalidatePath('/portal-cliente')
+}
+
+export async function editarMontoPago(pagoId: string, formData: FormData) {
+  await requireAdministrador()
+
+  const supabase = await createClient()
+
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
+
+  const { data: pago } = await supabase
+    .from('pagos')
+    .select('id, cliente_id, lote_id, moneda, comprobante_path, motivo, estado, monto')
+    .eq('id', pagoId)
+    .single()
+
+  if (!pago || pago.estado !== 'confirmado' || pago.motivo === 'ajuste') {
+    redirect(`/admin/pagos?error=${encodeURIComponent('Este pago no se puede editar.')}`)
+  }
+
+  const { data: ajustesPrevios } = await supabase
+    .from('pagos')
+    .select('monto')
+    .eq('corrige_pago_id', pagoId)
+
+  const montoEfectivoActual =
+    pago!.monto + (ajustesPrevios ?? []).reduce((acc, ajuste) => acc + ajuste.monto, 0)
+
+  const montoEfectivoVisto = Number(formData.get('montoEfectivoVisto'))
+  const montoNuevo = Number(formData.get('montoNuevo'))
+
+  if (!Number.isFinite(montoEfectivoVisto) || !Number.isFinite(montoNuevo) || montoNuevo < 0) {
+    redirect(`/admin/pagos?error=${encodeURIComponent('Monto inválido')}`)
+  }
+
+  if (montoEfectivoVisto !== montoEfectivoActual) {
+    redirect(
+      `/admin/pagos?error=${encodeURIComponent(
+        'El monto de este pago cambió desde que abriste esta pantalla. Revisalo antes de corregir.'
+      )}`
+    )
+  }
+
+  const delta = montoNuevo - montoEfectivoActual
+
+  if (delta === 0) {
+    redirect(`/admin/pagos?error=${encodeURIComponent('No hubo cambios en el monto.')}`)
+  }
+
+  const { data: pagoAjuste, error: errorAjuste } = await supabase
+    .from('pagos')
+    .insert({
+      cliente_id: pago!.cliente_id,
+      lote_id: pago!.lote_id,
+      monto: delta,
+      moneda: pago!.moneda,
+      comprobante_path: pago!.comprobante_path,
+      motivo: 'ajuste',
+      estado: 'confirmado',
+      confirmado_admin_por: user!.id,
+      confirmado_admin_at: new Date().toISOString(),
+      corrige_pago_id: pagoId,
+    })
+    .select('id')
+    .single()
+
+  if (errorAjuste || !pagoAjuste) {
+    redirect(`/admin/pagos?error=${encodeURIComponent('No se pudo registrar la corrección.')}`)
+  }
+
+  if (delta > 0) {
+    const { data: cuotas } = await supabase
+      .from('cuotas')
+      .select('id, saldo_pendiente')
+      .eq('lote_id', pago!.lote_id)
+      .gt('saldo_pendiente', 0)
+      .order('numero', { ascending: true })
+
+    const resultado = imputarPagoFIFO(
+      delta,
+      (cuotas ?? []).map((cuota) => ({ id: cuota.id, saldoPendiente: cuota.saldo_pendiente }))
+    )
+
+    for (const imputacion of resultado.imputaciones) {
+      await supabase.from('pago_imputaciones').insert({
+        pago_id: pagoAjuste!.id,
+        cuota_id: imputacion.cuotaId,
+        monto_imputado: imputacion.montoImputado,
+      })
+
+      const cuota = cuotas!.find((c) => c.id === imputacion.cuotaId)!
+      await supabase
+        .from('cuotas')
+        .update({ saldo_pendiente: cuota.saldo_pendiente - imputacion.montoImputado })
+        .eq('id', imputacion.cuotaId)
+    }
+  } else {
+    const { data: imputacionesOriginales } = await supabase
+      .from('pago_imputaciones')
+      .select('id, cuota_id, monto_imputado')
+      .eq('pago_id', pagoId)
+      .order('created_at', { ascending: false })
+
+    let restante = Math.abs(delta)
+
+    for (const imputacion of imputacionesOriginales ?? []) {
+      if (restante <= 0) break
+
+      const aRevertir = Math.min(imputacion.monto_imputado, restante)
+
+      const { data: cuota } = await supabase
+        .from('cuotas')
+        .select('saldo_pendiente')
+        .eq('id', imputacion.cuota_id)
+        .single()
+
+      if (!cuota) continue
+
+      await supabase
+        .from('cuotas')
+        .update({ saldo_pendiente: cuota.saldo_pendiente + aRevertir })
+        .eq('id', imputacion.cuota_id)
+
+      await supabase.from('pago_imputaciones').insert({
+        pago_id: pagoAjuste!.id,
+        cuota_id: imputacion.cuota_id,
+        monto_imputado: -aRevertir,
+      })
+
+      restante -= aRevertir
     }
   }
 

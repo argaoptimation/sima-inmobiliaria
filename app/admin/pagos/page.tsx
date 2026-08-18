@@ -1,7 +1,7 @@
 import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { requireAdminOAcreedor } from '@/lib/auth/require-admin'
-import { confirmarPago } from './actions'
+import { confirmarPago, editarMontoPago } from './actions'
 
 type Pago = {
   id: string
@@ -113,6 +113,23 @@ export default async function PagosPage({
     }
   }
 
+  const idsPagos = pagos.map((pago) => pago.id)
+
+  const { data: ajustes } =
+    idsPagos.length > 0
+      ? await supabase.from('pagos').select('corrige_pago_id, monto').in('corrige_pago_id', idsPagos)
+      : { data: [] }
+
+  const montoEfectivoPorId = new Map<string, number>(pagos.map((pago) => [pago.id, pago.monto]))
+
+  for (const ajuste of ajustes ?? []) {
+    if (!ajuste.corrige_pago_id) continue
+    montoEfectivoPorId.set(
+      ajuste.corrige_pago_id,
+      (montoEfectivoPorId.get(ajuste.corrige_pago_id) ?? 0) + ajuste.monto
+    )
+  }
+
   const admin = createAdminClient()
 
   const loteIdsConPago = [...new Set(pagos.map((pago) => pago.lote_id))]
@@ -153,6 +170,7 @@ export default async function PagosPage({
           identificadorLote,
           nombreCliente,
           cuentaCobroExterna: Boolean(lote?.cuenta_cobro_externa_id),
+          montoEfectivo: montoEfectivoPorId.get(pago.id) ?? pago.monto,
         }
       }
 
@@ -167,6 +185,7 @@ export default async function PagosPage({
         identificadorLote,
         nombreCliente,
         cuentaCobroExterna: Boolean(lote?.cuenta_cobro_externa_id),
+        montoEfectivo: montoEfectivoPorId.get(pago.id) ?? pago.monto,
       }
     })
   )
@@ -212,12 +231,13 @@ export default async function PagosPage({
         <tbody>
           {pagosConLink.map((pago) => {
             const confirmarEstePago = confirmarPago.bind(null, pago.id)
+            const editarMontoEstePago = editarMontoPago.bind(null, pago.id)
 
             return (
               <tr key={pago.id} className="border-b">
                 <td className="py-2">{pago.identificadorLote}</td>
                 <td>{pago.nombreCliente}</td>
-                <td>{pago.motivo === 'sena' ? 'Seña' : 'Cuota'}</td>
+                <td>{pago.motivo === 'sena' ? 'Seña' : pago.motivo === 'ajuste' ? 'Ajuste' : 'Cuota'}</td>
                 <td>
                   {pago.monto} {pago.moneda}
                 </td>
@@ -302,6 +322,28 @@ export default async function PagosPage({
                     ) : (
                       <span className="text-gray-500">Esperando comprobante</span>
                     ))}
+                  {pago.estado === 'confirmado' &&
+                    pago.motivo !== 'ajuste' &&
+                    perfilPropio!.role === 'administrador' && (
+                      <form action={editarMontoEstePago} className="flex flex-col gap-2">
+                        <input type="hidden" name="montoEfectivoVisto" value={pago.montoEfectivo} />
+                        <label className="text-xs text-gray-500">
+                          Corregir monto (actual: {pago.montoEfectivo} {pago.moneda})
+                          <input
+                            name="montoNuevo"
+                            type="number"
+                            step="0.01"
+                            min="0"
+                            defaultValue={pago.montoEfectivo}
+                            required
+                            className="mt-1 block rounded border px-2 py-1"
+                          />
+                        </label>
+                        <button type="submit" className="self-start underline">
+                          Editar monto
+                        </button>
+                      </form>
+                    )}
                 </td>
               </tr>
             )
