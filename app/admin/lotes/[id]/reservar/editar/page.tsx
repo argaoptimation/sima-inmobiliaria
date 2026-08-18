@@ -45,10 +45,6 @@ export default async function EditarReservaPage({
 
   const supabase = await createClient()
 
-  const {
-    data: { user },
-  } = await supabase.auth.getUser()
-
   const { data: lote } = await supabase
     .from('lotes')
     .select('id, identificador, estado')
@@ -196,7 +192,7 @@ export default async function EditarReservaPage({
             Quién recibió la seña
             <select
               name="recibidoPor"
-              defaultValue={recibidoPorPreservado ?? reserva.recibido_por ?? user!.id}
+              defaultValue={recibidoPorPreservado ?? reserva.recibido_por ?? ''}
               className="mt-1 block w-full rounded border px-3 py-2"
             >
               <option value="">— no está en la lista, especificar abajo —</option>

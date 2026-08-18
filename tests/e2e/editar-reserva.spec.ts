@@ -165,6 +165,38 @@ test.describe('Editar reserva ya cargada', () => {
     await expect(page).not.toHaveURL(`**/admin/lotes/${loteId}/reservar/editar`)
   })
 
+  test('editar sin tocar "quién recibió la seña" no pisa un receptor "otro" ya guardado', async ({ page }) => {
+    const admin = createAdminClient()
+    const loteId = await crearLoteReservado(`E2E Editar Reserva Recibido Otro ${Date.now()}`, fixtures.acreedorConDatos.id, fixtures.admin.id)
+
+    await admin
+      .from('reservas')
+      .update({ recibido_por: null, recibido_por_otro: 'Alguien Externo' })
+      .eq('lote_id', loteId)
+
+    await login(page, fixtures.admin.email, fixtures.password)
+    await page.goto(`/admin/lotes/${loteId}/reservar/editar`)
+
+    // El select tiene que quedar en "no está en la lista", no en el admin logueado.
+    await expect(page.locator('select[name="recibidoPor"]')).toHaveValue('')
+
+    // Editar un campo sin relación y guardar.
+    await page.getByPlaceholder('Teléfono', { exact: true }).fill('3513333333')
+    await page.getByRole('button', { name: 'Guardar cambios' }).click()
+    await page.waitForURL(`**/admin/lotes/${loteId}`)
+
+    const { data: reserva } = await admin
+      .from('reservas')
+      .select('recibido_por, recibido_por_otro, telefono')
+      .eq('lote_id', loteId)
+      .is('cancelada_at', null)
+      .single()
+
+    expect(reserva?.recibido_por).toBeNull()
+    expect(reserva?.recibido_por_otro).toBe('Alguien Externo')
+    expect(reserva?.telefono).toBe('3513333333')
+  })
+
   test('los datos de texto se preservan si falla la validación', async ({ page }) => {
     const loteId = await crearLoteReservado(`E2E Editar Reserva Preservar ${Date.now()}`, fixtures.acreedorConDatos.id, fixtures.admin.id)
 
