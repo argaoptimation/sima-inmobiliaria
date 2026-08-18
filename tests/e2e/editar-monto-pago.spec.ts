@@ -3,7 +3,7 @@ import { readFileSync } from 'node:fs'
 import path from 'node:path'
 import { imputarPagoFIFO } from '@/lib/pagos/imputar-fifo'
 import { ensureTestFixtures, createAdminClient, TestFixtures } from './fixtures/test-data'
-import { login, logout } from './utils/login'
+import { login } from './utils/login'
 
 const COMPROBANTE_PATH = path.join(__dirname, 'fixtures', 'comprobante-test.pdf')
 const COMPROBANTE_BYTES = readFileSync(COMPROBANTE_PATH)
