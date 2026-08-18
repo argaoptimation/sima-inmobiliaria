@@ -116,7 +116,11 @@ export function DistribucionCuotas({
     const objetivosPorClave = new Map<string, number>()
     for (const fila of objetivos) {
       if (!fila.participanteKey) continue
-      objetivosPorClave.set(fila.participanteKey, Number(fila.monto) || 0)
+      const montoTexto = fila.monto.trim()
+      if (montoTexto === '') continue
+      const monto = Number(montoTexto)
+      if (!Number.isFinite(monto)) continue
+      objetivosPorClave.set(fila.participanteKey, (objetivosPorClave.get(fila.participanteKey) ?? 0) + monto)
     }
 
     const claves = new Set<string>([...acumulados.keys(), ...objetivosPorClave.keys()])

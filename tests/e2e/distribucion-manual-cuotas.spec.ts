@@ -222,4 +222,93 @@ test.describe('Distribución manual por cuota', () => {
       await admin.from('lotes').delete().eq('id', loteDisponible!.id)
     }
   })
+
+  test('el gate server-side de "lote vendido" rechaza el guardado si el lote deja de estar vendido entre cargar la pantalla y guardar', async ({
+    page,
+  }) => {
+    const admin = createAdminClient()
+    const { data: loteTemporal } = await admin
+      .from('lotes')
+      .insert({
+        identificador: `E2E Distribución Race Condition ${Date.now()}`,
+        moneda: 'USD',
+        estado: 'vendido',
+      })
+      .select('id')
+      .single()
+
+    const { data: cuotaTemporal } = await admin
+      .from('cuotas')
+      .insert({
+        lote_id: loteTemporal!.id,
+        numero: 1,
+        monto_base: 1000,
+        saldo_pendiente: 1000,
+        fecha_vencimiento: '2026-09-01',
+      })
+      .select('id')
+      .single()
+
+    try {
+      await login(page, fixtures.admin.email, fixtures.password)
+      await page.goto(`/admin/lotes/${loteTemporal!.id}/distribucion`)
+
+      await page.getByRole('button', { name: '+ Agregar participante a esta cuota' }).nth(0).click()
+      await page.locator('select[name="cuota1Participante"]').nth(0).selectOption({ label: 'E2E Vendedor A (vendedor)' })
+      await page.locator('input[name="cuota1Monto"]').nth(0).fill('500')
+
+      await admin.from('lotes').update({ estado: 'reservado' }).eq('id', loteTemporal!.id)
+
+      await expect
+        .poll(
+          async () => {
+            const { data: lote } = await admin.from('lotes').select('estado').eq('id', loteTemporal!.id).single()
+            return lote?.estado ?? null
+          },
+          { timeout: 10000 }
+        )
+        .toBe('reservado')
+
+      await page.getByRole('button', { name: 'Guardar distribución' }).click()
+
+      await expect(page.getByText('Este lote no está vendido, no se puede guardar una distribución')).toBeVisible()
+
+      const { data: distribuciones } = await admin
+        .from('cuota_distribuciones')
+        .select('id')
+        .eq('cuota_id', cuotaTemporal!.id)
+      expect(distribuciones).toEqual([])
+    } finally {
+      await admin.from('cuota_distribuciones').delete().eq('cuota_id', cuotaTemporal!.id)
+      await admin.from('cuotas').delete().eq('id', cuotaTemporal!.id)
+      await admin.from('lotes').delete().eq('id', loteTemporal!.id)
+    }
+  })
+
+  test('quitar una fila y guardar borra esa distribución de la base (dirección de borrado del reemplazo completo)', async ({
+    page,
+  }) => {
+    const admin = createAdminClient()
+
+    await admin.from('cuota_distribuciones').insert({
+      cuota_id: fixtures.cuotaIds[0],
+      profile_id: fixtures.vendedorLoteA.id,
+      monto: 500,
+    })
+
+    await login(page, fixtures.admin.email, fixtures.password)
+    await page.goto(`/admin/lotes/${fixtures.loteId}/distribucion`)
+
+    await expect(page.locator('input[name="cuota1Monto"]').nth(0)).toHaveValue('500')
+
+    await page.getByRole('button', { name: 'Quitar' }).first().click()
+    await page.getByRole('button', { name: 'Guardar distribución' }).click()
+    await page.waitForURL(/ok=1/)
+
+    const { data: distribuciones } = await admin
+      .from('cuota_distribuciones')
+      .select('id')
+      .eq('cuota_id', fixtures.cuotaIds[0])
+    expect(distribuciones).toEqual([])
+  })
 })

@@ -122,6 +122,7 @@ export async function guardarDistribucionLote(loteId: string, formData: FormData
   })
 
   if (errorGuardar) {
+    console.error('guardar_distribucion_lote:', errorGuardar)
     redirect(
       `/admin/lotes/${loteId}/distribucion?error=${encodeURIComponent('No se pudo guardar la distribución. Probá de nuevo.')}`
     )

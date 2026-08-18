@@ -82,6 +82,38 @@ export default async function DistribucionLotePage({
       }))
   }
 
+  // Un profile guardado en objetivos/distribuciones puede haber cambiado de
+  // role desde entonces y ya no aparecer en participantesElegibles -- si eso
+  // pasa, su <select> no tiene ninguna opción que matchee el value inicial y
+  // el HTML estándar no manda ningún valor para ese campo, desalineando por
+  // posición todas las filas siguientes de esa cuota respecto a sus montos.
+  // Se agregan acá esos profiles "huérfanos" con su nombre real para que el
+  // <select> siempre tenga una opción que matchee, sin importar el role actual.
+  const clavesConocidas = new Set(participantesElegibles.map((p) => p.key))
+  const clavesUsadas = new Set<string>()
+  for (const fila of objetivosIniciales) clavesUsadas.add(fila.participanteKey)
+  for (const filas of Object.values(distribucionesIniciales)) {
+    for (const fila of filas) clavesUsadas.add(fila.participanteKey)
+  }
+
+  const profileIdsFaltantes = Array.from(clavesUsadas)
+    .filter((clave) => clave.startsWith('profile:') && !clavesConocidas.has(clave))
+    .map((clave) => clave.slice('profile:'.length))
+
+  if (profileIdsFaltantes.length > 0) {
+    const { data: perfilesFaltantes } = await supabase
+      .from('profiles')
+      .select('id, full_name, role')
+      .in('id', profileIdsFaltantes)
+
+    for (const perfil of perfilesFaltantes ?? []) {
+      participantesElegibles.push({
+        key: `profile:${perfil.id}`,
+        nombre: `${perfil.full_name} (${perfil.role})`,
+      })
+    }
+  }
+
   const guardarDistribucionConId = guardarDistribucionLote.bind(null, id)
 
   return (
