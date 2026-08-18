@@ -1,6 +1,10 @@
 <!--
-  Plantilla de email para Supabase Auth — "Invite user" (la que se manda al
-  vender un lote, invitando al cliente a crear su contraseña).
+  Plantilla de email para Supabase Auth — "Invite user". Se manda para
+  CUALQUIER invitación, sin importar el rol: al cliente cuando se vende un
+  lote, y al vendedor/acreedor/cobrador/admin cuando se les crea su usuario
+  de staff — Supabase usa un solo template de "Invite user" para las dos
+  cosas, por eso el texto de abajo es genérico (no menciona "tu compra" ni
+  "portal de cliente").
 
   Cómo instalarla:
   1. Entrá al dashboard de Supabase del proyecto SIMA.
@@ -54,14 +58,13 @@
                   Te invitamos a crear tu cuenta
                 </h1>
                 <p style="margin: 0 0 16px 0; font-size: 15px; line-height: 1.6; color:#333333;">
-                  Ya quedó registrada tu compra en SIMA Inmobiliaria. Para poder
-                  ver el estado de tus cuotas, tus comprobantes y toda la
-                  información de tu lote, necesitás crear una contraseña para
-                  tu cuenta.
+                  Te dieron de alta en la plataforma de SIMA Inmobiliaria.
+                  Para poder entrar, necesitás elegir una contraseña para tu
+                  cuenta.
                 </p>
                 <p style="margin: 0 0 24px 0; font-size: 15px; line-height: 1.6; color:#333333;">
                   Hacé clic en el siguiente botón para elegir tu contraseña y
-                  acceder a tu portal de cliente:
+                  acceder a la plataforma:
                 </p>
 
                 <table role="presentation" cellpadding="0" cellspacing="0" style="margin: 0 auto;">
