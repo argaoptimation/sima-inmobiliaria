@@ -11,6 +11,7 @@ interface Props {
   cantidadCuotasInicial: string
   modoInicial: 'automatico' | 'manual'
   montosInicial: string[]
+  entregaInicial: string
 }
 
 const MAX_CUOTAS = 600
@@ -31,9 +32,11 @@ export function CuotasYDocumento({
   cantidadCuotasInicial,
   modoInicial,
   montosInicial,
+  entregaInicial,
 }: Props) {
   const [cantidadCuotasTexto, setCantidadCuotasTexto] = useState(cantidadCuotasInicial)
   const [modo, setModo] = useState<'automatico' | 'manual'>(modoInicial)
+  const [entregaTexto, setEntregaTexto] = useState(entregaInicial)
   const [montos, setMontos] = useState<string[]>(() => {
     const cantidadInicialNum = Math.min(Number(cantidadCuotasInicial) || 0, MAX_CUOTAS)
     if (modoInicial === 'automatico' && precioTotal !== null && cantidadInicialNum > 0) {
@@ -70,9 +73,12 @@ export function CuotasYDocumento({
     })
   }
 
+  const entrega = Number(entregaTexto) || 0
   const sumaManual = Math.round(montos.reduce((acc, valor) => acc + (Number(valor) || 0), 0) * 100) / 100
   const diferencia =
-    modo === 'manual' && precioTotal !== null ? Math.round((sumaManual - precioTotal) * 100) / 100 : null
+    modo === 'manual' && precioTotal !== null
+      ? Math.round((sumaManual + entrega - precioTotal) * 100) / 100
+      : null
 
   return (
     <>
@@ -115,6 +121,20 @@ export function CuotasYDocumento({
         </label>
       </fieldset>
 
+      <label className="text-sm">
+        Entrega (opcional — monto entregado al firmar el boleto, además de la seña)
+        <input
+          name="entregaMonto"
+          type="number"
+          step="0.01"
+          min="0"
+          placeholder="Entrega"
+          value={entregaTexto}
+          onChange={(evento) => setEntregaTexto(evento.target.value)}
+          className="mt-1 block w-full rounded border px-3 py-2"
+        />
+      </label>
+
       {modo === 'manual' &&
         cantidadCuotas > 0 &&
         Array.from({ length: cantidadCuotas }, (_, indice) => (
@@ -156,6 +176,12 @@ export function CuotasYDocumento({
             <p>
               Seña ya registrada: {montoSenaRegistrada} {monedaSena} (se descuenta de las primeras
               cuotas al confirmar)
+            </p>
+          )}
+          {entrega > 0 && (
+            <p>
+              Entrega ingresada: {entrega} (no se descuenta de ninguna cuota, reduce el total
+              financiado)
             </p>
           )}
         </div>

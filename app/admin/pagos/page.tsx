@@ -237,7 +237,15 @@ export default async function PagosPage({
               <tr key={pago.id} className="border-b">
                 <td className="py-2">{pago.identificadorLote}</td>
                 <td>{pago.nombreCliente}</td>
-                <td>{pago.motivo === 'sena' ? 'Seña' : pago.motivo === 'ajuste' ? 'Ajuste' : 'Cuota'}</td>
+                <td>
+                  {pago.motivo === 'sena'
+                    ? 'Seña'
+                    : pago.motivo === 'ajuste'
+                      ? 'Ajuste'
+                      : pago.motivo === 'entrega'
+                        ? 'Entrega'
+                        : 'Cuota'}
+                </td>
                 <td>
                   {pago.monto} {pago.moneda}
                 </td>

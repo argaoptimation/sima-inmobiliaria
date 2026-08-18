@@ -16,6 +16,7 @@ function construirParamsPreservados(formData: FormData): URLSearchParams {
     cantidadCuotas: (formData.get('cantidadCuotas') as string) || '',
     fechaPrimeraCuota: (formData.get('fechaPrimeraCuota') as string) || '',
     modo: (formData.get('modo') as string) || 'automatico',
+    entregaMonto: (formData.get('entregaMonto') as string) || '',
   })
 
   const cantidadCuotas = Number(formData.get('cantidadCuotas')) || 0
@@ -171,6 +172,19 @@ export async function venderLote(loteId: string, formData: FormData) {
       redirectVenderConError(
         loteId,
         'Los montos de las cuotas tienen que ser números válidos, no negativos',
+        construirParamsPreservados(formData)
+      )
+    }
+  }
+
+  const entregaMontoRaw = ((formData.get('entregaMonto') as string) || '').trim()
+  let entregaMonto = 0
+  if (entregaMontoRaw !== '') {
+    entregaMonto = Number(entregaMontoRaw)
+    if (!Number.isFinite(entregaMonto) || entregaMonto < 0) {
+      redirectVenderConError(
+        loteId,
+        'El monto de la entrega tiene que ser un número válido, no negativo',
         construirParamsPreservados(formData)
       )
     }
@@ -421,6 +435,27 @@ export async function venderLote(loteId: string, formData: FormData) {
           )}`
         )
       }
+    }
+  }
+
+  if (entregaMonto > 0) {
+    const { error: errorPagoEntrega } = await admin.from('pagos').insert({
+      cliente_id: clienteId,
+      lote_id: loteId,
+      monto: entregaMonto,
+      moneda: loteActual!.moneda,
+      motivo: 'entrega',
+      estado: 'confirmado',
+      confirmado_admin_por: adminUser!.id,
+      confirmado_admin_at: new Date().toISOString(),
+    })
+
+    if (errorPagoEntrega) {
+      redirect(
+        `/admin/lotes/${loteId}/vender?error=${encodeURIComponent(
+          `La venta se completó pero no se pudo registrar la entrega como pago: ${errorPagoEntrega.message}`
+        )}`
+      )
     }
   }
 
