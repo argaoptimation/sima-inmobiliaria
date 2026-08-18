@@ -1,4 +1,5 @@
 import { createClient } from '@/lib/supabase/server'
+import { createAdminClient } from '@/lib/supabase/admin'
 import { redirect } from 'next/navigation'
 
 export async function requireAdmin() {
@@ -67,11 +68,17 @@ export async function requireAdminSobreLote(loteId: string) {
   }
 
   if (profile!.role === 'acreedor') {
-    const { data: lote } = await supabase
-      .from('lotes')
-      .select('acreedor_id')
-      .eq('id', loteId)
-      .single()
+    // Lectura con el cliente admin (secret key), no el de RLS. NOTA DE
+    // SEGURIDAD (ver task-2-report.md): investigamos un caso donde esta
+    // lectura devuelve un acreedor_id viejo incluso mucho después de que un
+    // UPDATE concurrente ya haya confirmado -- reproducido con builds de
+    // producción limpios, sin caché de Next.js, sin keep-alive HTTP, y con
+    // esperas de hasta 15s, así que usar el cliente admin acá NO cierra el
+    // problema por sí solo. Se deja así de todas formas por ser la fuente
+    // más autoritativa disponible (bypassea RLS) mientras se investiga la
+    // causa raíz a nivel de infraestructura.
+    const admin = createAdminClient()
+    const { data: lote } = await admin.from('lotes').select('acreedor_id').eq('id', loteId).single()
 
     if (!lote || lote.acreedor_id !== user!.id) {
       redirect('/admin/lotes')
