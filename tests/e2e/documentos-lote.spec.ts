@@ -137,4 +137,44 @@ test.describe('Documentos del lote', () => {
     await expect(page.locator('li', { hasText: 'Doc A' })).toHaveCount(0)
     await expect(page.locator('li', { hasText: 'Doc B' })).toBeVisible()
   })
+
+  test('un vendedor ve precio, acreedor y documentos en /info sin pasar por reservar', async ({ page }) => {
+    const admin = createAdminClient()
+    const filePath = `lotes/${fixtures.loteSecundarioId}/doc-info-test.pdf`
+    await admin.storage
+      .from('comprobantes')
+      .upload(filePath, COMPROBANTE_BYTES, { contentType: 'application/pdf' })
+    await admin.from('lote_documentos').insert({
+      lote_id: fixtures.loteSecundarioId,
+      path: filePath,
+      descripcion: 'Plano visible para vendedor',
+      subido_por: fixtures.admin.id,
+    })
+
+    await login(page, fixtures.vendedorLoteA.email, fixtures.password)
+    await page.goto(`/admin/lotes/${fixtures.loteSecundarioId}/info`)
+
+    await expect(page.getByText(/Acreedor: E2E Acreedor Secundario/)).toBeVisible()
+    await expect(page.getByRole('link', { name: 'Plano visible para vendedor' })).toBeVisible()
+  })
+
+  test('un cliente no puede acceder a /admin/lotes/[id]/info', async ({ page }) => {
+    // `app/admin/layout.tsx` (que envuelve toda la sección /admin/*) ya
+    // bloquea el rol `cliente` antes de que la página llegue a ejecutar
+    // `requireAccesoParaReservar`: redirige a `/`, que a su vez manda a un
+    // cliente logueado a `/portal-cliente` (no a `/login`, porque sí está
+    // autenticado). La propiedad de seguridad bajo prueba -- que un cliente
+    // no puede ver esta pantalla -- se mantiene igual.
+    await login(page, fixtures.cliente.email, fixtures.password)
+    await page.goto(`/admin/lotes/${fixtures.loteSecundarioId}/info`)
+    await expect(page).toHaveURL(/\/portal-cliente/)
+  })
+
+  test('el link "Ver información del lote →" aparece en /admin/lotes para un vendedor', async ({ page }) => {
+    await login(page, fixtures.vendedorLoteA.email, fixtures.password)
+    await page.goto('/admin/lotes')
+
+    const fila = page.locator('tr', { has: page.getByText('E2E Lote Secundario') })
+    await expect(fila.getByRole('link', { name: 'Ver información del lote →' })).toBeVisible()
+  })
 })

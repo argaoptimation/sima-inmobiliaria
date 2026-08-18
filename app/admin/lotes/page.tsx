@@ -170,9 +170,14 @@ export default async function LotesPage({
                       <td>{lote.moneda}</td>
                       <td>{lote.estado}</td>
                       <td>
-                        {lote.estado === 'reservado' && (
-                          <BotonCancelarReserva cancelarReservaAction={cancelarReservaConId} />
-                        )}
+                        <div className="flex flex-wrap items-center gap-3">
+                          <a href={`/admin/lotes/${lote.id}/info`} className="text-sm underline">
+                            Ver información del lote →
+                          </a>
+                          {lote.estado === 'reservado' && (
+                            <BotonCancelarReserva cancelarReservaAction={cancelarReservaConId} />
+                          )}
+                        </div>
                       </td>
                     </tr>
                   )
@@ -268,11 +273,19 @@ export default async function LotesPage({
                 {!esVendedorOCobrador && <td>{lote.cantidad_cuotas}</td>}
                 <td>
                   {esVendedorOCobrador ? (
-                    <a href={`/admin/lotes/${lote.id}/reservar`} className="text-sm underline">
-                      Reservar
-                    </a>
+                    <div className="flex flex-wrap items-center gap-3">
+                      <a href={`/admin/lotes/${lote.id}/info`} className="text-sm underline">
+                        Ver información del lote →
+                      </a>
+                      <a href={`/admin/lotes/${lote.id}/reservar`} className="text-sm underline">
+                        Reservar
+                      </a>
+                    </div>
                   ) : (
                     <div className="flex flex-wrap items-center gap-3">
+                      <a href={`/admin/lotes/${lote.id}/info`} className="text-sm underline">
+                        Ver información del lote →
+                      </a>
                       <a href={`/admin/lotes/${lote.id}`} className="text-sm underline">
                         Ver detalle
                       </a>
