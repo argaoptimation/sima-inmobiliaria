@@ -10,7 +10,18 @@
      reemplazando lo que haya ahora. Guardar.
 
   No hace falta tocar nada del código de la app — Supabase ya rellena
-  {{ .ConfirmationURL }} solo con el link real de cada pedido.
+  {{ .TokenHash }} solo con el token real de cada pedido.
+
+  IMPORTANTE: este template NO usa {{ .ConfirmationURL }} (esa variable
+  manda al usuario al verificador propio de Supabase, en supabase.co, que
+  no puede dejarle la sesión iniciada en ESTA app). Usa en cambio
+  {{ .SiteURL }}/auth/confirm?token_hash={{ .TokenHash }}&type=recovery —
+  la ruta /auth/confirm (app/auth/confirm/route.ts) es la que hace el
+  intercambio de sesión del lado del servidor de esta app y recién
+  después redirige a /set-password. Si algún día cambiás esto de vuelta a
+  {{ .ConfirmationURL }} "para simplificar", el link va a llevar a la
+  persona a una pantalla de Supabase, no a la de elegir contraseña de
+  SIMA, y va a quedar sin sesión iniciada.
 -->
 <!DOCTYPE html>
 <html lang="es">
@@ -49,7 +60,7 @@
                 <table role="presentation" cellpadding="0" cellspacing="0" style="margin: 0 auto;">
                   <tr>
                     <td align="center" style="border-radius: 6px; background-color:#1a63a3;">
-                      <a href="{{ .ConfirmationURL }}"
+                      <a href="{{ .SiteURL }}/auth/confirm?token_hash={{ .TokenHash }}&type=recovery&next=/set-password"
                          style="display:inline-block; padding: 14px 32px; font-size: 15px; font-weight: bold; color:#ffffff; text-decoration:none; border-radius: 6px;">
                         Elegir nueva contraseña
                       </a>
@@ -60,7 +71,7 @@
                 <p style="margin: 24px 0 0 0; font-size: 13px; line-height: 1.5; color:#777777;">
                   Si el botón no funciona, copiá y pegá este link en tu
                   navegador:<br />
-                  <a href="{{ .ConfirmationURL }}" style="color:#1a63a3; word-break: break-all;">{{ .ConfirmationURL }}</a>
+                  <a href="{{ .SiteURL }}/auth/confirm?token_hash={{ .TokenHash }}&type=recovery&next=/set-password" style="color:#1a63a3; word-break: break-all;">{{ .SiteURL }}/auth/confirm?token_hash={{ .TokenHash }}&type=recovery&next=/set-password</a>
                 </p>
 
                 <p style="margin: 24px 0 0 0; font-size: 13px; line-height: 1.5; color:#777777;">
