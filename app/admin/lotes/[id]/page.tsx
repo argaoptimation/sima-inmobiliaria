@@ -223,7 +223,15 @@ export default async function LoteDetallePage({
         <h1 className="text-xl font-semibold">{lote!.identificador}</h1>
         <div className="flex gap-2">
           {perfilPropio!.role === 'administrador' && lote!.estado === 'reservado' && (
-            <BotonCancelarReserva cancelarReservaAction={cancelarReservaConId} />
+            <>
+              <a
+                href={`/admin/lotes/${id}/reservar/editar`}
+                className="rounded border px-3 py-2 text-sm underline"
+              >
+                Editar reserva →
+              </a>
+              <BotonCancelarReserva cancelarReservaAction={cancelarReservaConId} />
+            </>
           )}
           {perfilPropio!.role === 'administrador' && (
             <BotonEliminarLote eliminarLoteAction={eliminarLoteConId} />
