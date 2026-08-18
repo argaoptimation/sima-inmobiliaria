@@ -202,6 +202,67 @@ test.describe('Editar el monto de un pago ya confirmado', () => {
     expect(imputacionesAjuste?.reduce((acc, i) => acc + i.monto_imputado, 0)).toBe(-700)
   })
 
+  test('corrección hacia abajo después de una corrección hacia arriba revierte la imputación del ajuste, no la del pago original', async ({
+    page,
+  }) => {
+    const nombreArchivo = `e2e-ajuste-abajo-tras-arriba-${Date.now()}.pdf`
+    // 1000 llena la cuota 1 entera. La corrección hacia arriba (+200) cae
+    // sobre la cuota 2, en una fila de pago_imputaciones que cuelga del
+    // AJUSTE, no del pago original.
+    const pagoId = await crearPagoConfirmado(fixtures, nombreArchivo, 1000)
+
+    await login(page, fixtures.admin.email, fixtures.password)
+    await page.goto('/admin/pagos')
+
+    let fila = filaPorComprobante(page, nombreArchivo)
+    await fila.locator('input[name="montoNuevo"]').fill('1200') // delta +200, cae en cuota 2
+    await fila.getByRole('button', { name: 'Editar monto' }).click()
+    await expect(fila.getByText('Corregir monto (actual: 1200 USD)')).toBeVisible()
+
+    // Corrección hacia abajo (-150) sobre el mismo pago original. Tiene que
+    // revertir la imputación de 200 que dejó el AJUSTE anterior en cuota 2
+    // -- no la imputación de 1000 del pago original en cuota 1, que nunca
+    // debería tocarse porque no es el movimiento más reciente.
+    fila = filaPorComprobante(page, nombreArchivo)
+    await fila.locator('input[name="montoNuevo"]').fill('1050') // delta -150 sobre el efectivo (1200)
+    await fila.getByRole('button', { name: 'Editar monto' }).click()
+    await expect(fila.getByText('Corregir monto (actual: 1050 USD)')).toBeVisible()
+
+    const admin = createAdminClient()
+
+    const { data: cuotas } = await admin
+      .from('cuotas')
+      .select('numero, saldo_pendiente')
+      .eq('lote_id', fixtures.loteId)
+      .order('numero', { ascending: true })
+    expect(cuotas?.[0].saldo_pendiente).toBe(0) // cuota 1: nunca se toca por esta reversión
+    expect(cuotas?.[1].saldo_pendiente).toBe(950) // cuota 2: 800 (1000-200) + 150 revertidos
+
+    const { data: ajustes } = await admin
+      .from('pagos')
+      .select('id, monto')
+      .eq('corrige_pago_id', pagoId)
+      .order('created_at', { ascending: true })
+    expect(ajustes).toHaveLength(2)
+    expect(ajustes?.[0].monto).toBe(200)
+    expect(ajustes?.[1].monto).toBe(-150)
+
+    const { data: imputacionesReversion } = await admin
+      .from('pago_imputaciones')
+      .select('cuota_id')
+      .eq('pago_id', ajustes![1].id)
+    expect(imputacionesReversion).toHaveLength(1)
+
+    // La cuota que recibió la reversión es la 2 -- la que tocó el ajuste
+    // anterior -- no la 1, que es la del pago original.
+    const { data: cuotaIdsPorNumero } = await admin
+      .from('cuotas')
+      .select('id, numero')
+      .eq('lote_id', fixtures.loteId)
+    const idCuota2 = cuotaIdsPorNumero!.find((c) => c.numero === 2)!.id
+    expect(imputacionesReversion?.[0].cuota_id).toBe(idCuota2)
+  })
+
   test('segunda corrección sobre el mismo pago parte del monto efectivo, no del original', async ({
     page,
   }) => {

@@ -249,6 +249,11 @@ export async function editarMontoPago(pagoId: string, formData: FormData) {
     data: { user },
   } = await supabase.auth.getUser()
 
+  // requireAdministrador() de arriba ya redirige si no hay sesion, pero se
+  // repite el chequeo aca (misma convencion que confirmarPago) para no
+  // depender implicitamente de esa otra funcion al usar `user!.id` mas abajo.
+  if (!user) return
+
   const { data: pago } = await supabase
     .from('pagos')
     .select('id, cliente_id, lote_id, moneda, comprobante_path, motivo, estado, monto')
@@ -261,7 +266,7 @@ export async function editarMontoPago(pagoId: string, formData: FormData) {
 
   const { data: ajustesPrevios } = await supabase
     .from('pagos')
-    .select('monto')
+    .select('id, monto')
     .eq('corrige_pago_id', pagoId)
 
   const montoEfectivoActual =
@@ -323,50 +328,109 @@ export async function editarMontoPago(pagoId: string, formData: FormData) {
     )
 
     for (const imputacion of resultado.imputaciones) {
-      await supabase.from('pago_imputaciones').insert({
+      const { error: errorImputacion } = await supabase.from('pago_imputaciones').insert({
         pago_id: pagoAjuste!.id,
         cuota_id: imputacion.cuotaId,
         monto_imputado: imputacion.montoImputado,
       })
 
+      if (errorImputacion) {
+        // El ajuste ya quedo insertado (evita que un reintento vuelva a
+        // correr el FIFO y duplique lo ya imputado). Si una fila puntual
+        // falla aca, queda para revision manual via la tabla de
+        // imputaciones -- no seguimos escribiendo en un estado inconsistente
+        // (mismo patron que confirmarPago).
+        redirect(
+          `/admin/pagos?error=${encodeURIComponent(
+            'La corrección se registró pero falló al imputarla. Revisalo manualmente.'
+          )}`
+        )
+      }
+
       const cuota = cuotas!.find((c) => c.id === imputacion.cuotaId)!
-      await supabase
+      const { error: errorSaldo } = await supabase
         .from('cuotas')
         .update({ saldo_pendiente: cuota.saldo_pendiente - imputacion.montoImputado })
         .eq('id', imputacion.cuotaId)
+
+      if (errorSaldo) {
+        redirect(
+          `/admin/pagos?error=${encodeURIComponent(
+            'La corrección se registró pero falló al actualizar el saldo de una cuota. Revisalo manualmente.'
+          )}`
+        )
+      }
     }
   } else {
-    const { data: imputacionesOriginales } = await supabase
+    // La reversion tiene que considerar TODA la cadena de correcciones sobre
+    // este pago (el original + cada ajuste previo), no solo las
+    // imputaciones del pago original -- una correccion hacia arriba previa
+    // dejo sus propias filas en pago_imputaciones bajo el id de ESE ajuste,
+    // no bajo pagoId. Neteamos por cuota para no revertir de mas lo que una
+    // correccion previa ya revirtio, y ordenamos por el toque mas reciente
+    // para revertir primero el movimiento de plata mas nuevo.
+    const idsCorreccion = [pagoId, ...(ajustesPrevios ?? []).map((ajuste) => ajuste.id)]
+
+    const { data: imputacionesCorreccion } = await supabase
       .from('pago_imputaciones')
-      .select('id, cuota_id, monto_imputado')
-      .eq('pago_id', pagoId)
+      .select('cuota_id, monto_imputado, created_at')
+      .in('pago_id', idsCorreccion)
       .order('created_at', { ascending: false })
+
+    const netoPorCuota = new Map<string, { neto: number; ultimoToque: string }>()
+    for (const imputacion of imputacionesCorreccion ?? []) {
+      const actual = netoPorCuota.get(imputacion.cuota_id)
+      netoPorCuota.set(imputacion.cuota_id, {
+        neto: (actual?.neto ?? 0) + imputacion.monto_imputado,
+        ultimoToque: actual?.ultimoToque ?? imputacion.created_at, // ya viene ordenado desc
+      })
+    }
+
+    const cuotasOrdenadas = [...netoPorCuota.entries()]
+      .filter(([, info]) => info.neto > 0)
+      .sort((a, b) => (a[1].ultimoToque < b[1].ultimoToque ? 1 : -1))
 
     let restante = Math.abs(delta)
 
-    for (const imputacion of imputacionesOriginales ?? []) {
+    for (const [cuotaId, info] of cuotasOrdenadas) {
       if (restante <= 0) break
 
-      const aRevertir = Math.min(imputacion.monto_imputado, restante)
+      const aRevertir = Math.min(info.neto, restante)
 
       const { data: cuota } = await supabase
         .from('cuotas')
         .select('saldo_pendiente')
-        .eq('id', imputacion.cuota_id)
+        .eq('id', cuotaId)
         .single()
 
       if (!cuota) continue
 
-      await supabase
+      const { error: errorSaldo } = await supabase
         .from('cuotas')
         .update({ saldo_pendiente: cuota.saldo_pendiente + aRevertir })
-        .eq('id', imputacion.cuota_id)
+        .eq('id', cuotaId)
 
-      await supabase.from('pago_imputaciones').insert({
+      if (errorSaldo) {
+        redirect(
+          `/admin/pagos?error=${encodeURIComponent(
+            'La corrección se registró pero falló al actualizar el saldo de una cuota. Revisalo manualmente.'
+          )}`
+        )
+      }
+
+      const { error: errorImputacion } = await supabase.from('pago_imputaciones').insert({
         pago_id: pagoAjuste!.id,
-        cuota_id: imputacion.cuota_id,
+        cuota_id: cuotaId,
         monto_imputado: -aRevertir,
       })
+
+      if (errorImputacion) {
+        redirect(
+          `/admin/pagos?error=${encodeURIComponent(
+            'La corrección se registró pero falló al revertir una imputación. Revisalo manualmente.'
+          )}`
+        )
+      }
 
       restante -= aRevertir
     }
