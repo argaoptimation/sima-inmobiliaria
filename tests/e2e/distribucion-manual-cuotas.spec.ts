@@ -171,6 +171,33 @@ test.describe('Distribución manual por cuota', () => {
     }
   })
 
+  test('seleccionar el mismo participante dos veces en la misma cuota suma los montos en vez de fallar', async ({
+    page,
+  }) => {
+    const admin = createAdminClient()
+
+    await login(page, fixtures.admin.email, fixtures.password)
+    await page.goto(`/admin/lotes/${fixtures.loteId}/distribucion`)
+
+    await page.getByRole('button', { name: '+ Agregar participante a esta cuota' }).nth(0).click()
+    await page.locator('select[name="cuota1Participante"]').nth(0).selectOption({ label: 'E2E Vendedor A (vendedor)' })
+    await page.locator('input[name="cuota1Monto"]').nth(0).fill('200')
+
+    await page.getByRole('button', { name: '+ Agregar participante a esta cuota' }).nth(0).click()
+    await page.locator('select[name="cuota1Participante"]').nth(1).selectOption({ label: 'E2E Vendedor A (vendedor)' })
+    await page.locator('input[name="cuota1Monto"]').nth(1).fill('300')
+
+    await page.getByRole('button', { name: 'Guardar distribución' }).click()
+    await page.waitForURL(/ok=1/)
+
+    const { data: distribuciones } = await admin
+      .from('cuota_distribuciones')
+      .select('profile_id, monto')
+      .eq('cuota_id', fixtures.cuotaIds[0])
+
+    expect(distribuciones).toEqual([{ profile_id: fixtures.vendedorLoteA.id, monto: 500 }])
+  })
+
   test('un lote que no está vendido muestra un aviso en vez del formulario de distribución', async ({
     page,
   }) => {

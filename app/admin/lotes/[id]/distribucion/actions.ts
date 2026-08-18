@@ -36,8 +36,10 @@ function filasValidas(filas: { participanteKey: string; monto: string }[]): Fila
   const resultado: FilaValida[] = []
   for (const fila of filas) {
     const participante = parseParticipanteKey(fila.participanteKey)
-    const monto = Number(fila.monto)
-    if (!participante || !Number.isFinite(monto) || monto < 0) continue
+    const montoTexto = fila.monto.trim()
+    if (!participante || montoTexto === '') continue
+    const monto = Number(montoTexto)
+    if (!Number.isFinite(monto) || monto < 0) continue
     resultado.push({ ...participante, monto })
   }
   return resultado
@@ -66,6 +68,14 @@ export async function guardarDistribucionLote(loteId: string, formData: FormData
 
   const supabase = await createClient()
 
+  const { data: lote } = await supabase.from('lotes').select('estado').eq('id', loteId).single()
+
+  if (!lote || lote.estado !== 'vendido') {
+    redirect(
+      `/admin/lotes/${loteId}/distribucion?error=${encodeURIComponent('Este lote no está vendido, no se puede guardar una distribución')}`
+    )
+  }
+
   const { data: cuotas } = await supabase.from('cuotas').select('id, numero').eq('lote_id', loteId)
 
   if (!cuotas) {
@@ -82,47 +92,6 @@ export async function guardarDistribucionLote(loteId: string, formData: FormData
     filasValidas(leerFilas(formData, 'objetivoParticipante', 'objetivoMonto'))
   )
 
-  const { error: errorBorrarObjetivos } = await supabase
-    .from('lote_distribucion_objetivos')
-    .delete()
-    .eq('lote_id', loteId)
-
-  if (errorBorrarObjetivos) {
-    redirect(`/admin/lotes/${loteId}/distribucion?error=${encodeURIComponent(errorBorrarObjetivos.message)}`)
-  }
-
-  if (objetivosValidos.length > 0) {
-    const { error: errorInsertarObjetivos } = await supabase.from('lote_distribucion_objetivos').insert(
-      objetivosValidos.map((fila) => ({
-        lote_id: loteId,
-        profile_id: fila.profile_id,
-        cuenta_externa_id: fila.cuenta_externa_id,
-        monto_objetivo: fila.monto,
-      }))
-    )
-
-    if (errorInsertarObjetivos) {
-      redirect(
-        `/admin/lotes/${loteId}/distribucion?error=${encodeURIComponent(errorInsertarObjetivos.message)}`
-      )
-    }
-  }
-
-  const cuotaIds = cuotas.map((cuota) => cuota.id)
-
-  if (cuotaIds.length > 0) {
-    const { error: errorBorrarDistribuciones } = await supabase
-      .from('cuota_distribuciones')
-      .delete()
-      .in('cuota_id', cuotaIds)
-
-    if (errorBorrarDistribuciones) {
-      redirect(
-        `/admin/lotes/${loteId}/distribucion?error=${encodeURIComponent(errorBorrarDistribuciones.message)}`
-      )
-    }
-  }
-
   const filasParaInsertar: (FilaValida & { cuota_id: string })[] = []
 
   for (const cuota of cuotas) {
@@ -134,16 +103,28 @@ export async function guardarDistribucionLote(loteId: string, formData: FormData
     }
   }
 
-  if (filasParaInsertar.length > 0) {
-    const { error: errorInsertarDistribuciones } = await supabase
-      .from('cuota_distribuciones')
-      .insert(filasParaInsertar)
+  // Borrado + inserción de objetivos y distribuciones en una única
+  // transacción atómica en la base -- si algo falla a mitad de camino no
+  // se pierde la distribución previamente guardada del lote.
+  const { error: errorGuardar } = await supabase.rpc('guardar_distribucion_lote', {
+    p_lote_id: loteId,
+    p_objetivos: objetivosValidos.map((fila) => ({
+      profile_id: fila.profile_id,
+      cuenta_externa_id: fila.cuenta_externa_id,
+      monto: fila.monto,
+    })),
+    p_distribuciones: filasParaInsertar.map((fila) => ({
+      cuota_id: fila.cuota_id,
+      profile_id: fila.profile_id,
+      cuenta_externa_id: fila.cuenta_externa_id,
+      monto: fila.monto,
+    })),
+  })
 
-    if (errorInsertarDistribuciones) {
-      redirect(
-        `/admin/lotes/${loteId}/distribucion?error=${encodeURIComponent(errorInsertarDistribuciones.message)}`
-      )
-    }
+  if (errorGuardar) {
+    redirect(
+      `/admin/lotes/${loteId}/distribucion?error=${encodeURIComponent('No se pudo guardar la distribución. Probá de nuevo.')}`
+    )
   }
 
   redirect(`/admin/lotes/${loteId}/distribucion?ok=1`)
