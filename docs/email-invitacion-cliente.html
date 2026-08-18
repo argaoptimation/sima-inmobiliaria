@@ -1,0 +1,90 @@
+<!--
+  Plantilla de email para Supabase Auth — "Invite user" (la que se manda al
+  vender un lote, invitando al cliente a crear su contraseña).
+
+  Cómo instalarla:
+  1. Entrá al dashboard de Supabase del proyecto SIMA.
+  2. Authentication → Email Templates → "Invite user".
+  3. Pegá TODO este archivo (incluido el <!DOCTYPE>) en el campo de HTML del
+     mensaje, reemplazando lo que haya ahora.
+  4. Guardar. No hace falta tocar nada del código de la app — Supabase ya
+     rellena {{ .ConfirmationURL }} solo con el link real de cada invitación.
+
+  Editable a mano después: cualquiera que sepa HTML básico puede cambiar
+  textos, colores (buscá los valores hex en los estilos "inline") o el
+  nombre/teléfono de contacto del pie, sin tocar nada de la plataforma.
+-->
+<!DOCTYPE html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Invitación SIMA Inmobiliaria</title>
+  </head>
+  <body style="margin:0; padding:0; background-color:#eef2f7; font-family: Arial, Helvetica, sans-serif;">
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background-color:#eef2f7; padding: 32px 16px;">
+      <tr>
+        <td align="center">
+          <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width: 480px; background-color:#ffffff; border-radius: 8px; overflow: hidden; box-shadow: 0 1px 4px rgba(0,0,0,0.08);">
+
+            <!-- Header azul -->
+            <tr>
+              <td style="background-color:#12406b; padding: 28px 32px;">
+                <span style="font-size: 22px; font-weight: bold; color:#ffffff; letter-spacing: 0.5px;">
+                  SIMA Inmobiliaria
+                </span>
+              </td>
+            </tr>
+
+            <!-- Cuerpo -->
+            <tr>
+              <td style="padding: 32px;">
+                <h1 style="margin: 0 0 16px 0; font-size: 20px; color:#12406b;">
+                  Te invitamos a crear tu cuenta
+                </h1>
+                <p style="margin: 0 0 16px 0; font-size: 15px; line-height: 1.6; color:#333333;">
+                  Ya quedó registrada tu compra en SIMA Inmobiliaria. Para poder
+                  ver el estado de tus cuotas, tus comprobantes y toda la
+                  información de tu lote, necesitás crear una contraseña para
+                  tu cuenta.
+                </p>
+                <p style="margin: 0 0 24px 0; font-size: 15px; line-height: 1.6; color:#333333;">
+                  Hacé clic en el siguiente botón para elegir tu contraseña y
+                  acceder a tu portal de cliente:
+                </p>
+
+                <table role="presentation" cellpadding="0" cellspacing="0" style="margin: 0 auto;">
+                  <tr>
+                    <td align="center" style="border-radius: 6px; background-color:#1a63a3;">
+                      <a href="{{ .ConfirmationURL }}"
+                         style="display:inline-block; padding: 14px 32px; font-size: 15px; font-weight: bold; color:#ffffff; text-decoration:none; border-radius: 6px;">
+                        Crear mi contraseña
+                      </a>
+                    </td>
+                  </tr>
+                </table>
+
+                <p style="margin: 24px 0 0 0; font-size: 13px; line-height: 1.5; color:#777777;">
+                  Si el botón no funciona, copiá y pegá este link en tu
+                  navegador:<br />
+                  <a href="{{ .ConfirmationURL }}" style="color:#1a63a3; word-break: break-all;">{{ .ConfirmationURL }}</a>
+                </p>
+              </td>
+            </tr>
+
+            <!-- Pie -->
+            <tr>
+              <td style="background-color:#f4f7fa; padding: 20px 32px; text-align:center;">
+                <p style="margin:0; font-size: 12px; color:#8a94a0;">
+                  SIMA Inmobiliaria · Si no esperabas este email, podés
+                  ignorarlo con tranquilidad.
+                </p>
+              </td>
+            </tr>
+
+          </table>
+        </td>
+      </tr>
+    </table>
+  </body>
+</html>
