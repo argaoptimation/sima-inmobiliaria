@@ -64,6 +64,21 @@ export default async function PagarCuotaPage({
 
   const registrarPagoConId = registrarPago.bind(null, id)
 
+  // Fallback en cascada: la cotización más reciente en o antes de hoy --
+  // resuelve solo el caso de fin de semana / día sin cargar (un ORDER BY +
+  // LIMIT 1 hace de cascada, sin iterar día por día a mano).
+  const hoy = new Date().toISOString().slice(0, 10)
+  const { data: cotizacionVigente } =
+    lote!.moneda === 'USD'
+      ? await supabase
+          .from('cotizaciones_dolar')
+          .select('valor, fecha')
+          .lte('fecha', hoy)
+          .order('fecha', { ascending: false })
+          .limit(1)
+          .maybeSingle()
+      : { data: null }
+
   return (
     <main className="mx-auto mt-12 max-w-md p-6">
       <h1 className="mb-6 text-xl font-semibold">Registrar pago</h1>
@@ -96,6 +111,7 @@ export default async function PagarCuotaPage({
           saldoPendiente={cuota!.saldo_pendiente}
           monedaLote={lote!.moneda}
           interesMoratorioDiario={lote!.interes_moratorio_diario}
+          cotizacionVigente={cotizacionVigente}
         />
         <button type="submit" className="rounded bg-black px-3 py-2 text-white">
           Ya transferí

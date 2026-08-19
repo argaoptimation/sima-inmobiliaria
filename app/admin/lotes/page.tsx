@@ -4,6 +4,7 @@ import { cancelarReserva } from './actions'
 import { BotonCancelarReserva } from './BotonCancelarReserva'
 import { eliminarLote } from './[id]/actions'
 import { BotonEliminarLote } from './[id]/BotonEliminarLote'
+import { guardarCotizacionDolar } from './cotizacion-dolar-actions'
 
 const COLUMNAS_ORDENABLES = ['identificador', 'ubicacion', 'precio_total', 'moneda', 'estado'] as const
 type ColumnaOrdenable = (typeof COLUMNAS_ORDENABLES)[number]
@@ -19,9 +20,17 @@ const ETIQUETAS_COLUMNA: Record<ColumnaOrdenable, string> = {
 export default async function LotesPage({
   searchParams,
 }: {
-  searchParams: Promise<{ sort?: string; dir?: string; moneda?: string; acreedor?: string; q?: string }>
+  searchParams: Promise<{
+    sort?: string
+    dir?: string
+    moneda?: string
+    acreedor?: string
+    q?: string
+    error?: string
+  }>
 }) {
-  const { sort, dir, moneda: filtroMoneda, acreedor: filtroAcreedorId, q: filtroTexto } = await searchParams
+  const { sort, dir, moneda: filtroMoneda, acreedor: filtroAcreedorId, q: filtroTexto, error } =
+    await searchParams
 
   const supabase = await createClient()
 
@@ -44,6 +53,17 @@ export default async function LotesPage({
   }
 
   const esVendedorOCobrador = perfilPropio!.role === 'vendedor' || perfilPropio!.role === 'cobrador'
+
+  const hoy = new Date().toISOString().slice(0, 10)
+  const { data: cotizacionHoy } = await supabase
+    .from('cotizaciones_dolar')
+    .select('valor, cargado_por, created_at')
+    .eq('fecha', hoy)
+    .maybeSingle()
+
+  const { data: cargadorCotizacion } = cotizacionHoy
+    ? await supabase.from('profiles').select('full_name').eq('id', cotizacionHoy.cargado_por).single()
+    : { data: null }
 
   const columnaOrden: ColumnaOrdenable = COLUMNAS_ORDENABLES.includes(sort as ColumnaOrdenable)
     ? (sort as ColumnaOrdenable)
@@ -126,6 +146,44 @@ export default async function LotesPage({
 
   return (
     <main>
+      {error && <p className="mb-4 rounded bg-red-100 p-2 text-sm text-red-700">{error}</p>}
+
+      <div className="mb-6 rounded border border-gray-200 bg-gray-50 p-3 text-sm">
+        {cotizacionHoy ? (
+          <p className="mb-2 text-green-700">
+            ✓ Cotización de hoy ({hoy}) ya cargada: <span className="font-medium">{cotizacionHoy.valor}</span>{' '}
+            ARS por USD — cargada por {cargadorCotizacion?.full_name ?? '—'} a las{' '}
+            {new Date(cotizacionHoy.created_at).toLocaleTimeString('es-AR', {
+              hour: '2-digit',
+              minute: '2-digit',
+            })}
+            hs.
+          </p>
+        ) : (
+          <p className="mb-2 font-semibold text-amber-700">
+            ⚠ Todavía no cargaste la cotización del dólar de hoy ({hoy}).
+          </p>
+        )}
+        <form action={guardarCotizacionDolar} className="flex items-end gap-2">
+          <label className="text-sm">
+            {cotizacionHoy ? 'Corregir cotización de hoy' : 'Cotización de hoy'} (ARS por USD)
+            <input
+              name="valor"
+              type="number"
+              step="0.01"
+              min="0.01"
+              placeholder="Ej: 1500"
+              defaultValue={cotizacionHoy?.valor ?? ''}
+              required
+              className="mt-1 block rounded border px-3 py-2"
+            />
+          </label>
+          <button type="submit" className="rounded bg-black px-3 py-2 text-sm text-white">
+            {cotizacionHoy ? 'Corregir' : 'Cargar'}
+          </button>
+        </form>
+      </div>
+
       <div className="mb-6 flex items-center justify-between">
         <h1 className="text-xl font-semibold">Lotes</h1>
         {!esVendedorOCobrador && (

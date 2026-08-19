@@ -1,14 +1,21 @@
 'use client'
 
 import { useState } from 'react'
+import { convertirUsdAPesos } from '@/lib/cobranza/cotizacion-dolar'
 
 interface Props {
   saldoPendiente: number
   monedaLote: string
   interesMoratorioDiario: number | null
+  cotizacionVigente: { valor: number; fecha: string } | null
 }
 
-export function MontoYMoneda({ saldoPendiente, monedaLote, interesMoratorioDiario }: Props) {
+export function MontoYMoneda({
+  saldoPendiente,
+  monedaLote,
+  interesMoratorioDiario,
+  cotizacionVigente,
+}: Props) {
   const [montoTexto, setMontoTexto] = useState(String(saldoPendiente))
 
   const monto = Number(montoTexto) || 0
@@ -30,6 +37,13 @@ export function MontoYMoneda({ saldoPendiente, monedaLote, interesMoratorioDiari
           className="mt-1 block w-full rounded border px-3 py-2"
         />
       </label>
+
+      {monedaLote === 'USD' && cotizacionVigente && monto > 0 && (
+        <p className="rounded border border-blue-200 bg-blue-50 p-3 text-sm text-blue-900">
+          Equivalente en pesos: {convertirUsdAPesos(monto, cotizacionVigente.valor)} ARS
+          (cotización del {cotizacionVigente.fecha}: {cotizacionVigente.valor} ARS por USD)
+        </p>
+      )}
 
       {esPagoParcial && interesMoratorioDiario && (
         <p className="rounded border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900">
