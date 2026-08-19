@@ -1,0 +1,180 @@
+import { test, expect } from '@playwright/test'
+import { ensureTestFixtures, createAdminClient, TestFixtures } from './fixtures/test-data'
+import { login } from './utils/login'
+
+async function crearLoteVendidoConIndice(
+  identificador: string,
+  indiceTipo: string | null,
+  clienteId: string,
+  acreedorId: string,
+  fechaVencimientoCuota: string,
+  saldoPendienteCuota: number
+) {
+  const admin = createAdminClient()
+  const { data: lote, error: errorLote } = await admin
+    .from('lotes')
+    .insert({
+      identificador,
+      moneda: 'ARS',
+      estado: 'vendido',
+      precio_total: 100000,
+      acreedor_id: acreedorId,
+      cliente_id: clienteId,
+      indice_tipo: indiceTipo,
+    })
+    .select('id')
+    .single()
+
+  if (errorLote || !lote) {
+    throw new Error(`No se pudo crear el lote de prueba: ${errorLote?.message}`)
+  }
+
+  const { data: cuota, error: errorCuota } = await admin
+    .from('cuotas')
+    .insert({
+      lote_id: lote.id,
+      numero: 1,
+      monto_base: saldoPendienteCuota,
+      saldo_pendiente: saldoPendienteCuota,
+      fecha_vencimiento: fechaVencimientoCuota,
+    })
+    .select('id')
+    .single()
+
+  if (errorCuota || !cuota) {
+    throw new Error(`No se pudo crear la cuota de prueba: ${errorCuota?.message}`)
+  }
+
+  return { loteId: lote.id as string, cuotaId: cuota.id as string }
+}
+
+test.describe('Índices — carga manual y aplicación automática a mes vencido', () => {
+  let fixtures: TestFixtures
+
+  test.beforeAll(async () => {
+    fixtures = await ensureTestFixtures()
+  })
+
+  test('cargar un valor de índice ajusta automáticamente la cuota del mes siguiente del lote atado a ese índice', async ({
+    page,
+  }) => {
+    const admin = createAdminClient()
+    const nombreIndice = `IPC-E2E-${Date.now()}`
+
+    const { loteId, cuotaId } = await crearLoteVendidoConIndice(
+      `E2E Indice ${Date.now()}`,
+      nombreIndice,
+      fixtures.cliente.id,
+      fixtures.acreedorConDatos.id,
+      '2027-02-15',
+      100000
+    )
+
+    await login(page, fixtures.admin.email, fixtures.password)
+    await page.goto('/admin/indices')
+    await page.getByPlaceholder('Ej: IPC').fill(nombreIndice)
+    await page.locator('input[name="periodo"]').fill('2027-01')
+    await page.getByPlaceholder('Ej: 3').fill('3')
+    await page.getByRole('button', { name: 'Cargar' }).click()
+    await page.waitForURL('**/admin/indices')
+
+    await expect(page.locator('tbody').getByText(nombreIndice)).toBeVisible()
+
+    const { data: cuota } = await admin.from('cuotas').select('saldo_pendiente').eq('id', cuotaId).single()
+    expect(cuota?.saldo_pendiente).toBe(103000)
+
+    const { data: ajuste } = await admin
+      .from('ajustes_indexacion')
+      .select('porcentaje, fecha_desde')
+      .eq('lote_id', loteId)
+      .single()
+    expect(ajuste?.porcentaje).toBe(3)
+    expect(ajuste?.fecha_desde).toBe('2027-02-01')
+  })
+
+  test('un lote sin ese índice configurado no se ve afectado', async ({ page }) => {
+    const admin = createAdminClient()
+    const nombreIndice = `ICC-E2E-${Date.now()}`
+
+    const { cuotaId } = await crearLoteVendidoConIndice(
+      `E2E Sin Indice ${Date.now()}`,
+      null,
+      fixtures.cliente.id,
+      fixtures.acreedorConDatos.id,
+      '2027-02-15',
+      100000
+    )
+
+    await login(page, fixtures.admin.email, fixtures.password)
+    await page.goto('/admin/indices')
+    await page.getByPlaceholder('Ej: IPC').fill(nombreIndice)
+    await page.locator('input[name="periodo"]').fill('2027-01')
+    await page.getByPlaceholder('Ej: 3').fill('5')
+    await page.getByRole('button', { name: 'Cargar' }).click()
+    await page.waitForURL('**/admin/indices')
+
+    const { data: cuota } = await admin.from('cuotas').select('saldo_pendiente').eq('id', cuotaId).single()
+    expect(cuota?.saldo_pendiente).toBe(100000)
+  })
+
+  test('cargar dos veces el mismo índice y mes es rechazado con un mensaje claro', async ({ page }) => {
+    const nombreIndice = `IPC-E2E-Dup-${Date.now()}`
+
+    await login(page, fixtures.admin.email, fixtures.password)
+    await page.goto('/admin/indices')
+    await page.getByPlaceholder('Ej: IPC').fill(nombreIndice)
+    await page.locator('input[name="periodo"]').fill('2027-03')
+    await page.getByPlaceholder('Ej: 3').fill('2')
+    await page.getByRole('button', { name: 'Cargar' }).click()
+    await page.waitForURL('**/admin/indices')
+
+    await page.getByPlaceholder('Ej: IPC').fill(nombreIndice)
+    await page.locator('input[name="periodo"]').fill('2027-03')
+    await page.getByPlaceholder('Ej: 3').fill('4')
+    await page.getByRole('button', { name: 'Cargar' }).click()
+
+    await expect(page.getByText(/Ya se cargó un valor de/)).toBeVisible()
+  })
+
+  test('el selector de índice en Datos generales del lote guarda correctamente', async ({ page }) => {
+    const admin = createAdminClient()
+    const { loteId } = await crearLoteVendidoConIndice(
+      `E2E Selector Indice ${Date.now()}`,
+      null,
+      fixtures.cliente.id,
+      fixtures.acreedorConDatos.id,
+      '2027-02-15',
+      100000
+    )
+    const nombreIndice = `IPC-E2E-Selector-${Date.now()}`
+
+    // Precondición: el índice tiene que existir en indices_valores para
+    // aparecer como opción en el <select> (la pantalla solo ofrece índices
+    // ya cargados al menos una vez).
+    await admin.from('indices_valores').insert({
+      nombre: nombreIndice,
+      periodo: '2026-01-01',
+      valor: 1,
+      cargado_por: fixtures.admin.id,
+    })
+
+    await login(page, fixtures.admin.email, fixtures.password)
+    await page.goto(`/admin/lotes/${loteId}`)
+    await page.locator('select[name="indiceTipo"]').selectOption(nombreIndice)
+    await page.getByRole('button', { name: 'Guardar', exact: true }).click()
+    await page.waitForURL(`**/admin/lotes/${loteId}`)
+
+    let intentos = 0
+    await expect
+      .poll(
+        async () => {
+          intentos += 1
+          const { data: lote } = await admin.from('lotes').select('indice_tipo').eq('id', loteId).single()
+          return lote?.indice_tipo ?? null
+        },
+        { timeout: 10000 }
+      )
+      .toBe(nombreIndice)
+    console.log(`[diagnóstico stale-read] intentos hasta ver el valor correcto: ${intentos}`)
+  })
+})

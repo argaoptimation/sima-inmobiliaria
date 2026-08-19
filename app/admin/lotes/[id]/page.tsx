@@ -44,7 +44,7 @@ export default async function LoteDetallePage({
   const { data: lote } = await supabase
     .from('lotes')
     .select(
-      'id, identificador, moneda, estado, cliente_id, admin_id, acreedor_id, vendedor_id, cuenta_cobro_id, cuenta_cobro_externa_id, ubicacion, precio_total, documento_firmado_path, interes_moratorio_diario'
+      'id, identificador, moneda, estado, cliente_id, admin_id, acreedor_id, vendedor_id, cuenta_cobro_id, cuenta_cobro_externa_id, ubicacion, precio_total, documento_firmado_path, interes_moratorio_diario, indice_tipo'
     )
     .eq('id', id)
     .single()
@@ -243,6 +243,12 @@ export default async function LoteDetallePage({
   )
 
   const actualizarDatosGeneralesConId = actualizarDatosGenerales.bind(null, id)
+
+  const { data: indicesDisponibles } =
+    lote!.moneda === 'ARS'
+      ? await supabase.from('indices_valores').select('nombre')
+      : { data: [] }
+  const nombresIndicesDisponibles = [...new Set((indicesDisponibles ?? []).map((v) => v.nombre))].sort()
   const actualizarCobroConId = actualizarCobro.bind(null, id)
   const agregarParticipanteConId = agregarParticipante.bind(null, id)
   const eliminarLoteConId = eliminarLote.bind(null, id)
@@ -478,6 +484,31 @@ export default async function LoteDetallePage({
             className="mt-1 block w-full rounded border px-3 py-2"
           />
         </label>
+        {lote!.moneda === 'ARS' && (
+          <label className="text-sm">
+            Índice de ajuste (opcional — solo para lotes en pesos)
+            <select
+              name="indiceTipo"
+              defaultValue={lote!.indice_tipo ?? ''}
+              className="mt-1 block w-full rounded border px-3 py-2"
+            >
+              <option value="">— sin índice —</option>
+              {nombresIndicesDisponibles.map((nombre) => (
+                <option key={nombre} value={nombre}>
+                  {nombre}
+                </option>
+              ))}
+            </select>
+            <span className="mt-1 block text-xs text-gray-500">
+              Si elegís un índice, las cuotas de este lote se ajustan solas cada mes con el valor
+              que se cargue en{' '}
+              <a href="/admin/indices" className="underline">
+                Índices
+              </a>
+              . Los índices disponibles acá son los que ya se cargaron al menos una vez ahí.
+            </span>
+          </label>
+        )}
         <button type="submit" className="self-start rounded bg-black px-3 py-2 text-sm text-white">
           Guardar
         </button>

@@ -20,11 +20,12 @@ export async function actualizarDatosGenerales(loteId: string, formData: FormDat
   const ubicacion = ((formData.get('ubicacion') as string) || '').trim() || null
   const precioTotalTexto = ((formData.get('precioTotal') as string) || '').trim()
   const precioTotal = precioTotalTexto ? Number(precioTotalTexto) : null
+  const indiceTipo = ((formData.get('indiceTipo') as string) || '').trim() || null
 
   const supabase = await createClient()
   const { error } = await supabase
     .from('lotes')
-    .update({ identificador, ubicacion, precio_total: precioTotal })
+    .update({ identificador, ubicacion, precio_total: precioTotal, indice_tipo: indiceTipo })
     .eq('id', loteId)
 
   if (error) {
