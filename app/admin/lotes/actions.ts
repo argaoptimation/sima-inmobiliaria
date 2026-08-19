@@ -90,7 +90,10 @@ export async function crearLote(formData: FormData) {
   })
 
   if (errorLote) {
-    redirect(`/admin/lotes/nuevo?error=${encodeURIComponent(mensajeDeError(errorLote))}`)
+    const mensaje = mensajeDeError(errorLote, {
+      '23505': 'Ya existe un lote con ese identificador en este loteo (o sin loteo asignado)',
+    })
+    redirect(`/admin/lotes/nuevo?error=${encodeURIComponent(mensaje)}`)
   }
 
   redirect('/admin/lotes')

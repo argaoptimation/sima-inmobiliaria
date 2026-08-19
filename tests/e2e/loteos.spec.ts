@@ -159,4 +159,94 @@ test.describe('Loteos', () => {
 
     await admin.from('loteos').delete().eq('id', loteo!.id)
   })
+
+  test('el identificador es único por loteo, no global: el mismo nombre en loteos distintos no choca', async ({
+    page,
+  }) => {
+    const admin = createAdminClient()
+    const identificadorRepetido = `E2E Repetido ${Date.now()}`
+
+    const { data: loteoA } = await admin
+      .from('loteos')
+      .insert({ nombre: `E2E Loteo A ${Date.now()}` })
+      .select('id')
+      .single()
+    const { data: loteoB } = await admin
+      .from('loteos')
+      .insert({ nombre: `E2E Loteo B ${Date.now()}` })
+      .select('id')
+      .single()
+
+    const { data: loteEnA, error: errorLoteEnA } = await admin
+      .from('lotes')
+      .insert({
+        identificador: identificadorRepetido,
+        moneda: 'USD',
+        estado: 'disponible',
+        acreedor_id: fixtures.acreedorConDatos.id,
+        loteo_id: loteoA!.id,
+      })
+      .select('id')
+      .single()
+    expect(errorLoteEnA).toBeNull()
+
+    // Mismo identificador, loteo DISTINTO -- no debería chocar.
+    const { data: loteEnB, error: errorLoteEnB } = await admin
+      .from('lotes')
+      .insert({
+        identificador: identificadorRepetido,
+        moneda: 'USD',
+        estado: 'disponible',
+        acreedor_id: fixtures.acreedorConDatos.id,
+        loteo_id: loteoB!.id,
+      })
+      .select('id')
+      .single()
+    expect(errorLoteEnB).toBeNull()
+    expect(loteEnB).not.toBeNull()
+
+    // Mismo identificador, MISMO loteo (A) -- esto sí tiene que chocar.
+    const { error: errorDuplicadoMismoLoteo } = await admin.from('lotes').insert({
+      identificador: identificadorRepetido,
+      moneda: 'USD',
+      estado: 'disponible',
+      acreedor_id: fixtures.acreedorConDatos.id,
+      loteo_id: loteoA!.id,
+    })
+    expect(errorDuplicadoMismoLoteo?.code).toBe('23505')
+
+    // El formulario de creación de lote (/admin/lotes/nuevo) no permite
+    // elegir loteo todavía, así que el lote que crea siempre queda con
+    // loteo_id null. Para probar el mensaje amigable en la UI, el choque
+    // tiene que darse contra otro lote sin loteo asignado.
+    const { data: loteSinLoteo, error: errorLoteSinLoteo } = await admin
+      .from('lotes')
+      .insert({
+        identificador: identificadorRepetido,
+        moneda: 'USD',
+        estado: 'disponible',
+        acreedor_id: fixtures.acreedorConDatos.id,
+        loteo_id: null,
+      })
+      .select('id')
+      .single()
+    expect(errorLoteSinLoteo).toBeNull()
+
+    // El mensaje amigable se ve al crear un lote nuevo desde la UI con un
+    // identificador repetido (el nuevo lote también queda sin loteo).
+    await login(page, fixtures.admin.email, fixtures.password)
+    await page.goto('/admin/lotes/nuevo')
+    await page
+      .getByPlaceholder('Identificador (ej: Loteo San Martín - Manzana 3 - Lote 12)')
+      .fill(identificadorRepetido)
+    await page.getByPlaceholder('Ubicación').fill('Ubicación de prueba')
+    await page.getByPlaceholder('Precio total del lote').fill('1000')
+    await page.getByLabel('Acreedor').selectOption(fixtures.acreedorConDatos.id)
+    await page.getByRole('button', { name: 'Crear lote' }).click()
+
+    await expect(page.getByText(/Ya existe un lote con ese identificador/)).toBeVisible()
+
+    await admin.from('lotes').delete().in('id', [loteEnA!.id, loteEnB!.id, loteSinLoteo!.id])
+    await admin.from('loteos').delete().in('id', [loteoA!.id, loteoB!.id])
+  })
 })

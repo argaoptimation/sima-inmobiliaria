@@ -48,10 +48,11 @@ export async function importarLotes(formData: FormData) {
     })
 
     if (errorLote) {
+      const mensaje = mensajeDeError(errorLote, {
+        '23505': `Ya existe un lote con el identificador "${lote.identificador}" en ese loteo (o sin loteo asignado)`,
+      })
       redirect(
-        `/admin/lotes/importar?error=${encodeURIComponent(
-          `No se pudo crear "${lote.identificador}": ${mensajeDeError(errorLote)}`
-        )}`
+        `/admin/lotes/importar?error=${encodeURIComponent(`No se pudo crear "${lote.identificador}": ${mensaje}`)}`
       )
     }
   }
