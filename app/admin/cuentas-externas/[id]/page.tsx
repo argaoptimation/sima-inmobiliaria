@@ -119,8 +119,15 @@ export default async function CuentaExternaDetallePage({
         </button>
       </form>
 
-      <h2 className="mb-2 text-lg font-semibold">Agregar deuda pendiente</h2>
+      <h2 className="mb-2 text-lg font-semibold">Agregar movimiento</h2>
       <form action={agregarMovimientoConId} className="mb-8 flex flex-col gap-3 max-w-sm">
+        <label className="text-sm">
+          Tipo
+          <select name="tipo" defaultValue="debito" className="mt-1 block w-full rounded border px-3 py-2">
+            <option value="debito">Débito — le debemos nosotros a esta cuenta</option>
+            <option value="credito">Crédito — esta cuenta nos debe a nosotros</option>
+          </select>
+        </label>
         <label className="text-sm">
           Monto
           <input
@@ -149,7 +156,7 @@ export default async function CuentaExternaDetallePage({
           />
         </label>
         <button type="submit" className="self-start rounded bg-black px-3 py-2 text-sm text-white">
-          Agregar deuda
+          Agregar movimiento
         </button>
       </form>
 
@@ -170,7 +177,7 @@ export default async function CuentaExternaDetallePage({
             {movimientos!.map((movimiento) => (
               <tr key={movimiento.id} className="border-b">
                 <td className="py-2">{new Date(movimiento.created_at).toLocaleDateString('es-AR')}</td>
-                <td>{movimiento.tipo === 'debito' ? 'Débito (le debemos)' : 'Crédito (le pagamos)'}</td>
+                <td>{movimiento.tipo === 'debito' ? 'Débito (le debemos)' : 'Crédito (nos debe / le pagamos)'}</td>
                 <td>{movimiento.concepto}</td>
                 <td>
                   {movimiento.monto} {movimiento.moneda}

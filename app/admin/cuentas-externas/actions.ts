@@ -49,12 +49,15 @@ export async function crearCuentaExterna(formData: FormData) {
 
   if (deudaInicialMonto && deudaInicialMonto > 0) {
     const deudaInicialMoneda = (formData.get('deudaInicialMoneda') as string) || 'USD'
+    const deudaInicialTipoRaw = (formData.get('deudaInicialTipo') as string) || 'debito'
+    const deudaInicialTipo = deudaInicialTipoRaw === 'credito' ? 'credito' : 'debito'
     const deudaInicialConcepto =
-      ((formData.get('deudaInicialConcepto') as string) || '').trim() || 'Deuda inicial'
+      ((formData.get('deudaInicialConcepto') as string) || '').trim() ||
+      (deudaInicialTipo === 'credito' ? 'Saldo inicial a favor nuestro' : 'Deuda inicial')
 
     const { error: errorMovimiento } = await supabase.from('cuentas_externas_movimientos').insert({
       cuenta_externa_id: cuentaExterna!.id,
-      tipo: 'debito',
+      tipo: deudaInicialTipo,
       monto: deudaInicialMonto,
       moneda: deudaInicialMoneda,
       concepto: deudaInicialConcepto,
@@ -123,6 +126,7 @@ export async function agregarMovimiento(cuentaExternaId: string, formData: FormD
   const monto = montoTexto ? Number(montoTexto) : NaN
   const moneda = (formData.get('moneda') as string) || 'USD'
   const concepto = ((formData.get('concepto') as string) || '').trim()
+  const tipo = (formData.get('tipo') as string) || 'debito'
 
   if (!Number.isFinite(monto) || monto <= 0) {
     redirect(
@@ -130,6 +134,10 @@ export async function agregarMovimiento(cuentaExternaId: string, formData: FormD
         'Ingresá un monto válido, mayor a cero'
       )}`
     )
+  }
+
+  if (tipo !== 'debito' && tipo !== 'credito') {
+    redirect(`/admin/cuentas-externas/${cuentaExternaId}?error=${encodeURIComponent('Elegí un tipo válido')}`)
   }
 
   if (!concepto) {
@@ -140,7 +148,7 @@ export async function agregarMovimiento(cuentaExternaId: string, formData: FormD
 
   const { error } = await supabase.from('cuentas_externas_movimientos').insert({
     cuenta_externa_id: cuentaExternaId,
-    tipo: 'debito',
+    tipo,
     monto,
     moneda,
     concepto,

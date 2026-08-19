@@ -37,7 +37,18 @@ export default async function NuevaCuentaExternaPage({
           CBU (opcional)
           <input name="cbu" className="mt-1 block w-full rounded border px-3 py-2" />
         </label>
-        <h2 className="mt-4 text-sm font-semibold">Deuda inicial (opcional)</h2>
+        <h2 className="mt-4 text-sm font-semibold">Movimiento inicial (opcional)</h2>
+        <label className="text-sm">
+          Tipo
+          <select
+            name="deudaInicialTipo"
+            defaultValue="debito"
+            className="mt-1 block w-full rounded border px-3 py-2"
+          >
+            <option value="debito">Débito — le debemos nosotros a esta cuenta</option>
+            <option value="credito">Crédito — esta cuenta nos debe a nosotros</option>
+          </select>
+        </label>
         <label className="text-sm">
           Monto
           <input

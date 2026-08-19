@@ -100,7 +100,7 @@ test.describe('Cuentas externas', () => {
 
     await page.getByLabel('Monto', { exact: true }).fill('1000')
     await page.getByLabel('Concepto').fill('Primera deuda')
-    await page.getByRole('button', { name: 'Agregar deuda' }).click()
+    await page.getByRole('button', { name: 'Agregar movimiento' }).click()
 
     // Esperar a que el mensaje de guardado aparezca con reintentos por timing
     await expect(async () => {
@@ -109,7 +109,7 @@ test.describe('Cuentas externas', () => {
 
     await page.getByLabel('Monto', { exact: true }).fill('500')
     await page.getByLabel('Concepto').fill('Segunda deuda')
-    await page.getByRole('button', { name: 'Agregar deuda' }).click()
+    await page.getByRole('button', { name: 'Agregar movimiento' }).click()
 
     // Esperar y reintentar para el segundo agregado también
     await expect(async () => {
@@ -374,14 +374,23 @@ test.describe('Cuentas externas', () => {
       // la primera carga.
       await expect(async () => {
         await page.goto(`/admin/cuentas-externas/${cuentaExternaId}`)
-        await expect(page.getByText('Crédito (le pagamos)')).toBeVisible()
+        await expect(page.getByText('Crédito (nos debe / le pagamos)')).toBeVisible()
       }).toPass({ timeout: 10000 })
     } finally {
       // fixtures.loteId es compartido con otros specs -- se limpia la
       // asignación de cuenta de cobro externa para no dejarles un estado
-      // inesperado.
+      // inesperado. El pago real que este test generó (vía el flujo
+      // completo del cliente) tiene que borrarse también: `pagos.lote_id`
+      // no tiene "on delete cascade", así que si queda colgado bloquea el
+      // DELETE de "E2E Test Lote" en el `ensureTestFixtures()` de la
+      // PRÓXIMA corrida (se vio romper así: error de constraint de
+      // identificador único, con la causa real -- un pago huérfano --
+      // escondida detrás).
       const admin = createAdminClient()
       await admin.from('lotes').update({ cuenta_cobro_externa_id: null }).eq('id', fixtures.loteId)
+      await admin.from('cuentas_externas_movimientos').delete().eq('cuenta_externa_id', cuentaExternaId)
+      await admin.from('pagos').delete().eq('lote_id', fixtures.loteId).eq('cliente_id', fixtures.cliente.id)
+      await admin.from('cuentas_externas').delete().eq('id', cuentaExternaId)
     }
   })
 })

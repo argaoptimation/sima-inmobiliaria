@@ -55,6 +55,14 @@ test.describe('Índices — carga manual y aplicación automática a mes vencido
     fixtures = await ensureTestFixtures()
   })
 
+  // indices_valores no cuelga de ningún lote (es una tabla global), así que
+  // la limpieza de ensureTestFixtures() no la toca -- sin esto, cada corrida
+  // deja basura acumulándose en /admin/indices para siempre.
+  test.afterEach(async () => {
+    const admin = createAdminClient()
+    await admin.from('indices_valores').delete().ilike('nombre', '%E2E%')
+  })
+
   test('cargar un valor de índice ajusta automáticamente la cuota del mes siguiente del lote atado a ese índice', async ({
     page,
   }) => {

@@ -48,6 +48,15 @@ export default async function IndicesPage({
 
   const nombresExistentes = [...new Set((valores ?? []).map((v) => v.nombre))].sort()
 
+  // Grilla tipo planilla (índice = columna, mes = fila) -- la lista de abajo
+  // ya tiene el detalle completo (quién cargó cada valor y cuándo), pero
+  // para ver de un vistazo qué meses están cargados de cada índice hace
+  // falta esta vista, mismo pedido de Nicolás desde el principio.
+  const periodosExistentes = [...new Set((valores ?? []).map((v) => v.periodo))].sort((a, b) =>
+    b.localeCompare(a)
+  )
+  const valorPorNombreYPeriodo = new Map((valores ?? []).map((v) => [`${v.nombre}|${v.periodo}`, v.valor]))
+
   return (
     <main>
       <h1 className="mb-2 text-xl font-semibold">Índices</h1>
@@ -103,9 +112,39 @@ export default async function IndicesPage({
 
       <p className="mb-2 text-sm text-gray-600">
         Un valor ya cargado no se puede editar desde acá (evita que un cambio silencioso
-        desincronice cuotas ya ajustadas). Si hace falta corregir uno, avisale a Gabriel.
+        desincronice cuotas ya ajustadas). Si hace falta corregir uno, avisale a Gabriel. Para
+        cambiar un valor sin tocar el índice original (ej. una excepción para un loteo puntual),
+        cargalo con un nombre nuevo (ej. &quot;IPC 2&quot;) — queda como un índice aparte,
+        independiente del original, para asociar solo a los lotes que corresponda.
       </p>
 
+      {periodosExistentes.length === 0 ? (
+        <p className="mb-8 text-sm text-gray-600">Todavía no se cargó ningún valor.</p>
+      ) : (
+        <table className="mb-8 w-full text-sm">
+          <thead>
+            <tr className="border-b text-left">
+              <th className="py-2">Mes</th>
+              {nombresExistentes.map((nombre) => (
+                <th key={nombre}>{nombre}</th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {periodosExistentes.map((periodo) => (
+              <tr key={periodo} className="border-b">
+                <td className="py-2">{formatearPeriodo(periodo)}</td>
+                {nombresExistentes.map((nombre) => {
+                  const valor = valorPorNombreYPeriodo.get(`${nombre}|${periodo}`)
+                  return <td key={nombre}>{valor === undefined ? '—' : `${valor}%`}</td>
+                })}
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      )}
+
+      <h2 className="mb-2 text-lg font-semibold">Detalle completo</h2>
       <table className="w-full text-sm">
         <thead>
           <tr className="border-b text-left">
