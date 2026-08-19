@@ -3,6 +3,7 @@
 import { useState } from 'react'
 
 interface Fila {
+  id: string
   participanteKey: string
   monto: string
 }
@@ -16,14 +17,35 @@ interface Props {
   moneda: string
   cuotas: { numero: number; montoBase: number }[]
   participantesElegibles: Participante[]
-  objetivosIniciales: Fila[]
-  distribucionesIniciales: Record<number, Fila[]>
+  objetivosIniciales: { participanteKey: string; monto: string }[]
+  distribucionesIniciales: Record<number, { participanteKey: string; monto: string }[]>
+}
+
+let contadorIds = 0
+function generarId(): string {
+  contadorIds += 1
+  return `fila-${contadorIds}`
 }
 
 function filaVacia(): Fila {
-  return { participanteKey: '', monto: '' }
+  return { id: generarId(), participanteKey: '', monto: '' }
 }
 
+function conId<T extends { participanteKey: string; monto: string }>(fila: T): Fila {
+  return { ...fila, id: generarId() }
+}
+
+// Input de texto con búsqueda nativa (datalist) en vez de un <select> con
+// todos los participantes en una lista larga -- Nicolás pidió poder
+// escribir y filtrar por nombre en vez de scrollear un desplegable. El
+// input visible NO se manda en el submit (no tiene `name`): lo que viaja al
+// server action es el <input type="hidden"> con la clave ya resuelta, mismo
+// formato que antes (`profile:<id>` / `externa:<id>`). Si lo tipeado no
+// matchea ningún nombre conocido, la clave queda vacía -- misma fila "sin
+// participante" que ya se descarta sin error al guardar. El estado del
+// texto se inicializa una sola vez a partir de `valor`: la fila que lo usa
+// tiene un `id` estable como key (ver más abajo), así que React nunca
+// reutiliza esta instancia para una fila lógica distinta al reordenar.
 function SelectorParticipante({
   name,
   valor,
@@ -35,20 +57,26 @@ function SelectorParticipante({
   onChange: (valor: string) => void
   opciones: Participante[]
 }) {
+  const [texto, setTexto] = useState(
+    () => opciones.find((participante) => participante.key === valor)?.nombre ?? ''
+  )
+
   return (
-    <select
-      name={name}
-      value={valor}
-      onChange={(evento) => onChange(evento.target.value)}
-      className="rounded border px-2 py-1 text-sm"
-    >
-      <option value="">— elegir participante —</option>
-      {opciones.map((participante) => (
-        <option key={participante.key} value={participante.key}>
-          {participante.nombre}
-        </option>
-      ))}
-    </select>
+    <>
+      <input
+        list="lista-participantes"
+        value={texto}
+        placeholder="Buscar participante..."
+        onChange={(evento) => {
+          const nuevoTexto = evento.target.value
+          setTexto(nuevoTexto)
+          const encontrado = opciones.find((participante) => participante.nombre === nuevoTexto)
+          onChange(encontrado ? encontrado.key : '')
+        }}
+        className="w-56 rounded border px-2 py-1 text-sm"
+      />
+      <input type="hidden" name={name} value={valor} />
+    </>
   )
 }
 
@@ -59,8 +87,12 @@ export function DistribucionCuotas({
   objetivosIniciales,
   distribucionesIniciales,
 }: Props) {
-  const [objetivos, setObjetivos] = useState<Fila[]>(objetivosIniciales)
-  const [distribuciones, setDistribuciones] = useState<Record<number, Fila[]>>(distribucionesIniciales)
+  const [objetivos, setObjetivos] = useState<Fila[]>(() => objetivosIniciales.map(conId))
+  const [distribuciones, setDistribuciones] = useState<Record<number, Fila[]>>(() =>
+    Object.fromEntries(
+      Object.entries(distribucionesIniciales).map(([numero, filas]) => [numero, filas.map(conId)])
+    )
+  )
 
   function nombrePorClave(clave: string) {
     return participantesElegibles.find((participante) => participante.key === clave)?.nombre ?? clave
@@ -134,6 +166,12 @@ export function DistribucionCuotas({
 
   return (
     <>
+      <datalist id="lista-participantes">
+        {participantesElegibles.map((participante) => (
+          <option key={participante.key} value={participante.nombre} />
+        ))}
+      </datalist>
+
       <h2 className="mb-2 mt-6 text-lg font-semibold">Objetivos (opcional)</h2>
       <p className="mb-3 text-sm text-gray-600">
         Cuánto le corresponde en total a cada participante de este lote. Sin objetivo cargado, el
@@ -141,7 +179,7 @@ export function DistribucionCuotas({
       </p>
       <div className="mb-6 flex flex-col gap-2">
         {objetivos.map((fila, indice) => (
-          <div key={indice} className="flex items-center gap-2">
+          <div key={fila.id} className="flex items-center gap-2">
             <SelectorParticipante
               name="objetivoParticipante"
               valor={fila.participanteKey}
@@ -177,7 +215,7 @@ export function DistribucionCuotas({
             </p>
             <div className="flex flex-col gap-2">
               {(distribuciones[cuota.numero] ?? []).map((fila, indice) => (
-                <div key={indice} className="flex items-center gap-2">
+                <div key={fila.id} className="flex items-center gap-2">
                   <SelectorParticipante
                     name={`cuota${cuota.numero}Participante`}
                     valor={fila.participanteKey}

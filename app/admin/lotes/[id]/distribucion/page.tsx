@@ -19,7 +19,11 @@ export default async function DistribucionLotePage({
 
   const supabase = await createClient()
 
-  const { data: lote } = await supabase.from('lotes').select('id, identificador, moneda, estado').eq('id', id).single()
+  const { data: lote } = await supabase
+    .from('lotes')
+    .select('id, identificador, moneda, estado, precio_total')
+    .eq('id', id)
+    .single()
 
   if (!lote) {
     notFound()
@@ -129,7 +133,20 @@ export default async function DistribucionLotePage({
           ← Volver al lote
         </a>
       </div>
-      <h1 className="mb-6 text-xl font-semibold">Distribución de cuotas — {lote!.identificador}</h1>
+      <h1 className="mb-2 text-xl font-semibold">Distribución de cuotas — {lote!.identificador}</h1>
+      <p className="mb-6 text-sm text-gray-600">
+        Precio total del lote: <span className="font-medium">{lote!.precio_total}</span> {lote!.moneda}
+        {(cuotas ?? []).length > 0 && (
+          <>
+            {' '}
+            (suma de las {(cuotas ?? []).length} cuotas:{' '}
+            {Math.round(
+              (cuotas ?? []).reduce((acc, cuota) => acc + cuota.monto_base, 0) * 100
+            ) / 100}{' '}
+            {lote!.moneda})
+          </>
+        )}
+      </p>
 
       {error && <p className="mb-4 rounded bg-red-100 p-2 text-sm text-red-700">{error}</p>}
       {ok && <p className="mb-4 rounded bg-green-100 p-2 text-sm text-green-700">Distribución guardada.</p>}

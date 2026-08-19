@@ -24,6 +24,25 @@ export async function crearLoteo(formData: FormData) {
   redirect('/admin/loteos')
 }
 
+export async function actualizarLoteo(loteoId: string, formData: FormData) {
+  await requireAdministrador()
+
+  const nombre = ((formData.get('nombre') as string) || '').trim()
+
+  if (!nombre) {
+    redirect(`/admin/loteos?error=${encodeURIComponent('Ingresá un nombre para el loteo')}`)
+  }
+
+  const supabase = await createClient()
+  const { error } = await supabase.from('loteos').update({ nombre }).eq('id', loteoId)
+
+  if (error) {
+    redirect(`/admin/loteos?error=${encodeURIComponent(mensajeDeError(error))}`)
+  }
+
+  redirect('/admin/loteos?ok=Loteo actualizado')
+}
+
 export async function reasignarLotesEnBloque(formData: FormData) {
   await requireAdministrador()
 

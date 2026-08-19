@@ -1,6 +1,20 @@
-import { test, expect } from '@playwright/test'
+import { test, expect, Page } from '@playwright/test'
 import { ensureTestFixtures, createAdminClient, TestFixtures } from './fixtures/test-data'
 import { login } from './utils/login'
+
+// El selector de participante es un input de texto con búsqueda (datalist)
+// -- la clave real que viaja al servidor vive en un <input type="hidden">
+// con el mismo `name` que antes tenía el <select>, como hermano inmediato
+// en el DOM del input visible ("Buscar participante...", sin `name`, así
+// que no se puede escopear por atributo). Se ubica el hidden por nombre+
+// índice (igual que antes con el <select>) y desde ahí su hermano visible
+// para tipear el nombre del participante.
+async function seleccionarParticipante(page: Page, nombreHidden: string, indice: number, nombreParticipante: string) {
+  const hidden = page.locator(`input[name="${nombreHidden}"]`).nth(indice)
+  const visible = hidden.locator('xpath=preceding-sibling::input[1]')
+  await visible.fill(nombreParticipante)
+  await expect(hidden).not.toHaveValue('')
+}
 
 test.describe('Distribución manual por cuota', () => {
   let fixtures: TestFixtures
@@ -24,11 +38,11 @@ test.describe('Distribución manual por cuota', () => {
     await page.goto(`/admin/lotes/${fixtures.loteId}/distribucion`)
 
     await page.getByRole('button', { name: '+ Agregar participante a esta cuota' }).nth(0).click()
-    await page.locator('select[name="cuota1Participante"]').nth(0).selectOption({ label: 'E2E Vendedor A (vendedor)' })
+    await seleccionarParticipante(page, 'cuota1Participante', 0, 'E2E Vendedor A (vendedor)')
     await page.locator('input[name="cuota1Monto"]').nth(0).fill('400')
 
     await page.getByRole('button', { name: '+ Agregar participante a esta cuota' }).nth(0).click()
-    await page.locator('select[name="cuota1Participante"]').nth(1).selectOption({ label: 'E2E Acreedor Con Datos (acreedor)' })
+    await seleccionarParticipante(page, 'cuota1Participante', 1, 'E2E Acreedor Con Datos (acreedor)')
     await page.locator('input[name="cuota1Monto"]').nth(1).fill('300')
 
     // Cuota 1 es de 1000 -- 400 + 300 = 700, suma distinta al monto de la
@@ -55,8 +69,11 @@ test.describe('Distribución manual por cuota', () => {
     await expect(filaResumen.getByText('—')).toBeVisible()
 
     await page.reload()
-    await expect(page.locator('select[name="cuota1Participante"]').nth(0)).toHaveValue(
+    await expect(page.locator('input[name="cuota1Participante"]').nth(0)).toHaveValue(
       `profile:${fixtures.vendedorLoteA.id}`
+    )
+    await expect(page.getByPlaceholder('Buscar participante...').nth(0)).toHaveValue(
+      'E2E Vendedor A (vendedor)'
     )
     await expect(page.locator('input[name="cuota1Monto"]').nth(0)).toHaveValue('400')
   })
@@ -68,17 +85,17 @@ test.describe('Distribución manual por cuota', () => {
     await page.goto(`/admin/lotes/${fixtures.loteId}/distribucion`)
 
     await page.getByRole('button', { name: '+ Agregar objetivo' }).click()
-    await page.locator('select[name="objetivoParticipante"]').nth(0).selectOption({ label: 'E2E Vendedor A (vendedor)' })
+    await seleccionarParticipante(page, 'objetivoParticipante', 0, 'E2E Vendedor A (vendedor)')
     await page.locator('input[name="objetivoMonto"]').nth(0).fill('1000')
 
     await page.getByRole('button', { name: '+ Agregar participante a esta cuota' }).nth(0).click()
-    await page.locator('select[name="cuota1Participante"]').nth(0).selectOption({ label: 'E2E Vendedor A (vendedor)' })
+    await seleccionarParticipante(page, 'cuota1Participante', 0, 'E2E Vendedor A (vendedor)')
     await page.locator('input[name="cuota1Monto"]').nth(0).fill('500')
 
     await expect(page.getByText('500 de 1000, faltan 500')).toBeVisible()
 
     await page.getByRole('button', { name: '+ Agregar participante a esta cuota' }).nth(1).click()
-    await page.locator('select[name="cuota2Participante"]').nth(0).selectOption({ label: 'E2E Vendedor A (vendedor)' })
+    await seleccionarParticipante(page, 'cuota2Participante', 0, 'E2E Vendedor A (vendedor)')
     await page.locator('input[name="cuota2Monto"]').nth(0).fill('500')
 
     // Todo esto pasó sin ningún guardado ni recarga -- el resumen cruzó
@@ -141,15 +158,12 @@ test.describe('Distribución manual por cuota', () => {
 
       // Fila 0 de la cuota 1: la cuenta externa.
       await page.getByRole('button', { name: '+ Agregar participante a esta cuota' }).nth(0).click()
-      await page
-        .locator('select[name="cuota1Participante"]')
-        .nth(0)
-        .selectOption({ label: `${nombreCuentaExterna} (cuenta externa)` })
+      await seleccionarParticipante(page, 'cuota1Participante', 0, `${nombreCuentaExterna} (cuenta externa)`)
       await page.locator('input[name="cuota1Monto"]').nth(0).fill('250')
 
       // Fila 1 de la MISMA cuota 1: un profile.
       await page.getByRole('button', { name: '+ Agregar participante a esta cuota' }).nth(0).click()
-      await page.locator('select[name="cuota1Participante"]').nth(1).selectOption({ label: 'E2E Vendedor A (vendedor)' })
+      await seleccionarParticipante(page, 'cuota1Participante', 1, 'E2E Vendedor A (vendedor)')
       await page.locator('input[name="cuota1Monto"]').nth(1).fill('150')
 
       await page.getByRole('button', { name: 'Guardar distribución' }).click()
@@ -180,11 +194,11 @@ test.describe('Distribución manual por cuota', () => {
     await page.goto(`/admin/lotes/${fixtures.loteId}/distribucion`)
 
     await page.getByRole('button', { name: '+ Agregar participante a esta cuota' }).nth(0).click()
-    await page.locator('select[name="cuota1Participante"]').nth(0).selectOption({ label: 'E2E Vendedor A (vendedor)' })
+    await seleccionarParticipante(page, 'cuota1Participante', 0, 'E2E Vendedor A (vendedor)')
     await page.locator('input[name="cuota1Monto"]').nth(0).fill('200')
 
     await page.getByRole('button', { name: '+ Agregar participante a esta cuota' }).nth(0).click()
-    await page.locator('select[name="cuota1Participante"]').nth(1).selectOption({ label: 'E2E Vendedor A (vendedor)' })
+    await seleccionarParticipante(page, 'cuota1Participante', 1, 'E2E Vendedor A (vendedor)')
     await page.locator('input[name="cuota1Monto"]').nth(1).fill('300')
 
     await page.getByRole('button', { name: 'Guardar distribución' }).click()
@@ -254,7 +268,7 @@ test.describe('Distribución manual por cuota', () => {
       await page.goto(`/admin/lotes/${loteTemporal!.id}/distribucion`)
 
       await page.getByRole('button', { name: '+ Agregar participante a esta cuota' }).nth(0).click()
-      await page.locator('select[name="cuota1Participante"]').nth(0).selectOption({ label: 'E2E Vendedor A (vendedor)' })
+      await seleccionarParticipante(page, 'cuota1Participante', 0, 'E2E Vendedor A (vendedor)')
       await page.locator('input[name="cuota1Monto"]').nth(0).fill('500')
 
       await admin.from('lotes').update({ estado: 'reservado' }).eq('id', loteTemporal!.id)

@@ -192,6 +192,15 @@ export default async function LotesPage({
         <a href="/admin/cotizacion-dolar" className="mt-2 inline-block text-sm underline">
           Ver historial completo →
         </a>
+        <br />
+        <a
+          href="https://www.infodolar.com/cotizacion-dolar-provincia-cordoba.aspx"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="mt-1 inline-block text-sm underline"
+        >
+          Ver cotización del día en Infodólar Córdoba (para copiar el valor) →
+        </a>
       </div>
 
       <div className="mb-6 flex items-center justify-between">

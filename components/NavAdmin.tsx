@@ -8,6 +8,7 @@ export function NavAdmin({ role, pagosPendientes }: { role: string; pagosPendien
     <nav className="flex items-center justify-between border-b p-4 text-sm">
       <div className="flex gap-4">
         <a href="/admin/lotes">Lotes</a>
+        {esAdministrador && <a href="/admin/loteos">Loteos</a>}
         {puedeVerPagosYUsuarios && (
           <a href="/admin/pagos">Pagos{pagosPendientes > 0 ? ` (${pagosPendientes})` : ''}</a>
         )}
@@ -16,7 +17,6 @@ export function NavAdmin({ role, pagosPendientes }: { role: string; pagosPendien
         {esAdministrador && <a href="/admin/cuentas-externas">Cuentas externas</a>}
         {esAdministrador && <a href="/admin/cuentas-corrientes">Cuentas corrientes</a>}
         {esAdministrador && <a href="/admin/indices">Índices</a>}
-        {esAdministrador && <a href="/admin/loteos">Loteos</a>}
         <a href="/mi-perfil">Mi perfil</a>
       </div>
       <form action={logout}>

@@ -1,6 +1,6 @@
 import { createClient } from '@/lib/supabase/server'
 import { requireAdministrador } from '@/lib/auth/require-admin'
-import { crearLoteo, reasignarLotesEnBloque } from './actions'
+import { actualizarLoteo, crearLoteo, reasignarLotesEnBloque } from './actions'
 
 export default async function LoteosPage({
   searchParams,
@@ -93,18 +93,42 @@ export default async function LoteosPage({
           <tr className="border-b text-left">
             <th className="py-2">Loteo</th>
             <th>Cantidad de lotes</th>
+            <th>Renombrar</th>
           </tr>
         </thead>
         <tbody>
           {(loteos ?? []).map((loteo) => (
             <tr key={loteo.id} className="border-b">
-              <td className="py-2">{loteo.nombre}</td>
+              <td className="py-2">
+                <a href={`/admin/loteos?loteoActual=${loteo.id}#lotes-filtrados`} className="underline">
+                  {loteo.nombre}
+                </a>
+              </td>
               <td>{cantidadPorLoteoId.get(loteo.id) ?? 0}</td>
+              <td>
+                <form action={actualizarLoteo.bind(null, loteo.id)} className="flex gap-2">
+                  <input
+                    name="nombre"
+                    type="text"
+                    defaultValue={loteo.nombre}
+                    required
+                    className="rounded border px-2 py-1"
+                  />
+                  <button type="submit" className="rounded border px-2 py-1">
+                    Guardar
+                  </button>
+                </form>
+              </td>
             </tr>
           ))}
           <tr className="border-b text-gray-600">
-            <td className="py-2">— sin loteo asignado —</td>
+            <td className="py-2">
+              <a href="/admin/loteos?loteoActual=__sin_asignar__#lotes-filtrados" className="underline">
+                — sin loteo asignado —
+              </a>
+            </td>
             <td>{sinLoteo}</td>
+            <td></td>
           </tr>
         </tbody>
       </table>
