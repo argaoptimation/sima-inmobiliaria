@@ -18,6 +18,7 @@ function construirParamsPreservados(formData: FormData): URLSearchParams {
     fechaPrimeraCuota: (formData.get('fechaPrimeraCuota') as string) || '',
     modo: (formData.get('modo') as string) || 'automatico',
     entregaMonto: (formData.get('entregaMonto') as string) || '',
+    interesMoratorioDiario: (formData.get('interesMoratorioDiario') as string) || '',
   })
 
   const cantidadCuotas = Number(formData.get('cantidadCuotas')) || 0
@@ -191,6 +192,23 @@ export async function venderLote(loteId: string, formData: FormData) {
     }
   }
 
+  const interesMoratorioDiarioRaw = ((formData.get('interesMoratorioDiario') as string) || '').trim()
+  let interesMoratorioDiario: number | null = null
+  if (interesMoratorioDiarioRaw !== '') {
+    interesMoratorioDiario = Number(interesMoratorioDiarioRaw)
+    if (
+      !Number.isFinite(interesMoratorioDiario) ||
+      interesMoratorioDiario < 0 ||
+      interesMoratorioDiario > 100
+    ) {
+      redirectVenderConError(
+        loteId,
+        'El interés moratorio diario tiene que ser un porcentaje válido, entre 0 y 100',
+        construirParamsPreservados(formData)
+      )
+    }
+  }
+
   // Documento firmado: siempre obligatorio, se sube una sola vez acá --
   // recién ahora, con todo lo demás ya validado.
   const documentoFirmado = formData.get('documentoFirmado') as File
@@ -338,6 +356,7 @@ export async function venderLote(loteId: string, formData: FormData) {
       monto_cuota_base: montoCuotaBase,
       fecha_primera_cuota: fechaPrimeraCuota,
       documento_firmado_path: documentoFirmadoPath,
+      interes_moratorio_diario: interesMoratorioDiario,
     })
     .eq('id', loteId)
     .eq('estado', 'reservado')

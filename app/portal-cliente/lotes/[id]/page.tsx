@@ -1,6 +1,7 @@
 import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { calcularEstadoCobranza } from '@/lib/cobranza/estado-cliente'
+import { calcularInteresMoratorio } from '@/lib/cobranza/interes-moratorio'
 import { notFound, redirect } from 'next/navigation'
 import { logout } from '@/app/login/actions'
 
@@ -32,7 +33,7 @@ export default async function PortalClienteLotePage({
 
   const { data: lote } = await supabase
     .from('lotes')
-    .select('id, identificador, moneda, cliente_id')
+    .select('id, identificador, moneda, cliente_id, interes_moratorio_diario')
     .eq('id', id)
     .single()
 
@@ -117,29 +118,47 @@ export default async function PortalClienteLotePage({
             <th>Vencimiento</th>
             <th>Monto base</th>
             <th>Saldo pendiente</th>
+            <th>Interés moratorio</th>
             <th></th>
           </tr>
         </thead>
         <tbody>
-          {cuotas?.map((cuota) => (
-            <tr key={cuota.id} className="border-b">
-              <td className="py-2">{cuota.numero}</td>
-              <td>{cuota.fecha_vencimiento}</td>
-              <td>
-                {cuota.monto_base} {lote!.moneda}
-              </td>
-              <td>
-                {cuota.saldo_pendiente} {lote!.moneda}
-              </td>
-              <td>
-                {primeraImpaga?.id === cuota.id && (
-                  <a href={`/portal-cliente/pagar/${cuota.id}`} className="underline">
-                    Pagar cuota
-                  </a>
-                )}
-              </td>
-            </tr>
-          ))}
+          {cuotas?.map((cuota) => {
+            const vencida = cuota.saldo_pendiente > 0 && cuota.fecha_vencimiento < hoy
+            const interesMoratorio = vencida
+              ? calcularInteresMoratorio(
+                  { saldoPendiente: cuota.saldo_pendiente, fechaVencimiento: cuota.fecha_vencimiento },
+                  lote!.interes_moratorio_diario,
+                  hoy
+                )
+              : 0
+            return (
+              <tr key={cuota.id} className="border-b">
+                <td className="py-2">{cuota.numero}</td>
+                <td>{cuota.fecha_vencimiento}</td>
+                <td>
+                  {cuota.monto_base} {lote!.moneda}
+                </td>
+                <td>
+                  {cuota.saldo_pendiente} {lote!.moneda}
+                </td>
+                <td>
+                  {interesMoratorio > 0 && (
+                    <span className="text-red-700">
+                      +{interesMoratorio} {lote!.moneda}
+                    </span>
+                  )}
+                </td>
+                <td>
+                  {primeraImpaga?.id === cuota.id && (
+                    <a href={`/portal-cliente/pagar/${cuota.id}`} className="underline">
+                      Pagar cuota
+                    </a>
+                  )}
+                </td>
+              </tr>
+            )
+          })}
         </tbody>
       </table>
 

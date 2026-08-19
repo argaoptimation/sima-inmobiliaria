@@ -12,6 +12,7 @@ interface Props {
   modoInicial: 'automatico' | 'manual'
   montosInicial: string[]
   entregaInicial: string
+  interesMoratorioDiarioInicial: string
 }
 
 const MAX_CUOTAS = 600
@@ -33,10 +34,14 @@ export function CuotasYDocumento({
   modoInicial,
   montosInicial,
   entregaInicial,
+  interesMoratorioDiarioInicial,
 }: Props) {
   const [cantidadCuotasTexto, setCantidadCuotasTexto] = useState(cantidadCuotasInicial)
   const [modo, setModo] = useState<'automatico' | 'manual'>(modoInicial)
   const [entregaTexto, setEntregaTexto] = useState(entregaInicial)
+  const [interesMoratorioDiarioTexto, setInteresMoratorioDiarioTexto] = useState(
+    interesMoratorioDiarioInicial
+  )
   const [montos, setMontos] = useState<string[]>(() => {
     const cantidadInicialNum = Math.min(Number(cantidadCuotasInicial) || 0, MAX_CUOTAS)
     if (modoInicial === 'automatico' && precioTotal !== null && cantidadInicialNum > 0) {
@@ -135,6 +140,22 @@ export function CuotasYDocumento({
         />
       </label>
 
+      <label className="text-sm">
+        Interés moratorio diario (%) — opcional, se aplica sobre el saldo impago de una cuota
+        vencida a partir del día siguiente a su vencimiento
+        <input
+          name="interesMoratorioDiario"
+          type="number"
+          step="0.01"
+          min="0"
+          max="100"
+          placeholder="Interés moratorio diario"
+          value={interesMoratorioDiarioTexto}
+          onChange={(evento) => setInteresMoratorioDiarioTexto(evento.target.value)}
+          className="mt-1 block w-full rounded border px-3 py-2"
+        />
+      </label>
+
       {modo === 'manual' &&
         cantidadCuotas > 0 &&
         Array.from({ length: cantidadCuotas }, (_, indice) => (
@@ -182,6 +203,12 @@ export function CuotasYDocumento({
             <p>
               Entrega ingresada: {entrega} (no se descuenta de ninguna cuota, reduce el total
               financiado)
+            </p>
+          )}
+          {Number(interesMoratorioDiarioTexto) > 0 && (
+            <p>
+              Interés moratorio: {interesMoratorioDiarioTexto}% diario sobre el saldo impago de
+              una cuota, desde el día siguiente a su vencimiento
             </p>
           )}
         </div>

@@ -1,6 +1,7 @@
 import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { calcularEstadoCobranza } from '@/lib/cobranza/estado-cliente'
+import { calcularInteresMoratorio } from '@/lib/cobranza/interes-moratorio'
 import { notFound, redirect } from 'next/navigation'
 import { requireAdminOAcreedor } from '@/lib/auth/require-admin'
 import {
@@ -43,7 +44,7 @@ export default async function LoteDetallePage({
   const { data: lote } = await supabase
     .from('lotes')
     .select(
-      'id, identificador, moneda, estado, cliente_id, admin_id, acreedor_id, vendedor_id, cuenta_cobro_id, cuenta_cobro_externa_id, ubicacion, precio_total, documento_firmado_path'
+      'id, identificador, moneda, estado, cliente_id, admin_id, acreedor_id, vendedor_id, cuenta_cobro_id, cuenta_cobro_externa_id, ubicacion, precio_total, documento_firmado_path, interes_moratorio_diario'
     )
     .eq('id', id)
     .single()
@@ -407,6 +408,7 @@ export default async function LoteDetallePage({
             <th>Vencimiento</th>
             <th>Monto base</th>
             <th>Saldo pendiente</th>
+            <th>Interés moratorio</th>
             <th></th>
           </tr>
         </thead>
@@ -414,6 +416,13 @@ export default async function LoteDetallePage({
           {cuotas?.map((cuota) => {
             const vencida =
               lote!.estado === 'vendido' && cuota.saldo_pendiente > 0 && cuota.fecha_vencimiento < hoy
+            const interesMoratorio = vencida
+              ? calcularInteresMoratorio(
+                  { saldoPendiente: cuota.saldo_pendiente, fechaVencimiento: cuota.fecha_vencimiento },
+                  lote!.interes_moratorio_diario,
+                  hoy
+                )
+              : 0
             return (
               <tr key={cuota.id} className="border-b">
                 <td className="py-2">{cuota.numero}</td>
@@ -423,6 +432,13 @@ export default async function LoteDetallePage({
                 </td>
                 <td>
                   {cuota.saldo_pendiente} {lote!.moneda}
+                </td>
+                <td>
+                  {interesMoratorio > 0 && (
+                    <span className="text-red-700">
+                      +{interesMoratorio} {lote!.moneda}
+                    </span>
+                  )}
                 </td>
                 <td>{vencida && <span className="text-red-700">Vencida</span>}</td>
               </tr>

@@ -21,6 +21,7 @@ export default async function VenderLotePage({
     dniPerfil?: string
     modo?: string
     entregaMonto?: string
+    interesMoratorioDiario?: string
     [cuotaMontoKey: string]: string | undefined
   }>
 }) {
@@ -38,6 +39,7 @@ export default async function VenderLotePage({
     dniPerfil,
     modo: modoPreservado,
     entregaMonto: entregaMontoPreservado,
+    interesMoratorioDiario: interesMoratorioDiarioPreservado,
   } = sp
 
   await requireAdministrador()
@@ -176,6 +178,7 @@ export default async function VenderLotePage({
               modoInicial={modoInicial}
               montosInicial={montosInicial}
               entregaInicial={entregaMontoPreservado ?? ''}
+              interesMoratorioDiarioInicial={interesMoratorioDiarioPreservado ?? ''}
             />
 
             <button type="submit" className="rounded bg-black px-3 py-2 text-white">
