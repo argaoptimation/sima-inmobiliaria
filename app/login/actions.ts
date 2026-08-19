@@ -2,6 +2,7 @@
 
 import { createClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
+import { mensajeDeError } from '@/lib/errores'
 
 export async function login(formData: FormData) {
   const supabase = await createClient()
@@ -12,7 +13,13 @@ export async function login(formData: FormData) {
   })
 
   if (error) {
-    redirect(`/login?error=${encodeURIComponent(error.message)}`)
+    const mensaje = mensajeDeError(error, {
+      invalid_credentials: 'Email o contraseña incorrectos',
+      email_not_confirmed: 'Confirmá tu email antes de iniciar sesión',
+      user_banned: 'Esta cuenta fue deshabilitada',
+      over_request_rate_limit: 'Demasiados intentos. Esperá un momento y volvé a intentar',
+    })
+    redirect(`/login?error=${encodeURIComponent(mensaje)}`)
   }
 
   redirect('/')
