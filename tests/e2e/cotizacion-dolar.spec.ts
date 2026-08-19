@@ -107,4 +107,31 @@ test.describe('Cotización del dólar', () => {
     await admin.from('cuotas').delete().eq('id', cuota.id)
     await admin.from('lotes').delete().eq('id', lote.id)
   })
+
+  test('el historial muestra el valor cargado hoy y los de días anteriores', async ({ page }) => {
+    const admin = createAdminClient()
+    const ayer = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString().slice(0, 10)
+
+    await admin.from('cotizaciones_dolar').upsert(
+      { fecha: ayer, valor: 1450, cargado_por: fixtures.admin.id },
+      { onConflict: 'fecha' }
+    )
+
+    await login(page, fixtures.admin.email, fixtures.password)
+    await page.goto('/admin/lotes')
+    await page.getByPlaceholder('Ej: 1500').fill('1500')
+    await page.getByRole('button', { name: 'Cargar' }).click()
+    await page.waitForURL('**/admin/lotes')
+
+    await page.getByRole('link', { name: 'Ver historial completo →' }).click()
+    await page.waitForURL('**/admin/cotizacion-dolar')
+
+    const filaHoy = page.locator('tbody tr').filter({ hasText: '1500' })
+    const filaAyer = page.locator('tbody tr').filter({ hasText: ayer })
+    await expect(filaHoy).toBeVisible()
+    await expect(filaAyer).toBeVisible()
+    await expect(filaAyer).toContainText('1450')
+
+    await admin.from('cotizaciones_dolar').delete().eq('fecha', ayer)
+  })
 })

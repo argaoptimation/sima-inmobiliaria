@@ -182,6 +182,9 @@ export default async function LotesPage({
             {cotizacionHoy ? 'Corregir' : 'Cargar'}
           </button>
         </form>
+        <a href="/admin/cotizacion-dolar" className="mt-2 inline-block text-sm underline">
+          Ver historial completo →
+        </a>
       </div>
 
       <div className="mb-6 flex items-center justify-between">
