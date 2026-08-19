@@ -81,15 +81,22 @@ test.describe('Índices — carga manual y aplicación automática a mes vencido
     await login(page, fixtures.admin.email, fixtures.password)
     await page.goto('/admin/indices')
     await page.getByPlaceholder('Ej: IPC').fill(nombreIndice)
-    await page.locator('input[name="periodo"]').fill('2027-01')
+    await page.getByRole('textbox', { name: 'Mes' }).fill('2027-01')
     await page.getByPlaceholder('Ej: 3').fill('3')
     await page.getByRole('button', { name: 'Cargar' }).click()
     await page.waitForURL('**/admin/indices')
 
-    await expect(page.locator('tbody').getByText(nombreIndice)).toBeVisible()
+    const filaDetalle = page.locator('h2:has-text("Detalle completo") ~ table tbody tr', {
+      hasText: nombreIndice,
+    })
+    await expect(filaDetalle).toBeVisible()
 
-    const { data: cuota } = await admin.from('cuotas').select('saldo_pendiente').eq('id', cuotaId).single()
-    expect(cuota?.saldo_pendiente).toBe(103000)
+    await expect
+      .poll(async () => {
+        const { data } = await admin.from('cuotas').select('saldo_pendiente').eq('id', cuotaId).single()
+        return data?.saldo_pendiente ?? null
+      })
+      .toBe(103000)
 
     const { data: ajuste } = await admin
       .from('ajustes_indexacion')
@@ -116,7 +123,7 @@ test.describe('Índices — carga manual y aplicación automática a mes vencido
     await login(page, fixtures.admin.email, fixtures.password)
     await page.goto('/admin/indices')
     await page.getByPlaceholder('Ej: IPC').fill(nombreIndice)
-    await page.locator('input[name="periodo"]').fill('2027-01')
+    await page.getByRole('textbox', { name: 'Mes' }).fill('2027-01')
     await page.getByPlaceholder('Ej: 3').fill('5')
     await page.getByRole('button', { name: 'Cargar' }).click()
     await page.waitForURL('**/admin/indices')
@@ -131,17 +138,108 @@ test.describe('Índices — carga manual y aplicación automática a mes vencido
     await login(page, fixtures.admin.email, fixtures.password)
     await page.goto('/admin/indices')
     await page.getByPlaceholder('Ej: IPC').fill(nombreIndice)
-    await page.locator('input[name="periodo"]').fill('2027-03')
+    await page.getByRole('textbox', { name: 'Mes' }).fill('2027-03')
     await page.getByPlaceholder('Ej: 3').fill('2')
     await page.getByRole('button', { name: 'Cargar' }).click()
     await page.waitForURL('**/admin/indices')
 
     await page.getByPlaceholder('Ej: IPC').fill(nombreIndice)
-    await page.locator('input[name="periodo"]').fill('2027-03')
+    await page.getByRole('textbox', { name: 'Mes' }).fill('2027-03')
     await page.getByPlaceholder('Ej: 3').fill('4')
     await page.getByRole('button', { name: 'Cargar' }).click()
 
     await expect(page.getByText(/Ya se cargó un valor de/)).toBeVisible()
+  })
+
+  test('corregir el valor más reciente reajusta la cuota (revierte el % viejo y aplica el nuevo)', async ({
+    page,
+  }) => {
+    const admin = createAdminClient()
+    const nombreIndice = `IPC-E2E-Corregir-${Date.now()}`
+
+    const { cuotaId } = await crearLoteVendidoConIndice(
+      `E2E Indice Corregir ${Date.now()}`,
+      nombreIndice,
+      fixtures.cliente.id,
+      fixtures.acreedorConDatos.id,
+      '2027-02-15',
+      100000
+    )
+
+    await login(page, fixtures.admin.email, fixtures.password)
+    await page.goto('/admin/indices')
+    await page.getByPlaceholder('Ej: IPC').fill(nombreIndice)
+    await page.getByRole('textbox', { name: 'Mes' }).fill('2027-01')
+    await page.getByPlaceholder('Ej: 3').fill('5')
+    await page.getByRole('button', { name: 'Cargar' }).click()
+    await page.waitForURL('**/admin/indices')
+
+    await expect
+      .poll(async () => {
+        const { data } = await admin.from('cuotas').select('saldo_pendiente').eq('id', cuotaId).single()
+        return data?.saldo_pendiente ?? null
+      })
+      .toBe(105000) // 100000 * 1.05
+
+    const filaCorregir = page.locator('tbody tr', { hasText: nombreIndice })
+    await filaCorregir.locator('input[name="valorNuevo"]').fill('3')
+    await filaCorregir.getByRole('button', { name: 'Corregir' }).click()
+    await page.waitForURL('**/admin/indices**')
+    await expect(page.getByText('Índice corregido')).toBeVisible()
+
+    await expect
+      .poll(async () => {
+        const { data } = await admin.from('cuotas').select('saldo_pendiente').eq('id', cuotaId).single()
+        return data?.saldo_pendiente ?? null
+      })
+      .toBe(103000) // revierte el 5%, aplica 3% -- no 105000-2%
+
+    const { data: valorActualizado } = await admin
+      .from('indices_valores')
+      .select('valor')
+      .eq('nombre', nombreIndice)
+      .eq('periodo', '2027-01-01')
+      .single()
+    expect(valorActualizado?.valor).toBe(3)
+  })
+
+  test('el gate server-side de "solo el mes más reciente" rechaza una corrección si otro mes se cargó entremedio', async ({
+    page,
+  }) => {
+    const nombreIndice = `IPC-E2E-NoReciente-${Date.now()}`
+
+    const admin = createAdminClient()
+    await admin
+      .from('indices_valores')
+      .insert({ nombre: nombreIndice, periodo: '2027-01-01', valor: 5, cargado_por: fixtures.admin.id })
+
+    await login(page, fixtures.admin.email, fixtures.password)
+    await page.goto('/admin/indices')
+
+    // La pantalla carga con enero como "el más reciente" -- entre este
+    // momento y el submit, se cuela un mes más nuevo por fuera del
+    // browser (mismo patrón de carrera que ya usa editar-monto-pago.spec.ts).
+    const filaReciente = page.locator('tbody tr', { hasText: nombreIndice })
+    await expect(filaReciente.locator('input[name="valorNuevo"]')).toHaveValue('5')
+
+    await admin
+      .from('indices_valores')
+      .insert({ nombre: nombreIndice, periodo: '2027-02-01', valor: 4, cargado_por: fixtures.admin.id })
+
+    await filaReciente.locator('input[name="valorNuevo"]').fill('1')
+    await filaReciente.getByRole('button', { name: 'Corregir' }).click()
+
+    await expect(page.getByText('Solo se puede corregir el mes más reciente cargado de este índice')).toBeVisible()
+
+    const { data: valores } = await admin
+      .from('indices_valores')
+      .select('periodo, valor')
+      .eq('nombre', nombreIndice)
+      .order('periodo')
+    expect(valores).toEqual([
+      { periodo: '2027-01-01', valor: 5 },
+      { periodo: '2027-02-01', valor: 4 },
+    ])
   })
 
   test('el selector de índice en Datos generales del lote guarda correctamente', async ({ page }) => {

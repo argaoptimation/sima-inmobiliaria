@@ -39,3 +39,25 @@ export function calcularAjusteIndexacion(
       saldoPendienteNuevo: Math.round(cuota.saldoPendiente * (1 + porcentaje / 100) * 100) / 100,
     }))
 }
+
+// Corrige un índice ya aplicado: revierte el porcentaje viejo (recupera el
+// saldo de ANTES de ese ajuste) y aplica el porcentaje nuevo sobre esa base
+// -- no resta/suma los porcentajes directamente, porque no son lineales
+// (aplicar 5% y después "restar 2%" no da lo mismo que haber aplicado 3%
+// directo). Solo toca cuotas que TODAVÍA tienen saldo pendiente -- una
+// cuota ya saldada desde entonces nunca se revisita, mismo criterio "nunca
+// retroactivo" que la aplicación original.
+export function corregirAjusteIndexacion(
+  porcentajeViejo: number,
+  porcentajeNuevo: number,
+  cuotas: CuotaIndexable[]
+): AjusteResultado[] {
+  return cuotas
+    .filter((cuota) => cuota.saldoPendiente > 0)
+    .map((cuota) => {
+      const saldoAntesDelAjusteViejo = cuota.saldoPendiente / (1 + porcentajeViejo / 100)
+      const saldoPendienteNuevo =
+        Math.round(saldoAntesDelAjusteViejo * (1 + porcentajeNuevo / 100) * 100) / 100
+      return { cuotaId: cuota.id, saldoPendienteNuevo }
+    })
+}

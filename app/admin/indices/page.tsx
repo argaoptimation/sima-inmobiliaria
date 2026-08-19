@@ -1,6 +1,6 @@
 import { createClient } from '@/lib/supabase/server'
 import { requireAdministrador } from '@/lib/auth/require-admin'
-import { cargarValorIndice } from './actions'
+import { cargarValorIndice, corregirValorIndice } from './actions'
 
 const NOMBRES_MES = [
   'Enero',
@@ -25,9 +25,9 @@ function formatearPeriodo(periodo: string): string {
 export default async function IndicesPage({
   searchParams,
 }: {
-  searchParams: Promise<{ error?: string }>
+  searchParams: Promise<{ error?: string; ok?: string }>
 }) {
-  const { error } = await searchParams
+  const { error, ok } = await searchParams
 
   await requireAdministrador()
 
@@ -57,6 +57,15 @@ export default async function IndicesPage({
   )
   const valorPorNombreYPeriodo = new Map((valores ?? []).map((v) => [`${v.nombre}|${v.periodo}`, v.valor]))
 
+  // Valores ya vienen ordenados por período descendente -- el primero que
+  // aparece para cada nombre es el más reciente, el único corregible.
+  const masRecientePorNombre = new Map<string, { periodo: string; valor: number }>()
+  for (const v of valores ?? []) {
+    if (!masRecientePorNombre.has(v.nombre)) {
+      masRecientePorNombre.set(v.nombre, { periodo: v.periodo, valor: v.valor })
+    }
+  }
+
   return (
     <main>
       <h1 className="mb-2 text-xl font-semibold">Índices</h1>
@@ -68,6 +77,7 @@ export default async function IndicesPage({
       </p>
 
       {error && <p className="mb-4 rounded bg-red-100 p-2 text-sm text-red-700">{error}</p>}
+      {ok && <p className="mb-4 rounded bg-green-100 p-2 text-sm text-green-700">{ok}</p>}
 
       <form action={cargarValorIndice} className="mb-8 flex flex-wrap items-end gap-3 rounded border p-3">
         <label className="text-sm">
@@ -111,12 +121,54 @@ export default async function IndicesPage({
       </form>
 
       <p className="mb-2 text-sm text-gray-600">
-        Un valor ya cargado no se puede editar desde acá (evita que un cambio silencioso
-        desincronice cuotas ya ajustadas). Si hace falta corregir uno, avisale a Gabriel. Para
-        cambiar un valor sin tocar el índice original (ej. una excepción para un loteo puntual),
-        cargalo con un nombre nuevo (ej. &quot;IPC 2&quot;) — queda como un índice aparte,
-        independiente del original, para asociar solo a los lotes que corresponda.
+        Solo se puede corregir el valor MÁS RECIENTE cargado de cada índice (abajo). Un mes viejo
+        ya no se puede tocar una vez que se cargó uno más nuevo después. Para cambiar un valor sin
+        tocar el índice original (ej. una excepción para un loteo puntual), cargalo con un nombre
+        nuevo (ej. &quot;IPC 2&quot;) — queda como un índice aparte, independiente del original,
+        para asociar solo a los lotes que corresponda.
       </p>
+
+      {masRecientePorNombre.size > 0 && (
+        <>
+          <h2 className="mb-2 mt-6 text-lg font-semibold">Corregir el último valor cargado</h2>
+          <table className="mb-8 w-full max-w-xl text-sm">
+            <thead>
+              <tr className="border-b text-left">
+                <th className="py-2">Índice</th>
+                <th>Mes</th>
+                <th>Valor actual</th>
+                <th>Corregir a</th>
+              </tr>
+            </thead>
+            <tbody>
+              {[...masRecientePorNombre.entries()].map(([nombre, info]) => (
+                <tr key={nombre} className="border-b">
+                  <td className="py-2">{nombre}</td>
+                  <td>{formatearPeriodo(info.periodo)}</td>
+                  <td>{info.valor}%</td>
+                  <td>
+                    <form action={corregirValorIndice} className="flex items-center gap-2">
+                      <input type="hidden" name="nombre" value={nombre} />
+                      <input type="hidden" name="periodo" value={info.periodo} />
+                      <input
+                        name="valorNuevo"
+                        type="number"
+                        step="0.01"
+                        defaultValue={info.valor}
+                        required
+                        className="w-24 rounded border px-2 py-1"
+                      />
+                      <button type="submit" className="rounded border px-2 py-1">
+                        Corregir
+                      </button>
+                    </form>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </>
+      )}
 
       {periodosExistentes.length === 0 ? (
         <p className="mb-8 text-sm text-gray-600">Todavía no se cargó ningún valor.</p>

@@ -3,6 +3,7 @@ import { requireAdministrador } from '@/lib/auth/require-admin'
 import { notFound } from 'next/navigation'
 import { calcularSaldoCuentaCorrientePorMoneda } from '@/lib/cuenta-corriente/calcular-saldo'
 import { agregarMovimientoManual } from '../actions'
+import { BuscadorLote } from '../BuscadorLote'
 
 const ETIQUETA_ORIGEN: Record<string, string> = {
   cobro_cuota: 'Cobro de cuota (automático)',
@@ -49,6 +50,15 @@ export default async function CuentaCorrienteDetallePage({
 
   const { data: lotes } = await supabase.from('lotes').select('id, identificador').order('identificador')
 
+  // Sugerencias de "de quién vino la plata" -- puede ser un cliente (el
+  // caso más común de "pago directo") o cualquier otra persona del
+  // sistema. El campo sigue siendo texto libre (no hay ninguna FK que
+  // resolver), el datalist es solo para no tipear de cero.
+  const { data: personasParaSugerir } = await supabase
+    .from('profiles')
+    .select('full_name')
+    .order('full_name')
+
   const saldos = calcularSaldoCuentaCorrientePorMoneda(
     (movimientos ?? []).map((m) => ({ tipo: m.tipo as 'debe' | 'haber', monto: m.monto, moneda: m.moneda }))
   )
@@ -78,13 +88,6 @@ export default async function CuentaCorrienteDetallePage({
       <h2 className="mb-2 text-lg font-semibold">Registrar plata que le llegó (Haber)</h2>
       <form action={agregarMovimientoManualConId} className="mb-8 flex max-w-sm flex-col gap-3">
         <label className="text-sm">
-          Origen
-          <select name="origen" required className="mt-1 block w-full rounded border px-3 py-2">
-            <option value="transferencia_empresa">La empresa le transfirió su parte</option>
-            <option value="pago_directo_cliente">El cliente le pagó directo, salteando a la empresa</option>
-          </select>
-        </label>
-        <label className="text-sm">
           Monto
           <input
             name="monto"
@@ -113,18 +116,28 @@ export default async function CuentaCorrienteDetallePage({
           />
         </label>
         <label className="text-sm">
-          Nombre de quién pagó (obligatorio si es pago directo del cliente)
-          <input name="deParteDe" className="mt-1 block w-full rounded border px-3 py-2" />
+          De quién vino la plata (obligatorio si es pago directo del cliente)
+          <input
+            name="deParteDe"
+            list="lista-personas-cuenta-corriente"
+            placeholder="Buscar o escribir un nombre..."
+            className="mt-1 block w-full rounded border px-3 py-2"
+          />
+          <datalist id="lista-personas-cuenta-corriente">
+            {(personasParaSugerir ?? []).map((persona) => (
+              <option key={persona.full_name} value={persona.full_name} />
+            ))}
+          </datalist>
         </label>
         <label className="text-sm">
           Lote relacionado (opcional)
-          <select name="loteId" defaultValue="" className="mt-1 block w-full rounded border px-3 py-2">
-            <option value="">— Sin lote asociado —</option>
-            {(lotes ?? []).map((lote) => (
-              <option key={lote.id} value={lote.id}>
-                {lote.identificador}
-              </option>
-            ))}
+          <BuscadorLote lotes={lotes ?? []} />
+        </label>
+        <label className="text-sm">
+          Origen (opcional)
+          <select name="origen" defaultValue="transferencia_empresa" className="mt-1 block w-full rounded border px-3 py-2">
+            <option value="transferencia_empresa">La empresa le transfirió su parte</option>
+            <option value="pago_directo_cliente">El cliente le pagó directo, salteando a la empresa</option>
           </select>
         </label>
         <label className="text-sm">
