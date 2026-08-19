@@ -27,6 +27,16 @@ export function calcularRangoMesSiguiente(periodo: string): { desde: string; has
   }
 }
 
+// Inversa de calcularRangoMesSiguiente: dado el vencimiento de una cuota,
+// qué período de índice hace falta para poder ajustarla ("a mes vencido" —
+// una cuota de enero necesita el índice de diciembre).
+export function calcularPeriodoIndiceNecesario(fechaVencimiento: string): string {
+  const [anio, mes] = fechaVencimiento.split('-').map(Number)
+  const mesAnterior = mes === 1 ? 12 : mes - 1
+  const anioMesAnterior = mes === 1 ? anio - 1 : anio
+  return `${anioMesAnterior}-${String(mesAnterior).padStart(2, '0')}-01`
+}
+
 export function calcularAjusteIndexacion(
   porcentaje: number,
   fechaDesde: string,

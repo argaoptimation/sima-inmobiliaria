@@ -242,6 +242,85 @@ test.describe('Índices — carga manual y aplicación automática a mes vencido
     ])
   })
 
+  test('aviso de mes de índice faltante: una cuota de enero pendiente pide el índice de diciembre del año anterior', async ({
+    page,
+  }) => {
+    const nombreIndice = `IPC-E2E-Faltante-${Date.now()}`
+
+    await crearLoteVendidoConIndice(
+      `E2E Indice Faltante ${Date.now()}`,
+      nombreIndice,
+      fixtures.cliente.id,
+      fixtures.acreedorConDatos.id,
+      '2028-01-15',
+      100000
+    )
+
+    await login(page, fixtures.admin.email, fixtures.password)
+    await page.goto('/admin/indices')
+
+    await expect(page.getByText(`${nombreIndice} — Diciembre 2027`)).toBeVisible()
+
+    // Cargando el mes que faltaba, el aviso para ESE índice desaparece.
+    await page.getByPlaceholder('Ej: IPC').fill(nombreIndice)
+    await page.getByRole('textbox', { name: 'Mes' }).fill('2027-12')
+    await page.getByPlaceholder('Ej: 3').fill('2')
+    await page.getByRole('button', { name: 'Cargar' }).click()
+    await page.waitForURL('**/admin/indices')
+
+    await expect(page.getByText(`${nombreIndice} — Diciembre 2027`)).not.toBeVisible()
+  })
+
+  test('eliminar el valor más reciente revierte el ajuste sobre la cuota', async ({ page }) => {
+    const admin = createAdminClient()
+    const nombreIndice = `IPC-E2E-Eliminar-${Date.now()}`
+
+    const { cuotaId } = await crearLoteVendidoConIndice(
+      `E2E Indice Eliminar ${Date.now()}`,
+      nombreIndice,
+      fixtures.cliente.id,
+      fixtures.acreedorConDatos.id,
+      '2027-02-15',
+      100000
+    )
+
+    await login(page, fixtures.admin.email, fixtures.password)
+    await page.goto('/admin/indices')
+    await page.getByPlaceholder('Ej: IPC').fill(nombreIndice)
+    await page.getByRole('textbox', { name: 'Mes' }).fill('2027-01')
+    await page.getByPlaceholder('Ej: 3').fill('5')
+    await page.getByRole('button', { name: 'Cargar' }).click()
+    await page.waitForURL('**/admin/indices')
+
+    await expect
+      .poll(async () => {
+        const { data } = await admin.from('cuotas').select('saldo_pendiente').eq('id', cuotaId).single()
+        return data?.saldo_pendiente ?? null
+      })
+      .toBe(105000)
+
+    page.once('dialog', (dialog) => dialog.accept())
+    const filaEliminar = page.locator('tbody tr', { hasText: nombreIndice })
+    await filaEliminar.getByRole('button', { name: 'Eliminar' }).click()
+    await page.waitForURL('**/admin/indices**')
+    await expect(page.getByText('Índice eliminado')).toBeVisible()
+
+    await expect
+      .poll(async () => {
+        const { data } = await admin.from('cuotas').select('saldo_pendiente').eq('id', cuotaId).single()
+        return data?.saldo_pendiente ?? null
+      })
+      .toBe(100000)
+
+    const { data: valorBorrado } = await admin
+      .from('indices_valores')
+      .select('id')
+      .eq('nombre', nombreIndice)
+      .eq('periodo', '2027-01-01')
+      .maybeSingle()
+    expect(valorBorrado).toBeNull()
+  })
+
   test('el selector de índice en Datos generales del lote guarda correctamente', async ({ page }) => {
     const admin = createAdminClient()
     const { loteId } = await crearLoteVendidoConIndice(

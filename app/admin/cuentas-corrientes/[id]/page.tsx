@@ -59,6 +59,11 @@ export default async function CuentaCorrienteDetallePage({
     .select('full_name')
     .order('full_name')
 
+  // Dos personas distintas pueden compartir nombre (ej. dos clientes
+  // llamados "Juan Pérez") -- el datalist solo necesita el texto una vez,
+  // no una entrada por persona.
+  const nombresUnicosParaSugerir = [...new Set((personasParaSugerir ?? []).map((p) => p.full_name))]
+
   const saldos = calcularSaldoCuentaCorrientePorMoneda(
     (movimientos ?? []).map((m) => ({ tipo: m.tipo as 'debe' | 'haber', monto: m.monto, moneda: m.moneda }))
   )
@@ -124,8 +129,8 @@ export default async function CuentaCorrienteDetallePage({
             className="mt-1 block w-full rounded border px-3 py-2"
           />
           <datalist id="lista-personas-cuenta-corriente">
-            {(personasParaSugerir ?? []).map((persona) => (
-              <option key={persona.full_name} value={persona.full_name} />
+            {nombresUnicosParaSugerir.map((nombre) => (
+              <option key={nombre} value={nombre} />
             ))}
           </datalist>
         </label>

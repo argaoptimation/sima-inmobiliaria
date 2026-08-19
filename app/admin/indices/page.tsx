@@ -1,6 +1,8 @@
 import { createClient } from '@/lib/supabase/server'
 import { requireAdministrador } from '@/lib/auth/require-admin'
-import { cargarValorIndice, corregirValorIndice } from './actions'
+import { obtenerMesesIndiceFaltantes } from '@/lib/lotes/meses-indice-faltantes'
+import { cargarValorIndice, corregirValorIndice, eliminarValorIndice } from './actions'
+import { BotonEliminarIndice } from './BotonEliminarIndice'
 
 const NOMBRES_MES = [
   'Enero',
@@ -66,6 +68,8 @@ export default async function IndicesPage({
     }
   }
 
+  const mesesFaltantes = await obtenerMesesIndiceFaltantes(supabase)
+
   return (
     <main>
       <h1 className="mb-2 text-xl font-semibold">Índices</h1>
@@ -78,6 +82,21 @@ export default async function IndicesPage({
 
       {error && <p className="mb-4 rounded bg-red-100 p-2 text-sm text-red-700">{error}</p>}
       {ok && <p className="mb-4 rounded bg-green-100 p-2 text-sm text-green-700">{ok}</p>}
+
+      {mesesFaltantes.length > 0 && (
+        <div className="mb-6 rounded bg-amber-100 p-3 text-sm text-amber-800">
+          <p className="mb-1 font-semibold">
+            ⚠ Hay lotes con cuotas pendientes cuyo índice del mes anterior todavía no se cargó:
+          </p>
+          <ul className="list-inside list-disc">
+            {mesesFaltantes.map((faltante) => (
+              <li key={`${faltante.nombre}|${faltante.periodo}`}>
+                {faltante.nombre} — {formatearPeriodo(faltante.periodo)}
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
 
       <form action={cargarValorIndice} className="mb-8 flex flex-wrap items-end gap-3 rounded border p-3">
         <label className="text-sm">
@@ -131,13 +150,14 @@ export default async function IndicesPage({
       {masRecientePorNombre.size > 0 && (
         <>
           <h2 className="mb-2 mt-6 text-lg font-semibold">Corregir el último valor cargado</h2>
-          <table className="mb-8 w-full max-w-xl text-sm">
+          <table className="mb-8 w-full max-w-2xl text-sm">
             <thead>
               <tr className="border-b text-left">
                 <th className="py-2">Índice</th>
                 <th>Mes</th>
                 <th>Valor actual</th>
                 <th>Corregir a</th>
+                <th></th>
               </tr>
             </thead>
             <tbody>
@@ -162,6 +182,13 @@ export default async function IndicesPage({
                         Corregir
                       </button>
                     </form>
+                  </td>
+                  <td>
+                    <BotonEliminarIndice
+                      eliminarValorIndiceAction={eliminarValorIndice}
+                      nombre={nombre}
+                      periodo={info.periodo}
+                    />
                   </td>
                 </tr>
               ))}

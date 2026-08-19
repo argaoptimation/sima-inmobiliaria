@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import {
   calcularAjusteIndexacion,
+  calcularPeriodoIndiceNecesario,
   calcularRangoMesSiguiente,
   corregirAjusteIndexacion,
 } from './aplicar-indexacion'
@@ -69,6 +70,22 @@ describe('corregirAjusteIndexacion', () => {
 
     // 55 / 1.05 = 52.380952... * 1.03 = 53.95238... -> redondeado 53.95
     expect(resultado).toEqual([{ cuotaId: 'c1', saldoPendienteNuevo: 53.95 }])
+  })
+})
+
+describe('calcularPeriodoIndiceNecesario', () => {
+  it('ejemplo de Gabriel: una cuota de enero necesita el índice de diciembre del año anterior', () => {
+    expect(calcularPeriodoIndiceNecesario('2026-01-15')).toBe('2025-12-01')
+  })
+
+  it('un mes cualquiera pide el mes anterior dentro del mismo año', () => {
+    expect(calcularPeriodoIndiceNecesario('2026-08-01')).toBe('2026-07-01')
+  })
+
+  it('es la inversa exacta de calcularRangoMesSiguiente', () => {
+    const periodo = '2026-05-01'
+    const { desde } = calcularRangoMesSiguiente(periodo)
+    expect(calcularPeriodoIndiceNecesario(desde)).toBe(periodo)
   })
 })
 

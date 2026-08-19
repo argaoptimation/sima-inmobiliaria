@@ -248,3 +248,117 @@ export async function corregirValorIndice(formData: FormData) {
 
   redirect(`/admin/indices?ok=${encodeURIComponent('Índice corregido')}`)
 }
+
+// Elimina el valor MÁS RECIENTE cargado de un índice (mismo límite que
+// corregirValorIndice, mismo motivo: no reabrir una cadena de meses
+// viejos). Revierte el ajuste que ese valor generó -- se expresa como
+// "corregir al 0%", que matemáticamente es exactamente deshacer la
+// multiplicación original.
+export async function eliminarValorIndice(formData: FormData) {
+  await requireAdministrador()
+
+  const supabase = await createClient()
+
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
+
+  const nombre = ((formData.get('nombre') as string) || '').trim()
+  const periodo = ((formData.get('periodo') as string) || '').trim()
+
+  if (!nombre || !periodo) {
+    redirect(`/admin/indices?error=${encodeURIComponent('Faltan datos para eliminar el índice')}`)
+  }
+
+  const { data: masReciente } = await supabase
+    .from('indices_valores')
+    .select('periodo')
+    .eq('nombre', nombre)
+    .order('periodo', { ascending: false })
+    .limit(1)
+    .maybeSingle()
+
+  if (!masReciente || masReciente.periodo !== periodo) {
+    redirect(
+      `/admin/indices?error=${encodeURIComponent(
+        'Solo se puede eliminar el mes más reciente cargado de este índice'
+      )}`
+    )
+  }
+
+  const { desde, hastaExclusive } = calcularRangoMesSiguiente(periodo)
+
+  const { data: lotesConEsteIndice } = await supabase
+    .from('lotes')
+    .select('id')
+    .eq('moneda', 'ARS')
+    .eq('indice_tipo', nombre)
+
+  for (const lote of lotesConEsteIndice ?? []) {
+    const { data: ajustePrevio } = await supabase
+      .from('ajustes_indexacion')
+      .select('porcentaje')
+      .eq('lote_id', lote.id)
+      .eq('fecha_desde', desde)
+      .order('created_at', { ascending: false })
+      .limit(1)
+      .maybeSingle()
+
+    if (!ajustePrevio) continue
+
+    const { data: cuotasDelMes } = await supabase
+      .from('cuotas')
+      .select('id, saldo_pendiente, fecha_vencimiento')
+      .eq('lote_id', lote.id)
+      .gte('fecha_vencimiento', desde)
+      .lt('fecha_vencimiento', hastaExclusive)
+      .gt('saldo_pendiente', 0)
+
+    if (!cuotasDelMes || cuotasDelMes.length === 0) continue
+
+    const { error: errorAjuste } = await supabase.from('ajustes_indexacion').insert({
+      lote_id: lote.id,
+      porcentaje: 0,
+      fecha_desde: desde,
+      aplicado_por: user!.id,
+    })
+
+    if (errorAjuste) {
+      console.error('No se pudo registrar la reversión por eliminación de índice:', errorAjuste)
+      continue
+    }
+
+    const ajustes = corregirAjusteIndexacion(
+      ajustePrevio.porcentaje,
+      0,
+      cuotasDelMes.map((cuota) => ({
+        id: cuota.id,
+        saldoPendiente: cuota.saldo_pendiente,
+        fechaVencimiento: cuota.fecha_vencimiento,
+      }))
+    )
+
+    for (const ajuste of ajustes) {
+      const { error: errorSaldo } = await supabase
+        .from('cuotas')
+        .update({ saldo_pendiente: ajuste.saldoPendienteNuevo })
+        .eq('id', ajuste.cuotaId)
+
+      if (errorSaldo) {
+        console.error('No se pudo actualizar el saldo de una cuota tras eliminar un índice:', errorSaldo)
+      }
+    }
+  }
+
+  const { error: errorDelete } = await supabase
+    .from('indices_valores')
+    .delete()
+    .eq('nombre', nombre)
+    .eq('periodo', periodo)
+
+  if (errorDelete) {
+    redirect(`/admin/indices?error=${encodeURIComponent(mensajeDeError(errorDelete))}`)
+  }
+
+  redirect(`/admin/indices?ok=${encodeURIComponent('Índice eliminado')}`)
+}
