@@ -72,7 +72,7 @@ export default async function LotesPage({
 
   let queryLotes = supabase
     .from('lotes')
-    .select('id, identificador, moneda, estado, cantidad_cuotas, ubicacion, precio_total, acreedor_id')
+    .select('id, identificador, moneda, estado, cantidad_cuotas, ubicacion, precio_total, acreedor_id, loteo_id')
     .order(columnaOrden, { ascending: ordenAscendente })
 
   if (perfilPropio!.role === 'acreedor') {
@@ -110,6 +110,13 @@ export default async function LotesPage({
       : { data: [] }
 
   const nombreAcreedorPorId = new Map((acreedores ?? []).map((persona) => [persona.id, persona.full_name]))
+
+  const loteoIds = [...new Set((lotes ?? []).map((lote) => lote.loteo_id).filter(Boolean))]
+  const { data: loteosConLote } =
+    loteoIds.length > 0
+      ? await supabase.from('loteos').select('id, nombre').in('id', loteoIds)
+      : { data: [] }
+  const nombreLoteoPorId = new Map((loteosConLote ?? []).map((loteo) => [loteo.id, loteo.nombre]))
 
   let reservasPropias: { lote_id: string }[] = []
 
@@ -315,6 +322,7 @@ export default async function LotesPage({
             ))}
             <th>Acreedor</th>
             {!esVendedorOCobrador && <th>Cuotas</th>}
+            {!esVendedorOCobrador && <th>Loteo</th>}
             <th></th>
           </tr>
         </thead>
@@ -332,6 +340,9 @@ export default async function LotesPage({
                   {lote.acreedor_id ? nombreAcreedorPorId.get(lote.acreedor_id) ?? '—' : '— sin asignar —'}
                 </td>
                 {!esVendedorOCobrador && <td>{lote.cantidad_cuotas}</td>}
+                {!esVendedorOCobrador && (
+                  <td>{lote.loteo_id ? nombreLoteoPorId.get(lote.loteo_id) ?? '—' : '— sin asignar —'}</td>
+                )}
                 <td>
                   {esVendedorOCobrador ? (
                     <div className="flex flex-wrap items-center gap-3">
