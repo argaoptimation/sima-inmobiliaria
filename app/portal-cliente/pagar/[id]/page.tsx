@@ -2,6 +2,7 @@ import { createClient } from '@/lib/supabase/server'
 import { notFound, redirect } from 'next/navigation'
 import { registrarPago } from './actions'
 import { tieneDatosTransferencia } from '@/lib/lotes/validar-cuenta-cobro'
+import { MontoYMoneda } from './MontoYMoneda'
 
 export default async function PagarCuotaPage({
   params,
@@ -25,7 +26,7 @@ export default async function PagarCuotaPage({
 
   const { data: cuota } = await supabase
     .from('cuotas')
-    .select('lote_id')
+    .select('lote_id, saldo_pendiente')
     .eq('id', id)
     .maybeSingle()
 
@@ -35,7 +36,7 @@ export default async function PagarCuotaPage({
 
   const { data: lote } = await supabase
     .from('lotes')
-    .select('cliente_id, cuenta_cobro_id')
+    .select('cliente_id, cuenta_cobro_id, moneda, interes_moratorio_diario')
     .eq('id', cuota!.lote_id)
     .single()
 
@@ -91,19 +92,11 @@ export default async function PagarCuotaPage({
       </div>
       {error && <p className="mb-4 rounded bg-red-100 p-2 text-sm text-red-700">{error}</p>}
       <form action={registrarPagoConId} className="flex flex-col gap-3">
-        <input
-          name="monto"
-          type="number"
-          step="0.01"
-          min="0.01"
-          placeholder="Monto transferido"
-          required
-          className="rounded border px-3 py-2"
+        <MontoYMoneda
+          saldoPendiente={cuota!.saldo_pendiente}
+          monedaLote={lote!.moneda}
+          interesMoratorioDiario={lote!.interes_moratorio_diario}
         />
-        <select name="moneda" required className="rounded border px-3 py-2">
-          <option value="USD">USD</option>
-          <option value="ARS">ARS</option>
-        </select>
         <button type="submit" className="rounded bg-black px-3 py-2 text-white">
           Ya transferí
         </button>
