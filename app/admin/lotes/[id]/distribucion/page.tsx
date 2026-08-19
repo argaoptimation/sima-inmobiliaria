@@ -1,6 +1,7 @@
 import { createClient } from '@/lib/supabase/server'
 import { notFound } from 'next/navigation'
 import { requireAdministrador } from '@/lib/auth/require-admin'
+import { obtenerCuotasSinDistribucion } from '@/lib/cuenta-corriente/cuotas-sin-distribucion'
 import { guardarDistribucionLote } from './actions'
 import { DistribucionCuotas } from './DistribucionCuotas'
 
@@ -116,6 +117,8 @@ export default async function DistribucionLotePage({
 
   const guardarDistribucionConId = guardarDistribucionLote.bind(null, id)
 
+  const cuotasSinDistribucion = await obtenerCuotasSinDistribucion(supabase, id)
+
   return (
     <main className="max-w-4xl">
       <div className="mb-4 flex gap-4">
@@ -130,6 +133,14 @@ export default async function DistribucionLotePage({
 
       {error && <p className="mb-4 rounded bg-red-100 p-2 text-sm text-red-700">{error}</p>}
       {ok && <p className="mb-4 rounded bg-green-100 p-2 text-sm text-green-700">Distribución guardada.</p>}
+
+      {cuotasSinDistribucion.length > 0 && (
+        <p className="mb-4 rounded bg-amber-100 p-2 text-sm text-amber-800">
+          Ojo: la cuota {cuotasSinDistribucion.map((cuota) => cuota.numero).join(', ')} ya se cobró (al
+          menos en parte) pero todavía no tiene distribución cargada, así que no se generó ningún Debe en
+          la cuenta corriente de nadie por esa cuota.
+        </p>
+      )}
 
       {lote!.estado !== 'vendido' ? (
         <p className="mb-4 rounded bg-amber-100 p-2 text-sm text-amber-800">

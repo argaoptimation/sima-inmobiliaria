@@ -5,6 +5,10 @@ import { imputarPagoFIFO } from '@/lib/pagos/imputar-fifo'
 import { revalidatePath } from 'next/cache'
 import { redirect } from 'next/navigation'
 import { requireAdministrador } from '@/lib/auth/require-admin'
+import {
+  generarDebeAutomaticoSiCorresponde,
+  revertirDebeAutomaticoSiCorresponde,
+} from '@/lib/cuenta-corriente/generar-debe-automatico'
 
 export async function confirmarPago(pagoId: string, formData: FormData) {
   const supabase = await createClient()
@@ -234,6 +238,12 @@ export async function confirmarPago(pagoId: string, formData: FormData) {
       revalidatePath('/admin/pagos')
       return
     }
+
+    await generarDebeAutomaticoSiCorresponde(supabase, {
+      cuotaId: imputacion.cuotaId,
+      loteId: lote.id,
+      userId: user.id,
+    })
   }
 
   revalidatePath('/admin/pagos')
@@ -360,6 +370,12 @@ export async function editarMontoPago(pagoId: string, formData: FormData) {
           )}`
         )
       }
+
+      await generarDebeAutomaticoSiCorresponde(supabase, {
+        cuotaId: imputacion.cuotaId,
+        loteId: pago!.lote_id,
+        userId: user!.id,
+      })
     }
   } else {
     // La reversion tiene que considerar TODA la cadena de correcciones sobre
@@ -433,6 +449,8 @@ export async function editarMontoPago(pagoId: string, formData: FormData) {
       }
 
       restante -= aRevertir
+
+      await revertirDebeAutomaticoSiCorresponde(supabase, { cuotaId, userId: user!.id })
     }
   }
 

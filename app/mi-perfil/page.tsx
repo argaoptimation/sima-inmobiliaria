@@ -3,6 +3,7 @@ import { redirect } from 'next/navigation'
 import { actualizarNombre, actualizarDatosTransferencia } from './actions'
 import { NavAdmin } from '@/components/NavAdmin'
 import { contarPagosPendientes } from '@/lib/pagos-pendientes'
+import { calcularSaldoCuentaCorrientePorMoneda } from '@/lib/cuenta-corriente/calcular-saldo'
 
 export default async function MiPerfilPage({
   searchParams,
@@ -36,6 +37,22 @@ export default async function MiPerfilPage({
 
   const pagosPendientes = await contarPagosPendientes(supabase, perfil!.role, user!.id)
 
+  const { data: movimientosCuentaCorriente } = await supabase
+    .from('movimientos_cuenta_corriente')
+    .select('tipo, monto, moneda')
+    .eq('profile_id', user!.id)
+
+  const saldosCuentaCorriente = calcularSaldoCuentaCorrientePorMoneda(
+    (movimientosCuentaCorriente ?? []).map((m) => ({
+      tipo: m.tipo as 'debe' | 'haber',
+      monto: m.monto,
+      moneda: m.moneda,
+    }))
+  )
+  const entradasSaldoCuentaCorriente = Object.entries(saldosCuentaCorriente).filter(
+    ([, monto]) => monto !== 0
+  )
+
   return (
     <>
       {['administrador', 'acreedor', 'vendedor', 'cobrador'].includes(perfil!.role) && (
@@ -45,6 +62,16 @@ export default async function MiPerfilPage({
       <h1 className="mb-6 text-xl font-semibold">Mi perfil</h1>
       {error && <p className="mb-4 rounded bg-red-100 p-2 text-sm text-red-700">{error}</p>}
       {ok && <p className="mb-4 rounded bg-green-100 p-2 text-sm text-green-700">Guardado.</p>}
+
+      <h2 className="mb-2 text-lg font-semibold">Mi cuenta corriente</h2>
+      <p className="mb-1 text-sm">
+        {entradasSaldoCuentaCorriente.length === 0
+          ? 'Sin movimientos todavía.'
+          : entradasSaldoCuentaCorriente.map(([moneda, monto]) => `${monto} ${moneda}`).join(' / ')}
+      </p>
+      <p className="mb-8 text-xs text-gray-600">
+        Positivo: la empresa todavía te debe. Negativo: cobraste de más y le debés a la empresa.
+      </p>
 
       <h2 className="mb-2 text-lg font-semibold">Nombre completo</h2>
       <form action={actualizarNombre} className="mb-8 flex gap-3">
