@@ -8,6 +8,7 @@ import { calcularMontoCuota } from '@/lib/lotes/calcular-monto-cuota'
 import { generarCuotas, generarCuotasManual, CuotaGenerada } from '@/lib/lotes/generar-cuotas'
 import { imputarPagoFIFO } from '@/lib/pagos/imputar-fifo'
 import { excedeTamanioMaximo, MAX_ARCHIVO_MB } from '@/lib/storage/validar-tamanio-archivo'
+import { mensajeDeError } from '@/lib/errores'
 
 function construirParamsPreservados(formData: FormData): URLSearchParams {
   const params = new URLSearchParams({
@@ -273,7 +274,7 @@ export async function venderLote(loteId: string, formData: FormData) {
 
     if (errorInvite || !invited.user) {
       redirect(
-        `/admin/lotes/${loteId}/vender?error=${encodeURIComponent(errorInvite?.message ?? 'error desconocido')}`
+        `/admin/lotes/${loteId}/vender?error=${encodeURIComponent(mensajeDeError(errorInvite))}`
       )
     }
 
@@ -298,10 +299,12 @@ export async function venderLote(loteId: string, formData: FormData) {
           .insert({ ...nuevoPerfil, dni: null })
 
         if (errorProfileSinDni) {
-          redirect(`/admin/lotes/${loteId}/vender?error=${encodeURIComponent(errorProfileSinDni.message)}`)
+          redirect(
+            `/admin/lotes/${loteId}/vender?error=${encodeURIComponent(mensajeDeError(errorProfileSinDni))}`
+          )
         }
       } else {
-        redirect(`/admin/lotes/${loteId}/vender?error=${encodeURIComponent(errorProfile.message)}`)
+        redirect(`/admin/lotes/${loteId}/vender?error=${encodeURIComponent(mensajeDeError(errorProfile))}`)
       }
     }
 
@@ -364,9 +367,7 @@ export async function venderLote(loteId: string, formData: FormData) {
 
   if (errorCuotas || !cuotasCreadas) {
     redirect(
-      `/admin/lotes/${loteId}/vender?error=${encodeURIComponent(
-        errorCuotas?.message ?? 'error desconocido'
-      )}`
+      `/admin/lotes/${loteId}/vender?error=${encodeURIComponent(mensajeDeError(errorCuotas))}`
     )
   }
 
@@ -397,7 +398,7 @@ export async function venderLote(loteId: string, formData: FormData) {
     if (errorPagoSena || !pagoSena) {
       redirect(
         `/admin/lotes/${loteId}/vender?error=${encodeURIComponent(
-          `La venta se completó pero no se pudo registrar la seña como pago: ${errorPagoSena?.message ?? 'error desconocido'}`
+          `La venta se completó pero no se pudo registrar la seña como pago: ${mensajeDeError(errorPagoSena)}`
         )}`
       )
     }
@@ -417,7 +418,7 @@ export async function venderLote(loteId: string, formData: FormData) {
       if (errorImputacion) {
         redirect(
           `/admin/lotes/${loteId}/vender?error=${encodeURIComponent(
-            `La venta y la seña se registraron, pero falló aplicar el descuento a una cuota: ${errorImputacion.message}`
+            `La venta y la seña se registraron, pero falló aplicar el descuento a una cuota: ${mensajeDeError(errorImputacion)}`
           )}`
         )
       }
@@ -431,7 +432,7 @@ export async function venderLote(loteId: string, formData: FormData) {
       if (errorSaldo) {
         redirect(
           `/admin/lotes/${loteId}/vender?error=${encodeURIComponent(
-            `La venta y la seña se registraron, pero falló actualizar el saldo de una cuota: ${errorSaldo.message}`
+            `La venta y la seña se registraron, pero falló actualizar el saldo de una cuota: ${mensajeDeError(errorSaldo)}`
           )}`
         )
       }
@@ -453,7 +454,7 @@ export async function venderLote(loteId: string, formData: FormData) {
     if (errorPagoEntrega) {
       redirect(
         `/admin/lotes/${loteId}/vender?error=${encodeURIComponent(
-          `La venta se completó pero no se pudo registrar la entrega como pago: ${errorPagoEntrega.message}`
+          `La venta se completó pero no se pudo registrar la entrega como pago: ${mensajeDeError(errorPagoEntrega)}`
         )}`
       )
     }

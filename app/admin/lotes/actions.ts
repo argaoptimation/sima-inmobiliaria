@@ -5,6 +5,7 @@ import { createAdminClient } from '@/lib/supabase/admin'
 import { redirect } from 'next/navigation'
 import { requireAdmin } from '@/lib/auth/require-admin'
 import { validarSeleccionAcreedor } from '@/lib/lotes/validar-seleccion-acreedor'
+import { mensajeDeError } from '@/lib/errores'
 
 export async function crearLote(formData: FormData) {
   await requireAdmin()
@@ -49,7 +50,7 @@ export async function crearLote(formData: FormData) {
 
     if (errorInvite || !invited.user) {
       redirect(
-        `/admin/lotes/nuevo?error=${encodeURIComponent(errorInvite?.message ?? 'error desconocido')}`
+        `/admin/lotes/nuevo?error=${encodeURIComponent(mensajeDeError(errorInvite))}`
       )
     }
 
@@ -61,7 +62,7 @@ export async function crearLote(formData: FormData) {
     })
 
     if (errorProfile) {
-      redirect(`/admin/lotes/nuevo?error=${encodeURIComponent(errorProfile.message)}`)
+      redirect(`/admin/lotes/nuevo?error=${encodeURIComponent(mensajeDeError(errorProfile))}`)
     }
 
     acreedorIdFinal = invited.user.id
@@ -89,7 +90,7 @@ export async function crearLote(formData: FormData) {
   })
 
   if (errorLote) {
-    redirect(`/admin/lotes/nuevo?error=${encodeURIComponent(errorLote.message)}`)
+    redirect(`/admin/lotes/nuevo?error=${encodeURIComponent(mensajeDeError(errorLote))}`)
   }
 
   redirect('/admin/lotes')

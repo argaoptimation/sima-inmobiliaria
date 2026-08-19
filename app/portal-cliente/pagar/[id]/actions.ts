@@ -3,6 +3,7 @@
 import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { redirect } from 'next/navigation'
+import { mensajeDeError } from '@/lib/errores'
 
 export async function registrarPago(cuotaId: string, formData: FormData) {
   const supabase = await createClient()
@@ -58,7 +59,7 @@ export async function registrarPago(cuotaId: string, formData: FormData) {
 
   if (errorPago || !pago) {
     redirect(
-      `/portal-cliente/pagar/${cuotaId}?error=${encodeURIComponent(errorPago?.message ?? 'error desconocido')}`
+      `/portal-cliente/pagar/${cuotaId}?error=${encodeURIComponent(mensajeDeError(errorPago))}`
     )
   }
 

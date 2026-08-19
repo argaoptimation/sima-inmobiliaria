@@ -4,6 +4,7 @@ import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { redirect } from 'next/navigation'
 import { excedeTamanioMaximo, MAX_ARCHIVO_MB } from '@/lib/storage/validar-tamanio-archivo'
+import { mensajeDeError } from '@/lib/errores'
 
 export async function subirComprobante(pagoId: string, formData: FormData) {
   const supabase = await createClient()
@@ -59,7 +60,7 @@ export async function subirComprobante(pagoId: string, formData: FormData) {
 
   if (errorUpload) {
     redirect(
-      `/portal-cliente/pagos/${pagoId}/comprobante?error=${encodeURIComponent(errorUpload.message)}`
+      `/portal-cliente/pagos/${pagoId}/comprobante?error=${encodeURIComponent(mensajeDeError(errorUpload))}`
     )
   }
 

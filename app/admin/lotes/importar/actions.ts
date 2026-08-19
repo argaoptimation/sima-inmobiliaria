@@ -4,6 +4,7 @@ import { createClient } from '@/lib/supabase/server'
 import { parsearTextoImportacion } from '@/lib/lotes/parsear-importacion'
 import { redirect } from 'next/navigation'
 import { requireAdminOAcreedor } from '@/lib/auth/require-admin'
+import { mensajeDeError } from '@/lib/errores'
 
 export async function importarLotes(formData: FormData) {
   await requireAdminOAcreedor()
@@ -49,7 +50,7 @@ export async function importarLotes(formData: FormData) {
     if (errorLote) {
       redirect(
         `/admin/lotes/importar?error=${encodeURIComponent(
-          `No se pudo crear "${lote.identificador}": ${errorLote.message}`
+          `No se pudo crear "${lote.identificador}": ${mensajeDeError(errorLote)}`
         )}`
       )
     }

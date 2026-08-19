@@ -5,6 +5,7 @@ import { createClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
 import { requireAdministrador } from '@/lib/auth/require-admin'
 import { esContrasenaValida, mensajeContrasenaInvalida } from '@/lib/auth/validar-contrasena'
+import { mensajeDeError } from '@/lib/errores'
 
 export async function resetearContrasenaCliente(clienteId: string, formData: FormData) {
   await requireAdministrador()
@@ -23,7 +24,7 @@ export async function resetearContrasenaCliente(clienteId: string, formData: For
   })
 
   if (error) {
-    redirect(`/admin/clientes/${clienteId}?error=${encodeURIComponent(error.message)}`)
+    redirect(`/admin/clientes/${clienteId}?error=${encodeURIComponent(mensajeDeError(error))}`)
   }
 
   redirect(`/admin/clientes/${clienteId}?ok=${encodeURIComponent('Contraseña actualizada')}`)
@@ -71,7 +72,7 @@ export async function actualizarDatosCliente(clienteId: string, formData: FormDa
     .eq('id', clienteId)
 
   if (error) {
-    const mensaje = error.code === '23505' ? 'Ese DNI ya pertenece a otro cliente' : error.message
+    const mensaje = mensajeDeError(error, { '23505': 'Ese DNI ya pertenece a otro cliente' })
     redirect(`/admin/clientes/${clienteId}?error=${encodeURIComponent(mensaje)}`)
   }
 

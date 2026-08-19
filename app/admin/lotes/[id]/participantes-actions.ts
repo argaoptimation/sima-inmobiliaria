@@ -4,6 +4,7 @@ import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { redirect } from 'next/navigation'
 import { requireAdministrador } from '@/lib/auth/require-admin'
+import { mensajeDeError } from '@/lib/errores'
 
 export async function agregarParticipante(loteId: string, formData: FormData) {
   await requireAdministrador()
@@ -75,9 +76,9 @@ export async function agregarParticipante(loteId: string, formData: FormData) {
   })
 
   if (error) {
-    // 23505 = violacion de unique constraint (Postgres): ya esta agregado.
-    const mensaje =
-      error.code === '23505' ? 'Ese participante ya está agregado a este lote' : error.message
+    const mensaje = mensajeDeError(error, {
+      '23505': 'Ese participante ya está agregado a este lote',
+    })
     redirect(`/admin/lotes/${loteId}?error=${encodeURIComponent(mensaje)}`)
   }
 
@@ -121,7 +122,7 @@ export async function quitarParticipante(loteId: string, participanteId: string)
   const { error } = await supabase.from('lote_participantes').delete().eq('id', participanteId)
 
   if (error) {
-    redirect(`/admin/lotes/${loteId}?error=${encodeURIComponent(error.message)}`)
+    redirect(`/admin/lotes/${loteId}?error=${encodeURIComponent(mensajeDeError(error))}`)
   }
 
   redirect(`/admin/lotes/${loteId}`)

@@ -4,6 +4,7 @@ import { createClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
 import { requireAdministrador } from '@/lib/auth/require-admin'
 import { tieneDatosTransferencia } from '@/lib/lotes/validar-cuenta-cobro'
+import { mensajeDeError } from '@/lib/errores'
 
 export async function crearCuentaExterna(formData: FormData) {
   await requireAdministrador()
@@ -39,7 +40,7 @@ export async function crearCuentaExterna(formData: FormData) {
 
   if (error || !cuentaExterna) {
     redirect(
-      `/admin/cuentas-externas/nuevo?error=${encodeURIComponent(error?.message ?? 'error desconocido')}`
+      `/admin/cuentas-externas/nuevo?error=${encodeURIComponent(mensajeDeError(error))}`
     )
   }
 
@@ -63,7 +64,7 @@ export async function crearCuentaExterna(formData: FormData) {
     if (errorMovimiento) {
       redirect(
         `/admin/cuentas-externas/${cuentaExterna!.id}?error=${encodeURIComponent(
-          `La cuenta se creó pero no se pudo cargar la deuda inicial: ${errorMovimiento.message}`
+          `La cuenta se creó pero no se pudo cargar la deuda inicial: ${mensajeDeError(errorMovimiento)}`
         )}`
       )
     }
@@ -102,7 +103,9 @@ export async function actualizarCuentaExterna(cuentaExternaId: string, formData:
     .eq('id', cuentaExternaId)
 
   if (error) {
-    redirect(`/admin/cuentas-externas/${cuentaExternaId}?error=${encodeURIComponent(error.message)}`)
+    redirect(
+      `/admin/cuentas-externas/${cuentaExternaId}?error=${encodeURIComponent(mensajeDeError(error))}`
+    )
   }
 
   redirect(`/admin/cuentas-externas/${cuentaExternaId}?ok=1`)
@@ -145,7 +148,9 @@ export async function agregarMovimiento(cuentaExternaId: string, formData: FormD
   })
 
   if (error) {
-    redirect(`/admin/cuentas-externas/${cuentaExternaId}?error=${encodeURIComponent(error.message)}`)
+    redirect(
+      `/admin/cuentas-externas/${cuentaExternaId}?error=${encodeURIComponent(mensajeDeError(error))}`
+    )
   }
 
   redirect(`/admin/cuentas-externas/${cuentaExternaId}?ok=1`)
@@ -198,7 +203,9 @@ export async function eliminarCuentaExterna(cuentaExternaId: string) {
   const { error } = await supabase.from('cuentas_externas').delete().eq('id', cuentaExternaId)
 
   if (error) {
-    redirect(`/admin/cuentas-externas/${cuentaExternaId}?error=${encodeURIComponent(error.message)}`)
+    redirect(
+      `/admin/cuentas-externas/${cuentaExternaId}?error=${encodeURIComponent(mensajeDeError(error))}`
+    )
   }
 
   redirect('/admin/cuentas-externas')

@@ -2,6 +2,7 @@
 
 import { createClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
+import { mensajeDeError } from '@/lib/errores'
 
 async function requireClienteLogueado() {
   const supabase = await createClient()
@@ -41,7 +42,7 @@ export async function actualizarMisDatosCliente(formData: FormData) {
     .eq('id', userId)
 
   if (error) {
-    const mensaje = error.code === '23505' ? 'Ese DNI ya pertenece a otro cliente' : error.message
+    const mensaje = mensajeDeError(error, { '23505': 'Ese DNI ya pertenece a otro cliente' })
     redirect(`/portal-cliente/mi-perfil?error=${encodeURIComponent(mensaje)}`)
   }
 

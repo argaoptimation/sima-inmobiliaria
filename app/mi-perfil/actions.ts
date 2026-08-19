@@ -3,6 +3,7 @@
 import { createClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
 import { tieneDatosTransferencia } from '@/lib/lotes/validar-cuenta-cobro'
+import { mensajeDeError } from '@/lib/errores'
 
 async function requireStaffLogueado() {
   const supabase = await createClient()
@@ -36,7 +37,7 @@ export async function actualizarNombre(formData: FormData) {
   const { error } = await supabase.from('profiles').update({ full_name: fullName }).eq('id', userId)
 
   if (error) {
-    redirect(`/mi-perfil?error=${encodeURIComponent(error.message)}`)
+    redirect(`/mi-perfil?error=${encodeURIComponent(mensajeDeError(error))}`)
   }
 
   redirect('/mi-perfil?ok=1')
@@ -60,7 +61,7 @@ export async function actualizarDatosTransferencia(formData: FormData) {
     .eq('id', userId)
 
   if (error) {
-    redirect(`/mi-perfil?error=${encodeURIComponent(error.message)}`)
+    redirect(`/mi-perfil?error=${encodeURIComponent(mensajeDeError(error))}`)
   }
 
   redirect('/mi-perfil?ok=1')

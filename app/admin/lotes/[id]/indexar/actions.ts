@@ -4,6 +4,7 @@ import { createClient } from '@/lib/supabase/server'
 import { calcularAjusteIndexacion } from '@/lib/lotes/aplicar-indexacion'
 import { redirect } from 'next/navigation'
 import { requireAdminSobreLote } from '@/lib/auth/require-admin'
+import { mensajeDeError } from '@/lib/errores'
 
 export async function aplicarIndexacion(loteId: string, formData: FormData) {
   await requireAdminSobreLote(loteId)
@@ -33,10 +34,9 @@ export async function aplicarIndexacion(loteId: string, formData: FormData) {
   })
 
   if (errorAjuste) {
-    const mensaje =
-      errorAjuste.code === '23505'
-        ? 'Este ajuste ya fue aplicado (mismo lote, fecha y porcentaje)'
-        : errorAjuste.message
+    const mensaje = mensajeDeError(errorAjuste, {
+      '23505': 'Este ajuste ya fue aplicado (mismo lote, fecha y porcentaje)',
+    })
     redirect(`/admin/lotes/${loteId}/indexar?error=${encodeURIComponent(mensaje)}`)
   }
 
@@ -49,7 +49,7 @@ export async function aplicarIndexacion(loteId: string, formData: FormData) {
     // El ajuste ya quedo registrado (es la fuente de verdad de que "deberia"
     // haberse aplicado); si esto falla queda para reconciliar manualmente
     // contra esa fila en vez de reintentar a ciegas.
-    redirect(`/admin/lotes/${loteId}/indexar?error=${encodeURIComponent(errorCuotas.message)}`)
+    redirect(`/admin/lotes/${loteId}/indexar?error=${encodeURIComponent(mensajeDeError(errorCuotas))}`)
   }
 
   const ajustes = calcularAjusteIndexacion(
@@ -72,7 +72,7 @@ export async function aplicarIndexacion(loteId: string, formData: FormData) {
       // Idem: el ajuste ya esta registrado, asi que una falla parcial aca
       // no debe reintentarse sola -- requiere revision manual de que cuotas
       // quedaron actualizadas contra la fila de ajustes_indexacion.
-      redirect(`/admin/lotes/${loteId}/indexar?error=${encodeURIComponent(errorSaldo.message)}`)
+      redirect(`/admin/lotes/${loteId}/indexar?error=${encodeURIComponent(mensajeDeError(errorSaldo))}`)
     }
   }
 

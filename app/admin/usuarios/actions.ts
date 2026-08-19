@@ -5,6 +5,7 @@ import { createAdminClient } from '@/lib/supabase/admin'
 import { redirect } from 'next/navigation'
 import { requireAdministrador } from '@/lib/auth/require-admin'
 import { tieneDatosTransferencia } from '@/lib/lotes/validar-cuenta-cobro'
+import { mensajeDeError } from '@/lib/errores'
 
 const ROLES_STAFF = ['acreedor', 'vendedor', 'cobrador'] as const
 
@@ -24,9 +25,7 @@ export async function crearUsuarioStaff(formData: FormData) {
   const { data: invited, error: errorInvite } = await admin.auth.admin.inviteUserByEmail(email)
 
   if (errorInvite || !invited.user) {
-    redirect(
-      `/admin/usuarios?error=${encodeURIComponent(errorInvite?.message ?? 'error desconocido')}`
-    )
+    redirect(`/admin/usuarios?error=${encodeURIComponent(mensajeDeError(errorInvite))}`)
   }
 
   const { error: errorProfile } = await admin
@@ -34,7 +33,7 @@ export async function crearUsuarioStaff(formData: FormData) {
     .insert({ id: invited.user.id, role, full_name: fullName, email })
 
   if (errorProfile) {
-    redirect(`/admin/usuarios?error=${encodeURIComponent(errorProfile.message)}`)
+    redirect(`/admin/usuarios?error=${encodeURIComponent(mensajeDeError(errorProfile))}`)
   }
 
   redirect('/admin/usuarios')
@@ -53,7 +52,7 @@ export async function actualizarNombreStaff(userId: string, formData: FormData) 
   const { error } = await admin.from('profiles').update({ full_name: fullName }).eq('id', userId)
 
   if (error) {
-    redirect(`/admin/usuarios?error=${encodeURIComponent(error.message)}`)
+    redirect(`/admin/usuarios?error=${encodeURIComponent(mensajeDeError(error))}`)
   }
 
   redirect('/admin/usuarios')
@@ -114,7 +113,7 @@ export async function actualizarDatosTransferenciaStaff(userId: string, formData
     .eq('id', userId)
 
   if (error) {
-    redirect(`/admin/usuarios?error=${encodeURIComponent(error.message)}`)
+    redirect(`/admin/usuarios?error=${encodeURIComponent(mensajeDeError(error))}`)
   }
 
   redirect('/admin/usuarios')

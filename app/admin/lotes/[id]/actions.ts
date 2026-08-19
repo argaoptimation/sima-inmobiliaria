@@ -6,6 +6,7 @@ import { redirect } from 'next/navigation'
 import { requireAdminSobreLote, requireAdministrador } from '@/lib/auth/require-admin'
 import { tieneDatosTransferencia } from '@/lib/lotes/validar-cuenta-cobro'
 import { excedeTamanioMaximo, MAX_ARCHIVO_MB } from '@/lib/storage/validar-tamanio-archivo'
+import { mensajeDeError } from '@/lib/errores'
 
 function idOVacio(valor: FormDataEntryValue | null): string | null {
   const texto = valor as string | null
@@ -27,7 +28,7 @@ export async function actualizarDatosGenerales(loteId: string, formData: FormDat
     .eq('id', loteId)
 
   if (error) {
-    redirect(`/admin/lotes/${loteId}?error=${encodeURIComponent(error.message)}`)
+    redirect(`/admin/lotes/${loteId}?error=${encodeURIComponent(mensajeDeError(error))}`)
   }
 
   redirect(`/admin/lotes/${loteId}`)
@@ -88,7 +89,7 @@ export async function eliminarLote(loteId: string) {
   const { error } = await supabase.from('lotes').delete().eq('id', loteId)
 
   if (error) {
-    redirect(`/admin/lotes/${loteId}?error=${encodeURIComponent(error.message)}`)
+    redirect(`/admin/lotes/${loteId}?error=${encodeURIComponent(mensajeDeError(error))}`)
   }
 
   redirect('/admin/lotes')
@@ -210,7 +211,7 @@ export async function actualizarCobro(loteId: string, formData: FormData) {
     .eq('id', loteId)
 
   if (error) {
-    redirect(`/admin/lotes/${loteId}?error=${encodeURIComponent(error.message)}`)
+    redirect(`/admin/lotes/${loteId}?error=${encodeURIComponent(mensajeDeError(error))}`)
   }
 
   redirect(`/admin/lotes/${loteId}`)
@@ -265,7 +266,7 @@ export async function subirDocumentoLote(loteId: string, formData: FormData) {
   })
 
   if (errorInsert) {
-    redirect(`/admin/lotes/${loteId}?error=${encodeURIComponent(errorInsert.message)}`)
+    redirect(`/admin/lotes/${loteId}?error=${encodeURIComponent(mensajeDeError(errorInsert))}`)
   }
 
   redirect(`/admin/lotes/${loteId}`)
@@ -288,7 +289,7 @@ export async function eliminarDocumentoLote(documentoId: string, loteId: string)
     .eq('lote_id', loteId)
 
   if (error) {
-    redirect(`/admin/lotes/${loteId}?error=${encodeURIComponent(error.message)}`)
+    redirect(`/admin/lotes/${loteId}?error=${encodeURIComponent(mensajeDeError(error))}`)
   }
 
   redirect(`/admin/lotes/${loteId}`)
