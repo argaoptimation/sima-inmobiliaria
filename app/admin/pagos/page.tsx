@@ -241,7 +241,7 @@ export default async function PagosPage({
                   {pago.motivo === 'sena'
                     ? 'Seña'
                     : pago.motivo === 'ajuste'
-                      ? 'Ajuste'
+                      ? 'Corrección'
                       : pago.motivo === 'entrega'
                         ? 'Entrega'
                         : 'Cuota'}
