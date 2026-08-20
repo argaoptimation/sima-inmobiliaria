@@ -43,16 +43,22 @@ export async function actualizarNombreStaff(userId: string, formData: FormData) 
   await requireAdministrador()
 
   const fullName = (formData.get('fullName') as string)?.trim()
+  const dni = ((formData.get('dni') as string) || '').trim() || null
+  const domicilio = ((formData.get('domicilio') as string) || '').trim() || null
 
   if (!fullName) {
     redirect(`/admin/usuarios?error=${encodeURIComponent('El nombre no puede estar vacío')}`)
   }
 
   const admin = createAdminClient()
-  const { error } = await admin.from('profiles').update({ full_name: fullName }).eq('id', userId)
+  const { error } = await admin
+    .from('profiles')
+    .update({ full_name: fullName, dni, domicilio })
+    .eq('id', userId)
 
   if (error) {
-    redirect(`/admin/usuarios?error=${encodeURIComponent(mensajeDeError(error))}`)
+    const mensaje = mensajeDeError(error, { '23505': 'Ese DNI ya pertenece a otro usuario' })
+    redirect(`/admin/usuarios?error=${encodeURIComponent(mensaje)}`)
   }
 
   redirect('/admin/usuarios')

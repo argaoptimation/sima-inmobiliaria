@@ -96,7 +96,7 @@ export default async function UsuariosPage({
 
   let queryStaff = supabase
     .from('profiles')
-    .select('id, full_name, role, email, alias, banco, cbu, titular')
+    .select('id, full_name, role, email, alias, banco, cbu, titular, dni, domicilio')
     .in('role', ['administrador', 'acreedor', 'vendedor', 'cobrador'])
     .order('role')
 
@@ -184,18 +184,31 @@ export default async function UsuariosPage({
               return (
                 <tr key={persona.id} className="border-b">
                   <td colSpan={5} className="py-3">
-                    <form action={actualizarNombreConId} className="mb-3 flex gap-2">
+                    <form action={actualizarNombreConId} className="mb-3 flex flex-wrap gap-2">
                       <input
                         name="fullName"
                         defaultValue={persona.full_name}
+                        placeholder="Nombre completo"
                         required
                         className="flex-1 rounded border px-3 py-2"
+                      />
+                      <input
+                        name="dni"
+                        defaultValue={persona.dni ?? ''}
+                        placeholder="DNI (opcional)"
+                        className="rounded border px-3 py-2"
+                      />
+                      <input
+                        name="domicilio"
+                        defaultValue={persona.domicilio ?? ''}
+                        placeholder="Domicilio (opcional)"
+                        className="rounded border px-3 py-2"
                       />
                       <button
                         type="submit"
                         className="rounded bg-black px-3 py-2 text-sm text-white"
                       >
-                        Guardar nombre
+                        Guardar datos personales
                       </button>
                     </form>
                     <form action={actualizarDatosConId} className="flex flex-col gap-2">

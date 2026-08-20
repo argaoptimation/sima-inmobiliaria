@@ -107,4 +107,43 @@ test.describe('Eliminar usuarios de staff', () => {
       .maybeSingle()
     expect(profileTrasIntento).not.toBeNull()
   })
+
+  test('el administrador puede cargar DNI y domicilio de un acreedor', async ({ page }) => {
+    const acreedor = await crearAcreedorDescartable(`E2E Acreedor DNI ${Date.now()}`)
+    const dni = `${Date.now()}`.slice(-8)
+
+    await login(page, fixtures.admin.email, fixtures.password)
+    await page.goto(`/admin/usuarios?editar=${acreedor.id}`)
+
+    await page.getByPlaceholder('DNI (opcional)').fill(dni)
+    await page.getByPlaceholder('Domicilio (opcional)').fill('Domicilio Acreedor 123')
+    await page.getByRole('button', { name: 'Guardar datos personales' }).click()
+    await page.waitForURL('**/admin/usuarios')
+
+    const admin = createAdminClient()
+    const { data: perfil } = await admin
+      .from('profiles')
+      .select('dni, domicilio')
+      .eq('id', acreedor.id)
+      .single()
+    expect(perfil?.dni).toBe(dni)
+    expect(perfil?.domicilio).toBe('Domicilio Acreedor 123')
+  })
+
+  test('cargar un DNI que ya pertenece a otro usuario es rechazado', async ({ page }) => {
+    const dniOcupado = `${Date.now()}`.slice(-8)
+    const dueno = await crearAcreedorDescartable(`E2E Acreedor DNI Dueno ${Date.now()}`)
+    const otro = await crearAcreedorDescartable(`E2E Acreedor DNI Otro ${Date.now()}`)
+
+    const admin = createAdminClient()
+    await admin.from('profiles').update({ dni: dniOcupado }).eq('id', dueno.id)
+
+    await login(page, fixtures.admin.email, fixtures.password)
+    await page.goto(`/admin/usuarios?editar=${otro.id}`)
+
+    await page.getByPlaceholder('DNI (opcional)').fill(dniOcupado)
+    await page.getByRole('button', { name: 'Guardar datos personales' }).click()
+
+    await expect(page.getByText('Ese DNI ya pertenece a otro usuario')).toBeVisible()
+  })
 })
