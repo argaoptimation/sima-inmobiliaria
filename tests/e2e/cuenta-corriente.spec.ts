@@ -29,6 +29,18 @@ test.describe('Cuenta corriente', () => {
     await admin.from('movimientos_cuenta_corriente').delete().eq('profile_id', fixtures.acreedorConDatos.id)
   })
 
+  // El pago real del "caso 1" (vía el flujo completo del cliente) queda
+  // limpio entre tests DENTRO de esta corrida gracias al beforeEach de
+  // arriba (ensureTestFixtures ya borra pagos por cliente_id), pero el del
+  // ÚLTIMO test del archivo sobrevive hasta la próxima vez que se corra
+  // este spec por separado. pagos.lote_id no tiene "on delete cascade", así
+  // que puede bloquear el DELETE de "E2E Test Lote" en otro spec mientras
+  // tanto -- se limpia explícito para no depender de ese orden.
+  test.afterAll(async () => {
+    const admin = createAdminClient()
+    await admin.from('pagos').delete().eq('cliente_id', fixtures.cliente.id)
+  })
+
   test('caso 1 de Nico: se cobra la cuota completa y se postea el Debe automático según la distribución cargada; una corrección hacia abajo lo revierte', async ({
     page,
   }) => {

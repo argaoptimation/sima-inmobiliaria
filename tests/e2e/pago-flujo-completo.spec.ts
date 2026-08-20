@@ -1,7 +1,7 @@
 import { test, expect, Page } from '@playwright/test'
 import path from 'node:path'
 import { readFileSync } from 'node:fs'
-import { ensureTestFixtures, TestFixtures } from './fixtures/test-data'
+import { createAdminClient, ensureTestFixtures, TestFixtures } from './fixtures/test-data'
 import { login, logout } from './utils/login'
 
 const COMPROBANTE_PATH = path.join(__dirname, 'fixtures', 'comprobante-test.pdf')
@@ -30,6 +30,16 @@ test.describe('Flujo completo de pago con confirmación cruzada', () => {
 
   test.beforeAll(async () => {
     fixtures = await ensureTestFixtures()
+  })
+
+  // El pago real que este test confirma vía el flujo completo no lo borra
+  // nadie más: pagos.lote_id no tiene "on delete cascade", así que si queda
+  // colgado puede bloquear el DELETE de "E2E Test Lote" en el
+  // ensureTestFixtures() de la PRÓXIMA corrida (ya se vio romper así en
+  // otro spec -- ver commit de cuentas-externas.spec.ts).
+  test.afterAll(async () => {
+    const admin = createAdminClient()
+    await admin.from('pagos').delete().eq('cliente_id', fixtures.cliente.id)
   })
 
   test('cliente paga de más, sube comprobante, acreedor y admin confirman, FIFO reparte el saldo', async ({

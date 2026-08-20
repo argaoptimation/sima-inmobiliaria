@@ -47,6 +47,17 @@ test.describe('Confirmación de pagos acotada al acreedor del lote', () => {
     fixtures = await ensureTestFixtures()
   })
 
+  // Los 3 tests de este archivo registran pagos reales sobre
+  // fixtures.loteId vía el flujo completo del cliente -- pagos.lote_id no
+  // tiene "on delete cascade", así que si quedan colgados pueden bloquear
+  // el DELETE de "E2E Test Lote" en el ensureTestFixtures() de otro spec
+  // corrido después (ya rompió así una vez, ver commit de
+  // cuentas-externas.spec.ts).
+  test.afterAll(async () => {
+    const admin = createAdminClient()
+    await admin.from('pagos').delete().eq('cliente_id', fixtures.cliente.id)
+  })
+
   test('un acreedor sin relación con el lote no ve el pago del cliente en /admin/pagos', async ({
     page,
   }) => {

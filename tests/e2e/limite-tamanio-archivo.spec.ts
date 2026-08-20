@@ -34,6 +34,26 @@ test.describe('Límite de tamaño de archivo en subidas', () => {
     fixtures = await ensureTestFixtures()
   })
 
+  // Este archivo deja dos tipos de basura sin este hook: los lotes
+  // "E2E Lote Archivo..." creados sueltos por crearLoteDisponible (con sus
+  // reservas), y el pago real que crea "Ya transferí" sobre
+  // fixtures.cuotaIds[0] (pagos.lote_id no tiene "on delete cascade", puede
+  // bloquear el DELETE de "E2E Test Lote" en otro spec corrido después).
+  test.afterAll(async () => {
+    const admin = createAdminClient()
+    await admin.from('pagos').delete().eq('cliente_id', fixtures.cliente.id)
+
+    const { data: lotesSueltos } = await admin
+      .from('lotes')
+      .select('id')
+      .ilike('identificador', 'E2E Lote Archivo%')
+    const idsLotesSueltos = (lotesSueltos ?? []).map((lote) => lote.id)
+    if (idsLotesSueltos.length > 0) {
+      await admin.from('reservas').delete().in('lote_id', idsLotesSueltos)
+      await admin.from('lotes').delete().in('id', idsLotesSueltos)
+    }
+  })
+
   test('un comprobante de seña de más de 15 MB se rechaza al reservar', async ({ page }) => {
     const loteId = await crearLoteDisponible(`E2E Lote Archivo Grande ${Date.now()}`)
 
