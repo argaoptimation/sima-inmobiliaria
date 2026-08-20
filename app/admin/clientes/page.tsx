@@ -1,16 +1,32 @@
 import { createClient } from '@/lib/supabase/server'
 import { requireAdministrador } from '@/lib/auth/require-admin'
 
-export default async function ClientesPage() {
+export default async function ClientesPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ q?: string }>
+}) {
   await requireAdministrador()
+
+  const { q: filtroTexto } = await searchParams
 
   const supabase = await createClient()
 
-  const { data: clientes } = await supabase
+  let queryClientes = supabase
     .from('profiles')
     .select('id, full_name, email')
     .eq('role', 'cliente')
     .order('full_name')
+
+  if (filtroTexto) {
+    // .or() arma un filtro PostgREST crudo -- ",()" tienen significado
+    // especial ahí (separan condiciones), así que se sacan del texto
+    // buscado antes de interpolarlo para no romper ni alterar el filtro.
+    const textoSaneado = filtroTexto.replace(/[,()]/g, '')
+    queryClientes = queryClientes.or(`full_name.ilike.%${textoSaneado}%,email.ilike.%${textoSaneado}%`)
+  }
+
+  const { data: clientes } = await queryClientes
 
   const clienteIds = (clientes ?? []).map((cliente) => cliente.id)
 
@@ -28,8 +44,32 @@ export default async function ClientesPage() {
   return (
     <main className="max-w-2xl">
       <h1 className="mb-6 text-xl font-semibold">Clientes</h1>
+
+      <form method="get" className="mb-4 flex items-end gap-3">
+        <label className="text-sm">
+          Buscar
+          <input
+            type="text"
+            name="q"
+            placeholder="Nombre o email"
+            defaultValue={filtroTexto ?? ''}
+            className="mt-1 block rounded border px-3 py-2"
+          />
+        </label>
+        <button type="submit" className="rounded border px-3 py-2 text-sm">
+          Filtrar
+        </button>
+        {filtroTexto && (
+          <a href="/admin/clientes" className="text-sm underline">
+            Limpiar
+          </a>
+        )}
+      </form>
+
       {(clientes ?? []).length === 0 ? (
-        <p className="text-sm text-gray-600">Todavía no hay ningún cliente cargado.</p>
+        <p className="text-sm text-gray-600">
+          {filtroTexto ? 'Ningún cliente coincide con la búsqueda.' : 'Todavía no hay ningún cliente cargado.'}
+        </p>
       ) : (
         <table className="w-full text-sm">
           <thead>
