@@ -112,27 +112,6 @@ export default async function UsuariosPage({
       <h1 className="mb-6 text-xl font-semibold">Usuarios de staff</h1>
       {error && <p className="mb-4 rounded bg-red-100 p-2 text-sm text-red-700">{error}</p>}
 
-      <form method="get" className="mb-4 flex items-end gap-3">
-        <label className="text-sm">
-          Buscar
-          <input
-            type="text"
-            name="q"
-            placeholder="Nombre o email"
-            defaultValue={filtroTexto ?? ''}
-            className="mt-1 block rounded border px-3 py-2"
-          />
-        </label>
-        <button type="submit" className="rounded border px-3 py-2 text-sm">
-          Filtrar
-        </button>
-        {filtroTexto && (
-          <a href="/admin/usuarios" className="text-sm underline">
-            Limpiar
-          </a>
-        )}
-      </form>
-
       <form action={crearUsuarioStaff} className="mb-8 flex flex-col gap-3">
         <input
           name="fullName"
@@ -155,6 +134,27 @@ export default async function UsuariosPage({
         <button type="submit" className="rounded bg-black px-3 py-2 text-white">
           Invitar
         </button>
+      </form>
+
+      <form method="get" className="mb-4 flex items-end gap-3">
+        <label className="text-sm">
+          Buscar
+          <input
+            type="text"
+            name="q"
+            placeholder="Nombre o email"
+            defaultValue={filtroTexto ?? ''}
+            className="mt-1 block rounded border px-3 py-2"
+          />
+        </label>
+        <button type="submit" className="rounded border px-3 py-2 text-sm">
+          Filtrar
+        </button>
+        {filtroTexto && (
+          <a href="/admin/usuarios" className="text-sm underline">
+            Limpiar
+          </a>
+        )}
       </form>
       {(staff ?? []).length === 0 && filtroTexto ? (
         <p className="text-sm text-gray-600">Ningún usuario coincide con la búsqueda.</p>

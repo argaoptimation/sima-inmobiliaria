@@ -29,8 +29,8 @@ export function CampoTelefono({
       >
         {PREFIJOS_TELEFONO.map((prefijo) => (
           <option key={prefijo.codigo} value={prefijo.codigo}>
-            {prefijo.bandera} {prefijo.nombre}
-            {prefijo.codigo !== 'otro' ? ` (+${prefijo.codigo.replace('-do', '')})` : ''}
+            {prefijo.nombre}
+            {prefijo.codigo !== 'otro' ? ` (+${prefijo.codigo.replace('-do', '')})` : ''} {prefijo.bandera}
           </option>
         ))}
       </select>

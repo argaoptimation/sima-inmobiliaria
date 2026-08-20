@@ -2,15 +2,25 @@ import { createClient } from '@/lib/supabase/server'
 import { requireAdministrador } from '@/lib/auth/require-admin'
 import { calcularSaldoPorMoneda } from '@/lib/cuentas-externas/calcular-saldo'
 
-export default async function CuentasExternasPage() {
+export default async function CuentasExternasPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ q?: string }>
+}) {
   await requireAdministrador()
+
+  const { q: filtroTexto } = await searchParams
 
   const supabase = await createClient()
 
-  const { data: cuentasExternas } = await supabase
-    .from('cuentas_externas')
-    .select('id, nombre')
-    .order('nombre')
+  let queryCuentas = supabase.from('cuentas_externas').select('id, nombre').order('nombre')
+
+  if (filtroTexto) {
+    const textoSaneado = filtroTexto.replace(/[,()]/g, '')
+    queryCuentas = queryCuentas.ilike('nombre', `%${textoSaneado}%`)
+  }
+
+  const { data: cuentasExternas } = await queryCuentas
 
   const { data: movimientos } = await supabase
     .from('cuentas_externas_movimientos')
@@ -41,8 +51,32 @@ export default async function CuentasExternasPage() {
           + Nueva cuenta externa
         </a>
       </div>
+
+      <form method="get" className="mb-4 flex items-end gap-3">
+        <label className="text-sm">
+          Buscar
+          <input
+            type="text"
+            name="q"
+            placeholder="Nombre"
+            defaultValue={filtroTexto ?? ''}
+            className="mt-1 block rounded border px-3 py-2"
+          />
+        </label>
+        <button type="submit" className="rounded border px-3 py-2 text-sm">
+          Filtrar
+        </button>
+        {filtroTexto && (
+          <a href="/admin/cuentas-externas" className="text-sm underline">
+            Limpiar
+          </a>
+        )}
+      </form>
+
       {(cuentasExternas ?? []).length === 0 ? (
-        <p className="text-sm text-gray-600">Todavía no hay ninguna cuenta externa cargada.</p>
+        <p className="text-sm text-gray-600">
+          {filtroTexto ? 'Ninguna cuenta externa coincide con la búsqueda.' : 'Todavía no hay ninguna cuenta externa cargada.'}
+        </p>
       ) : (
         <table className="w-full text-sm">
           <thead>

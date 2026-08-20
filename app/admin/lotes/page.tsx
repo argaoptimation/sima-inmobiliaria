@@ -616,11 +616,6 @@ export default async function LotesPage({
                           Vender / asignar cliente
                         </a>
                       )}
-                      {lote.moneda === 'ARS' && (
-                        <a href={`/admin/lotes/${lote.id}/indexar`} className="text-sm underline">
-                          Indexar
-                        </a>
-                      )}
                       {perfilPropio!.role === 'administrador' && (
                         <BotonEliminarLote eliminarLoteAction={eliminarLoteConId} compacto />
                       )}

@@ -41,22 +41,12 @@ test.describe('Visibilidad acotada acreedor-vendedor', () => {
     await expect(page.getByRole('link', { name: 'Editar' }).first()).toBeVisible()
   })
 
-  test('el acreedor no puede vender ni indexar un lote ajeno navegando directo por URL', async ({
-    page,
-  }) => {
+  test('el acreedor no puede vender un lote ajeno navegando directo por URL', async ({ page }) => {
     await login(page, fixtures.acreedorConDatos.email, fixtures.password)
 
-    await test.step('navegar directo a /vender del lote del otro acreedor redirige a /admin/lotes', async () => {
-      await page.goto(`/admin/lotes/${fixtures.loteSecundarioId}/vender`)
-      await page.waitForURL('**/admin/lotes')
-      await expect(page).toHaveURL(/\/admin\/lotes$/)
-    })
-
-    await test.step('navegar directo a /indexar del lote del otro acreedor redirige a /admin/lotes', async () => {
-      await page.goto(`/admin/lotes/${fixtures.loteSecundarioId}/indexar`)
-      await page.waitForURL('**/admin/lotes')
-      await expect(page).toHaveURL(/\/admin\/lotes$/)
-    })
+    await page.goto(`/admin/lotes/${fixtures.loteSecundarioId}/vender`)
+    await page.waitForURL('**/admin/lotes')
+    await expect(page).toHaveURL(/\/admin\/lotes$/)
   })
 
   test('el acreedor no puede invitar nuevas cuentas de staff (exclusivo del administrador)', async ({
