@@ -3,16 +3,28 @@ import { requireAdministrador } from '@/lib/auth/require-admin'
 import { calcularSaldoCuentaCorrientePorMoneda } from '@/lib/cuenta-corriente/calcular-saldo'
 import { obtenerCuotasSinDistribucion } from '@/lib/cuenta-corriente/cuotas-sin-distribucion'
 
-export default async function CuentasCorrientesPage() {
+export default async function CuentasCorrientesPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ q?: string }>
+}) {
   await requireAdministrador()
+
+  const { q: filtroTexto } = await searchParams
 
   const supabase = await createClient()
 
-  const { data: personas } = await supabase
+  let queryPersonas = supabase
     .from('profiles')
     .select('id, full_name, role')
     .in('role', ['administrador', 'acreedor', 'vendedor', 'cobrador'])
     .order('full_name')
+
+  if (filtroTexto) {
+    queryPersonas = queryPersonas.ilike('full_name', `%${filtroTexto}%`)
+  }
+
+  const { data: personas } = await queryPersonas
 
   const { data: movimientos } = await supabase
     .from('movimientos_cuenta_corriente')
@@ -30,6 +42,27 @@ export default async function CuentasCorrientesPage() {
   return (
     <main className="max-w-3xl">
       <h1 className="mb-6 text-xl font-semibold">Cuentas corrientes</h1>
+
+      <form method="get" className="mb-4 flex items-end gap-3">
+        <label className="text-sm">
+          Buscar
+          <input
+            type="text"
+            name="q"
+            placeholder="Nombre"
+            defaultValue={filtroTexto ?? ''}
+            className="mt-1 block rounded border px-3 py-2"
+          />
+        </label>
+        <button type="submit" className="rounded border px-3 py-2 text-sm">
+          Filtrar
+        </button>
+        {filtroTexto && (
+          <a href="/admin/cuentas-corrientes" className="text-sm underline">
+            Limpiar
+          </a>
+        )}
+      </form>
 
       {cuotasSinDistribucion.length > 0 && (
         <div className="mb-6 rounded bg-amber-100 p-3 text-sm text-amber-800">
@@ -49,6 +82,9 @@ export default async function CuentasCorrientesPage() {
         </div>
       )}
 
+      {(personas ?? []).length === 0 && filtroTexto ? (
+        <p className="text-sm text-gray-600">Nadie coincide con la búsqueda.</p>
+      ) : (
       <table className="w-full text-sm">
         <thead>
           <tr className="border-b text-left">
@@ -80,6 +116,7 @@ export default async function CuentasCorrientesPage() {
           })}
         </tbody>
       </table>
+      )}
     </main>
   )
 }

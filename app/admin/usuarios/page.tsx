@@ -12,9 +12,9 @@ import { tieneDatosTransferencia } from '@/lib/lotes/validar-cuenta-cobro'
 export default async function UsuariosPage({
   searchParams,
 }: {
-  searchParams: Promise<{ error?: string; editar?: string }>
+  searchParams: Promise<{ error?: string; editar?: string; q?: string }>
 }) {
-  const { error, editar } = await searchParams
+  const { error, editar, q: filtroTexto } = await searchParams
 
   // Mismo criterio que /admin/pagos: vendedor y cobrador tienen acceso
   // acotado a /admin (solo lotes disponibles + reservar + su propio perfil).
@@ -94,16 +94,45 @@ export default async function UsuariosPage({
     )
   }
 
-  const { data: staff } = await supabase
+  let queryStaff = supabase
     .from('profiles')
     .select('id, full_name, role, email, alias, banco, cbu, titular')
     .in('role', ['administrador', 'acreedor', 'vendedor', 'cobrador'])
     .order('role')
 
+  if (filtroTexto) {
+    const textoSaneado = filtroTexto.replace(/[,()]/g, '')
+    queryStaff = queryStaff.or(`full_name.ilike.%${textoSaneado}%,email.ilike.%${textoSaneado}%`)
+  }
+
+  const { data: staff } = await queryStaff
+
   return (
     <main className="max-w-2xl">
       <h1 className="mb-6 text-xl font-semibold">Usuarios de staff</h1>
       {error && <p className="mb-4 rounded bg-red-100 p-2 text-sm text-red-700">{error}</p>}
+
+      <form method="get" className="mb-4 flex items-end gap-3">
+        <label className="text-sm">
+          Buscar
+          <input
+            type="text"
+            name="q"
+            placeholder="Nombre o email"
+            defaultValue={filtroTexto ?? ''}
+            className="mt-1 block rounded border px-3 py-2"
+          />
+        </label>
+        <button type="submit" className="rounded border px-3 py-2 text-sm">
+          Filtrar
+        </button>
+        {filtroTexto && (
+          <a href="/admin/usuarios" className="text-sm underline">
+            Limpiar
+          </a>
+        )}
+      </form>
+
       <form action={crearUsuarioStaff} className="mb-8 flex flex-col gap-3">
         <input
           name="fullName"
@@ -127,6 +156,9 @@ export default async function UsuariosPage({
           Invitar
         </button>
       </form>
+      {(staff ?? []).length === 0 && filtroTexto ? (
+        <p className="text-sm text-gray-600">Ningún usuario coincide con la búsqueda.</p>
+      ) : (
       <table className="w-full text-sm">
         <thead>
           <tr className="border-b text-left">
@@ -233,6 +265,7 @@ export default async function UsuariosPage({
           })}
         </tbody>
       </table>
+      )}
     </main>
   )
 }
