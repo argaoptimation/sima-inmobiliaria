@@ -38,7 +38,7 @@ async function reservarLotePorUI(
   await page.getByPlaceholder('DNI', { exact: true }).fill('30111222')
   await page.getByPlaceholder('Domicilio').fill('Calle Falsa 123')
   await page.getByPlaceholder('Email').fill(datos.email)
-  await page.getByPlaceholder('Teléfono', { exact: true }).fill('3511234567')
+  await page.getByPlaceholder('9351234567').fill('3511234567')
   await page.selectOption('select[name="estadoCivil"]', 'soltero')
   await page.getByPlaceholder('Monto de la seña').fill(datos.montoSena)
   await page.selectOption('select[name="monedaSena"]', datos.monedaSena ?? 'USD')

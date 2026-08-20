@@ -36,7 +36,7 @@ test.describe('Editar datos del cliente', () => {
       expect(cliente?.full_name).toBe('E2E Cliente Editado')
       expect(cliente?.dni).toBe(dni)
       expect(cliente?.domicilio).toBe('Domicilio Editado 111')
-      expect(cliente?.telefono).toBe('543515555555')
+      expect(cliente?.telefono).toBe('54|3515555555')
     } finally {
       await admin
         .from('profiles')
@@ -91,7 +91,7 @@ test.describe('Editar datos del cliente', () => {
         .single()
       expect(cliente?.full_name).toBe('E2E Cliente Autoeditado')
       expect(cliente?.dni).toBe(dni)
-      expect(cliente?.telefono).toBe('543516666666')
+      expect(cliente?.telefono).toBe('54|3516666666')
     } finally {
       await admin
         .from('profiles')

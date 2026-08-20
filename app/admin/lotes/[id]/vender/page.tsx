@@ -3,6 +3,7 @@ import { notFound } from 'next/navigation'
 import { requireAdministrador } from '@/lib/auth/require-admin'
 import { venderLote } from './actions'
 import { CuotasYDocumento } from './CuotasYDocumento'
+import { telefonoParaWhatsApp } from '@/lib/telefono/prefijos'
 
 export default async function VenderLotePage({
   params,
@@ -104,7 +105,7 @@ export default async function VenderLotePage({
               <p>Persona que reservó: {reserva.nombre_completo}</p>
               <p>DNI: {reserva.dni}</p>
               <p>Domicilio: {reserva.domicilio}</p>
-              <p>Teléfono: {reserva.telefono}</p>
+              <p>Teléfono: +{telefonoParaWhatsApp(reserva.telefono)}</p>
               <p>
                 Seña: {reserva.monto_sena} {reserva.moneda_sena}
               </p>

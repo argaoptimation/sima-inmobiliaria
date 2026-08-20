@@ -45,7 +45,7 @@ async function reservarLotePorUI(
   await page.getByPlaceholder('DNI', { exact: true }).fill(datos.dni)
   await page.getByPlaceholder('Domicilio').fill(datos.domicilio)
   await page.getByPlaceholder('Email').fill(datos.email)
-  await page.getByPlaceholder('Teléfono', { exact: true }).fill(datos.telefono)
+  await page.getByPlaceholder('9351234567').fill(datos.telefono)
   await page.selectOption('select[name="estadoCivil"]', 'soltero')
   await page.getByPlaceholder('Monto de la seña').fill(datos.montoSena)
   await page.selectOption('select[name="monedaSena"]', 'USD')
@@ -120,7 +120,7 @@ test.describe('Datos del cliente al vender', () => {
 
     expect(cliente?.dni).toBe(dni)
     expect(cliente?.domicilio).toBe('Domicilio E2E 123')
-    expect(cliente?.telefono).toBe('3511111111')
+    expect(cliente?.telefono).toBe('54|3511111111')
   })
 
   test('cliente existente sin esos datos cargados: se completan con los de la nueva reserva', async ({
@@ -169,7 +169,7 @@ test.describe('Datos del cliente al vender', () => {
 
     expect(cliente?.dni).toBe(dni)
     expect(cliente?.domicilio).toBe('Domicilio Completado 456')
-    expect(cliente?.telefono).toBe('3512222222')
+    expect(cliente?.telefono).toBe('54|3512222222')
   })
 
   test('cliente existente con DNI ya cargado, distinto al de la nueva reserva: aviso visible, se mantiene el guardado', async ({

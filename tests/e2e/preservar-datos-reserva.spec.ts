@@ -39,7 +39,7 @@ test.describe('Preservar datos tipeados si falta un campo obligatorio al reserva
     await page.getByPlaceholder('DNI', { exact: true }).fill('30222333')
     await page.getByPlaceholder('Domicilio').fill('Calle Preservada 456')
     await page.getByPlaceholder('Email').fill('comprador.preservado@sima-e2e.invalid')
-    await page.getByPlaceholder('Teléfono', { exact: true }).fill('3511112222')
+    await page.getByPlaceholder('9351234567').fill('3511112222')
     await page.selectOption('select[name="estadoCivil"]', 'soltero')
     await page.getByPlaceholder('Monto de la seña').fill('750')
     await page.setInputFiles('input[name="comprobante"]', {
@@ -59,7 +59,7 @@ test.describe('Preservar datos tipeados si falta un campo obligatorio al reserva
     await expect(page.getByPlaceholder('DNI', { exact: true })).toHaveValue('30222333')
     await expect(page.getByPlaceholder('Domicilio')).toHaveValue('Calle Preservada 456')
     await expect(page.getByPlaceholder('Email')).toHaveValue('comprador.preservado@sima-e2e.invalid')
-    await expect(page.getByPlaceholder('Teléfono', { exact: true })).toHaveValue('3511112222')
+    await expect(page.getByPlaceholder('9351234567')).toHaveValue('3511112222')
     await expect(page.getByPlaceholder('Monto de la seña')).toHaveValue('750')
   })
 
@@ -107,7 +107,7 @@ test.describe('Preservar datos tipeados si falta un campo obligatorio al reserva
     await expect(page.getByPlaceholder('DNI', { exact: true })).toHaveValue(dni)
     await expect(page.getByPlaceholder('Domicilio')).toHaveValue('Domicilio Precargado 999')
     await expect(page.getByPlaceholder('Email')).toHaveValue(email)
-    await expect(page.getByPlaceholder('Teléfono', { exact: true })).toHaveValue('3518888888')
+    await expect(page.getByPlaceholder('9351234567')).toHaveValue('3518888888')
 
     // El propio motivo de que dniPreservado exista (en vez de reusar el
     // param `dni` del buscador): un error de validación NO debe volver a

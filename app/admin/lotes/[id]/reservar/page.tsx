@@ -2,6 +2,8 @@ import { createClient } from '@/lib/supabase/server'
 import { notFound } from 'next/navigation'
 import { requireAccesoParaReservar } from '@/lib/auth/require-admin'
 import { reservarLote } from './actions'
+import { codificarTelefono } from '@/lib/telefono/prefijos'
+import { CampoTelefono, AyudaTelefono } from '@/components/CampoTelefono'
 
 export default async function ReservarLotePage({
   params,
@@ -15,7 +17,8 @@ export default async function ReservarLotePage({
     dniPreservado?: string
     domicilio?: string
     email?: string
-    telefono?: string
+    prefijo?: string
+    telefonoNumero?: string
     telefonoAlternativo?: string
     estadoCivil?: string
     instrumentacion?: string
@@ -33,7 +36,8 @@ export default async function ReservarLotePage({
     dniPreservado,
     domicilio: domicilioPreservado,
     email: emailPreservado,
-    telefono: telefonoPreservado,
+    prefijo: prefijoPreservado,
+    telefonoNumero: telefonoNumeroPreservado,
     telefonoAlternativo: telefonoAlternativoPreservado,
     estadoCivil: estadoCivilPreservado,
     instrumentacion: instrumentacionPreservado,
@@ -86,6 +90,14 @@ export default async function ReservarLotePage({
     .order('full_name')
 
   const reservarLoteConId = reservarLote.bind(null, id)
+
+  // Si venimos de un error de validación, se respeta exactamente lo que el
+  // admin ya había tipeado (aunque esté vacío). Si es la primera carga,
+  // se prioriza lo encontrado por DNI.
+  const valorTelefonoForm =
+    prefijoPreservado !== undefined || telefonoNumeroPreservado !== undefined
+      ? codificarTelefono(prefijoPreservado ?? '', telefonoNumeroPreservado ?? '')
+      : (clienteEncontrado?.telefono ?? null)
 
   return (
     <main className="max-w-md">
@@ -156,13 +168,11 @@ export default async function ReservarLotePage({
             required
             className="rounded border px-3 py-2"
           />
-          <input
-            name="telefono"
-            placeholder="Teléfono"
-            defaultValue={telefonoPreservado ?? clienteEncontrado?.telefono ?? ''}
-            required
-            className="rounded border px-3 py-2"
-          />
+          <label className="text-sm">
+            Teléfono
+            <CampoTelefono valorGuardado={valorTelefonoForm} requerido />
+            <AyudaTelefono />
+          </label>
           <input
             name="telefonoAlternativo"
             placeholder="Teléfono alternativo (opcional)"

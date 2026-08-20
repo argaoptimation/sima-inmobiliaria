@@ -2,6 +2,8 @@ import { createClient } from '@/lib/supabase/server'
 import { notFound } from 'next/navigation'
 import { requireAdministrador } from '@/lib/auth/require-admin'
 import { actualizarReserva } from '../actions'
+import { codificarTelefono } from '@/lib/telefono/prefijos'
+import { CampoTelefono, AyudaTelefono } from '@/components/CampoTelefono'
 
 export default async function EditarReservaPage({
   params,
@@ -14,7 +16,8 @@ export default async function EditarReservaPage({
     dniPreservado?: string
     domicilio?: string
     email?: string
-    telefono?: string
+    prefijo?: string
+    telefonoNumero?: string
     telefonoAlternativo?: string
     estadoCivil?: string
     instrumentacion?: string
@@ -31,7 +34,8 @@ export default async function EditarReservaPage({
     dniPreservado,
     domicilio: domicilioPreservado,
     email: emailPreservado,
-    telefono: telefonoPreservado,
+    prefijo: prefijoPreservado,
+    telefonoNumero: telefonoNumeroPreservado,
     telefonoAlternativo: telefonoAlternativoPreservado,
     estadoCivil: estadoCivilPreservado,
     instrumentacion: instrumentacionPreservado,
@@ -73,6 +77,11 @@ export default async function EditarReservaPage({
     .order('full_name')
 
   const actualizarReservaConId = actualizarReserva.bind(null, id)
+
+  const valorTelefonoForm =
+    prefijoPreservado !== undefined || telefonoNumeroPreservado !== undefined
+      ? codificarTelefono(prefijoPreservado ?? '', telefonoNumeroPreservado ?? '')
+      : (reserva?.telefono ?? null)
 
   return (
     <main className="max-w-md">
@@ -123,13 +132,11 @@ export default async function EditarReservaPage({
             required
             className="rounded border px-3 py-2"
           />
-          <input
-            name="telefono"
-            placeholder="Teléfono"
-            defaultValue={telefonoPreservado ?? reserva.telefono}
-            required
-            className="rounded border px-3 py-2"
-          />
+          <label className="text-sm">
+            Teléfono
+            <CampoTelefono valorGuardado={valorTelefonoForm} requerido />
+            <AyudaTelefono />
+          </label>
           <input
             name="telefonoAlternativo"
             placeholder="Teléfono alternativo (opcional)"

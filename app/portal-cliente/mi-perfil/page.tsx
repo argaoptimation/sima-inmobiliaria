@@ -1,7 +1,7 @@
 import { createClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
 import { actualizarMisDatosCliente } from './actions'
-import { PREFIJOS_TELEFONO } from '@/lib/telefono/prefijos'
+import { CampoTelefono, AyudaTelefono } from '@/components/CampoTelefono'
 
 export default async function MiPerfilClientePage({
   searchParams,
@@ -69,31 +69,8 @@ export default async function MiPerfilClientePage({
         </label>
         <label className="text-sm">
           Teléfono (para WhatsApp)
-          <div className="mt-1 flex gap-2">
-            <select
-              name="prefijo"
-              defaultValue=""
-              className="rounded border px-2 py-2 text-sm"
-              aria-label="Prefijo de país"
-            >
-              {PREFIJOS_TELEFONO.map((prefijo) => (
-                <option key={`${prefijo.codigo}-${prefijo.nombre}`} value={prefijo.codigo}>
-                  {prefijo.bandera} {prefijo.nombre}
-                  {prefijo.codigo ? ` (+${prefijo.codigo})` : ''}
-                </option>
-              ))}
-            </select>
-            <input
-              name="telefonoLocal"
-              placeholder="9351234567"
-              defaultValue={perfil!.telefono ?? ''}
-              className="flex-1 rounded border px-3 py-2 placeholder:text-gray-400"
-            />
-          </div>
-          <p className="mt-1 text-xs text-gray-500">
-            Elegí tu país y escribí tu número con el 9 adelante (celular), sin el 0 del código de
-            área.
-          </p>
+          <CampoTelefono valorGuardado={perfil!.telefono} />
+          <AyudaTelefono />
         </label>
         <button type="submit" className="self-start rounded bg-black px-3 py-2 text-sm text-white">
           Guardar datos

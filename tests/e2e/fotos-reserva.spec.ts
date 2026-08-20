@@ -40,7 +40,7 @@ async function completarCamposBasicos(page: Page, estadoCivil: string) {
   await page.getByPlaceholder('DNI', { exact: true }).fill('30111222')
   await page.getByPlaceholder('Domicilio').fill('Calle Falsa 123')
   await page.getByPlaceholder('Email').fill(`fotos.e2e.${Date.now()}@sima-e2e.invalid`)
-  await page.getByPlaceholder('Teléfono', { exact: true }).fill('3511234567')
+  await page.getByPlaceholder('9351234567').fill('3511234567')
   await page.selectOption('select[name="estadoCivil"]', estadoCivil)
   await page.getByPlaceholder('Monto de la seña').fill('500')
   await subirArchivo(page, 'input[name="comprobante"]', `e2e-comprobante-${Date.now()}.pdf`)

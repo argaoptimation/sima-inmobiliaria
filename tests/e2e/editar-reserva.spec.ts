@@ -54,7 +54,7 @@ test.describe('Editar reserva ya cargada', () => {
     await page.goto(`/admin/lotes/${loteId}/reservar/editar`)
 
     await expect(page.getByPlaceholder('Nombre completo')).toHaveValue('Comprador Original')
-    await page.getByPlaceholder('Teléfono', { exact: true }).fill('3512222222')
+    await page.getByPlaceholder('9351234567').fill('3512222222')
     await page.getByRole('button', { name: 'Guardar cambios' }).click()
     await page.waitForURL(`**/admin/lotes/${loteId}`)
 
@@ -65,7 +65,7 @@ test.describe('Editar reserva ya cargada', () => {
       .is('cancelada_at', null)
       .single()
 
-    expect(reserva?.telefono).toBe('3512222222')
+    expect(reserva?.telefono).toBe('54|3512222222')
     expect(reserva?.comprobante_sena_path).toBe('reservas/seed/comprobante-original.pdf')
     expect(reserva?.dni_frente_path).toBe('reservas/seed/dni-frente-original.pdf')
   })
@@ -181,7 +181,7 @@ test.describe('Editar reserva ya cargada', () => {
     await expect(page.locator('select[name="recibidoPor"]')).toHaveValue('')
 
     // Editar un campo sin relación y guardar.
-    await page.getByPlaceholder('Teléfono', { exact: true }).fill('3513333333')
+    await page.getByPlaceholder('9351234567').fill('3513333333')
     await page.getByRole('button', { name: 'Guardar cambios' }).click()
     await page.waitForURL(`**/admin/lotes/${loteId}`)
 
@@ -194,7 +194,7 @@ test.describe('Editar reserva ya cargada', () => {
 
     expect(reserva?.recibido_por).toBeNull()
     expect(reserva?.recibido_por_otro).toBe('Alguien Externo')
-    expect(reserva?.telefono).toBe('3513333333')
+    expect(reserva?.telefono).toBe('54|3513333333')
   })
 
   test('los datos de texto se preservan si falla la validación', async ({ page }) => {

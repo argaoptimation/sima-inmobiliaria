@@ -7,6 +7,7 @@ import { BotonEliminarLote } from './[id]/BotonEliminarLote'
 import { guardarCotizacionDolar } from './cotizacion-dolar-actions'
 import { calcularEstadoCobranza } from '@/lib/cobranza/estado-cliente'
 import { armarLinkWhatsApp, armarMensajeWhatsApp } from '@/lib/cobranza/plantillas-whatsapp'
+import { telefonoParaWhatsApp } from '@/lib/telefono/prefijos'
 
 const COLUMNAS_ORDENABLES = ['identificador', 'ubicacion', 'precio_total', 'moneda', 'estado'] as const
 type ColumnaOrdenable = (typeof COLUMNAS_ORDENABLES)[number]
@@ -175,7 +176,10 @@ export default async function LotesPage({
             })
           : null
 
-      return [lote.id, { saldoPendiente, estadoCobranza, mensajeWhatsApp, telefono: cliente?.telefono ?? null }]
+      return [
+        lote.id,
+        { saldoPendiente, estadoCobranza, mensajeWhatsApp, telefono: telefonoParaWhatsApp(cliente?.telefono ?? null) },
+      ]
     })
   )
 

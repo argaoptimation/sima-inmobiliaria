@@ -52,7 +52,7 @@ test.describe('Buscar cliente por DNI al reservar', () => {
     await expect(page.getByPlaceholder('DNI', { exact: true })).toHaveValue(dni)
     await expect(page.getByPlaceholder('Domicilio')).toHaveValue('Domicilio Encontrado 333')
     await expect(page.getByPlaceholder('Email')).toHaveValue(email)
-    await expect(page.getByPlaceholder('Teléfono', { exact: true })).toHaveValue('3517777777')
+    await expect(page.getByPlaceholder('9351234567')).toHaveValue('3517777777')
   })
 
   test('buscar un DNI que no coincide con nadie muestra el aviso y deja el formulario vacío', async ({

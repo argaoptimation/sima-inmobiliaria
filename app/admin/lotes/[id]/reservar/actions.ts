@@ -7,6 +7,7 @@ import { requireAccesoParaReservar, requireAdministrador } from '@/lib/auth/requ
 import { tieneRecibidoPorValido } from '@/lib/reservas/validar-recibido-por'
 import { vendedorIdAlReservar } from '@/lib/lotes/asignar-vendedor-al-reservar'
 import { excedeTamanioMaximo, MAX_ARCHIVO_MB } from '@/lib/storage/validar-tamanio-archivo'
+import { codificarTelefono, errorLongitudTelefono } from '@/lib/telefono/prefijos'
 
 const ESTADOS_CIVILES_VALIDOS = ['soltero', 'casado', 'divorciado', 'viudo']
 const MONEDAS_VALIDAS = ['USD', 'ARS']
@@ -17,7 +18,8 @@ const CAMPOS_PRESERVABLES: Array<[string, string]> = [
   ['dniPreservado', 'dni'],
   ['domicilio', 'domicilio'],
   ['email', 'email'],
-  ['telefono', 'telefono'],
+  ['prefijo', 'prefijo'],
+  ['telefonoNumero', 'telefonoNumero'],
   ['telefonoAlternativo', 'telefonoAlternativo'],
   ['estadoCivil', 'estadoCivil'],
   ['instrumentacion', 'instrumentacion'],
@@ -74,7 +76,8 @@ export async function reservarLote(loteId: string, formData: FormData) {
   const dni = ((formData.get('dni') as string) || '').trim()
   const domicilio = ((formData.get('domicilio') as string) || '').trim()
   const email = ((formData.get('email') as string) || '').trim()
-  const telefono = ((formData.get('telefono') as string) || '').trim()
+  const prefijo = ((formData.get('prefijo') as string) || '').trim()
+  const telefonoNumero = ((formData.get('telefonoNumero') as string) || '').trim()
   const telefonoAlternativo = ((formData.get('telefonoAlternativo') as string) || '').trim() || null
   const estadoCivil = ((formData.get('estadoCivil') as string) || '').trim()
   const instrumentacion = ((formData.get('instrumentacion') as string) || '').trim() || null
@@ -90,6 +93,11 @@ export async function reservarLote(loteId: string, formData: FormData) {
 
   if (!tieneRecibidoPorValido({ recibidoPor, recibidoPorOtro })) {
     redirectConError(loteId, formData, 'Indicá quién recibió la seña, de la lista o escribiendo el nombre')
+  }
+
+  const errorTelefono = errorLongitudTelefono(prefijo, telefonoNumero)
+  if (errorTelefono) {
+    redirectConError(loteId, formData, errorTelefono)
   }
 
   if (!comprobante || comprobante.size === 0) {
@@ -129,7 +137,7 @@ export async function reservarLote(loteId: string, formData: FormData) {
     dni.trim() &&
     domicilio.trim() &&
     email.trim() &&
-    telefono.trim() &&
+    telefonoNumero.trim() &&
     estadoCivil.trim() &&
     monedaSena.trim()
 
@@ -303,7 +311,7 @@ export async function reservarLote(loteId: string, formData: FormData) {
     dni,
     domicilio,
     email,
-    telefono,
+    telefono: codificarTelefono(prefijo, telefonoNumero),
     telefono_alternativo: telefonoAlternativo,
     estado_civil: estadoCivil,
     instrumentacion,
@@ -369,7 +377,8 @@ export async function actualizarReserva(loteId: string, formData: FormData) {
   const dni = ((formData.get('dni') as string) || '').trim()
   const domicilio = ((formData.get('domicilio') as string) || '').trim()
   const email = ((formData.get('email') as string) || '').trim()
-  const telefono = ((formData.get('telefono') as string) || '').trim()
+  const prefijo = ((formData.get('prefijo') as string) || '').trim()
+  const telefonoNumero = ((formData.get('telefonoNumero') as string) || '').trim()
   const telefonoAlternativo = ((formData.get('telefonoAlternativo') as string) || '').trim() || null
   const estadoCivil = ((formData.get('estadoCivil') as string) || '').trim()
   const instrumentacion = ((formData.get('instrumentacion') as string) || '').trim() || null
@@ -382,12 +391,17 @@ export async function actualizarReserva(loteId: string, formData: FormData) {
     redirectEditarConError(loteId, formData, 'Indicá quién recibió la seña, de la lista o escribiendo el nombre')
   }
 
+  const errorTelefono = errorLongitudTelefono(prefijo, telefonoNumero)
+  if (errorTelefono) {
+    redirectEditarConError(loteId, formData, errorTelefono)
+  }
+
   const camposObligatoriosCompletos =
     nombreCompleto.trim() &&
     dni.trim() &&
     domicilio.trim() &&
     email.trim() &&
-    telefono.trim() &&
+    telefonoNumero.trim() &&
     estadoCivil.trim() &&
     monedaSena.trim()
 
@@ -479,7 +493,7 @@ export async function actualizarReserva(loteId: string, formData: FormData) {
       dni,
       domicilio,
       email,
-      telefono,
+      telefono: codificarTelefono(prefijo, telefonoNumero),
       telefono_alternativo: telefonoAlternativo,
       estado_civil: estadoCivil,
       instrumentacion,
