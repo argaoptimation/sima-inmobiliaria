@@ -149,7 +149,10 @@ export default async function LotesPage({
 
   const { data: clientes } =
     clienteIds.length > 0
-      ? await supabase.from('profiles').select('id, full_name, telefono').in('id', clienteIds)
+      ? await supabase
+          .from('profiles')
+          .select('id, full_name, telefono_prefijo, telefono_numero')
+          .in('id', clienteIds)
       : { data: [] }
   const clientePorId = new Map((clientes ?? []).map((cliente) => [cliente.id, cliente]))
   const esAdministrador = perfilPropio!.role === 'administrador'
@@ -196,7 +199,12 @@ export default async function LotesPage({
 
       return [
         lote.id,
-        { saldoPendiente, estadoCobranza, mensajeWhatsApp, telefono: telefonoParaWhatsApp(cliente?.telefono ?? null) },
+        {
+          saldoPendiente,
+          estadoCobranza,
+          mensajeWhatsApp,
+          telefono: telefonoParaWhatsApp(cliente?.telefono_prefijo ?? null, cliente?.telefono_numero ?? null),
+        },
       ]
     })
   )

@@ -59,7 +59,9 @@ export default async function VenderLotePage({
 
   const { data: reserva } = await supabase
     .from('reservas')
-    .select('nombre_completo, dni, domicilio, telefono, email, monto_sena, moneda_sena')
+    .select(
+      'nombre_completo, dni, domicilio, telefono_prefijo, telefono_numero, email, monto_sena, moneda_sena'
+    )
     .eq('lote_id', id)
     .order('created_at', { ascending: false })
     .limit(1)
@@ -105,7 +107,9 @@ export default async function VenderLotePage({
               <p>Persona que reservó: {reserva.nombre_completo}</p>
               <p>DNI: {reserva.dni}</p>
               <p>Domicilio: {reserva.domicilio}</p>
-              <p>Teléfono: +{telefonoParaWhatsApp(reserva.telefono)}</p>
+              <p>
+                Teléfono: +{telefonoParaWhatsApp(reserva.telefono_prefijo, reserva.telefono_numero)}
+              </p>
               <p>
                 Seña: {reserva.monto_sena} {reserva.moneda_sena}
               </p>

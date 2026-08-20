@@ -13,7 +13,10 @@ test.describe('Estado de cobranza en /admin/lotes', () => {
     page,
   }) => {
     const admin = createAdminClient()
-    await admin.from('profiles').update({ telefono: '5493511234567' }).eq('id', fixtures.cliente.id)
+    await admin
+      .from('profiles')
+      .update({ telefono_prefijo: '54', telefono_numero: '93511234567' })
+      .eq('id', fixtures.cliente.id)
 
     await login(page, fixtures.admin.email, fixtures.password)
     await page.goto('/admin/lotes')
@@ -31,7 +34,10 @@ test.describe('Estado de cobranza en /admin/lotes', () => {
 
   test('lote vendido con cuota vencida muestra "Moroso" en rojo', async ({ page }) => {
     const admin = createAdminClient()
-    await admin.from('profiles').update({ telefono: '5493511234567' }).eq('id', fixtures.cliente.id)
+    await admin
+      .from('profiles')
+      .update({ telefono_prefijo: '54', telefono_numero: '93511234567' })
+      .eq('id', fixtures.cliente.id)
     await admin.from('cuotas').update({ fecha_vencimiento: '2020-01-01' }).eq('id', fixtures.cuotaIds[0])
 
     await login(page, fixtures.admin.email, fixtures.password)
@@ -65,7 +71,7 @@ test.describe('Estado de cobranza en /admin/lotes', () => {
     const filaOtraVez = page.getByRole('row', { name: /E2E Test Lote/ })
     await filaOtraVez.getByRole('link', { name: 'E2E Acreedor Con Datos' }).click()
     await page.waitForURL(/\/admin\/usuarios\?editar=/)
-    await expect(page.getByRole('button', { name: 'Guardar nombre' })).toBeVisible()
+    await expect(page.getByRole('button', { name: 'Guardar datos personales' })).toBeVisible()
   })
 
   test('un lote reservado (sin vendido) no muestra link a Cliente', async ({ page }) => {

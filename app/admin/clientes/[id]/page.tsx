@@ -24,7 +24,7 @@ export default async function ClienteDetallePage({
 
   const { data: cliente } = await supabase
     .from('profiles')
-    .select('id, full_name, email, role, dni, domicilio, telefono')
+    .select('id, full_name, email, role, dni, domicilio, telefono_prefijo, telefono_numero')
     .eq('id', id)
     .maybeSingle()
 
@@ -32,7 +32,7 @@ export default async function ClienteDetallePage({
     notFound()
   }
 
-  const telefonoWhatsAppCliente = telefonoParaWhatsApp(cliente.telefono)
+  const telefonoWhatsAppCliente = telefonoParaWhatsApp(cliente.telefono_prefijo, cliente.telefono_numero)
 
   const { data: lotes } = await supabase
     .from('lotes')
@@ -68,7 +68,7 @@ export default async function ClienteDetallePage({
       // ahora, "normal" y "moroso" -- "prejudicial" queda sin botón hasta
       // que Nicolás defina esa plantilla, sin tocar nada de este código).
       const proximaCuotaPendiente = (cuotas ?? []).find((cuota) => cuota.saldo_pendiente > 0)
-      const telefonoWhatsApp = telefonoParaWhatsApp(cliente!.telefono)
+      const telefonoWhatsApp = telefonoParaWhatsApp(cliente!.telefono_prefijo, cliente!.telefono_numero)
       const mensajeWhatsApp =
         saldoPendiente > 0 && proximaCuotaPendiente
           ? armarMensajeWhatsApp(estadoCobranza, {
@@ -179,7 +179,10 @@ export default async function ClienteDetallePage({
         </label>
         <label className="text-sm">
           Teléfono (para WhatsApp)
-          <CampoTelefono valorGuardado={cliente!.telefono} />
+          <CampoTelefono
+            prefijoGuardado={cliente!.telefono_prefijo}
+            numeroGuardado={cliente!.telefono_numero}
+          />
           <AyudaTelefono />
         </label>
         <button type="submit" className="self-start rounded bg-black px-3 py-2 text-sm text-white">

@@ -7,7 +7,7 @@ import { requireAccesoParaReservar, requireAdministrador } from '@/lib/auth/requ
 import { tieneRecibidoPorValido } from '@/lib/reservas/validar-recibido-por'
 import { vendedorIdAlReservar } from '@/lib/lotes/asignar-vendedor-al-reservar'
 import { excedeTamanioMaximo, MAX_ARCHIVO_MB } from '@/lib/storage/validar-tamanio-archivo'
-import { codificarTelefono, errorLongitudTelefono } from '@/lib/telefono/prefijos'
+import { telefonoParaGuardar, errorLongitudTelefono } from '@/lib/telefono/prefijos'
 
 const ESTADOS_CIVILES_VALIDOS = ['soltero', 'casado', 'divorciado', 'viudo']
 const MONEDAS_VALIDAS = ['USD', 'ARS']
@@ -305,13 +305,19 @@ export async function reservarLote(loteId: string, formData: FormData) {
     sentenciaDivorcioPath = filePath
   }
 
+  const { prefijo: telefonoPrefijo, numero: telefonoNumeroGuardar } = telefonoParaGuardar(
+    prefijo,
+    telefonoNumero
+  )
+
   const { error: errorReserva } = await admin.from('reservas').insert({
     lote_id: loteId,
     nombre_completo: nombreCompleto,
     dni,
     domicilio,
     email,
-    telefono: codificarTelefono(prefijo, telefonoNumero),
+    telefono_prefijo: telefonoPrefijo,
+    telefono_numero: telefonoNumeroGuardar,
     telefono_alternativo: telefonoAlternativo,
     estado_civil: estadoCivil,
     instrumentacion,
@@ -486,6 +492,11 @@ export async function actualizarReserva(loteId: string, formData: FormData) {
     redirectEditarConError(loteId, formData, 'Subí la sentencia de divorcio (elegiste "Divorciado/a")')
   }
 
+  const { prefijo: telefonoPrefijoEditar, numero: telefonoNumeroEditarGuardar } = telefonoParaGuardar(
+    prefijo,
+    telefonoNumero
+  )
+
   const { error: errorUpdate } = await admin
     .from('reservas')
     .update({
@@ -493,7 +504,8 @@ export async function actualizarReserva(loteId: string, formData: FormData) {
       dni,
       domicilio,
       email,
-      telefono: codificarTelefono(prefijo, telefonoNumero),
+      telefono_prefijo: telefonoPrefijoEditar,
+      telefono_numero: telefonoNumeroEditarGuardar,
       telefono_alternativo: telefonoAlternativo,
       estado_civil: estadoCivil,
       instrumentacion,

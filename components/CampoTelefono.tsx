@@ -1,29 +1,29 @@
-import { PREFIJOS_TELEFONO, decodificarTelefono } from '@/lib/telefono/prefijos'
+import { PREFIJOS_TELEFONO, codigoSelectDesdeGuardado } from '@/lib/telefono/prefijos'
 
 // Select de país + número local, reutilizado en los 3 lugares donde se
 // carga un teléfono (ficha de cliente en admin, autoservicio del cliente,
 // formulario de reserva). Nunca queda un país sin elegir "por defecto": si
-// el valor guardado es viejo (sin prefijo separable), el select cae en
-// Argentina -- el país de la inmensa mayoría de los casos -- en vez de en
-// un estado vacío, para no inducir a dejarlo sin revisar.
+// no hay prefijo guardado (valores de antes de tener columnas separadas), el
+// select cae en Argentina -- el país de la inmensa mayoría de los casos --
+// en vez de en un estado vacío, para no inducir a dejarlo sin revisar.
 export function CampoTelefono({
-  valorGuardado,
+  prefijoGuardado,
+  numeroGuardado,
   nombrePrefijo = 'prefijo',
   nombreNumero = 'telefonoNumero',
   requerido = false,
 }: {
-  valorGuardado: string | null
+  prefijoGuardado: string | null
+  numeroGuardado: string | null
   nombrePrefijo?: string
   nombreNumero?: string
   requerido?: boolean
 }) {
-  const { codigoSelect, numeroLocal } = decodificarTelefono(valorGuardado)
-
   return (
     <div className="mt-1 flex gap-2">
       <select
         name={nombrePrefijo}
-        defaultValue={codigoSelect || '54'}
+        defaultValue={codigoSelectDesdeGuardado(prefijoGuardado)}
         className="rounded border px-2 py-2 text-sm"
         aria-label="Prefijo de país"
       >
@@ -37,7 +37,7 @@ export function CampoTelefono({
       <input
         name={nombreNumero}
         placeholder="9351234567"
-        defaultValue={numeroLocal}
+        defaultValue={numeroGuardado ?? ''}
         required={requerido}
         inputMode="numeric"
         className="flex-1 rounded border px-3 py-2 placeholder:text-gray-400"

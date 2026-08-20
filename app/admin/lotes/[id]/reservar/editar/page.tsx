@@ -2,7 +2,6 @@ import { createClient } from '@/lib/supabase/server'
 import { notFound } from 'next/navigation'
 import { requireAdministrador } from '@/lib/auth/require-admin'
 import { actualizarReserva } from '../actions'
-import { codificarTelefono } from '@/lib/telefono/prefijos'
 import { CampoTelefono, AyudaTelefono } from '@/components/CampoTelefono'
 
 export default async function EditarReservaPage({
@@ -62,7 +61,7 @@ export default async function EditarReservaPage({
   const { data: reserva } = await supabase
     .from('reservas')
     .select(
-      'nombre_completo, dni, domicilio, email, telefono, telefono_alternativo, estado_civil, instrumentacion, monto_sena, moneda_sena, recibido_por, recibido_por_otro'
+      'nombre_completo, dni, domicilio, email, telefono_prefijo, telefono_numero, telefono_alternativo, estado_civil, instrumentacion, monto_sena, moneda_sena, recibido_por, recibido_por_otro'
     )
     .eq('lote_id', id)
     .is('cancelada_at', null)
@@ -78,10 +77,8 @@ export default async function EditarReservaPage({
 
   const actualizarReservaConId = actualizarReserva.bind(null, id)
 
-  const valorTelefonoForm =
-    prefijoPreservado !== undefined || telefonoNumeroPreservado !== undefined
-      ? codificarTelefono(prefijoPreservado ?? '', telefonoNumeroPreservado ?? '')
-      : (reserva?.telefono ?? null)
+  const prefijoForm = prefijoPreservado ?? reserva?.telefono_prefijo ?? null
+  const numeroForm = telefonoNumeroPreservado ?? reserva?.telefono_numero ?? null
 
   return (
     <main className="max-w-md">
@@ -134,7 +131,7 @@ export default async function EditarReservaPage({
           />
           <label className="text-sm">
             Teléfono
-            <CampoTelefono valorGuardado={valorTelefonoForm} requerido />
+            <CampoTelefono prefijoGuardado={prefijoForm} numeroGuardado={numeroForm} requerido />
             <AyudaTelefono />
           </label>
           <input

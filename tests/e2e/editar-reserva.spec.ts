@@ -22,7 +22,7 @@ async function crearLoteReservado(identificador: string, acreedorId: string, adm
     dni: '11111111',
     domicilio: 'Calle Falsa 123',
     email: 'original@sima-e2e.invalid',
-    telefono: '3511111111',
+    telefono_numero: '3511111111',
     estado_civil: 'soltero',
     monto_sena: 500,
     moneda_sena: 'USD',
@@ -60,12 +60,13 @@ test.describe('Editar reserva ya cargada', () => {
 
     const { data: reserva } = await admin
       .from('reservas')
-      .select('telefono, comprobante_sena_path, dni_frente_path')
+      .select('telefono_prefijo, telefono_numero, comprobante_sena_path, dni_frente_path')
       .eq('lote_id', loteId)
       .is('cancelada_at', null)
       .single()
 
-    expect(reserva?.telefono).toBe('54|3512222222')
+    expect(reserva?.telefono_prefijo).toBe('54')
+    expect(reserva?.telefono_numero).toBe('3512222222')
     expect(reserva?.comprobante_sena_path).toBe('reservas/seed/comprobante-original.pdf')
     expect(reserva?.dni_frente_path).toBe('reservas/seed/dni-frente-original.pdf')
   })
@@ -187,14 +188,15 @@ test.describe('Editar reserva ya cargada', () => {
 
     const { data: reserva } = await admin
       .from('reservas')
-      .select('recibido_por, recibido_por_otro, telefono')
+      .select('recibido_por, recibido_por_otro, telefono_prefijo, telefono_numero')
       .eq('lote_id', loteId)
       .is('cancelada_at', null)
       .single()
 
     expect(reserva?.recibido_por).toBeNull()
     expect(reserva?.recibido_por_otro).toBe('Alguien Externo')
-    expect(reserva?.telefono).toBe('54|3513333333')
+    expect(reserva?.telefono_prefijo).toBe('54')
+    expect(reserva?.telefono_numero).toBe('3513333333')
   })
 
   test('los datos de texto se preservan si falla la validación', async ({ page }) => {

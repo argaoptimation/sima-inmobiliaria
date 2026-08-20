@@ -113,7 +113,7 @@ export async function venderLote(loteId: string, formData: FormData) {
   // descuento de la seña en las cuotas, al final de la función.
   const { data: reserva } = await admin
     .from('reservas')
-    .select('monto_sena, moneda_sena, comprobante_sena_path, dni, domicilio, telefono')
+    .select('monto_sena, moneda_sena, comprobante_sena_path, dni, domicilio, telefono_prefijo, telefono_numero')
     .eq('lote_id', loteId)
     .order('created_at', { ascending: false })
     .limit(1)
@@ -125,7 +125,7 @@ export async function venderLote(loteId: string, formData: FormData) {
   // ya el documento (quedaría huérfano en el storage).
   const { data: clienteExistente } = await admin
     .from('profiles')
-    .select('id, full_name, dni, domicilio, telefono')
+    .select('id, full_name, dni, domicilio, telefono_prefijo, telefono_numero')
     .eq('email', email)
     .eq('role', 'cliente')
     .maybeSingle()
@@ -252,10 +252,13 @@ export async function venderLote(loteId: string, formData: FormData) {
     // Solo se completan los campos que el perfil todavia no tenga cargados
     // -- nunca se pisa un valor ya guardado, podria ser una correccion
     // manual posterior a un error de tipeo en una reserva vieja.
-    const datosFaltantes: Record<string, string> = {}
+    const datosFaltantes: Record<string, string | null> = {}
     if (!clienteExistente.dni && reserva?.dni) datosFaltantes.dni = reserva.dni
     if (!clienteExistente.domicilio && reserva?.domicilio) datosFaltantes.domicilio = reserva.domicilio
-    if (!clienteExistente.telefono && reserva?.telefono) datosFaltantes.telefono = reserva.telefono
+    if (!clienteExistente.telefono_numero && reserva?.telefono_numero) {
+      datosFaltantes.telefono_prefijo = reserva.telefono_prefijo
+      datosFaltantes.telefono_numero = reserva.telefono_numero
+    }
 
     if (Object.keys(datosFaltantes).length > 0) {
       const { error: errorCompletarDatos } = await admin
@@ -303,7 +306,8 @@ export async function venderLote(loteId: string, formData: FormData) {
       email,
       dni: dniParaNuevoCliente,
       domicilio: reserva?.domicilio ?? null,
-      telefono: reserva?.telefono ?? null,
+      telefono_prefijo: reserva?.telefono_prefijo ?? null,
+      telefono_numero: reserva?.telefono_numero ?? null,
     }
 
     const { error: errorProfile } = await admin.from('profiles').insert(nuevoPerfil)

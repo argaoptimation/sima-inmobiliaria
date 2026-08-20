@@ -2,7 +2,6 @@ import { createClient } from '@/lib/supabase/server'
 import { notFound } from 'next/navigation'
 import { requireAccesoParaReservar } from '@/lib/auth/require-admin'
 import { reservarLote } from './actions'
-import { codificarTelefono } from '@/lib/telefono/prefijos'
 import { CampoTelefono, AyudaTelefono } from '@/components/CampoTelefono'
 
 export default async function ReservarLotePage({
@@ -69,14 +68,15 @@ export default async function ReservarLotePage({
     full_name: string
     dni: string | null
     domicilio: string | null
-    telefono: string | null
+    telefono_prefijo: string | null
+    telefono_numero: string | null
     email: string | null
   } | null = null
 
   if (dniBuscado) {
     const { data } = await supabase
       .from('profiles')
-      .select('full_name, dni, domicilio, telefono, email')
+      .select('full_name, dni, domicilio, telefono_prefijo, telefono_numero, email')
       .eq('role', 'cliente')
       .eq('dni', dniBuscado)
       .maybeSingle()
@@ -94,10 +94,8 @@ export default async function ReservarLotePage({
   // Si venimos de un error de validación, se respeta exactamente lo que el
   // admin ya había tipeado (aunque esté vacío). Si es la primera carga,
   // se prioriza lo encontrado por DNI.
-  const valorTelefonoForm =
-    prefijoPreservado !== undefined || telefonoNumeroPreservado !== undefined
-      ? codificarTelefono(prefijoPreservado ?? '', telefonoNumeroPreservado ?? '')
-      : (clienteEncontrado?.telefono ?? null)
+  const prefijoForm = prefijoPreservado ?? clienteEncontrado?.telefono_prefijo ?? null
+  const numeroForm = telefonoNumeroPreservado ?? clienteEncontrado?.telefono_numero ?? null
 
   return (
     <main className="max-w-md">
@@ -170,7 +168,7 @@ export default async function ReservarLotePage({
           />
           <label className="text-sm">
             Teléfono
-            <CampoTelefono valorGuardado={valorTelefonoForm} requerido />
+            <CampoTelefono prefijoGuardado={prefijoForm} numeroGuardado={numeroForm} requerido />
             <AyudaTelefono />
           </label>
           <input

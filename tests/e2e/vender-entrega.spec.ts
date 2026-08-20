@@ -40,7 +40,7 @@ async function crearReservaConSena(loteId: string, montoSena: number, adminId: s
     dni: `${Date.now()}`.slice(-8),
     domicilio: 'Domicilio E2E',
     email: `sena.${Date.now()}@sima-e2e.invalid`,
-    telefono: '3510000000',
+    telefono_numero: '3510000000',
     estado_civil: 'soltero',
     monto_sena: montoSena,
     moneda_sena: 'USD',

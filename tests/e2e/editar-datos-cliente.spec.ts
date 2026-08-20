@@ -30,17 +30,24 @@ test.describe('Editar datos del cliente', () => {
 
       const { data: cliente } = await admin
         .from('profiles')
-        .select('full_name, dni, domicilio, telefono')
+        .select('full_name, dni, domicilio, telefono_prefijo, telefono_numero')
         .eq('id', fixtures.cliente.id)
         .single()
       expect(cliente?.full_name).toBe('E2E Cliente Editado')
       expect(cliente?.dni).toBe(dni)
       expect(cliente?.domicilio).toBe('Domicilio Editado 111')
-      expect(cliente?.telefono).toBe('54|3515555555')
+      expect(cliente?.telefono_prefijo).toBe('54')
+      expect(cliente?.telefono_numero).toBe('3515555555')
     } finally {
       await admin
         .from('profiles')
-        .update({ full_name: TEST_USERS.cliente.fullName, dni: null, domicilio: null, telefono: null })
+        .update({
+          full_name: TEST_USERS.cliente.fullName,
+          dni: null,
+          domicilio: null,
+          telefono_prefijo: null,
+          telefono_numero: null,
+        })
         .eq('id', fixtures.cliente.id)
     }
   })
@@ -86,16 +93,23 @@ test.describe('Editar datos del cliente', () => {
 
       const { data: cliente } = await admin
         .from('profiles')
-        .select('full_name, dni, domicilio, telefono')
+        .select('full_name, dni, domicilio, telefono_prefijo, telefono_numero')
         .eq('id', fixtures.cliente.id)
         .single()
       expect(cliente?.full_name).toBe('E2E Cliente Autoeditado')
       expect(cliente?.dni).toBe(dni)
-      expect(cliente?.telefono).toBe('54|3516666666')
+      expect(cliente?.telefono_prefijo).toBe('54')
+      expect(cliente?.telefono_numero).toBe('3516666666')
     } finally {
       await admin
         .from('profiles')
-        .update({ full_name: TEST_USERS.cliente.fullName, dni: null, domicilio: null, telefono: null })
+        .update({
+          full_name: TEST_USERS.cliente.fullName,
+          dni: null,
+          domicilio: null,
+          telefono_prefijo: null,
+          telefono_numero: null,
+        })
         .eq('id', fixtures.cliente.id)
     }
   })

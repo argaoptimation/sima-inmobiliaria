@@ -33,7 +33,7 @@ test.describe('Eliminar un lote con reserva activa', () => {
       dni: '30111222',
       domicilio: 'Calle Falsa 123',
       email: 'comprador.e2e.eliminar@sima-e2e.invalid',
-      telefono: '3511234567',
+      telefono_numero: '3511234567',
       estado_civil: 'soltero',
       monto_sena: 500,
       moneda_sena: 'USD',

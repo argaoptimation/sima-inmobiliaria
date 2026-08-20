@@ -41,64 +41,42 @@ export const PREFIJOS_TELEFONO: PrefijoTelefono[] = [
 
 // "1-do" (Rep. Dominicana comparte +1 con EEUU/Canadá) y "otro" (número ya
 // completo, sin prefijo separado) no son dígitos de verdad -- son valores de
-// <select> que necesitan una traducción antes de combinarse con el número.
+// <select> que necesitan una traducción antes de guardarse como el prefijo
+// real (columna profiles.telefono_prefijo / reservas.telefono_prefijo).
 function prefijoReal(codigoSelect: string): string {
   if (codigoSelect === 'otro') return ''
   if (codigoSelect === '1-do') return '1'
   return codigoSelect
 }
 
-const SEPARADOR = '|'
+export interface TelefonoParaGuardar {
+  prefijo: string | null
+  numero: string | null
+}
 
-// Se guarda como "<prefijo><SEPARADOR><número>" en la misma columna de texto
-// que ya existía (profiles.telefono / reservas.telefono) -- separar prefijo
-// y número en columnas propias requeriría una migración de esquema que hoy
-// no se puede aplicar (sin acceso al proyecto de Supabase desde acá, ver
-// Notas_Decisiones_SIMA.txt). Guardar los dos valores en el mismo campo de
-// texto, pero SEPARADOS, ya resuelve el problema real: al reabrir el
-// formulario, el país elegido y el número quedan precargados tal cual se
-// guardaron, sin volver a pegarse ni pisarse.
-export function codificarTelefono(codigoSelect: string, numeroLocal: string): string | null {
+// A partir de lo que el formulario mandó (select + número local), arma los
+// dos valores que van directo a telefono_prefijo/telefono_numero.
+export function telefonoParaGuardar(codigoSelect: string, numeroLocal: string): TelefonoParaGuardar {
   const soloDigitosLocal = numeroLocal.trim().replace(/\D/g, '')
-  if (!soloDigitosLocal) return null
-  // "otro" también se guarda CON separador (aunque no tenga dígitos de
-  // prefijo reales) -- si no, al reabrir el formulario sería indistinguible
-  // de un valor viejo (sin separador) y el select caería en Argentina en vez
-  // de en "Otro país", con el número ya completo tratado como si fuera solo
-  // el número local.
-  if (codigoSelect === 'otro') return `otro${SEPARADOR}${soloDigitosLocal}`
-  const prefijo = prefijoReal(codigoSelect).replace(/\D/g, '')
-  return prefijo ? `${prefijo}${SEPARADOR}${soloDigitosLocal}` : soloDigitosLocal
+  if (!soloDigitosLocal) return { prefijo: null, numero: null }
+  const prefijo = prefijoReal(codigoSelect).replace(/\D/g, '') || null
+  return { prefijo, numero: soloDigitosLocal }
 }
 
-export interface TelefonoDecodificado {
-  // Vacío ("") si el valor guardado es de antes de este cambio (un solo
-  // bloque de dígitos, sin separador) -- no hay forma de saber a partir de
-  // ahí dónde termina el prefijo, así que el número completo queda en
-  // numeroLocal y el select del formulario cae en su opción por defecto.
-  codigoSelect: string
-  numeroLocal: string
-}
-
-export function decodificarTelefono(valorGuardado: string | null): TelefonoDecodificado {
-  if (!valorGuardado) return { codigoSelect: '', numeroLocal: '' }
-  const indiceSeparador = valorGuardado.indexOf(SEPARADOR)
-  if (indiceSeparador === -1) return { codigoSelect: '', numeroLocal: valorGuardado }
-  const prefijo = valorGuardado.slice(0, indiceSeparador)
-  const numeroLocal = valorGuardado.slice(indiceSeparador + 1)
-  const codigoSelect = prefijo === '1' ? '1' : prefijo
-  return { codigoSelect, numeroLocal }
+// Qué opción del <select> mostrar seleccionada al reabrir un formulario. Un
+// prefijo guardado en blanco (valores de antes de tener columnas separadas,
+// donde no se pudo saber dónde terminaba el prefijo) cae en Argentina por
+// default -- el país de la inmensa mayoría de los casos -- en vez de quedar
+// sin nada elegido.
+export function codigoSelectDesdeGuardado(prefijo: string | null): string {
+  return prefijo || '54'
 }
 
 // El link de wa.me necesita el número completo pegado, sin separador -- ver
-// armarLinkWhatsApp en lib/cobranza/plantillas-whatsapp.ts. Con un valor
-// viejo (sin separador, sin prefijo detectable) devuelve el número tal cual
-// estaba, mismo comportamiento que antes de este cambio.
-export function telefonoParaWhatsApp(valorGuardado: string | null): string | null {
-  const { codigoSelect, numeroLocal } = decodificarTelefono(valorGuardado)
-  if (!numeroLocal) return null
-  const prefijo = codigoSelect === 'otro' ? '' : codigoSelect === '1-do' ? '1' : codigoSelect
-  return `${prefijo}${numeroLocal}`
+// armarLinkWhatsApp en lib/cobranza/plantillas-whatsapp.ts.
+export function telefonoParaWhatsApp(prefijo: string | null, numero: string | null): string | null {
+  if (!numero) return null
+  return `${prefijo ?? ''}${numero}`
 }
 
 // Ningún país real tiene un número de abonado de menos de 6 dígitos ni de

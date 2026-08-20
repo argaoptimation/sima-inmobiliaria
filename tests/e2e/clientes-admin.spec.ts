@@ -102,7 +102,10 @@ test.describe('Vista de clientes desde Admin', () => {
     page,
   }) => {
     const admin = createAdminClient()
-    await admin.from('profiles').update({ telefono: '3511234567' }).eq('id', fixtures.cliente.id)
+    await admin
+      .from('profiles')
+      .update({ telefono_prefijo: null, telefono_numero: '3511234567' })
+      .eq('id', fixtures.cliente.id)
 
     await login(page, fixtures.admin.email, fixtures.password)
     await page.goto(`/admin/clientes/${fixtures.cliente.id}`)
@@ -125,7 +128,10 @@ test.describe('Vista de clientes desde Admin', () => {
     page,
   }) => {
     const admin = createAdminClient()
-    await admin.from('profiles').update({ telefono: '3511234567' }).eq('id', fixtures.cliente.id)
+    await admin
+      .from('profiles')
+      .update({ telefono_prefijo: null, telefono_numero: '3511234567' })
+      .eq('id', fixtures.cliente.id)
     await admin
       .from('cuotas')
       .update({ fecha_vencimiento: '2020-01-01' })
@@ -142,7 +148,10 @@ test.describe('Vista de clientes desde Admin', () => {
 
   test('botón de WhatsApp: sin teléfono cargado, no aparece', async ({ page }) => {
     const admin = createAdminClient()
-    await admin.from('profiles').update({ telefono: null }).eq('id', fixtures.cliente.id)
+    await admin
+      .from('profiles')
+      .update({ telefono_prefijo: null, telefono_numero: null })
+      .eq('id', fixtures.cliente.id)
 
     await login(page, fixtures.admin.email, fixtures.password)
     await page.goto(`/admin/clientes/${fixtures.cliente.id}`)

@@ -21,7 +21,7 @@ export default async function MiPerfilClientePage({
 
   const { data: perfil } = await supabase
     .from('profiles')
-    .select('full_name, role, dni, domicilio, telefono')
+    .select('full_name, role, dni, domicilio, telefono_prefijo, telefono_numero')
     .eq('id', user!.id)
     .single()
 
@@ -69,7 +69,10 @@ export default async function MiPerfilClientePage({
         </label>
         <label className="text-sm">
           Teléfono (para WhatsApp)
-          <CampoTelefono valorGuardado={perfil!.telefono} />
+          <CampoTelefono
+            prefijoGuardado={perfil!.telefono_prefijo}
+            numeroGuardado={perfil!.telefono_numero}
+          />
           <AyudaTelefono />
         </label>
         <button type="submit" className="self-start rounded bg-black px-3 py-2 text-sm text-white">

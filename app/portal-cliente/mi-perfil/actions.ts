@@ -3,7 +3,7 @@
 import { createClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
 import { mensajeDeError } from '@/lib/errores'
-import { codificarTelefono, errorLongitudTelefono } from '@/lib/telefono/prefijos'
+import { telefonoParaGuardar, errorLongitudTelefono } from '@/lib/telefono/prefijos'
 
 async function requireClienteLogueado() {
   const supabase = await createClient()
@@ -43,11 +43,20 @@ export async function actualizarMisDatosCliente(formData: FormData) {
     redirect(`/portal-cliente/mi-perfil?error=${encodeURIComponent(errorTelefono)}`)
   }
 
-  const telefono = codificarTelefono(prefijo, telefonoNumero)
+  const { prefijo: telefonoPrefijo, numero: telefonoNumeroGuardar } = telefonoParaGuardar(
+    prefijo,
+    telefonoNumero
+  )
 
   const { error } = await supabase
     .from('profiles')
-    .update({ full_name: fullName, dni, domicilio, telefono })
+    .update({
+      full_name: fullName,
+      dni,
+      domicilio,
+      telefono_prefijo: telefonoPrefijo,
+      telefono_numero: telefonoNumeroGuardar,
+    })
     .eq('id', userId)
 
   if (error) {

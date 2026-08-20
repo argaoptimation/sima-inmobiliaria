@@ -114,13 +114,14 @@ test.describe('Datos del cliente al vender', () => {
     const { data: lote } = await admin.from('lotes').select('cliente_id').eq('id', loteId).single()
     const { data: cliente } = await admin
       .from('profiles')
-      .select('dni, domicilio, telefono')
+      .select('dni, domicilio, telefono_prefijo, telefono_numero')
       .eq('id', lote!.cliente_id)
       .single()
 
     expect(cliente?.dni).toBe(dni)
     expect(cliente?.domicilio).toBe('Domicilio E2E 123')
-    expect(cliente?.telefono).toBe('54|3511111111')
+    expect(cliente?.telefono_prefijo).toBe('54')
+    expect(cliente?.telefono_numero).toBe('3511111111')
   })
 
   test('cliente existente sin esos datos cargados: se completan con los de la nueva reserva', async ({
@@ -163,13 +164,14 @@ test.describe('Datos del cliente al vender', () => {
 
     const { data: cliente } = await admin
       .from('profiles')
-      .select('dni, domicilio, telefono')
+      .select('dni, domicilio, telefono_prefijo, telefono_numero')
       .eq('id', invited!.user.id)
       .single()
 
     expect(cliente?.dni).toBe(dni)
     expect(cliente?.domicilio).toBe('Domicilio Completado 456')
-    expect(cliente?.telefono).toBe('54|3512222222')
+    expect(cliente?.telefono_prefijo).toBe('54')
+    expect(cliente?.telefono_numero).toBe('3512222222')
   })
 
   test('cliente existente con DNI ya cargado, distinto al de la nueva reserva: aviso visible, se mantiene el guardado', async ({

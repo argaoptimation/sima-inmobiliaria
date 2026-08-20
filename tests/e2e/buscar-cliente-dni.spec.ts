@@ -37,7 +37,7 @@ test.describe('Buscar cliente por DNI al reservar', () => {
       email,
       dni,
       domicilio: 'Domicilio Encontrado 333',
-      telefono: '3517777777',
+      telefono_numero: '3517777777',
     })
 
     const loteId = await crearLoteDisponible(`E2E Buscar DNI Match ${Date.now()}`)

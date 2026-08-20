@@ -6,7 +6,7 @@ import { redirect } from 'next/navigation'
 import { requireAdministrador } from '@/lib/auth/require-admin'
 import { esContrasenaValida, mensajeContrasenaInvalida } from '@/lib/auth/validar-contrasena'
 import { mensajeDeError } from '@/lib/errores'
-import { codificarTelefono, errorLongitudTelefono } from '@/lib/telefono/prefijos'
+import { telefonoParaGuardar, errorLongitudTelefono } from '@/lib/telefono/prefijos'
 
 export async function resetearContrasenaCliente(clienteId: string, formData: FormData) {
   await requireAdministrador()
@@ -72,12 +72,21 @@ export async function actualizarDatosCliente(clienteId: string, formData: FormDa
     redirect(`/admin/clientes/${clienteId}?error=${encodeURIComponent(errorTelefono)}`)
   }
 
-  const telefono = codificarTelefono(prefijo, telefonoNumero)
+  const { prefijo: telefonoPrefijo, numero: telefonoNumeroGuardar } = telefonoParaGuardar(
+    prefijo,
+    telefonoNumero
+  )
 
   const supabase = await createClient()
   const { error } = await supabase
     .from('profiles')
-    .update({ full_name: fullName, dni, domicilio, telefono })
+    .update({
+      full_name: fullName,
+      dni,
+      domicilio,
+      telefono_prefijo: telefonoPrefijo,
+      telefono_numero: telefonoNumeroGuardar,
+    })
     .eq('id', clienteId)
 
   if (error) {

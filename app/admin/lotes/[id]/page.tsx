@@ -16,6 +16,7 @@ import { cancelarReserva } from '../actions'
 import { BotonEliminarLote } from './BotonEliminarLote'
 import { BotonCancelarReserva } from '../BotonCancelarReserva'
 import { tieneDatosTransferencia } from '@/lib/lotes/validar-cuenta-cobro'
+import { telefonoParaWhatsApp } from '@/lib/telefono/prefijos'
 
 export default async function LoteDetallePage({
   params,
@@ -91,7 +92,7 @@ export default async function LoteDetallePage({
   const { data: reserva } = await supabase
     .from('reservas')
     .select(
-      'nombre_completo, dni, domicilio, email, telefono, telefono_alternativo, estado_civil, instrumentacion, monto_sena, moneda_sena, recibido_por, recibido_por_otro, comprobante_sena_path, dni_frente_path, dni_dorso_path, dni_conyuge_path, sentencia_divorcio_path, created_at'
+      'nombre_completo, dni, domicilio, email, telefono_prefijo, telefono_numero, telefono_alternativo, estado_civil, instrumentacion, monto_sena, moneda_sena, recibido_por, recibido_por_otro, comprobante_sena_path, dni_frente_path, dni_dorso_path, dni_conyuge_path, sentencia_divorcio_path, created_at'
     )
     .eq('lote_id', id)
     .order('created_at', { ascending: false })
@@ -315,7 +316,8 @@ export default async function LoteDetallePage({
           <p className="mb-1 text-sm">DNI: {reserva.dni}</p>
           <p className="mb-1 text-sm">Domicilio: {reserva.domicilio}</p>
           <p className="mb-1 text-sm">
-            Contacto: {reserva.email} · {reserva.telefono}
+            Contacto: {reserva.email} · +
+            {telefonoParaWhatsApp(reserva.telefono_prefijo, reserva.telefono_numero)}
             {reserva.telefono_alternativo && ` · ${reserva.telefono_alternativo}`}
           </p>
           <p className="mb-1 text-sm">Estado civil: {reserva.estado_civil}</p>

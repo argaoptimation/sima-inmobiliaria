@@ -78,7 +78,7 @@ test.describe('Preservar datos tipeados si falta un campo obligatorio al reserva
       email,
       dni,
       domicilio: 'Domicilio Precargado 999',
-      telefono: '3518888888',
+      telefono_numero: '3518888888',
     })
 
     const loteId = await crearLoteDisponible(`E2E Preservar Con Buscador ${Date.now()}`)
