@@ -43,6 +43,24 @@ export default async function CuentasCorrientesPage({
     <main className="max-w-3xl">
       <h1 className="mb-6 text-xl font-semibold">Cuentas corrientes</h1>
 
+      {cuotasSinDistribucion.length > 0 && (
+        <div className="mb-6 rounded bg-amber-100 p-3 text-sm text-amber-800">
+          <p className="mb-1 font-semibold">
+            {cuotasSinDistribucion.length} cuota{cuotasSinDistribucion.length > 1 ? 's' : ''} cobrada
+            {cuotasSinDistribucion.length > 1 ? 's' : ''} sin distribución cargada:
+          </p>
+          <ul className="list-inside list-disc">
+            {cuotasSinDistribucion.map((cuota) => (
+              <li key={cuota.cuotaId}>
+                <a href={`/admin/lotes/${cuota.loteId}/distribucion`} className="underline">
+                  {cuota.loteIdentificador} — cuota {cuota.numero}
+                </a>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+
       <form method="get" className="mb-4 flex items-end gap-3">
         <label className="text-sm">
           Buscar
@@ -63,24 +81,6 @@ export default async function CuentasCorrientesPage({
           </a>
         )}
       </form>
-
-      {cuotasSinDistribucion.length > 0 && (
-        <div className="mb-6 rounded bg-amber-100 p-3 text-sm text-amber-800">
-          <p className="mb-1 font-semibold">
-            {cuotasSinDistribucion.length} cuota{cuotasSinDistribucion.length > 1 ? 's' : ''} cobrada
-            {cuotasSinDistribucion.length > 1 ? 's' : ''} sin distribución cargada:
-          </p>
-          <ul className="list-inside list-disc">
-            {cuotasSinDistribucion.map((cuota) => (
-              <li key={cuota.cuotaId}>
-                <a href={`/admin/lotes/${cuota.loteId}/distribucion`} className="underline">
-                  {cuota.loteIdentificador} — cuota {cuota.numero}
-                </a>
-              </li>
-            ))}
-          </ul>
-        </div>
-      )}
 
       {(personas ?? []).length === 0 && filtroTexto ? (
         <p className="text-sm text-gray-600">Nadie coincide con la búsqueda.</p>

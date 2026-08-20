@@ -39,14 +39,28 @@ export default async function CuentaCorrienteDetallePage({
     notFound()
   }
 
-  const { data: movimientos } = await supabase
+  const { data: movimientosData } = await supabase
     .from('movimientos_cuenta_corriente')
     .select(
-      'id, tipo, monto, moneda, cotizacion_dia, origen, fecha_evento, de_parte_de, detalle, lotes(identificador)'
+      'id, tipo, monto, moneda, cotizacion_dia, origen, fecha_evento, de_parte_de, detalle, lote_id, lotes(identificador)'
     )
     .eq('profile_id', id)
     .order('fecha_evento', { ascending: false })
     .order('created_at', { ascending: false })
+
+  const movimientos = (movimientosData ?? []) as unknown as Array<{
+    id: string
+    tipo: 'debe' | 'haber'
+    monto: number
+    moneda: string
+    cotizacion_dia: number | null
+    origen: string
+    fecha_evento: string
+    de_parte_de: string | null
+    detalle: string | null
+    lote_id: string | null
+    lotes: { identificador: string } | null
+  }>
 
   const { data: lotes } = await supabase.from('lotes').select('id, identificador').order('identificador')
 
@@ -65,7 +79,7 @@ export default async function CuentaCorrienteDetallePage({
   const nombresUnicosParaSugerir = [...new Set((personasParaSugerir ?? []).map((p) => p.full_name))]
 
   const saldos = calcularSaldoCuentaCorrientePorMoneda(
-    (movimientos ?? []).map((m) => ({ tipo: m.tipo as 'debe' | 'haber', monto: m.monto, moneda: m.moneda }))
+    movimientos.map((m) => ({ tipo: m.tipo, monto: m.monto, moneda: m.moneda }))
   )
   const entradasSaldo = Object.entries(saldos).filter(([, monto]) => monto !== 0)
 
@@ -155,7 +169,7 @@ export default async function CuentaCorrienteDetallePage({
       </form>
 
       <h2 className="mb-2 text-lg font-semibold">Movimientos</h2>
-      {(movimientos ?? []).length === 0 ? (
+      {movimientos.length === 0 ? (
         <p className="text-sm text-gray-600">Sin movimientos todavía.</p>
       ) : (
         <table className="w-full text-sm">
@@ -165,11 +179,12 @@ export default async function CuentaCorrienteDetallePage({
               <th>Tipo</th>
               <th>Origen</th>
               <th>Detalle</th>
+              <th>Lote</th>
               <th>Monto</th>
             </tr>
           </thead>
           <tbody>
-            {movimientos!.map((movimiento) => (
+            {movimientos.map((movimiento) => (
               <tr key={movimiento.id} className="border-b">
                 <td className="py-2">{new Date(movimiento.fecha_evento).toLocaleDateString('es-AR')}</td>
                 <td>{movimiento.tipo === 'debe' ? 'Debe' : 'Haber'}</td>
@@ -177,11 +192,15 @@ export default async function CuentaCorrienteDetallePage({
                 <td>
                   {movimiento.detalle ?? '—'}
                   {movimiento.de_parte_de ? ` (de: ${movimiento.de_parte_de})` : ''}
-                  {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
-                  {(movimiento.lotes as any)?.identificador
-                    ? // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                      ` — Lote ${(movimiento.lotes as any).identificador}`
-                    : ''}
+                </td>
+                <td>
+                  {movimiento.lote_id && movimiento.lotes ? (
+                    <a href={`/admin/lotes/${movimiento.lote_id}`} className="underline">
+                      {movimiento.lotes.identificador}
+                    </a>
+                  ) : (
+                    '—'
+                  )}
                 </td>
                 <td>
                   {movimiento.monto} {movimiento.moneda}
