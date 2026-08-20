@@ -2,20 +2,54 @@ import { test, expect } from '@playwright/test'
 import { ensureTestFixtures, createAdminClient, TestFixtures } from './fixtures/test-data'
 import { login } from './utils/login'
 
+// `cotizaciones_dolar` es una tabla compartida con datos REALES cargados a
+// mano por Gabriel (una fila por fecha, `fecha` es la clave) -- no es
+// exclusiva de test. Un `delete().eq('fecha', X)` o un `upsert` sin
+// snapshotear/restaurar lo que ya había en esa fecha puede pisar o borrar
+// un valor real cargado antes de correr la suite (pasó de verdad: una
+// corrida se llevó puesta la cotización de un día real). Por eso cada test
+// que toca una fecha puntual guarda lo que había ANTES de tocarla y lo
+// restaura al final, en vez de asumir que esa fecha es "solo de test".
+async function snapshotCotizacion(admin: ReturnType<typeof createAdminClient>, fecha: string) {
+  const { data } = await admin.from('cotizaciones_dolar').select('*').eq('fecha', fecha).maybeSingle()
+  return data
+}
+
+async function restaurarCotizacion(
+  admin: ReturnType<typeof createAdminClient>,
+  fecha: string,
+  original: Record<string, unknown> | null
+) {
+  if (original) {
+    await admin.from('cotizaciones_dolar').upsert(original, { onConflict: 'fecha' })
+  } else {
+    await admin.from('cotizaciones_dolar').delete().eq('fecha', fecha)
+  }
+}
+
 test.describe('Cotización del dólar', () => {
   let fixtures: TestFixtures
+  let cotizacionHoyOriginal: Record<string, unknown> | null = null
 
   test.beforeAll(async () => {
     fixtures = await ensureTestFixtures()
   })
 
-  test.afterEach(async () => {
-    // La cotización de hoy es un registro global compartido por todo el
-    // suite (una fila por fecha) -- se borra al final de cada test para no
-    // dejar "ya cargada" pisando la corrida de otro spec el mismo día.
+  test.beforeEach(async () => {
     const admin = createAdminClient()
     const hoy = new Date().toISOString().slice(0, 10)
+    // Guarda lo que había (si algo real) y arranca cada test desde "todavía
+    // no cargaste la cotización de hoy" -- varios tests dependen de ese
+    // estado vacío para poder probar el botón "Cargar". Se restaura en
+    // afterEach, nunca queda perdido.
+    cotizacionHoyOriginal = await snapshotCotizacion(admin, hoy)
     await admin.from('cotizaciones_dolar').delete().eq('fecha', hoy)
+  })
+
+  test.afterEach(async () => {
+    const admin = createAdminClient()
+    const hoy = new Date().toISOString().slice(0, 10)
+    await restaurarCotizacion(admin, hoy, cotizacionHoyOriginal)
   })
 
   test('cargar la cotización de hoy muestra la leyenda de "ya cargada"', async ({ page }) => {
@@ -111,27 +145,30 @@ test.describe('Cotización del dólar', () => {
   test('el historial muestra el valor cargado hoy y los de días anteriores', async ({ page }) => {
     const admin = createAdminClient()
     const ayer = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString().slice(0, 10)
+    const cotizacionAyerOriginal = await snapshotCotizacion(admin, ayer)
 
-    await admin.from('cotizaciones_dolar').upsert(
-      { fecha: ayer, valor: 1450, cargado_por: fixtures.admin.id },
-      { onConflict: 'fecha' }
-    )
+    try {
+      await admin.from('cotizaciones_dolar').upsert(
+        { fecha: ayer, valor: 1450, cargado_por: fixtures.admin.id },
+        { onConflict: 'fecha' }
+      )
 
-    await login(page, fixtures.admin.email, fixtures.password)
-    await page.goto('/admin/lotes')
-    await page.getByPlaceholder('Ej: 1500').fill('1500')
-    await page.getByRole('button', { name: 'Cargar' }).click()
-    await page.waitForURL('**/admin/lotes')
+      await login(page, fixtures.admin.email, fixtures.password)
+      await page.goto('/admin/lotes')
+      await page.getByPlaceholder('Ej: 1500').fill('1500')
+      await page.getByRole('button', { name: 'Cargar' }).click()
+      await page.waitForURL('**/admin/lotes')
 
-    await page.getByRole('link', { name: 'Ver historial completo →' }).click()
-    await page.waitForURL('**/admin/cotizacion-dolar')
+      await page.getByRole('link', { name: 'Ver historial completo →' }).click()
+      await page.waitForURL('**/admin/cotizacion-dolar')
 
-    const filaHoy = page.locator('tbody tr').filter({ hasText: '1500' })
-    const filaAyer = page.locator('tbody tr').filter({ hasText: ayer })
-    await expect(filaHoy).toBeVisible()
-    await expect(filaAyer).toBeVisible()
-    await expect(filaAyer).toContainText('1450')
-
-    await admin.from('cotizaciones_dolar').delete().eq('fecha', ayer)
+      const filaHoy = page.locator('tbody tr').filter({ hasText: '1500' })
+      const filaAyer = page.locator('tbody tr').filter({ hasText: ayer })
+      await expect(filaHoy).toBeVisible()
+      await expect(filaAyer).toBeVisible()
+      await expect(filaAyer).toContainText('1450')
+    } finally {
+      await restaurarCotizacion(admin, ayer, cotizacionAyerOriginal)
+    }
   })
 })
