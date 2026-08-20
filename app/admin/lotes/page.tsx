@@ -28,12 +28,24 @@ export default async function LotesPage({
     dir?: string
     moneda?: string
     acreedor?: string
+    loteo?: string
+    cliente?: string
+    cobranza?: string
     q?: string
     error?: string
   }>
 }) {
-  const { sort, dir, moneda: filtroMoneda, acreedor: filtroAcreedorId, q: filtroTexto, error } =
-    await searchParams
+  const {
+    sort,
+    dir,
+    moneda: filtroMoneda,
+    acreedor: filtroAcreedorId,
+    loteo: filtroLoteoId,
+    cliente: filtroCliente,
+    cobranza: filtroCobranza,
+    q: filtroTexto,
+    error,
+  } = await searchParams
 
   const supabase = await createClient()
 
@@ -100,12 +112,18 @@ export default async function LotesPage({
     queryLotes = queryLotes.ilike('identificador', `%${filtroTexto}%`)
   }
 
+  if (filtroLoteoId) {
+    queryLotes = queryLotes.eq('loteo_id', filtroLoteoId)
+  }
+
   const { data: lotes } = await queryLotes
 
   const { data: todosLosAcreedores } =
     perfilPropio!.role !== 'acreedor'
       ? await supabase.from('profiles').select('id, full_name').eq('role', 'acreedor').order('full_name')
       : { data: [] }
+
+  const { data: todosLosLoteos } = await supabase.from('loteos').select('id, nombre').order('nombre')
 
   const acreedorIds = [...new Set((lotes ?? []).map((lote) => lote.acreedor_id).filter(Boolean))]
 
@@ -183,6 +201,30 @@ export default async function LotesPage({
     })
   )
 
+  // Cliente y Cobranza no son columnas de "lotes" (cliente ya viene resuelto
+  // arriba, cobranza es calculada) -- se filtran en JS después de tener
+  // clientePorId/cobranzaPorLote, en vez de en la consulta SQL.
+  const lotesFiltrados = (lotes ?? []).filter((lote) => {
+    if (filtroCliente) {
+      const nombreCliente = lote.cliente_id ? clientePorId.get(lote.cliente_id)?.full_name : null
+      if (!nombreCliente || !nombreCliente.toLowerCase().includes(filtroCliente.toLowerCase())) {
+        return false
+      }
+    }
+    if (filtroCobranza) {
+      const cobranza = cobranzaPorLote.get(lote.id)
+      const etiquetaCobranza = !cobranza
+        ? null
+        : cobranza.saldoPendiente === 0
+          ? 'pagado'
+          : cobranza.estadoCobranza === 'normal'
+            ? 'al_dia'
+            : cobranza.estadoCobranza
+      if (etiquetaCobranza !== filtroCobranza) return false
+    }
+    return true
+  })
+
   let reservasPropias: { lote_id: string }[] = []
 
   if (esVendedorOCobrador) {
@@ -210,6 +252,9 @@ export default async function LotesPage({
     const params = new URLSearchParams()
     if (filtroMoneda) params.set('moneda', filtroMoneda)
     if (filtroAcreedorId) params.set('acreedor', filtroAcreedorId)
+    if (filtroLoteoId) params.set('loteo', filtroLoteoId)
+    if (filtroCliente) params.set('cliente', filtroCliente)
+    if (filtroCobranza) params.set('cobranza', filtroCobranza)
     if (filtroTexto) params.set('q', filtroTexto)
     params.set('sort', columna)
     params.set('dir', columnaOrden === columna && ordenAscendente ? 'desc' : 'asc')
@@ -373,16 +418,71 @@ export default async function LotesPage({
             </select>
           </label>
         )}
+        {!esVendedorOCobrador && (
+          <label className="text-sm">
+            Loteo
+            <select
+              name="loteo"
+              defaultValue={filtroLoteoId ?? ''}
+              className="mt-1 block rounded border px-3 py-2"
+            >
+              <option value="">Todos</option>
+              {(todosLosLoteos ?? []).map((loteo) => (
+                <option key={loteo.id} value={loteo.id}>
+                  {loteo.nombre}
+                </option>
+              ))}
+            </select>
+          </label>
+        )}
+        {esAdministrador && (
+          <label className="text-sm">
+            Cliente
+            <input
+              type="text"
+              name="cliente"
+              placeholder="Nombre del cliente"
+              defaultValue={filtroCliente ?? ''}
+              className="mt-1 block rounded border px-3 py-2"
+            />
+          </label>
+        )}
+        {!esVendedorOCobrador && (
+          <label className="text-sm">
+            Cobranza
+            <select
+              name="cobranza"
+              defaultValue={filtroCobranza ?? ''}
+              className="mt-1 block rounded border px-3 py-2"
+            >
+              <option value="">Todas</option>
+              <option value="pagado">Pagado</option>
+              <option value="al_dia">Al día</option>
+              <option value="moroso">Moroso</option>
+              <option value="prejudicial">Prejudicial</option>
+            </select>
+          </label>
+        )}
         <button type="submit" className="rounded border px-3 py-2 text-sm">
           Filtrar
         </button>
-        {(filtroMoneda || filtroAcreedorId || filtroTexto || sort || dir) && (
+        {(filtroMoneda ||
+          filtroAcreedorId ||
+          filtroLoteoId ||
+          filtroCliente ||
+          filtroCobranza ||
+          filtroTexto ||
+          sort ||
+          dir) && (
           <a href="/admin/lotes" className="text-sm underline">
             Limpiar filtros y orden
           </a>
         )}
       </form>
 
+      {lotesFiltrados.length === 0 && (filtroCliente || filtroCobranza) ? (
+        <p className="text-sm text-gray-600">Ningún lote coincide con los filtros.</p>
+      ) : (
       <table className="w-full text-sm">
         <thead>
           <tr className="border-b text-left">
@@ -403,7 +503,7 @@ export default async function LotesPage({
           </tr>
         </thead>
         <tbody>
-          {lotes?.map((lote) => {
+          {lotesFiltrados.map((lote) => {
             const eliminarLoteConId = eliminarLote.bind(null, lote.id)
             const cobranza = cobranzaPorLote.get(lote.id)
             return (
@@ -524,6 +624,7 @@ export default async function LotesPage({
           })}
         </tbody>
       </table>
+      )}
     </main>
   )
 }
