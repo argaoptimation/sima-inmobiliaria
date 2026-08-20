@@ -5,6 +5,8 @@ import { BotonCancelarReserva } from './BotonCancelarReserva'
 import { eliminarLote } from './[id]/actions'
 import { BotonEliminarLote } from './[id]/BotonEliminarLote'
 import { guardarCotizacionDolar } from './cotizacion-dolar-actions'
+import { calcularEstadoCobranza } from '@/lib/cobranza/estado-cliente'
+import { armarLinkWhatsApp, armarMensajeWhatsApp } from '@/lib/cobranza/plantillas-whatsapp'
 
 const COLUMNAS_ORDENABLES = ['identificador', 'ubicacion', 'precio_total', 'moneda', 'estado'] as const
 type ColumnaOrdenable = (typeof COLUMNAS_ORDENABLES)[number]
@@ -72,7 +74,9 @@ export default async function LotesPage({
 
   let queryLotes = supabase
     .from('lotes')
-    .select('id, identificador, moneda, estado, cantidad_cuotas, ubicacion, precio_total, acreedor_id, loteo_id')
+    .select(
+      'id, identificador, moneda, estado, cantidad_cuotas, ubicacion, precio_total, acreedor_id, loteo_id, cliente_id'
+    )
     .order(columnaOrden, { ascending: ordenAscendente })
 
   if (perfilPropio!.role === 'acreedor') {
@@ -117,6 +121,62 @@ export default async function LotesPage({
       ? await supabase.from('loteos').select('id, nombre').in('id', loteoIds)
       : { data: [] }
   const nombreLoteoPorId = new Map((loteosConLote ?? []).map((loteo) => [loteo.id, loteo.nombre]))
+
+  // Estado de cobranza por lote vendido: para que se vea de un vistazo quién
+  // está en mora sin tener que entrar a cada cliente (ver Notas_Decisiones_SIMA.txt).
+  const lotesVendidos = (lotes ?? []).filter((lote) => lote.estado === 'vendido' && lote.cliente_id)
+  const loteVendidoIds = lotesVendidos.map((lote) => lote.id)
+  const clienteIds = [...new Set(lotesVendidos.map((lote) => lote.cliente_id as string))]
+
+  const { data: clientes } =
+    clienteIds.length > 0
+      ? await supabase.from('profiles').select('id, full_name, telefono').in('id', clienteIds)
+      : { data: [] }
+  const clientePorId = new Map((clientes ?? []).map((cliente) => [cliente.id, cliente]))
+
+  const { data: cuotasPorLote } =
+    loteVendidoIds.length > 0
+      ? await supabase
+          .from('cuotas')
+          .select('lote_id, saldo_pendiente, fecha_vencimiento')
+          .in('lote_id', loteVendidoIds)
+          .order('fecha_vencimiento', { ascending: true })
+      : { data: [] }
+
+  const cuotasAgrupadasPorLote = new Map<string, { saldo_pendiente: number; fecha_vencimiento: string }[]>()
+  for (const cuota of cuotasPorLote ?? []) {
+    const listaActual = cuotasAgrupadasPorLote.get(cuota.lote_id) ?? []
+    listaActual.push(cuota)
+    cuotasAgrupadasPorLote.set(cuota.lote_id, listaActual)
+  }
+
+  const cobranzaPorLote = new Map(
+    lotesVendidos.map((lote) => {
+      const cuotasDelLote = cuotasAgrupadasPorLote.get(lote.id) ?? []
+      const saldoPendiente = cuotasDelLote.reduce((acum, cuota) => acum + cuota.saldo_pendiente, 0)
+      const estadoCobranza = calcularEstadoCobranza(
+        cuotasDelLote.map((cuota) => ({
+          saldoPendiente: cuota.saldo_pendiente,
+          fechaVencimiento: cuota.fecha_vencimiento,
+        })),
+        hoy
+      )
+      const proximaCuotaPendiente = cuotasDelLote.find((cuota) => cuota.saldo_pendiente > 0)
+      const cliente = clientePorId.get(lote.cliente_id as string)
+      const mensajeWhatsApp =
+        saldoPendiente > 0 && proximaCuotaPendiente && cliente
+          ? armarMensajeWhatsApp(estadoCobranza, {
+              nombre: cliente.full_name,
+              lote: lote.identificador,
+              monto: saldoPendiente,
+              moneda: lote.moneda,
+              fechaVencimiento: proximaCuotaPendiente.fecha_vencimiento,
+            })
+          : null
+
+      return [lote.id, { saldoPendiente, estadoCobranza, mensajeWhatsApp, telefono: cliente?.telefono ?? null }]
+    })
+  )
 
   let reservasPropias: { lote_id: string }[] = []
 
@@ -332,12 +392,14 @@ export default async function LotesPage({
             <th>Acreedor</th>
             {!esVendedorOCobrador && <th>Cuotas</th>}
             {!esVendedorOCobrador && <th>Loteo</th>}
+            {!esVendedorOCobrador && <th>Cobranza</th>}
             <th></th>
           </tr>
         </thead>
         <tbody>
           {lotes?.map((lote) => {
             const eliminarLoteConId = eliminarLote.bind(null, lote.id)
+            const cobranza = cobranzaPorLote.get(lote.id)
             return (
               <tr key={lote.id} className="border-b">
                 <td className="py-2">{lote.identificador}</td>
@@ -351,6 +413,45 @@ export default async function LotesPage({
                 {!esVendedorOCobrador && <td>{lote.cantidad_cuotas}</td>}
                 {!esVendedorOCobrador && (
                   <td>{lote.loteo_id ? nombreLoteoPorId.get(lote.loteo_id) ?? '—' : '— sin asignar —'}</td>
+                )}
+                {!esVendedorOCobrador && (
+                  <td>
+                    {cobranza ? (
+                      <div className="flex items-center gap-2">
+                        <span
+                          className={
+                            cobranza.saldoPendiente === 0
+                              ? 'text-gray-600'
+                              : cobranza.estadoCobranza === 'normal'
+                                ? 'text-gray-700'
+                                : cobranza.estadoCobranza === 'moroso'
+                                  ? 'font-semibold text-red-600'
+                                  : 'font-bold text-red-800'
+                          }
+                        >
+                          {cobranza.saldoPendiente === 0
+                            ? 'Pagado'
+                            : cobranza.estadoCobranza === 'normal'
+                              ? 'Al día'
+                              : cobranza.estadoCobranza === 'moroso'
+                                ? 'Moroso'
+                                : 'Prejudicial'}
+                        </span>
+                        {cobranza.mensajeWhatsApp && cobranza.telefono && (
+                          <a
+                            href={armarLinkWhatsApp(cobranza.telefono, cobranza.mensajeWhatsApp)}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-sm underline"
+                          >
+                            WhatsApp
+                          </a>
+                        )}
+                      </div>
+                    ) : (
+                      '—'
+                    )}
+                  </td>
                 )}
                 <td>
                   {esVendedorOCobrador ? (
