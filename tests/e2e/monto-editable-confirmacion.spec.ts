@@ -137,7 +137,7 @@ test.describe('Monto editable al confirmar un pago', () => {
     // El admin abre la pantalla y ve 50 (todavía no la envía).
     await login(page, fixtures.admin.email, fixtures.password)
     await page.goto('/admin/pagos')
-    let fila = filaPorComprobante(page, nombreArchivo)
+    const fila = filaPorComprobante(page, nombreArchivo)
     await expect(fila.getByLabel('Monto a confirmar')).toHaveValue('50')
 
     // Mientras tanto, el acreedor (en una sesión de browser SEPARADA -- no

@@ -404,7 +404,7 @@ export default async function LoteDetallePage({
         <p className="mb-2 text-sm text-amber-700">
           Este lote todavía no está vendido — la tabla de abajo es la estructura de cuotas
           planificada, no una deuda real. Todavía no hay ningún cliente que la deba, así que
-          ninguna cuota puede estar "vencida" hasta que el lote pase a vendido.
+          ninguna cuota puede estar &quot;vencida&quot; hasta que el lote pase a vendido.
         </p>
       )}
       <table className="w-full text-sm">

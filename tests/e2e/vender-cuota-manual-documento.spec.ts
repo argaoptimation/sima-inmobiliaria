@@ -262,7 +262,6 @@ test.describe('Vender — documento firmado y cuota manual', () => {
   })
 
   test('el detalle del lote muestra un link para ver el documento firmado', async ({ page }) => {
-    const admin = createAdminClient()
     const loteId = await crearLoteReservadoListoParaVender(
       `E2E Ver Documento ${Date.now()}`,
       5000,

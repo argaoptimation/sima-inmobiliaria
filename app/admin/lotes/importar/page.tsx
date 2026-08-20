@@ -21,7 +21,7 @@ export default async function ImportarLotesPage({
         separadas por tabulación, no por comas). El orden de las columnas tiene que ser:
         Identificador, Ubicación, Precio total, Moneda (USD o ARS), Email del acreedor. El email
         de acreedor tiene que coincidir con uno ya cargado en el sistema — si todavía no existe,
-        creálo primero en "Usuarios". Las cuotas no se cargan acá: se definen más adelante, cuando
+        creálo primero en &quot;Usuarios&quot;. Las cuotas no se cargan acá: se definen más adelante, cuando
         el lote se vende. Si alguna fila tiene un error, no se crea ningún lote hasta que las
         corrijas todas — así evitamos cargas parciales o con datos mal tipeados.
       </p>
