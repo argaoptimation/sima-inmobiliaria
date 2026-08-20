@@ -1,6 +1,7 @@
 import { createClient } from '@/lib/supabase/server'
 import { requireAdministrador } from '@/lib/auth/require-admin'
 import { calcularEstadoCobranza } from '@/lib/cobranza/estado-cliente'
+import { armarLinkWhatsApp, armarMensajeWhatsApp } from '@/lib/cobranza/plantillas-whatsapp'
 import { notFound } from 'next/navigation'
 import { resetearContrasenaCliente, eliminarCliente, actualizarDatosCliente } from '../actions'
 import { BotonEliminarUsuario } from '@/app/admin/usuarios/BotonEliminarUsuario'
@@ -43,6 +44,7 @@ export default async function ClienteDetallePage({
         .from('cuotas')
         .select('saldo_pendiente, fecha_vencimiento')
         .eq('lote_id', lote.id)
+        .order('fecha_vencimiento', { ascending: true })
 
       const saldoPendiente = (cuotas ?? []).reduce(
         (acumulado, cuota) => acumulado + cuota.saldo_pendiente,
@@ -57,7 +59,23 @@ export default async function ClienteDetallePage({
         hoy
       )
 
-      return { ...lote, saldoPendiente, estadoCobranza }
+      // Botón de WhatsApp: se habilita solo si el lote tiene saldo pendiente
+      // y ya existe una plantilla para su estado de cobranza actual (por
+      // ahora, "normal" y "moroso" -- "prejudicial" queda sin botón hasta
+      // que Nicolás defina esa plantilla, sin tocar nada de este código).
+      const proximaCuotaPendiente = (cuotas ?? []).find((cuota) => cuota.saldo_pendiente > 0)
+      const mensajeWhatsApp =
+        saldoPendiente > 0 && proximaCuotaPendiente
+          ? armarMensajeWhatsApp(estadoCobranza, {
+              nombre: cliente!.full_name,
+              lote: lote.identificador,
+              monto: saldoPendiente,
+              moneda: lote.moneda,
+              fechaVencimiento: proximaCuotaPendiente.fecha_vencimiento,
+            })
+          : null
+
+      return { ...lote, saldoPendiente, estadoCobranza, mensajeWhatsApp }
     })
   )
 
@@ -88,6 +106,7 @@ export default async function ClienteDetallePage({
               <th>Estado</th>
               <th>Saldo pendiente</th>
               <th></th>
+              <th></th>
             </tr>
           </thead>
           <tbody>
@@ -102,6 +121,18 @@ export default async function ClienteDetallePage({
                   <a href={`/admin/lotes/${lote.id}`} className="underline">
                     Ver lote
                   </a>
+                </td>
+                <td>
+                  {lote.mensajeWhatsApp && cliente!.telefono && (
+                    <a
+                      href={armarLinkWhatsApp(cliente!.telefono, lote.mensajeWhatsApp)}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="underline"
+                    >
+                      WhatsApp
+                    </a>
+                  )}
                 </td>
               </tr>
             ))}

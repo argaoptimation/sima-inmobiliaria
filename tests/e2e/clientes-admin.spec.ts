@@ -98,6 +98,59 @@ test.describe('Vista de clientes desde Admin', () => {
     }).toPass({ timeout: 5000 })
   })
 
+  test('botón de WhatsApp: estado normal arma el link con la plantilla correspondiente', async ({
+    page,
+  }) => {
+    const admin = createAdminClient()
+    await admin.from('profiles').update({ telefono: '3511234567' }).eq('id', fixtures.cliente.id)
+
+    await login(page, fixtures.admin.email, fixtures.password)
+    await page.goto(`/admin/clientes/${fixtures.cliente.id}`)
+
+    // fixtures.loteId ("E2E Test Lote") arranca con sus 3 cuotas sin pagar y
+    // ninguna vencida todavía (la primera vence hoy) -- estado "normal".
+    const fila = page.getByRole('row', { name: /E2E Test Lote/ })
+    const link = fila.getByRole('link', { name: 'WhatsApp' })
+    await expect(link).toBeVisible()
+
+    const href = await link.getAttribute('href')
+    expect(href).toContain('https://wa.me/3511234567')
+    expect(href).toContain(encodeURIComponent('Te escribo de SIMA Inmobiliaria'))
+    expect(href).toContain(encodeURIComponent('todavía no la registramos como pagada'))
+    expect(href).toContain(encodeURIComponent('3000 USD'))
+    await expect(link).toHaveAttribute('target', '_blank')
+  })
+
+  test('botón de WhatsApp: estado moroso (cuota vencida) usa la plantilla más firme', async ({
+    page,
+  }) => {
+    const admin = createAdminClient()
+    await admin.from('profiles').update({ telefono: '3511234567' }).eq('id', fixtures.cliente.id)
+    await admin
+      .from('cuotas')
+      .update({ fecha_vencimiento: '2020-01-01' })
+      .eq('id', fixtures.cuotaIds[0])
+
+    await login(page, fixtures.admin.email, fixtures.password)
+    await page.goto(`/admin/clientes/${fixtures.cliente.id}`)
+
+    const fila = page.getByRole('row', { name: /E2E Test Lote/ })
+    const href = await fila.getByRole('link', { name: 'WhatsApp' }).getAttribute('href')
+    expect(href).toContain(encodeURIComponent('Tenés cuotas vencidas'))
+    expect(href).toContain(encodeURIComponent('ya están corriendo intereses por mora'))
+  })
+
+  test('botón de WhatsApp: sin teléfono cargado, no aparece', async ({ page }) => {
+    const admin = createAdminClient()
+    await admin.from('profiles').update({ telefono: null }).eq('id', fixtures.cliente.id)
+
+    await login(page, fixtures.admin.email, fixtures.password)
+    await page.goto(`/admin/clientes/${fixtures.cliente.id}`)
+
+    const fila = page.getByRole('row', { name: /E2E Test Lote/ })
+    await expect(fila.getByRole('link', { name: 'WhatsApp' })).toHaveCount(0)
+  })
+
   test('eliminar un cliente CON un lote asociado es rechazado con un mensaje claro', async ({
     page,
   }) => {
