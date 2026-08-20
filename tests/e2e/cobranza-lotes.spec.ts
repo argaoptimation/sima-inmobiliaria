@@ -49,4 +49,45 @@ test.describe('Estado de cobranza en /admin/lotes', () => {
 
     await expect(page.getByRole('columnheader', { name: 'Cobranza' })).toHaveCount(0)
   })
+
+  test('el administrador tiene links rápidos a Cliente y Acreedor desde la fila del lote', async ({
+    page,
+  }) => {
+    await login(page, fixtures.admin.email, fixtures.password)
+    await page.goto('/admin/lotes')
+
+    const fila = page.getByRole('row', { name: /E2E Test Lote/ })
+
+    await fila.getByRole('link', { name: 'E2E Cliente' }).click()
+    await page.waitForURL(new RegExp(`/admin/clientes/${fixtures.cliente.id}`))
+
+    await page.goto('/admin/lotes')
+    const filaOtraVez = page.getByRole('row', { name: /E2E Test Lote/ })
+    await filaOtraVez.getByRole('link', { name: 'E2E Acreedor Con Datos' }).click()
+    await page.waitForURL(/\/admin\/usuarios\?editar=/)
+    await expect(page.getByRole('button', { name: 'Guardar nombre' })).toBeVisible()
+  })
+
+  test('un lote reservado (sin vendido) no muestra link a Cliente', async ({ page }) => {
+    const admin = createAdminClient()
+    await admin.from('lotes').delete().eq('identificador', 'E2E Lote Reservado Cobranza')
+    const { data: nuevoLote } = await admin
+      .from('lotes')
+      .insert({
+        identificador: 'E2E Lote Reservado Cobranza',
+        moneda: 'USD',
+        estado: 'reservado',
+        acreedor_id: fixtures.acreedorConDatos.id,
+      })
+      .select('id')
+      .single()
+
+    await login(page, fixtures.admin.email, fixtures.password)
+    await page.goto('/admin/lotes')
+
+    const fila = page.getByRole('row', { name: /E2E Lote Reservado Cobranza/ })
+    await expect(fila.getByRole('link', { name: /E2E Cliente/ })).toHaveCount(0)
+
+    await admin.from('lotes').delete().eq('id', nuevoLote!.id)
+  })
 })

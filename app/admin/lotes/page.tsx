@@ -133,6 +133,7 @@ export default async function LotesPage({
       ? await supabase.from('profiles').select('id, full_name, telefono').in('id', clienteIds)
       : { data: [] }
   const clientePorId = new Map((clientes ?? []).map((cliente) => [cliente.id, cliente]))
+  const esAdministrador = perfilPropio!.role === 'administrador'
 
   const { data: cuotasPorLote } =
     loteVendidoIds.length > 0
@@ -392,6 +393,7 @@ export default async function LotesPage({
             <th>Acreedor</th>
             {!esVendedorOCobrador && <th>Cuotas</th>}
             {!esVendedorOCobrador && <th>Loteo</th>}
+            {esAdministrador && <th>Cliente</th>}
             {!esVendedorOCobrador && <th>Cobranza</th>}
             <th></th>
           </tr>
@@ -408,11 +410,32 @@ export default async function LotesPage({
                 <td>{lote.moneda}</td>
                 <td>{lote.estado}</td>
                 <td>
-                  {lote.acreedor_id ? nombreAcreedorPorId.get(lote.acreedor_id) ?? '—' : '— sin asignar —'}
+                  {lote.acreedor_id ? (
+                    esAdministrador ? (
+                      <a href={`/admin/usuarios?editar=${lote.acreedor_id}`} className="underline">
+                        {nombreAcreedorPorId.get(lote.acreedor_id) ?? '—'}
+                      </a>
+                    ) : (
+                      nombreAcreedorPorId.get(lote.acreedor_id) ?? '—'
+                    )
+                  ) : (
+                    '— sin asignar —'
+                  )}
                 </td>
                 {!esVendedorOCobrador && <td>{lote.cantidad_cuotas}</td>}
                 {!esVendedorOCobrador && (
                   <td>{lote.loteo_id ? nombreLoteoPorId.get(lote.loteo_id) ?? '—' : '— sin asignar —'}</td>
+                )}
+                {esAdministrador && (
+                  <td>
+                    {lote.estado === 'vendido' && lote.cliente_id ? (
+                      <a href={`/admin/clientes/${lote.cliente_id}`} className="underline">
+                        {clientePorId.get(lote.cliente_id)?.full_name ?? '—'}
+                      </a>
+                    ) : (
+                      '—'
+                    )}
+                  </td>
                 )}
                 {!esVendedorOCobrador && (
                   <td>
