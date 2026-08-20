@@ -2,6 +2,7 @@ import { createClient } from '@/lib/supabase/server'
 import { requireAdministrador } from '@/lib/auth/require-admin'
 import { calcularEstadoCobranza } from '@/lib/cobranza/estado-cliente'
 import { armarLinkWhatsApp, armarMensajeWhatsApp } from '@/lib/cobranza/plantillas-whatsapp'
+import { PREFIJOS_TELEFONO } from '@/lib/telefono/prefijos'
 import { notFound } from 'next/navigation'
 import { resetearContrasenaCliente, eliminarCliente, actualizarDatosCliente } from '../actions'
 import { BotonEliminarUsuario } from '@/app/admin/usuarios/BotonEliminarUsuario'
@@ -171,12 +172,32 @@ export default async function ClienteDetallePage({
           />
         </label>
         <label className="text-sm">
-          Teléfono
-          <input
-            name="telefono"
-            defaultValue={cliente!.telefono ?? ''}
-            className="mt-1 block w-full rounded border px-3 py-2"
-          />
+          Teléfono (para WhatsApp)
+          <div className="mt-1 flex gap-2">
+            <select
+              name="prefijo"
+              defaultValue=""
+              className="rounded border px-2 py-2 text-sm"
+              aria-label="Prefijo de país"
+            >
+              {PREFIJOS_TELEFONO.map((prefijo) => (
+                <option key={`${prefijo.codigo}-${prefijo.nombre}`} value={prefijo.codigo}>
+                  {prefijo.bandera} {prefijo.nombre}
+                  {prefijo.codigo ? ` (+${prefijo.codigo})` : ''}
+                </option>
+              ))}
+            </select>
+            <input
+              name="telefonoLocal"
+              placeholder="9351234567"
+              defaultValue={cliente!.telefono ?? ''}
+              className="flex-1 rounded border px-3 py-2 placeholder:text-gray-400"
+            />
+          </div>
+          <p className="mt-1 text-xs text-gray-500">
+            Elegí el país y escribí el número con el 9 adelante (celular), sin el 0 del código de
+            área. Si ya está guardado completo, dejá el prefijo en &quot;Sin prefijo&quot;.
+          </p>
         </label>
         <button type="submit" className="self-start rounded bg-black px-3 py-2 text-sm text-white">
           Guardar datos

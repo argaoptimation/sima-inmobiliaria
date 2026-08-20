@@ -6,6 +6,7 @@ import { redirect } from 'next/navigation'
 import { requireAdministrador } from '@/lib/auth/require-admin'
 import { esContrasenaValida, mensajeContrasenaInvalida } from '@/lib/auth/validar-contrasena'
 import { mensajeDeError } from '@/lib/errores'
+import { combinarTelefono } from '@/lib/telefono/prefijos'
 
 export async function resetearContrasenaCliente(clienteId: string, formData: FormData) {
   await requireAdministrador()
@@ -59,7 +60,10 @@ export async function actualizarDatosCliente(clienteId: string, formData: FormDa
   const fullName = (formData.get('fullName') as string)?.trim()
   const dni = ((formData.get('dni') as string) || '').trim() || null
   const domicilio = ((formData.get('domicilio') as string) || '').trim() || null
-  const telefono = ((formData.get('telefono') as string) || '').trim() || null
+  const telefono = combinarTelefono(
+    (formData.get('prefijo') as string) || '',
+    (formData.get('telefonoLocal') as string) || ''
+  )
 
   if (!fullName) {
     redirect(`/admin/clientes/${clienteId}?error=${encodeURIComponent('El nombre no puede estar vacío')}`)

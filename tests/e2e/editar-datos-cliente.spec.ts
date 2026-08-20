@@ -21,7 +21,8 @@ test.describe('Editar datos del cliente', () => {
       await page.getByLabel('Nombre completo').fill('E2E Cliente Editado')
       await page.getByLabel('DNI').fill(dni)
       await page.getByLabel('Domicilio').fill('Domicilio Editado 111')
-      await page.getByLabel('Teléfono').fill('3515555555')
+      await page.getByLabel('Prefijo de país').selectOption('54')
+      await page.getByPlaceholder('9351234567').fill('3515555555')
       await page.getByRole('button', { name: 'Guardar datos' }).click()
 
       await expect(page.getByText('Datos actualizados')).toBeVisible()
@@ -35,7 +36,7 @@ test.describe('Editar datos del cliente', () => {
       expect(cliente?.full_name).toBe('E2E Cliente Editado')
       expect(cliente?.dni).toBe(dni)
       expect(cliente?.domicilio).toBe('Domicilio Editado 111')
-      expect(cliente?.telefono).toBe('3515555555')
+      expect(cliente?.telefono).toBe('543515555555')
     } finally {
       await admin
         .from('profiles')
@@ -77,7 +78,8 @@ test.describe('Editar datos del cliente', () => {
       await page.getByLabel('Nombre completo').fill('E2E Cliente Autoeditado')
       await page.getByLabel('DNI').fill(dni)
       await page.getByLabel('Domicilio').fill('Mi Domicilio 222')
-      await page.getByLabel('Teléfono').fill('3516666666')
+      await page.getByLabel('Prefijo de país').selectOption('54')
+      await page.getByPlaceholder('9351234567').fill('3516666666')
       await page.getByRole('button', { name: 'Guardar datos' }).click()
 
       await expect(page.getByText('Guardado.')).toBeVisible()
@@ -89,6 +91,7 @@ test.describe('Editar datos del cliente', () => {
         .single()
       expect(cliente?.full_name).toBe('E2E Cliente Autoeditado')
       expect(cliente?.dni).toBe(dni)
+      expect(cliente?.telefono).toBe('543516666666')
     } finally {
       await admin
         .from('profiles')

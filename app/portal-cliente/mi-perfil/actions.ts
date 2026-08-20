@@ -3,6 +3,7 @@
 import { createClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
 import { mensajeDeError } from '@/lib/errores'
+import { combinarTelefono } from '@/lib/telefono/prefijos'
 
 async function requireClienteLogueado() {
   const supabase = await createClient()
@@ -30,7 +31,10 @@ export async function actualizarMisDatosCliente(formData: FormData) {
   const fullName = (formData.get('fullName') as string)?.trim()
   const dni = ((formData.get('dni') as string) || '').trim() || null
   const domicilio = ((formData.get('domicilio') as string) || '').trim() || null
-  const telefono = ((formData.get('telefono') as string) || '').trim() || null
+  const telefono = combinarTelefono(
+    (formData.get('prefijo') as string) || '',
+    (formData.get('telefonoLocal') as string) || ''
+  )
 
   if (!fullName) {
     redirect(`/portal-cliente/mi-perfil?error=${encodeURIComponent('El nombre no puede estar vacío')}`)
