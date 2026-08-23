@@ -41,6 +41,9 @@ yarn-error.log*
 # vercel
 .vercel
 
+# mcp local config (puede contener tokens de integraciones como Notion)
+.mcp.json
+
 # typescript
 *.tsbuildinfo
 next-env.d.ts
