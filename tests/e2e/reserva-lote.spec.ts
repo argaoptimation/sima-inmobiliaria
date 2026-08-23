@@ -195,19 +195,27 @@ test.describe('Reserva de lote (fase 1: texto + comprobante de seña)', () => {
     })
   })
 
-  test('el listado de lotes de un vendedor solo muestra lotes disponibles', async ({ page }) => {
-    const identificadorVisible = `E2E Lote Visible Para Vendedor ${Date.now()}`
-    const identificadorOculto = `E2E Lote Oculto Para Vendedor ${Date.now()}`
-    await crearLoteDisponible(identificadorVisible)
-    const loteReservadoId = await crearLoteDisponible(identificadorOculto)
+  test('el listado de lotes de un vendedor muestra disponibles y reservados (por cualquiera), pero "Reservar" solo aparece en los disponibles', async ({
+    page,
+  }) => {
+    const identificadorDisponible = `E2E Lote Visible Para Vendedor ${Date.now()}`
+    const identificadorReservado = `E2E Lote Oculto Para Vendedor ${Date.now()}`
+    await crearLoteDisponible(identificadorDisponible)
+    const loteReservadoId = await crearLoteDisponible(identificadorReservado)
     const admin = createAdminClient()
     await admin.from('lotes').update({ estado: 'reservado' }).eq('id', loteReservadoId)
 
     await login(page, fixtures.vendedorSinLotes.email, fixtures.password)
     await page.goto('/admin/lotes')
 
-    await expect(page.getByText(identificadorVisible, { exact: true })).toBeVisible()
-    await expect(page.getByText(identificadorOculto, { exact: true })).toHaveCount(0)
+    const tablaGeneral = page.locator('table').last()
+    const filaDisponible = tablaGeneral.getByRole('row', { name: identificadorDisponible })
+    const filaReservada = tablaGeneral.getByRole('row', { name: identificadorReservado })
+
+    await expect(filaDisponible).toBeVisible()
+    await expect(filaReservada).toBeVisible()
+    await expect(filaDisponible.getByRole('link', { name: 'Reservar' })).toBeVisible()
+    await expect(filaReservada.getByRole('link', { name: 'Reservar' })).toHaveCount(0)
   })
 
   test('vendedor no puede abrir /admin/pagos navegando directo por URL', async ({ page }) => {
@@ -347,7 +355,9 @@ test.describe('Reserva de lote (fase 1: texto + comprobante de seña)', () => {
     await expect(page.locator('table').first().getByRole('row', { name: identificadorLote })).toHaveCount(0)
   })
 
-  test('un vendedor no ve ni puede cancelar la reserva de otro vendedor', async ({ page }) => {
+  test('un vendedor ve la reserva de otro vendedor en el listado general, pero no puede cancelarla', async ({
+    page,
+  }) => {
     const identificadorLote = `E2E Lote Cancelar Ajena ${Date.now()}`
     const loteId = await crearLoteDisponible(identificadorLote)
 
@@ -358,13 +368,17 @@ test.describe('Reserva de lote (fase 1: texto + comprobante de seña)', () => {
     await page.waitForURL('**/admin/lotes')
 
     // El cobrador no cargó esta reserva -- no le aparece en "Lotes que
-    // reservaste", así que no tiene forma de ver ni de clickear un botón
-    // "Cancelar reserva" para algo que no es suyo.
+    // reservaste" (esa tabla sigue acotada a lo propio), pero sí en el
+    // listado general de "Lotes disponibles y reservados", sin ningún botón
+    // de "Cancelar reserva" (esa acción solo existe en la tabla de arriba).
     await logout(page)
     await login(page, fixtures.cobrador.email, fixtures.password)
     await page.goto('/admin/lotes')
 
-    await expect(page.getByText(identificadorLote, { exact: true })).toHaveCount(0)
+    const tablaGeneral = page.locator('table').last()
+    const filaDelLote = tablaGeneral.getByRole('row', { name: identificadorLote })
+    await expect(filaDelLote).toBeVisible()
+    await expect(filaDelLote.getByRole('button', { name: 'Cancelar reserva' })).toHaveCount(0)
 
     const admin = createAdminClient()
     const { data: loteSinCambios } = await admin
