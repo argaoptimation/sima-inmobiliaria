@@ -97,7 +97,7 @@ export default async function LotesPage({
   }
 
   if (esVendedorOCobrador) {
-    queryLotes = queryLotes.eq('estado', 'disponible')
+    queryLotes = queryLotes.in('estado', ['disponible', 'reservado'])
   }
 
   if (filtroMoneda) {
@@ -310,15 +310,6 @@ export default async function LotesPage({
         <a href="/admin/cotizacion-dolar" className="mt-2 inline-block text-sm underline">
           Ver historial completo →
         </a>
-        <br />
-        <a
-          href="https://www.infodolar.com/cotizacion-dolar-provincia-cordoba.aspx"
-          target="_blank"
-          rel="noopener noreferrer"
-          className="mt-1 inline-block text-sm underline"
-        >
-          Ver cotización del día en Infodólar Córdoba (para copiar el valor) →
-        </a>
       </div>
 
       <div className="mb-6 flex items-center justify-between">
@@ -380,7 +371,7 @@ export default async function LotesPage({
               </tbody>
             </table>
           )}
-          <h2 className="mb-2 text-lg font-semibold">Lotes disponibles</h2>
+          <h2 className="mb-2 text-lg font-semibold">Lotes disponibles y reservados</h2>
         </>
       )}
 
@@ -494,6 +485,7 @@ export default async function LotesPage({
       <table className="w-full text-sm">
         <thead>
           <tr className="border-b text-left">
+            {!esVendedorOCobrador && <th className="py-2">Loteo</th>}
             {COLUMNAS_ORDENABLES.map((columna) => (
               <th key={columna} className="py-2">
                 <a href={urlOrden(columna)} className="underline">
@@ -502,9 +494,8 @@ export default async function LotesPage({
                 </a>
               </th>
             ))}
-            <th>Acreedor</th>
+            {!esVendedorOCobrador && <th>Acreedor</th>}
             {!esVendedorOCobrador && <th>Cuotas</th>}
-            {!esVendedorOCobrador && <th>Loteo</th>}
             {esAdministrador && <th>Cliente</th>}
             {!esVendedorOCobrador && <th>Cobranza</th>}
             <th></th>
@@ -516,28 +507,30 @@ export default async function LotesPage({
             const cobranza = cobranzaPorLote.get(lote.id)
             return (
               <tr key={lote.id} className="border-b">
+                {!esVendedorOCobrador && (
+                  <td className="py-2">{lote.loteo_id ? nombreLoteoPorId.get(lote.loteo_id) ?? '—' : '— sin asignar —'}</td>
+                )}
                 <td className="py-2">{lote.identificador}</td>
                 <td>{lote.ubicacion ?? '—'}</td>
                 <td>{lote.precio_total ? `${lote.precio_total} ${lote.moneda}` : '—'}</td>
                 <td>{lote.moneda}</td>
                 <td>{lote.estado}</td>
-                <td>
-                  {lote.acreedor_id ? (
-                    esAdministrador ? (
-                      <a href={`/admin/usuarios?editar=${lote.acreedor_id}`} className="underline">
-                        {nombreAcreedorPorId.get(lote.acreedor_id) ?? '—'}
-                      </a>
-                    ) : (
-                      nombreAcreedorPorId.get(lote.acreedor_id) ?? '—'
-                    )
-                  ) : (
-                    '— sin asignar —'
-                  )}
-                </td>
-                {!esVendedorOCobrador && <td>{lote.cantidad_cuotas}</td>}
                 {!esVendedorOCobrador && (
-                  <td>{lote.loteo_id ? nombreLoteoPorId.get(lote.loteo_id) ?? '—' : '— sin asignar —'}</td>
+                  <td>
+                    {lote.acreedor_id ? (
+                      esAdministrador ? (
+                        <a href={`/admin/usuarios?editar=${lote.acreedor_id}`} className="underline">
+                          {nombreAcreedorPorId.get(lote.acreedor_id) ?? '—'}
+                        </a>
+                      ) : (
+                        nombreAcreedorPorId.get(lote.acreedor_id) ?? '—'
+                      )
+                    ) : (
+                      '— sin asignar —'
+                    )}
+                  </td>
                 )}
+                {!esVendedorOCobrador && <td>{lote.cantidad_cuotas}</td>}
                 {esAdministrador && (
                   <td>
                     {lote.estado === 'vendido' && lote.cliente_id ? (
@@ -594,9 +587,11 @@ export default async function LotesPage({
                       <a href={`/admin/lotes/${lote.id}/info`} className="text-sm underline">
                         Ver información del lote →
                       </a>
-                      <a href={`/admin/lotes/${lote.id}/reservar`} className="text-sm underline">
-                        Reservar
-                      </a>
+                      {lote.estado === 'disponible' && (
+                        <a href={`/admin/lotes/${lote.id}/reservar`} className="text-sm underline">
+                          Reservar
+                        </a>
+                      )}
                     </div>
                   ) : (
                     <div className="flex flex-wrap items-center gap-3">
