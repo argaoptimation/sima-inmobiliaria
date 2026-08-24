@@ -61,10 +61,15 @@ async function aplicarCatchUpParaLote(
 
   const { data: ajustesExistentes } = await supabase
     .from('ajustes_indexacion')
-    .select('fecha_desde')
+    .select('fecha_desde, indice_periodo')
     .eq('lote_id', loteId)
 
-  const mesesYaProcesados = new Set((ajustesExistentes ?? []).map((a) => a.fecha_desde))
+  // Un placeholder en 0% (indice_periodo null, ver recalcularCuotaYPropagar)
+  // NO cuenta como "ya procesado" -- sigue elegible para que un catch-up
+  // futuro lo tome apenas se cargue un valor real para ese mes.
+  const mesesYaProcesados = new Set(
+    (ajustesExistentes ?? []).filter((a) => a.indice_periodo !== null).map((a) => a.fecha_desde)
+  )
 
   let montoAjustadoAnterior: number | null = null
 
@@ -165,19 +170,25 @@ async function recalcularCuotaYPropagar(
     : Math.round(montoAjustadoBase * 100) / 100
   const saldoPendienteNuevo = Math.max(0, Math.round((montoAjustadoNuevo - pagado) * 100) / 100)
 
-  if (nuevoValorAplicable) {
-    await supabase.from('ajustes_indexacion').delete().eq('lote_id', loteId).eq('fecha_desde', fechaDesdeCuota)
-    await supabase.from('ajustes_indexacion').insert({
-      lote_id: loteId,
-      porcentaje: nuevoValorAplicable.valor,
-      fecha_desde: fechaDesdeCuota,
-      indice_nombre: indiceNombre,
-      indice_periodo: nuevoValorAplicable.periodo,
-      aplicado_por: aplicadoPor,
-    })
-  } else {
-    await supabase.from('ajustes_indexacion').delete().eq('lote_id', loteId).eq('fecha_desde', fechaDesdeCuota)
-  }
+  // Siempre queda una fila (nunca se borra sin reemplazo): si no hay
+  // ningún valor aplicable, se deja un "placeholder" en 0% con
+  // indice_periodo null. Esto es necesario para que la cadena la siga
+  // atravesando más adelante -- si se borrara del todo, una cuota
+  // siguiente ya no tendría de dónde heredar el monto correcto la
+  // próxima vez que se corrija o elimine un valor más viejo (bug real
+  // encontrado el 24/08). `indice_periodo is null` es justamente lo que
+  // distingue un placeholder de un ajuste real -- aplicarCatchUpParaLote
+  // sigue tratando el mes como "sin cargar todavía" y lo vuelve a
+  // procesar solo si en el futuro se carga un valor de verdad.
+  await supabase.from('ajustes_indexacion').delete().eq('lote_id', loteId).eq('fecha_desde', fechaDesdeCuota)
+  await supabase.from('ajustes_indexacion').insert({
+    lote_id: loteId,
+    porcentaje: nuevoValorAplicable?.valor ?? 0,
+    fecha_desde: fechaDesdeCuota,
+    indice_nombre: nuevoValorAplicable ? indiceNombre : null,
+    indice_periodo: nuevoValorAplicable?.periodo ?? null,
+    aplicado_por: aplicadoPor,
+  })
 
   await supabase
     .from('cuotas')

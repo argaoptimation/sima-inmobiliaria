@@ -27,9 +27,9 @@ function formatearPeriodo(periodo: string): string {
 export default async function IndicesPage({
   searchParams,
 }: {
-  searchParams: Promise<{ error?: string; ok?: string }>
+  searchParams: Promise<{ error?: string; ok?: string; prellenarNombre?: string; prellenarMes?: string }>
 }) {
-  const { error, ok } = await searchParams
+  const { error, ok, prellenarNombre, prellenarMes } = await searchParams
 
   await requireAdministrador()
 
@@ -91,17 +91,40 @@ export default async function IndicesPage({
           <ul className="list-inside list-disc">
             {mesesFaltantes.map((faltante) => (
               <li key={`${faltante.nombre}|${faltante.periodo}`}>
-                {faltante.nombre} — {formatearPeriodo(faltante.periodo)}
+                <a
+                  href={`/admin/indices?prellenarNombre=${encodeURIComponent(faltante.nombre)}&prellenarMes=${faltante.periodo.slice(0, 7)}#form-cargar`}
+                  className="font-medium underline"
+                >
+                  {faltante.nombre} — {formatearPeriodo(faltante.periodo)} — cargar ahora →
+                </a>{' '}
+                (lote{faltante.lotes.length > 1 ? 's' : ''}:{' '}
+                {faltante.lotes.map((lote, i) => (
+                  <span key={lote.id}>
+                    {i > 0 && ', '}
+                    <a href={`/admin/lotes/${lote.id}`} className="underline">
+                      {lote.identificador}
+                    </a>
+                  </span>
+                ))}
+                )
               </li>
             ))}
           </ul>
         </div>
       )}
 
-      <form action={cargarValorIndice} className="mb-8 flex flex-wrap items-end gap-3 rounded border p-3">
+      <form
+        id="form-cargar"
+        action={cargarValorIndice}
+        className="mb-8 flex flex-wrap items-end gap-3 rounded border p-3"
+      >
         <label className="text-sm">
           Índice existente
-          <select name="nombreExistente" className="mt-1 block rounded border px-3 py-2">
+          <select
+            name="nombreExistente"
+            defaultValue={prellenarNombre && nombresExistentes.includes(prellenarNombre) ? prellenarNombre : ''}
+            className="mt-1 block rounded border px-3 py-2"
+          >
             <option value="">— elegir —</option>
             {nombresExistentes.map((nombre) => (
               <option key={nombre} value={nombre}>
@@ -116,12 +139,19 @@ export default async function IndicesPage({
             name="nombreNuevo"
             type="text"
             placeholder="Ej: IPC"
+            defaultValue={prellenarNombre && !nombresExistentes.includes(prellenarNombre) ? prellenarNombre : ''}
             className="mt-1 block rounded border px-3 py-2"
           />
         </label>
         <label className="text-sm">
           Mes
-          <input name="periodo" type="month" required className="mt-1 block rounded border px-3 py-2" />
+          <input
+            name="periodo"
+            type="month"
+            required
+            defaultValue={prellenarMes ?? ''}
+            className="mt-1 block rounded border px-3 py-2"
+          />
         </label>
         <label className="text-sm">
           Valor (%)

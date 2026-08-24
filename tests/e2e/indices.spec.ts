@@ -628,6 +628,106 @@ test.describe('Índices — compuesto encadenado, fallback y catch-up (23/08)', 
       .toEqual([103000, 113300])
   })
 
+  test('regresión 24/08: una cuota que quedó en 0% (sin fallback disponible) sigue heredando cambios de una corrección más vieja', async ({
+    page,
+  }) => {
+    // Bug real encontrado en vivo con el lote de demo: se eliminaba el
+    // ÚNICO valor de un índice, dejando esa cuota en 0% (heredando el
+    // monto de la anterior). Si DESPUÉS se corregía un índice más viejo
+    // que afectaba a la cuota anterior, la cascada se cortaba ahí -- la
+    // cuota en 0% se quedaba pegada para siempre, porque el código solo
+    // consideraba "parte de la cadena" a una cuota con su propio ajuste
+    // registrado en la base.
+    const indiceA = `IPC-E2E-Regresion0pct-A-${Date.now()}`
+    const indiceB = `IPC-E2E-Regresion0pct-B-${Date.now()}`
+    const { loteId } = await crearLoteVendidoConVariasCuotas(
+      `E2E Regresion 0pct ${Date.now()}`,
+      indiceA,
+      fixtures.cliente.id,
+      fixtures.acreedorConDatos.id,
+      ['2027-01-15', '2027-02-15']
+    )
+
+    await login(page, fixtures.admin.email, fixtures.password)
+
+    await cargarIndice(page, indiceA, '2026-12', '5') // enero -> 105.000
+    await expect.poll(async () => (await leerCuotas(loteId))[0].saldo_pendiente).toBe(105000)
+
+    const admin = createAdminClient()
+    await admin.from('lotes').update({ indice_tipo: indiceB }).eq('id', loteId)
+
+    // indiceB solo tiene ESTE valor -- al borrarlo no va a quedar ningún
+    // otro valor de indiceB al que hacerle fallback.
+    await cargarIndice(page, indiceB, '2027-01', '10') // febrero -> 115.500
+    await expect.poll(async () => (await leerCuotas(loteId))[1].saldo_pendiente).toBe(115500)
+
+    const filaIndiceB = page.locator('tbody tr', { hasText: indiceB })
+    page.once('dialog', (dialog) => dialog.accept())
+    await filaIndiceB.getByRole('button', { name: 'Eliminar' }).click()
+    await page.waitForURL('**/admin/indices**')
+
+    await expect
+      .poll(async () => (await leerCuotas(loteId)).map((c) => c.saldo_pendiente))
+      .toEqual([105000, 105000]) // febrero pasa a heredar el de enero, sin índice propio (0%)
+
+    // Ahora corrige diciembre (indiceA, el que le tocaba a la cuota de
+    // enero) -- la cascada tiene que cruzar la cuota de febrero (que no
+    // tiene ningún ajuste propio) y actualizarla también.
+    const filaIndiceA = page.locator('tbody tr', { hasText: indiceA })
+    await filaIndiceA.locator('input[name="valorNuevo"]').fill('3')
+    await filaIndiceA.getByRole('button', { name: 'Corregir' }).click()
+    await page.waitForURL('**/admin/indices**')
+    await expect(page.getByText('Índice corregido')).toBeVisible()
+
+    await expect
+      .poll(async () => (await leerCuotas(loteId)).map((c) => c.saldo_pendiente))
+      .toEqual([103000, 103000]) // febrero sigue heredando -- ya no se queda pegada en 105.000
+
+    // Y sigue siendo re-cargable: si más adelante se carga un valor de
+    // indiceB de nuevo, febrero lo toma sin problema (el placeholder en
+    // 0% no la deja "trabada" para siempre).
+    await cargarIndice(page, indiceB, '2027-01', '8')
+    await expect
+      .poll(async () => (await leerCuotas(loteId))[1].saldo_pendiente)
+      .toBe(111240) // 103000 * 1.08
+  })
+
+  test('la leyenda de mes faltante muestra el lote afectado y un link para cargarlo ahí mismo (pedido 24/08)', async ({
+    page,
+  }) => {
+    const nombreIndice = `IPC-E2E-Leyenda-${Date.now()}`
+    const identificadorLote = `E2E Leyenda Lote ${Date.now()}`
+
+    const { loteId } = await crearLoteVendidoConIndice(
+      identificadorLote,
+      nombreIndice,
+      fixtures.cliente.id,
+      fixtures.acreedorConDatos.id,
+      '2028-02-15',
+      100000
+    )
+
+    await login(page, fixtures.admin.email, fixtures.password)
+    await page.goto('/admin/indices')
+
+    const filaFaltante = page.locator('li', { hasText: nombreIndice })
+    await expect(filaFaltante).toBeVisible()
+
+    // Muestra el identificador del lote afectado, como link a su detalle.
+    const linkLote = filaFaltante.getByRole('link', { name: identificadorLote })
+    await expect(linkLote).toBeVisible()
+    await expect(linkLote).toHaveAttribute('href', `/admin/lotes/${loteId}`)
+
+    // El link "cargar ahora" lleva al mismo formulario con nombre y mes
+    // pre-cargados -- solo falta tipear el %. Este índice es nuevo (nunca
+    // se cargó ningún valor todavía), así que precarga el campo de texto
+    // "nombre nuevo", no el <select> de índices existentes.
+    await filaFaltante.getByRole('link', { name: /cargar ahora/ }).click()
+
+    await expect(page.locator('#form-cargar input[name="nombreNuevo"]')).toHaveValue(nombreIndice)
+    await expect(page.locator('#form-cargar input[name="periodo"]')).toHaveValue('2028-01')
+  })
+
   test('el índice nunca se aplica sobre un monto que incluya mora -- son mecanismos separados', async ({
     page,
   }) => {
