@@ -4,11 +4,239 @@ import { createClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
 import { requireAdministrador } from '@/lib/auth/require-admin'
 import {
-  calcularAjusteIndexacion,
+  calcularAjusteEncadenado,
+  calcularPeriodoIndiceNecesario,
   calcularRangoMesSiguiente,
-  corregirAjusteIndexacion,
+  buscarValorIndiceAplicable,
+  mesDeFecha,
+  type ValorIndiceDisponible,
 } from '@/lib/lotes/aplicar-indexacion'
 import { mensajeDeError } from '@/lib/errores'
+
+type SupabaseServerClient = Awaited<ReturnType<typeof createClient>>
+
+interface CuotaFila {
+  id: string
+  numero: number
+  monto_base: number
+  monto_ajustado: number
+  saldo_pendiente: number
+  fecha_vencimiento: string
+}
+
+// Recorre TODAS las cuotas de un lote en orden de vencimiento, aplicando (o
+// dejando pasar) el ajuste de índice que le toca a cada una -- encadenando
+// siempre desde el monto_ajustado de la cuota inmediata anterior, nunca
+// desde el monto_base propio. Cubre tanto el caso normal (una cuota nueva
+// por mes) como el catch-up (varios meses salteados de una sola vez, cada
+// uno con el índice que le corresponda vía fallback).
+//
+// `limiteHasta`: no procesa cuotas que venzan en o después de ese mes --
+// esta carga puntual de índice solo justifica ajustar hasta ahí, lo que
+// venza después espera a que se cargue el índice que le toca.
+async function aplicarCatchUpParaLote(
+  supabase: SupabaseServerClient,
+  loteId: string,
+  indiceNombre: string,
+  limiteHasta: string,
+  aplicadoPor: string
+) {
+  const { data: valoresIndice } = await supabase
+    .from('indices_valores')
+    .select('periodo, valor')
+    .eq('nombre', indiceNombre)
+
+  const valoresDisponibles: ValorIndiceDisponible[] = (valoresIndice ?? []).map((v) => ({
+    periodo: v.periodo,
+    valor: v.valor,
+  }))
+
+  const { data: cuotas } = await supabase
+    .from('cuotas')
+    .select('id, numero, monto_base, monto_ajustado, saldo_pendiente, fecha_vencimiento')
+    .eq('lote_id', loteId)
+    .order('fecha_vencimiento', { ascending: true })
+
+  if (!cuotas || cuotas.length === 0) return
+
+  const { data: ajustesExistentes } = await supabase
+    .from('ajustes_indexacion')
+    .select('fecha_desde')
+    .eq('lote_id', loteId)
+
+  const mesesYaProcesados = new Set((ajustesExistentes ?? []).map((a) => a.fecha_desde))
+
+  let montoAjustadoAnterior: number | null = null
+
+  for (const cuota of cuotas as CuotaFila[]) {
+    const mesCuota = mesDeFecha(cuota.fecha_vencimiento)
+
+    // Cuota ya saldada: ancla fija de la cadena, nunca se revisa -- mismo
+    // criterio "nunca retroactivo" que ya regía antes.
+    if (cuota.saldo_pendiente <= 0) {
+      montoAjustadoAnterior = cuota.monto_ajustado
+      continue
+    }
+
+    if (mesesYaProcesados.has(mesCuota) || mesCuota >= limiteHasta) {
+      montoAjustadoAnterior = cuota.monto_ajustado
+      continue
+    }
+
+    const periodoNecesario = calcularPeriodoIndiceNecesario(cuota.fecha_vencimiento)
+    const valorAplicable = buscarValorIndiceAplicable(periodoNecesario, valoresDisponibles)
+
+    if (!valorAplicable) {
+      // Ni el mes exacto ni ninguno anterior tiene valor cargado todavía.
+      montoAjustadoAnterior = cuota.monto_ajustado
+      continue
+    }
+
+    const baseParaEncadenar = montoAjustadoAnterior ?? cuota.monto_ajustado
+    const ajuste = calcularAjusteEncadenado(valorAplicable.valor, baseParaEncadenar, {
+      id: cuota.id,
+      montoAjustado: cuota.monto_ajustado,
+      saldoPendiente: cuota.saldo_pendiente,
+      fechaVencimiento: cuota.fecha_vencimiento,
+    })
+
+    const { error: errorAjuste } = await supabase.from('ajustes_indexacion').insert({
+      lote_id: loteId,
+      porcentaje: valorAplicable.valor,
+      fecha_desde: mesCuota,
+      indice_nombre: indiceNombre,
+      indice_periodo: valorAplicable.periodo,
+      aplicado_por: aplicadoPor,
+    })
+
+    if (errorAjuste) {
+      console.error('No se pudo registrar el ajuste automático de índice:', errorAjuste)
+      montoAjustadoAnterior = cuota.monto_ajustado
+      continue
+    }
+
+    const { error: errorSaldo } = await supabase
+      .from('cuotas')
+      .update({ monto_ajustado: ajuste.montoAjustadoNuevo, saldo_pendiente: ajuste.saldoPendienteNuevo })
+      .eq('id', cuota.id)
+
+    if (errorSaldo) {
+      console.error('No se pudo actualizar el saldo de una cuota tras el ajuste automático:', errorSaldo)
+    }
+
+    montoAjustadoAnterior = ajuste.montoAjustadoNuevo
+  }
+}
+
+// Recalcula el ajuste de UNA cuota puntual (identificada por lote+mes) con
+// un nuevo valor aplicable (o revierte a "sin ajuste" si es null, caso
+// eliminación) y PROPAGA el cambio en cadena hacia las cuotas siguientes
+// que ya tenían su propio ajuste calculado a partir de esta -- se detiene
+// al llegar a una cuota saldada (ancla fija) o a una todavía sin procesar.
+async function recalcularCuotaYPropagar(
+  supabase: SupabaseServerClient,
+  loteId: string,
+  fechaDesdeCuota: string,
+  nuevoValorAplicable: ValorIndiceDisponible | null,
+  indiceNombre: string,
+  aplicadoPor: string
+) {
+  const { data: cuotas } = await supabase
+    .from('cuotas')
+    .select('id, numero, monto_base, monto_ajustado, saldo_pendiente, fecha_vencimiento')
+    .eq('lote_id', loteId)
+    .order('fecha_vencimiento', { ascending: true })
+
+  if (!cuotas || cuotas.length === 0) return
+
+  const filas = cuotas as CuotaFila[]
+  const indiceCuota = filas.findIndex((c) => mesDeFecha(c.fecha_vencimiento) === fechaDesdeCuota)
+  if (indiceCuota === -1) return
+
+  const cuotaObjetivo = filas[indiceCuota]
+  if (cuotaObjetivo.saldo_pendiente <= 0) return // saldada, no se revisita
+
+  const cuotaAnterior = indiceCuota > 0 ? filas[indiceCuota - 1] : null
+  const montoAjustadoBase = cuotaAnterior?.monto_ajustado ?? cuotaObjetivo.monto_base
+
+  const pagado = cuotaObjetivo.monto_ajustado - cuotaObjetivo.saldo_pendiente
+  const montoAjustadoNuevo = nuevoValorAplicable
+    ? Math.round(montoAjustadoBase * (1 + nuevoValorAplicable.valor / 100) * 100) / 100
+    : Math.round(montoAjustadoBase * 100) / 100
+  const saldoPendienteNuevo = Math.max(0, Math.round((montoAjustadoNuevo - pagado) * 100) / 100)
+
+  if (nuevoValorAplicable) {
+    await supabase.from('ajustes_indexacion').delete().eq('lote_id', loteId).eq('fecha_desde', fechaDesdeCuota)
+    await supabase.from('ajustes_indexacion').insert({
+      lote_id: loteId,
+      porcentaje: nuevoValorAplicable.valor,
+      fecha_desde: fechaDesdeCuota,
+      indice_nombre: indiceNombre,
+      indice_periodo: nuevoValorAplicable.periodo,
+      aplicado_por: aplicadoPor,
+    })
+  } else {
+    await supabase.from('ajustes_indexacion').delete().eq('lote_id', loteId).eq('fecha_desde', fechaDesdeCuota)
+  }
+
+  await supabase
+    .from('cuotas')
+    .update({ monto_ajustado: montoAjustadoNuevo, saldo_pendiente: saldoPendienteNuevo })
+    .eq('id', cuotaObjetivo.id)
+
+  // Cascada: las cuotas siguientes que YA tenían un ajuste calculado a
+  // partir de esta necesitan recalcularse con la nueva base -- mismo %
+  // que ya tenían, solo cambia de qué monto parten.
+  const { data: ajustesSiguientes } = await supabase
+    .from('ajustes_indexacion')
+    .select('fecha_desde, porcentaje, indice_nombre, indice_periodo')
+    .eq('lote_id', loteId)
+    .gt('fecha_desde', fechaDesdeCuota)
+    .order('fecha_desde', { ascending: true })
+
+  let baseAnterior = montoAjustadoNuevo
+  for (let i = indiceCuota + 1; i < filas.length; i++) {
+    const cuota = filas[i]
+
+    if (cuota.saldo_pendiente <= 0) break // ancla fija, la cascada no la cruza
+
+    const mesCuota = mesDeFecha(cuota.fecha_vencimiento)
+    const ajusteExistente = (ajustesSiguientes ?? []).find((a) => a.fecha_desde === mesCuota)
+    if (!ajusteExistente) break // todavía no procesada, se resuelve sola después
+
+    const pagadoCuota = cuota.monto_ajustado - cuota.saldo_pendiente
+    const montoAjustadoRecalculado =
+      Math.round(baseAnterior * (1 + ajusteExistente.porcentaje / 100) * 100) / 100
+    const saldoPendienteRecalculado = Math.max(
+      0,
+      Math.round((montoAjustadoRecalculado - pagadoCuota) * 100) / 100
+    )
+
+    await supabase
+      .from('cuotas')
+      .update({ monto_ajustado: montoAjustadoRecalculado, saldo_pendiente: saldoPendienteRecalculado })
+      .eq('id', cuota.id)
+
+    baseAnterior = montoAjustadoRecalculado
+  }
+}
+
+// Todas las (lote_id, fecha_desde) cuyo ajuste se calculó usando un
+// período de índice puntual (exacto o como fallback) -- lo que hace falta
+// tocar al corregir o eliminar ese valor.
+async function buscarAjustesQueUsaronPeriodo(
+  supabase: SupabaseServerClient,
+  indiceNombre: string,
+  periodo: string
+) {
+  const { data } = await supabase
+    .from('ajustes_indexacion')
+    .select('lote_id, fecha_desde')
+    .eq('indice_nombre', indiceNombre)
+    .eq('indice_periodo', periodo)
+
+  return data ?? []
+}
 
 export async function cargarValorIndice(formData: FormData) {
   await requireAdministrador()
@@ -55,14 +283,11 @@ export async function cargarValorIndice(formData: FormData) {
     redirect(`/admin/indices?error=${encodeURIComponent(mensaje)}`)
   }
 
-  // Auto-aplicar a mes vencido: mismo mecanismo que la aplicación manual por
-  // lote (ajustes_indexacion + saldo_pendiente de cuotas, ver
-  // lib/lotes/aplicar-indexacion.ts), pero disparado una sola vez acá para
-  // todos los lotes atados a este índice, en vez de que un admin tenga que
-  // entrar lote por lote. Nunca retroactivo: al filtrar por
-  // saldo_pendiente > 0, una cuota de ese mes ya saldada antes de cargar el
-  // índice queda afuera sola, sin necesitar ningún caso especial.
-  const { desde, hastaExclusive } = calcularRangoMesSiguiente(periodo)
+  // Aplicación automática con catch-up: no solo la cuota del mes siguiente
+  // a ESTE valor, sino cualquier mes anterior que haya quedado sin ajustar
+  // por no tener su propio valor cargado a tiempo (usa fallback al último
+  // disponible -- ver aplicarCatchUpParaLote).
+  const { hastaExclusive: limiteHasta } = calcularRangoMesSiguiente(periodo)
 
   const { data: lotesConEsteIndice } = await supabase
     .from('lotes')
@@ -71,64 +296,17 @@ export async function cargarValorIndice(formData: FormData) {
     .eq('indice_tipo', nombre)
 
   for (const lote of lotesConEsteIndice ?? []) {
-    const { data: cuotasDelMes } = await supabase
-      .from('cuotas')
-      .select('id, saldo_pendiente, fecha_vencimiento')
-      .eq('lote_id', lote.id)
-      .gte('fecha_vencimiento', desde)
-      .lt('fecha_vencimiento', hastaExclusive)
-      .gt('saldo_pendiente', 0)
-
-    if (!cuotasDelMes || cuotasDelMes.length === 0) continue
-
-    const { error: errorAjuste } = await supabase.from('ajustes_indexacion').insert({
-      lote_id: lote.id,
-      porcentaje: valor,
-      fecha_desde: desde,
-      aplicado_por: user!.id,
-    })
-
-    if (errorAjuste) {
-      // Ya se aplicó este mismo ajuste antes para este lote (constraint
-      // unique lote_id+fecha_desde+porcentaje) -- backstop defensivo, no
-      // debería pasar en el camino normal porque el insert de arriba en
-      // indices_valores ya bloquea una segunda carga del mismo mes.
-      console.error('No se pudo registrar el ajuste automático de índice:', errorAjuste)
-      continue
-    }
-
-    const ajustes = calcularAjusteIndexacion(
-      valor,
-      desde,
-      cuotasDelMes.map((cuota) => ({
-        id: cuota.id,
-        saldoPendiente: cuota.saldo_pendiente,
-        fechaVencimiento: cuota.fecha_vencimiento,
-      }))
-    )
-
-    for (const ajuste of ajustes) {
-      const { error: errorSaldo } = await supabase
-        .from('cuotas')
-        .update({ saldo_pendiente: ajuste.saldoPendienteNuevo })
-        .eq('id', ajuste.cuotaId)
-
-      if (errorSaldo) {
-        console.error('No se pudo actualizar el saldo de una cuota tras el ajuste automático:', errorSaldo)
-      }
-    }
+    await aplicarCatchUpParaLote(supabase, lote.id, nombre, limiteHasta, user!.id)
   }
 
   redirect('/admin/indices')
 }
 
 // Corrige el valor de un índice YA cargado -- solo el mes más reciente (no
-// se puede reabrir uno viejo si ya hay otro más nuevo cargado después, para
-// no tener que rearrastrar correcciones en cadena). El reajuste sobre las
-// cuotas revierte el porcentaje viejo y aplica el nuevo (ver
-// corregirAjusteIndexacion), y solo toca cuotas que TODAVÍA tienen saldo
-// pendiente -- una ya saldada nunca se revisita, aunque haya sido saldada
-// con el valor viejo.
+// se puede reabrir uno viejo si ya hay otro más nuevo cargado después).
+// Recalcula, para cada cuota que haya usado este período (exacto o vía
+// fallback), su ajuste con el % nuevo, y propaga el cambio en cadena hacia
+// las cuotas siguientes de cada lote.
 export async function corregirValorIndice(formData: FormData) {
   await requireAdministrador()
 
@@ -177,83 +355,26 @@ export async function corregirValorIndice(formData: FormData) {
     redirect(`/admin/indices?error=${encodeURIComponent(mensajeDeError(errorUpdate))}`)
   }
 
-  const { desde, hastaExclusive } = calcularRangoMesSiguiente(periodo)
+  const afectados = await buscarAjustesQueUsaronPeriodo(supabase, nombre, periodo)
 
-  const { data: lotesConEsteIndice } = await supabase
-    .from('lotes')
-    .select('id')
-    .eq('moneda', 'ARS')
-    .eq('indice_tipo', nombre)
-
-  for (const lote of lotesConEsteIndice ?? []) {
-    // El ajuste efectivo que este lote tiene aplicado ahora mismo para este
-    // rango de mes -- puede haber más de una fila si ya hubo alguna
-    // corrección antes, así que se toma la más reciente.
-    const { data: ajustePrevio } = await supabase
-      .from('ajustes_indexacion')
-      .select('porcentaje')
-      .eq('lote_id', lote.id)
-      .eq('fecha_desde', desde)
-      .order('created_at', { ascending: false })
-      .limit(1)
-      .maybeSingle()
-
-    // Este lote nunca tuvo el ajuste original aplicado (ej. no tenía
-    // ninguna cuota pendiente ese mes) -- no hay nada que corregir.
-    if (!ajustePrevio) continue
-
-    const { data: cuotasDelMes } = await supabase
-      .from('cuotas')
-      .select('id, saldo_pendiente, fecha_vencimiento')
-      .eq('lote_id', lote.id)
-      .gte('fecha_vencimiento', desde)
-      .lt('fecha_vencimiento', hastaExclusive)
-      .gt('saldo_pendiente', 0)
-
-    if (!cuotasDelMes || cuotasDelMes.length === 0) continue
-
-    const { error: errorAjuste } = await supabase.from('ajustes_indexacion').insert({
-      lote_id: lote.id,
-      porcentaje: valorNuevo,
-      fecha_desde: desde,
-      aplicado_por: user!.id,
-    })
-
-    if (errorAjuste) {
-      console.error('No se pudo registrar la corrección de índice:', errorAjuste)
-      continue
-    }
-
-    const ajustes = corregirAjusteIndexacion(
-      ajustePrevio.porcentaje,
-      valorNuevo,
-      cuotasDelMes.map((cuota) => ({
-        id: cuota.id,
-        saldoPendiente: cuota.saldo_pendiente,
-        fechaVencimiento: cuota.fecha_vencimiento,
-      }))
+  for (const { lote_id, fecha_desde } of afectados) {
+    await recalcularCuotaYPropagar(
+      supabase,
+      lote_id,
+      fecha_desde,
+      { periodo, valor: valorNuevo },
+      nombre,
+      user!.id
     )
-
-    for (const ajuste of ajustes) {
-      const { error: errorSaldo } = await supabase
-        .from('cuotas')
-        .update({ saldo_pendiente: ajuste.saldoPendienteNuevo })
-        .eq('id', ajuste.cuotaId)
-
-      if (errorSaldo) {
-        console.error('No se pudo actualizar el saldo de una cuota tras la corrección de índice:', errorSaldo)
-      }
-    }
   }
 
   redirect(`/admin/indices?ok=${encodeURIComponent('Índice corregido')}`)
 }
 
 // Elimina el valor MÁS RECIENTE cargado de un índice (mismo límite que
-// corregirValorIndice, mismo motivo: no reabrir una cadena de meses
-// viejos). Revierte el ajuste que ese valor generó -- se expresa como
-// "corregir al 0%", que matemáticamente es exactamente deshacer la
-// multiplicación original.
+// corregirValorIndice). Recalcula cada cuota que lo había usado (exacto o
+// vía fallback) con el valor aplicable que quede DESPUÉS de borrar este
+// (uno más viejo, o ninguno), y propaga en cadena igual que la corrección.
 export async function eliminarValorIndice(formData: FormData) {
   await requireAdministrador()
 
@@ -286,68 +407,23 @@ export async function eliminarValorIndice(formData: FormData) {
     )
   }
 
-  const { desde, hastaExclusive } = calcularRangoMesSiguiente(periodo)
+  const afectados = await buscarAjustesQueUsaronPeriodo(supabase, nombre, periodo)
 
-  const { data: lotesConEsteIndice } = await supabase
-    .from('lotes')
-    .select('id')
-    .eq('moneda', 'ARS')
-    .eq('indice_tipo', nombre)
+  const { data: valoresRestantes } = await supabase
+    .from('indices_valores')
+    .select('periodo, valor')
+    .eq('nombre', nombre)
+    .neq('periodo', periodo)
 
-  for (const lote of lotesConEsteIndice ?? []) {
-    const { data: ajustePrevio } = await supabase
-      .from('ajustes_indexacion')
-      .select('porcentaje')
-      .eq('lote_id', lote.id)
-      .eq('fecha_desde', desde)
-      .order('created_at', { ascending: false })
-      .limit(1)
-      .maybeSingle()
+  const valoresDisponibles: ValorIndiceDisponible[] = (valoresRestantes ?? []).map((v) => ({
+    periodo: v.periodo,
+    valor: v.valor,
+  }))
 
-    if (!ajustePrevio) continue
-
-    const { data: cuotasDelMes } = await supabase
-      .from('cuotas')
-      .select('id, saldo_pendiente, fecha_vencimiento')
-      .eq('lote_id', lote.id)
-      .gte('fecha_vencimiento', desde)
-      .lt('fecha_vencimiento', hastaExclusive)
-      .gt('saldo_pendiente', 0)
-
-    if (!cuotasDelMes || cuotasDelMes.length === 0) continue
-
-    const { error: errorAjuste } = await supabase.from('ajustes_indexacion').insert({
-      lote_id: lote.id,
-      porcentaje: 0,
-      fecha_desde: desde,
-      aplicado_por: user!.id,
-    })
-
-    if (errorAjuste) {
-      console.error('No se pudo registrar la reversión por eliminación de índice:', errorAjuste)
-      continue
-    }
-
-    const ajustes = corregirAjusteIndexacion(
-      ajustePrevio.porcentaje,
-      0,
-      cuotasDelMes.map((cuota) => ({
-        id: cuota.id,
-        saldoPendiente: cuota.saldo_pendiente,
-        fechaVencimiento: cuota.fecha_vencimiento,
-      }))
-    )
-
-    for (const ajuste of ajustes) {
-      const { error: errorSaldo } = await supabase
-        .from('cuotas')
-        .update({ saldo_pendiente: ajuste.saldoPendienteNuevo })
-        .eq('id', ajuste.cuotaId)
-
-      if (errorSaldo) {
-        console.error('No se pudo actualizar el saldo de una cuota tras eliminar un índice:', errorSaldo)
-      }
-    }
+  for (const { lote_id, fecha_desde } of afectados) {
+    const periodoNecesario = calcularPeriodoIndiceNecesario(fecha_desde)
+    const fallback = buscarValorIndiceAplicable(periodoNecesario, valoresDisponibles)
+    await recalcularCuotaYPropagar(supabase, lote_id, fecha_desde, fallback, nombre, user!.id)
   }
 
   const { error: errorDelete } = await supabase

@@ -17,6 +17,27 @@ import { BotonEliminarLote } from './BotonEliminarLote'
 import { BotonCancelarReserva } from '../BotonCancelarReserva'
 import { tieneDatosTransferencia } from '@/lib/lotes/validar-cuenta-cobro'
 import { telefonoParaWhatsApp } from '@/lib/telefono/prefijos'
+import { mesDeFecha } from '@/lib/lotes/aplicar-indexacion'
+
+const MESES_ABREVIADOS = [
+  'Ene',
+  'Feb',
+  'Mar',
+  'Abr',
+  'May',
+  'Jun',
+  'Jul',
+  'Ago',
+  'Sep',
+  'Oct',
+  'Nov',
+  'Dic',
+]
+
+function formatearPeriodoIndice(periodo: string): string {
+  const [anio, mes] = periodo.split('-').map(Number)
+  return `${MESES_ABREVIADOS[mes - 1]} ${anio}`
+}
 
 export default async function LoteDetallePage({
   params,
@@ -69,9 +90,26 @@ export default async function LoteDetallePage({
 
   const { data: cuotas } = await supabase
     .from('cuotas')
-    .select('id, numero, monto_base, saldo_pendiente, fecha_vencimiento')
+    .select('id, numero, monto_base, monto_ajustado, saldo_pendiente, fecha_vencimiento')
     .eq('lote_id', id)
     .order('numero', { ascending: true })
+
+  const { data: ajustesIndexacion } = await supabase
+    .from('ajustes_indexacion')
+    .select('fecha_desde, porcentaje, indice_nombre, indice_periodo, aplicado_por, created_at')
+    .eq('lote_id', id)
+    .order('fecha_desde', { ascending: true })
+
+  const ajustePorMesCuota = new Map((ajustesIndexacion ?? []).map((a) => [a.fecha_desde, a]))
+
+  const aplicadorIndexacionIds = [...new Set((ajustesIndexacion ?? []).map((a) => a.aplicado_por))]
+  const { data: aplicadoresIndexacion } =
+    aplicadorIndexacionIds.length > 0
+      ? await supabase.from('profiles').select('id, full_name').in('id', aplicadorIndexacionIds)
+      : { data: [] }
+  const nombreAplicadorIndexacionPorId = new Map(
+    (aplicadoresIndexacion ?? []).map((persona) => [persona.id, persona.full_name])
+  )
 
   const hoy = new Date().toISOString().slice(0, 10)
   const estado =
@@ -415,6 +453,7 @@ export default async function LoteDetallePage({
             <th className="py-2">Cuota</th>
             <th>Vencimiento</th>
             <th>Monto base</th>
+            <th>Ajuste por índice</th>
             <th>Saldo pendiente</th>
             <th>Interés moratorio</th>
             <th></th>
@@ -431,12 +470,32 @@ export default async function LoteDetallePage({
                   hoy
                 )
               : 0
+            const ajusteDeEstaCuota = ajustePorMesCuota.get(mesDeFecha(cuota.fecha_vencimiento))
             return (
               <tr key={cuota.id} className="border-b">
                 <td className="py-2">{cuota.numero}</td>
                 <td>{cuota.fecha_vencimiento}</td>
                 <td>
                   {cuota.monto_base} {lote!.moneda}
+                </td>
+                <td>
+                  {ajusteDeEstaCuota ? (
+                    <span className="text-blue-700">
+                      {ajusteDeEstaCuota.indice_nombre ?? '—'} {ajusteDeEstaCuota.porcentaje}%
+                      {ajusteDeEstaCuota.indice_periodo && (
+                        <span className="text-gray-500">
+                          {' '}
+                          (índice {formatearPeriodoIndice(ajusteDeEstaCuota.indice_periodo)})
+                        </span>
+                      )}
+                      <br />
+                      <span className="text-gray-600">→ {cuota.monto_ajustado} {lote!.moneda}</span>
+                    </span>
+                  ) : cuota.monto_ajustado !== cuota.monto_base ? (
+                    <span className="text-gray-500">→ {cuota.monto_ajustado} {lote!.moneda}</span>
+                  ) : (
+                    '—'
+                  )}
                 </td>
                 <td>
                   {cuota.saldo_pendiente} {lote!.moneda}
@@ -454,6 +513,39 @@ export default async function LoteDetallePage({
           })}
         </tbody>
       </table>
+
+      {(ajustesIndexacion ?? []).length > 0 && (
+        <>
+          <h2 className="mb-2 mt-6 text-lg font-semibold">Historial de índice</h2>
+          <table className="mb-2 w-full text-sm">
+            <thead>
+              <tr className="border-b text-left">
+                <th className="py-2">Cuota (mes)</th>
+                <th>Índice usado</th>
+                <th>% aplicado</th>
+                <th>Aplicado por</th>
+                <th>Cuándo</th>
+              </tr>
+            </thead>
+            <tbody>
+              {(ajustesIndexacion ?? []).map((ajuste, i) => (
+                <tr key={i} className="border-b">
+                  <td className="py-2">{formatearPeriodoIndice(ajuste.fecha_desde)}</td>
+                  <td>
+                    {ajuste.indice_nombre ?? '—'}
+                    {ajuste.indice_periodo && (
+                      <span className="text-gray-500"> ({formatearPeriodoIndice(ajuste.indice_periodo)})</span>
+                    )}
+                  </td>
+                  <td>{ajuste.porcentaje}%</td>
+                  <td>{nombreAplicadorIndexacionPorId.get(ajuste.aplicado_por) ?? '—'}</td>
+                  <td>{new Date(ajuste.created_at).toLocaleDateString('es-AR')}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </>
+      )}
 
       <h2 className="mb-2 mt-8 text-lg font-semibold">Datos generales</h2>
       <form action={actualizarDatosGeneralesConId} className="mb-8 flex flex-col gap-3">
