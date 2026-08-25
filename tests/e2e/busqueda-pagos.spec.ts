@@ -91,7 +91,8 @@ test.describe('Nombre de cliente y búsqueda en /admin/pagos', () => {
     const fila = page
       .locator('main table tbody tr')
       .filter({ has: page.locator(`a[href*="${nombreArchivo}"]`) })
-    await expect(fila.locator('td').nth(1)).toHaveText(cliente.id ? (await (async () => {
+    // índice 2: Fecha, Lote, Cliente (se agregaron Fecha y Acreedor 25/08).
+    await expect(fila.locator('td').nth(2)).toHaveText(cliente.id ? (await (async () => {
       const admin = createAdminClient()
       const { data } = await admin.from('profiles').select('full_name').eq('id', cliente.id).single()
       return data!.full_name as string

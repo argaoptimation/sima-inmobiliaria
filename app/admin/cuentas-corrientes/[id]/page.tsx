@@ -3,7 +3,7 @@ import { requireAdministrador } from '@/lib/auth/require-admin'
 import { notFound } from 'next/navigation'
 import { calcularSaldoCuentaCorrientePorMoneda } from '@/lib/cuenta-corriente/calcular-saldo'
 import { agregarMovimientoManual } from '../actions'
-import { BuscadorLote } from '../BuscadorLote'
+import { FormularioMovimientoManual } from './FormularioMovimientoManual'
 
 const ETIQUETA_ORIGEN: Record<string, string> = {
   cobro_cuota: 'Cobro de cuota (automático)',
@@ -11,6 +11,7 @@ const ETIQUETA_ORIGEN: Record<string, string> = {
   pago_directo_cliente: 'Pago directo del cliente',
   reversion_cobro_cuota: 'Reversión (corrección de pago)',
   ajuste_distribucion: 'Ajuste de distribución',
+  debe_manual: 'Debe manual (gasto/adelanto/descuento)',
 }
 
 export default async function CuentaCorrienteDetallePage({
@@ -106,6 +107,14 @@ export default async function CuentaCorrienteDetallePage({
 
   const hayFiltrosActivos = Boolean(filtroLoteId || filtroOrigen || filtroDesde || filtroHasta)
 
+  // La descarga respeta los mismos filtros que se están viendo en pantalla.
+  const paramsExport = new URLSearchParams()
+  if (filtroLoteId) paramsExport.set('lote', filtroLoteId)
+  if (filtroOrigen) paramsExport.set('origen', filtroOrigen)
+  if (filtroDesde) paramsExport.set('desde', filtroDesde)
+  if (filtroHasta) paramsExport.set('hasta', filtroHasta)
+  const queryStringExport = paramsExport.toString()
+
   return (
     <main className="max-w-3xl">
       <a href="/admin/cuentas-corrientes" className="mb-4 inline-block text-sm underline">
@@ -127,71 +136,20 @@ export default async function CuentaCorrienteDetallePage({
         Positivo: la empresa todavía le debe. Negativo: cobró de más y le debe a la empresa.
       </p>
 
-      <h2 className="mb-2 text-lg font-semibold">Registrar plata que le llegó (Haber)</h2>
-      <form action={agregarMovimientoManualConId} className="mb-8 flex max-w-sm flex-col gap-3">
-        <label className="text-sm">
-          Monto
-          <input
-            name="monto"
-            type="number"
-            step="0.01"
-            min="0"
-            required
-            className="mt-1 block w-full rounded border px-3 py-2"
-          />
-        </label>
-        <label className="text-sm">
-          Moneda
-          <select name="moneda" defaultValue="USD" className="mt-1 block w-full rounded border px-3 py-2">
-            <option value="USD">USD</option>
-            <option value="ARS">ARS</option>
-          </select>
-        </label>
-        <label className="text-sm">
-          Fecha
-          <input
-            name="fechaEvento"
-            type="date"
-            required
-            defaultValue={new Date().toISOString().slice(0, 10)}
-            className="mt-1 block w-full rounded border px-3 py-2"
-          />
-        </label>
-        <label className="text-sm">
-          De quién vino la plata (obligatorio si es pago directo del cliente)
-          <input
-            name="deParteDe"
-            list="lista-personas-cuenta-corriente"
-            placeholder="Buscar o escribir un nombre..."
-            className="mt-1 block w-full rounded border px-3 py-2"
-          />
-          <datalist id="lista-personas-cuenta-corriente">
-            {nombresUnicosParaSugerir.map((nombre) => (
-              <option key={nombre} value={nombre} />
-            ))}
-          </datalist>
-        </label>
-        <label className="text-sm">
-          Lote relacionado (opcional)
-          <BuscadorLote lotes={lotes ?? []} />
-        </label>
-        <label className="text-sm">
-          Origen (opcional)
-          <select name="origen" defaultValue="transferencia_empresa" className="mt-1 block w-full rounded border px-3 py-2">
-            <option value="transferencia_empresa">La empresa le transfirió su parte</option>
-            <option value="pago_directo_cliente">El cliente le pagó directo, salteando a la empresa</option>
-          </select>
-        </label>
-        <label className="text-sm">
-          Detalle (opcional)
-          <input name="detalle" className="mt-1 block w-full rounded border px-3 py-2" />
-        </label>
-        <button type="submit" className="self-start rounded bg-black px-3 py-2 text-sm text-white">
-          Agregar movimiento
-        </button>
-      </form>
+      <h2 className="mb-2 text-lg font-semibold">Registrar movimiento manual</h2>
+      <FormularioMovimientoManual
+        agregarMovimientoManualAction={agregarMovimientoManualConId}
+        nombresUnicosParaSugerir={nombresUnicosParaSugerir}
+        lotes={lotes ?? []}
+      />
 
       <h2 className="mb-2 text-lg font-semibold">Movimientos</h2>
+      <a
+        href={`/admin/cuentas-corrientes/${id}/export?${queryStringExport}`}
+        className="mb-3 inline-block text-sm underline"
+      >
+        Descargar CSV →
+      </a>
       {movimientos.length === 0 ? (
         <p className="text-sm text-gray-600">Sin movimientos todavía.</p>
       ) : (

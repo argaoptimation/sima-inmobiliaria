@@ -17,15 +17,23 @@ export async function agregarMovimientoManual(profileId: string, formData: FormD
   if (!user) return
 
   const montoTexto = ((formData.get('monto') as string) || '').trim()
-  const monto = montoTexto ? Number(montoTexto) : NaN
+  const montoIngresado = montoTexto ? Number(montoTexto) : NaN
   const moneda = (formData.get('moneda') as string) || 'USD'
-  const origen = (formData.get('origen') as string) || ''
+  const tipo = (formData.get('tipo') as string) === 'debe' ? 'debe' : 'haber'
+  const origenForm = (formData.get('origen') as string) || ''
+  const signo = (formData.get('signo') as string) || 'credito'
   const fechaEvento = ((formData.get('fechaEvento') as string) || '').trim()
   const deParteDe = ((formData.get('deParteDe') as string) || '').trim() || null
   const detalle = ((formData.get('detalle') as string) || '').trim() || null
   const loteId = ((formData.get('loteId') as string) || '').trim() || null
 
-  if (!Number.isFinite(monto) || monto <= 0) {
+  // Debe manual (gasto, adelanto, descuento) es un origen fijo -- el
+  // desplegable de "origen" (transferencia_empresa/pago_directo_cliente)
+  // solo tiene sentido para Haber. El motivo puntual del Debe se explica
+  // en el campo "Detalle", igual que ya se hace para el Haber.
+  const origen = tipo === 'debe' ? 'debe_manual' : origenForm
+
+  if (!Number.isFinite(montoIngresado) || montoIngresado <= 0) {
     redirect(
       `/admin/cuentas-corrientes/${profileId}?error=${encodeURIComponent(
         'Ingresá un monto válido, mayor a cero'
@@ -33,8 +41,23 @@ export async function agregarMovimientoManual(profileId: string, formData: FormD
     )
   }
 
-  if (origen !== 'transferencia_empresa' && origen !== 'pago_directo_cliente') {
+  // El input siempre pide un número positivo (más simple para tipear que
+  // pedir "-500") -- un Debe manual "gasto/descuento" se guarda en negativo
+  // para que reste del saldo, un "crédito adicional" se guarda en positivo
+  // para que sume, igual que ya hacen las correcciones automáticas
+  // (reversion_cobro_cuota/ajuste_distribucion, que también aceptan signo).
+  const monto = tipo === 'debe' && signo === 'gasto' ? -montoIngresado : montoIngresado
+
+  if (tipo === 'haber' && origen !== 'transferencia_empresa' && origen !== 'pago_directo_cliente') {
     redirect(`/admin/cuentas-corrientes/${profileId}?error=${encodeURIComponent('Elegí un origen válido')}`)
+  }
+
+  if (tipo === 'debe' && !detalle) {
+    redirect(
+      `/admin/cuentas-corrientes/${profileId}?error=${encodeURIComponent(
+        'Un Debe manual necesita un detalle explicando el motivo (gasto, adelanto, descuento, etc.)'
+      )}`
+    )
   }
 
   if (!fechaEvento) {
@@ -53,7 +76,7 @@ export async function agregarMovimientoManual(profileId: string, formData: FormD
 
   const { error } = await supabase.from('movimientos_cuenta_corriente').insert({
     profile_id: profileId,
-    tipo: 'haber',
+    tipo,
     monto,
     moneda,
     cotizacion_dia: cotizacionDia,

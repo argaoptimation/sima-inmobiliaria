@@ -203,9 +203,9 @@ test.describe('Confirmación de pagos acotada al acreedor del lote', () => {
         await page.goto('/admin/pagos')
 
         const filaAdmin = page.locator('tr', { has: page.locator(`a[href*="${nombreComprobante}"]`) })
-        // índice 7: la tabla de /admin/pagos tiene "Lote", "Cliente",
-        // "Motivo" y "Medio" antes de "Confirmado acreedor".
-        await expect(filaAdmin.locator('td').nth(7)).toHaveText('No')
+        // índice 9: Fecha, Lote, Cliente, Acreedor, Motivo, Medio, Monto,
+        // Comprobante, Estado, antes de "Confirmado acreedor".
+        await expect(filaAdmin.locator('td').nth(9)).toHaveText('No')
       })
     } finally {
       // Probablemente ya quedó así por la maniobra de arriba, pero

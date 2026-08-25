@@ -268,6 +268,9 @@ export default async function UsuariosPage({
                     <a href={`/admin/usuarios?editar=${persona.id}`} className="underline">
                       Editar
                     </a>
+                    <a href={`/admin/cuentas-corrientes/${persona.id}`} className="underline">
+                      Cuenta corriente
+                    </a>
                     {persona.id !== user!.id && (
                       <BotonEliminarUsuario eliminarUsuarioAction={eliminarUsuarioConId} />
                     )}

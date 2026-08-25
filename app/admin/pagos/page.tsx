@@ -17,14 +17,27 @@ type Pago = {
   monto_recibido: number | null
   moneda_recibida: string | null
   medio_pago: 'efectivo' | 'transferencia'
+  created_at: string
+}
+
+// Intersección de varios filtros por lote_id (búsqueda de texto + acreedor)
+// -- si ninguno está activo, no filtra nada (null); si hay más de uno
+// activo, un lote solo pasa si está en TODOS.
+function interseccionDeLoteIds(listas: (string[] | null)[]): string[] | null {
+  const activas = listas.filter((lista): lista is string[] => lista !== null)
+  if (activas.length === 0) return null
+  return activas.reduce((acumulado, lista) => {
+    const set = new Set(lista)
+    return acumulado.filter((id) => set.has(id))
+  })
 }
 
 export default async function PagosPage({
   searchParams,
 }: {
-  searchParams: Promise<{ error?: string; q?: string }>
+  searchParams: Promise<{ error?: string; q?: string; estado?: string; acreedor?: string }>
 }) {
-  const { error, q: filtroTexto } = await searchParams
+  const { error, q: filtroTexto, estado: filtroEstado, acreedor: filtroAcreedorId } = await searchParams
 
   await requireAdminOAcreedor()
 
@@ -41,7 +54,7 @@ export default async function PagosPage({
     .single()
 
   const columnasPago =
-    'id, monto, moneda, comprobante_path, motivo, estado, confirmado_acreedor_por, confirmado_admin_por, cliente_id, lote_id, monto_recibido, moneda_recibida, medio_pago'
+    'id, monto, moneda, comprobante_path, motivo, estado, confirmado_acreedor_por, confirmado_admin_por, cliente_id, lote_id, monto_recibido, moneda_recibida, medio_pago, created_at'
 
   let loteIdsBusqueda: string[] | null = null
 
@@ -72,6 +85,19 @@ export default async function PagosPage({
     ]
   }
 
+  // Filtro por acreedor: solo tiene sentido para admin (un acreedor ya ve
+  // nada más que sus propios lotes, filtrarlo por sí mismo no aporta nada).
+  let loteIdsFiltroAcreedor: string[] | null = null
+  if (filtroAcreedorId && perfilPropio!.role !== 'acreedor') {
+    const { data: lotesDelAcreedor } = await supabase
+      .from('lotes')
+      .select('id')
+      .eq('acreedor_id', filtroAcreedorId)
+    loteIdsFiltroAcreedor = (lotesDelAcreedor ?? []).map((lote) => lote.id)
+  }
+
+  const loteIdsFiltro = interseccionDeLoteIds([loteIdsBusqueda, loteIdsFiltroAcreedor])
+
   let pagos: Pago[] = []
 
   if (perfilPropio!.role === 'acreedor') {
@@ -82,34 +108,37 @@ export default async function PagosPage({
 
     let loteIds = (misLotes ?? []).map((lote) => lote.id)
 
-    if (loteIdsBusqueda !== null) {
-      const busquedaSet = new Set(loteIdsBusqueda)
-      loteIds = loteIds.filter((id) => busquedaSet.has(id))
+    if (loteIdsFiltro !== null) {
+      const filtroSet = new Set(loteIdsFiltro)
+      loteIds = loteIds.filter((id) => filtroSet.has(id))
     }
 
     if (loteIds.length > 0) {
-      const { data } = await supabase
+      let query = supabase
         .from('pagos')
         .select(columnasPago)
         .in('lote_id', loteIds)
         .order('created_at', { ascending: false })
+      if (filtroEstado) query = query.eq('estado', filtroEstado)
+      const { data } = await query
       pagos = data ?? []
     }
   } else {
-    if (loteIdsBusqueda !== null) {
-      if (loteIdsBusqueda.length > 0) {
-        const { data } = await supabase
+    if (loteIdsFiltro !== null) {
+      if (loteIdsFiltro.length > 0) {
+        let query = supabase
           .from('pagos')
           .select(columnasPago)
-          .in('lote_id', loteIdsBusqueda)
+          .in('lote_id', loteIdsFiltro)
           .order('created_at', { ascending: false })
+        if (filtroEstado) query = query.eq('estado', filtroEstado)
+        const { data } = await query
         pagos = data ?? []
       }
     } else {
-      const { data } = await supabase
-        .from('pagos')
-        .select(columnasPago)
-        .order('created_at', { ascending: false })
+      let query = supabase.from('pagos').select(columnasPago).order('created_at', { ascending: false })
+      if (filtroEstado) query = query.eq('estado', filtroEstado)
+      const { data } = await query
       pagos = data ?? []
     }
   }
@@ -156,12 +185,31 @@ export default async function PagosPage({
     (clientesConPago ?? []).map((cliente) => [cliente.id, cliente.full_name])
   )
 
+  const acreedorIdsConPago = [
+    ...new Set((lotesConPago ?? []).map((lote) => lote.acreedor_id).filter(Boolean) as string[]),
+  ]
+  const { data: acreedoresConPago } =
+    acreedorIdsConPago.length > 0
+      ? await supabase.from('profiles').select('id, full_name').in('id', acreedorIdsConPago)
+      : { data: [] }
+  const nombreAcreedorPorId = new Map(
+    (acreedoresConPago ?? []).map((acreedor) => [acreedor.id, acreedor.full_name])
+  )
+
+  // Lista completa de acreedores para el desplegable del filtro -- solo
+  // tiene sentido para admin (un acreedor no necesita filtrarse a sí mismo).
+  const { data: todosLosAcreedores } =
+    perfilPropio!.role !== 'acreedor'
+      ? await supabase.from('profiles').select('id, full_name').eq('role', 'acreedor').order('full_name')
+      : { data: [] }
+
   const pagosConLink = await Promise.all(
     pagos.map(async (pago) => {
       const lote = lotePorId.get(pago.lote_id)
       const sinAcreedorVinculado = !lote?.acreedor_id
       const identificadorLote = lote?.identificador ?? '—'
       const nombreCliente = nombreClientePorId.get(pago.cliente_id) ?? '—'
+      const nombreAcreedor = lote?.acreedor_id ? nombreAcreedorPorId.get(lote.acreedor_id) ?? '—' : '—'
 
       if (!pago.comprobante_path) {
         return {
@@ -170,6 +218,7 @@ export default async function PagosPage({
           sinAcreedorVinculado,
           identificadorLote,
           nombreCliente,
+          nombreAcreedor,
           cuentaCobroExterna: Boolean(lote?.cuenta_cobro_externa_id),
           montoEfectivo: montoEfectivoPorId.get(pago.id) ?? pago.monto,
         }
@@ -183,6 +232,7 @@ export default async function PagosPage({
         ...pago,
         comprobanteUrl: errorSignedUrl ? null : data?.signedUrl ?? null,
         sinAcreedorVinculado,
+        nombreAcreedor,
         identificadorLote,
         nombreCliente,
         cuentaCobroExterna: Boolean(lote?.cuenta_cobro_externa_id),
@@ -206,20 +256,51 @@ export default async function PagosPage({
             className="mt-1 block rounded border px-3 py-2"
           />
         </label>
+        <label className="text-sm">
+          Estado
+          <select
+            name="estado"
+            defaultValue={filtroEstado ?? ''}
+            className="mt-1 block rounded border px-3 py-2"
+          >
+            <option value="">Todos</option>
+            <option value="confirmado">Confirmado</option>
+            <option value="pendiente">Pendiente</option>
+          </select>
+        </label>
+        {perfilPropio!.role !== 'acreedor' && (
+          <label className="text-sm">
+            Acreedor
+            <select
+              name="acreedor"
+              defaultValue={filtroAcreedorId ?? ''}
+              className="mt-1 block rounded border px-3 py-2"
+            >
+              <option value="">Todos</option>
+              {(todosLosAcreedores ?? []).map((acreedor) => (
+                <option key={acreedor.id} value={acreedor.id}>
+                  {acreedor.full_name}
+                </option>
+              ))}
+            </select>
+          </label>
+        )}
         <button type="submit" className="rounded border px-3 py-2 text-sm">
           Filtrar
         </button>
-        {filtroTexto && (
+        {(filtroTexto || filtroEstado || filtroAcreedorId) && (
           <a href="/admin/pagos" className="text-sm underline">
-            Limpiar búsqueda
+            Limpiar filtros
           </a>
         )}
       </form>
       <table className="w-full text-sm">
         <thead>
           <tr className="border-b text-left">
-            <th className="py-2">Lote</th>
+            <th className="py-2">Fecha</th>
+            <th>Lote</th>
             <th>Cliente</th>
+            <th>Acreedor</th>
             <th>Motivo</th>
             <th>Medio</th>
             <th>Monto</th>
@@ -237,8 +318,10 @@ export default async function PagosPage({
 
             return (
               <tr key={pago.id} className="border-b">
-                <td className="py-2">{pago.identificadorLote}</td>
+                <td className="py-2">{new Date(pago.created_at).toLocaleDateString('es-AR')}</td>
+                <td>{pago.identificadorLote}</td>
                 <td>{pago.nombreCliente}</td>
+                <td>{pago.nombreAcreedor}</td>
                 <td>
                   {pago.motivo === 'sena'
                     ? 'Seña'
