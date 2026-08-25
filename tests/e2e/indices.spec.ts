@@ -340,6 +340,46 @@ test.describe('Índices — carga manual y aplicación automática a mes vencido
     await expect(page.getByText(`${nombreIndice} — Diciembre 2027`)).not.toBeVisible()
   })
 
+  test('aviso de orden: si faltan dos meses del mismo índice, el más nuevo avisa que hay que cargar el más viejo primero (pedido 24/08)', async ({
+    page,
+  }) => {
+    const nombreIndice = `IPC-E2E-Orden-${Date.now()}`
+
+    // Cuota que vence en febrero necesita el índice de enero (el más
+    // viejo pendiente). Cuota que vence en marzo necesita el de febrero.
+    await crearLoteVendidoConIndice(
+      `E2E Orden Viejo ${Date.now()}`,
+      nombreIndice,
+      fixtures.cliente.id,
+      fixtures.acreedorConDatos.id,
+      '2028-02-15',
+      100000
+    )
+    await crearLoteVendidoConIndice(
+      `E2E Orden Nuevo ${Date.now()}`,
+      nombreIndice,
+      fixtures.cliente.id,
+      fixtures.acreedorConDatos.id,
+      '2028-03-15',
+      100000
+    )
+
+    await login(page, fixtures.admin.email, fixtures.password)
+    await page.goto('/admin/indices')
+
+    const filaVieja = page.locator('li', { hasText: `${nombreIndice} — Enero 2028` })
+    const filaNueva = page.locator('li', { hasText: `${nombreIndice} — Febrero 2028` })
+
+    // El mes más viejo pendiente (enero) no lleva ninguna advertencia.
+    await expect(filaVieja).toBeVisible()
+    await expect(filaVieja.getByText(/Ojo: todavía falta cargar/)).toHaveCount(0)
+
+    // El mes más nuevo (febrero) sí avisa que hay que cargar enero antes.
+    await expect(
+      filaNueva.getByText(new RegExp(`Ojo: todavía falta cargar Enero 2028 de ${nombreIndice}`))
+    ).toBeVisible()
+  })
+
   test('eliminar el valor más reciente revierte el ajuste sobre la cuota', async ({ page }) => {
     const admin = createAdminClient()
     const nombreIndice = `IPC-E2E-Eliminar-${Date.now()}`

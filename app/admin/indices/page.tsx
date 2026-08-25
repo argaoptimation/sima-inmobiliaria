@@ -89,26 +89,41 @@ export default async function IndicesPage({
             ⚠ Hay lotes con cuotas pendientes cuyo índice del mes anterior todavía no se cargó:
           </p>
           <ul className="list-inside list-disc">
-            {mesesFaltantes.map((faltante) => (
-              <li key={`${faltante.nombre}|${faltante.periodo}`}>
-                <a
-                  href={`/admin/indices?prellenarNombre=${encodeURIComponent(faltante.nombre)}&prellenarMes=${faltante.periodo.slice(0, 7)}#form-cargar`}
-                  className="font-medium underline"
-                >
-                  {faltante.nombre} — {formatearPeriodo(faltante.periodo)} — cargar ahora →
-                </a>{' '}
-                (lote{faltante.lotes.length > 1 ? 's' : ''}:{' '}
-                {faltante.lotes.map((lote, i) => (
-                  <span key={lote.id}>
-                    {i > 0 && ', '}
-                    <a href={`/admin/lotes/${lote.id}`} className="underline">
-                      {lote.identificador}
-                    </a>
-                  </span>
-                ))}
-                )
-              </li>
-            ))}
+            {mesesFaltantes.map((faltante) => {
+              // Ya vienen ordenados por nombre y después por período -- el
+              // primero que aparece para cada nombre es el más viejo
+              // pendiente. Si este NO es el primero de su nombre, avisamos
+              // cuál hay que cargar antes (pedido de Gabriel 24/08: evitar
+              // cargar los meses de un mismo índice fuera de orden).
+              const masViejoDelMismoNombre = mesesFaltantes.find((otro) => otro.nombre === faltante.nombre)
+              const esElMasViejo = masViejoDelMismoNombre === faltante || masViejoDelMismoNombre?.periodo === faltante.periodo
+              return (
+                <li key={`${faltante.nombre}|${faltante.periodo}`}>
+                  <a
+                    href={`/admin/indices?prellenarNombre=${encodeURIComponent(faltante.nombre)}&prellenarMes=${faltante.periodo.slice(0, 7)}#form-cargar`}
+                    className="font-medium underline"
+                  >
+                    {faltante.nombre} — {formatearPeriodo(faltante.periodo)} — cargar ahora →
+                  </a>{' '}
+                  (lote{faltante.lotes.length > 1 ? 's' : ''}:{' '}
+                  {faltante.lotes.map((lote, j) => (
+                    <span key={lote.id}>
+                      {j > 0 && ', '}
+                      <a href={`/admin/lotes/${lote.id}`} className="underline">
+                        {lote.identificador}
+                      </a>
+                    </span>
+                  ))}
+                  )
+                  {!esElMasViejo && masViejoDelMismoNombre && (
+                    <p className="ml-4 font-semibold text-red-700">
+                      ⚠ Ojo: todavía falta cargar {formatearPeriodo(masViejoDelMismoNombre.periodo)} de{' '}
+                      {faltante.nombre} antes que este mes.
+                    </p>
+                  )}
+                </li>
+              )
+            })}
           </ul>
         </div>
       )}
