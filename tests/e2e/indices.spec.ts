@@ -201,6 +201,54 @@ test.describe('Índices — carga manual y aplicación automática a mes vencido
     expect(cuota?.saldo_pendiente).toBe(100000)
   })
 
+  test('un cobrador puede ver y cargar índices, igual que el admin (pedido de Nicolás 25/08)', async ({
+    page,
+  }) => {
+    const nombreIndice = `IPC-E2E-Cobrador-${Date.now()}`
+
+    await login(page, fixtures.cobrador.email, fixtures.password)
+    await expect(page.getByRole('link', { name: 'Índices' })).toBeVisible()
+
+    await page.goto('/admin/indices')
+    await page.getByPlaceholder('Ej: IPC').fill(nombreIndice)
+    await page.getByRole('textbox', { name: 'Mes' }).fill('2027-01')
+    await page.getByPlaceholder('Ej: 3').fill('4')
+    await page.getByRole('button', { name: 'Cargar' }).click()
+    await page.waitForURL('**/admin/indices')
+
+    // Ya estábamos en /admin/indices antes del submit -- waitForURL puede
+    // resolver antes de que la navegación real termine (mismo patrón de
+    // carrera que otros tests de este archivo), así que se espera la fila
+    // nueva en la UI antes de confiar en el estado de la base.
+    const filaDetalle = page.locator('h2:has-text("Detalle completo") ~ table tbody tr', {
+      hasText: nombreIndice,
+    })
+    await expect(filaDetalle).toBeVisible()
+
+    const admin = createAdminClient()
+    const { data: valorCargado } = await admin
+      .from('indices_valores')
+      .select('valor')
+      .eq('nombre', nombreIndice)
+      .eq('periodo', '2027-01-01')
+      .maybeSingle()
+    expect(valorCargado?.valor).toBe(4)
+  })
+
+  test('un vendedor o un acreedor NO pueden acceder a /admin/indices (solo admin o cobrador)', async ({
+    page,
+  }) => {
+    await login(page, fixtures.vendedorSinLotes.email, fixtures.password)
+    await expect(page.getByRole('link', { name: 'Índices' })).toHaveCount(0)
+    await page.goto('/admin/indices')
+    await expect(page).toHaveURL(/\/admin\/lotes/)
+
+    await login(page, fixtures.acreedorConDatos.email, fixtures.password)
+    await expect(page.getByRole('link', { name: 'Índices' })).toHaveCount(0)
+    await page.goto('/admin/indices')
+    await expect(page).toHaveURL(/\/admin\/lotes/)
+  })
+
   test('cargar dos veces el mismo índice y mes es rechazado con un mensaje claro', async ({ page }) => {
     const nombreIndice = `IPC-E2E-Dup-${Date.now()}`
 

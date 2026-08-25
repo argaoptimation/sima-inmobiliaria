@@ -102,6 +102,30 @@ export async function requireAdminSobreLote(loteId: string) {
 // mantener dos copias identicas de la misma logica).
 export const requireAdminOAcreedor = requireAdmin
 
+// Índices: según Nicolás, quien carga/corrige valores de índice puede ser
+// el admin o un cobrador (ej. el contador) -- no acreedor ni vendedor.
+export async function requireAdminOCobrador() {
+  const supabase = await createClient()
+
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
+
+  if (!user) {
+    redirect('/login')
+  }
+
+  const { data: profile } = await supabase
+    .from('profiles')
+    .select('role')
+    .eq('id', user.id)
+    .single()
+
+  if (!profile || (profile.role !== 'administrador' && profile.role !== 'cobrador')) {
+    redirect('/admin/lotes')
+  }
+}
+
 export async function requireAccesoParaReservar(loteId: string) {
   const supabase = await createClient()
 

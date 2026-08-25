@@ -957,7 +957,7 @@ export default async function LoteDetallePage({
                 </span>
               </p>
             )}
-            <ul className="list-inside list-disc">
+            <ul className="mb-2 list-inside list-disc">
               {(historialEstados ?? []).map((cambio, i) => (
                 <li key={i}>
                   {cambio.estado_anterior} → {cambio.estado_nuevo} —{' '}
@@ -966,6 +966,11 @@ export default async function LoteDetallePage({
                 </li>
               ))}
             </ul>
+            {perfilPropio!.role === 'administrador' && (
+              <a href="/admin/historial-lotes" className="underline">
+                Ver historial de todos los lotes →
+              </a>
+            )}
           </div>
         </details>
       )}

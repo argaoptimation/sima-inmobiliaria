@@ -2,7 +2,7 @@
 
 import { createClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
-import { requireAdministrador } from '@/lib/auth/require-admin'
+import { requireAdminOCobrador } from '@/lib/auth/require-admin'
 import {
   calcularAjusteEncadenado,
   calcularPeriodoIndiceNecesario,
@@ -286,7 +286,7 @@ async function procesarAfectadosPorLote<T extends { lote_id: string }>(
 }
 
 export async function cargarValorIndice(formData: FormData) {
-  await requireAdministrador()
+  await requireAdminOCobrador()
 
   const supabase = await createClient()
 
@@ -383,7 +383,7 @@ export async function cargarValorIndice(formData: FormData) {
 // fallback), su ajuste con el % nuevo, y propaga el cambio en cadena hacia
 // las cuotas siguientes de cada lote.
 export async function corregirValorIndice(formData: FormData) {
-  await requireAdministrador()
+  await requireAdminOCobrador()
 
   const supabase = await createClient()
 
@@ -452,7 +452,7 @@ export async function corregirValorIndice(formData: FormData) {
 // vía fallback) con el valor aplicable que quede DESPUÉS de borrar este
 // (uno más viejo, o ninguno), y propaga en cadena igual que la corrección.
 export async function eliminarValorIndice(formData: FormData) {
-  await requireAdministrador()
+  await requireAdminOCobrador()
 
   const supabase = await createClient()
 

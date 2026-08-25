@@ -295,4 +295,50 @@ test.describe('Rescindido de lote (24/08)', () => {
     await expect(seccionDestinos.getByText('E2E Acreedor Con Datos — 700 USD')).toBeVisible()
     await expect(seccionDestinos.getByText('E2E Vendedor A — 200 USD')).toBeVisible()
   })
+
+  test('historial global (/admin/historial-lotes): lista el cambio de todos los lotes, filtrable por estado (pedido 25/08)', async ({
+    page,
+  }) => {
+    const { loteId } = await crearLoteVendidoConPagoConfirmado(
+      `E2E HistorialGlobal ${Date.now()}`,
+      fixtures.cliente.id,
+      fixtures.acreedorConDatos.id
+    )
+
+    const admin = createAdminClient()
+    const { data: lote } = await admin.from('lotes').select('identificador').eq('id', loteId).single()
+    const identificador = lote!.identificador as string
+
+    await login(page, fixtures.admin.email, fixtures.password)
+    await page.goto(`/admin/lotes/${loteId}`)
+    page.once('dialog', (dialog) => dialog.accept())
+    await page.getByRole('button', { name: 'Rescindir' }).click()
+    await page.waitForURL(`**/admin/lotes/${loteId}`)
+
+    await page.goto('/admin/historial-lotes')
+    // Es una vista GLOBAL (todos los lotes) -- puede haber muchas otras
+    // filas "vendido → rescindido" de corridas anteriores, por eso se
+    // acota a la fila de ESTE lote en vez de buscar el texto suelto.
+    // toPass + reload: mismo quirk de lectura stale ya documentado en este
+    // proyecto en otros specs (el insert ya está confirmado, pero la
+    // primera lectura después puede no verlo todavía).
+    const filaDeEsteLote = page.locator('tbody tr', { hasText: identificador })
+    await expect(async () => {
+      await page.reload()
+      await expect(filaDeEsteLote).toBeVisible({ timeout: 2000 })
+    }).toPass({ timeout: 10000 })
+    await expect(filaDeEsteLote.getByText('vendido → rescindido')).toBeVisible()
+
+    // Filtrar por estado "disponible" -- este lote pasó a "rescindido", no
+    // a "disponible", así que no debería aparecer.
+    await page.getByLabel('Pasó a estado').selectOption('disponible')
+    await page.getByRole('button', { name: 'Filtrar' }).click()
+    await expect(page.getByRole('link', { name: identificador })).toHaveCount(0)
+  })
+
+  test('un cobrador no puede acceder a /admin/historial-lotes (solo admin)', async ({ page }) => {
+    await login(page, fixtures.cobrador.email, fixtures.password)
+    await page.goto('/admin/historial-lotes')
+    await expect(page).toHaveURL(/\/admin\/lotes/)
+  })
 })

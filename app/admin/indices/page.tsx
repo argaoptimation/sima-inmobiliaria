@@ -1,5 +1,5 @@
 import { createClient } from '@/lib/supabase/server'
-import { requireAdministrador } from '@/lib/auth/require-admin'
+import { requireAdminOCobrador } from '@/lib/auth/require-admin'
 import { obtenerMesesIndiceFaltantes } from '@/lib/lotes/meses-indice-faltantes'
 import { cargarValorIndice, corregirValorIndice, eliminarValorIndice } from './actions'
 import { BotonEliminarIndice } from './BotonEliminarIndice'
@@ -33,7 +33,7 @@ export default async function IndicesPage({
 }) {
   const { error, ok, prellenarNombre, prellenarMes } = await searchParams
 
-  await requireAdministrador()
+  await requireAdminOCobrador()
 
   const supabase = await createClient()
 
