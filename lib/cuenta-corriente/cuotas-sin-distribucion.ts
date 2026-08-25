@@ -23,7 +23,7 @@ export async function obtenerCuotasSinDistribucion(
   // comparación en JS, mas abajo.
   let query = supabase
     .from('cuotas')
-    .select('id, numero, lote_id, saldo_pendiente, monto_base, lotes(identificador)')
+    .select('id, numero, lote_id, ciclo, saldo_pendiente, monto_base, lotes(identificador, ciclo_actual)')
 
   if (loteId) {
     query = query.eq('lote_id', loteId)
@@ -31,7 +31,18 @@ export async function obtenerCuotasSinDistribucion(
 
   const { data: cuotas } = await query
 
-  const cuotasConAlgoCobrado = (cuotas ?? []).filter((cuota) => cuota.saldo_pendiente < cuota.monto_base)
+  // Acotado al ciclo de venta VIGENTE de cada lote (ver migración 0039):
+  // una cuota vieja de un ciclo rescindido puede tener plata cobrada sin
+  // distribución cargada, pero ya es historial cerrado -- no tiene sentido
+  // seguir avisando de eso mientras nadie la esté cobrando activamente.
+  const cuotasDelCicloVigente = (cuotas ?? []).filter(
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    (cuota) => cuota.ciclo === (cuota.lotes as any)?.ciclo_actual
+  )
+
+  const cuotasConAlgoCobrado = cuotasDelCicloVigente.filter(
+    (cuota) => cuota.saldo_pendiente < cuota.monto_base
+  )
 
   if (cuotasConAlgoCobrado.length === 0) return []
 
