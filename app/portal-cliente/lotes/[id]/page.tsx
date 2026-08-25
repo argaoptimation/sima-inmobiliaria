@@ -2,6 +2,7 @@ import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { calcularEstadoCobranza } from '@/lib/cobranza/estado-cliente'
 import { calcularInteresMoratorio } from '@/lib/cobranza/interes-moratorio'
+import { convertirUsdAPesos } from '@/lib/cobranza/cotizacion-dolar'
 import { notFound, redirect } from 'next/navigation'
 import { logout } from '@/app/login/actions'
 
@@ -63,6 +64,20 @@ export default async function PortalClienteLotePage({
     0
   )
 
+  // Fallback en cascada: la cotización más reciente en o antes de hoy --
+  // mismo criterio que usa la pantalla de pago (resuelve fin de semana / día
+  // sin cargar sin iterar día por día a mano).
+  const { data: cotizacionVigente } =
+    lote!.moneda === 'USD'
+      ? await supabase
+          .from('cotizaciones_dolar')
+          .select('valor, fecha')
+          .lte('fecha', hoy)
+          .order('fecha', { ascending: false })
+          .limit(1)
+          .maybeSingle()
+      : { data: null }
+
   const { data: pagos } = await supabase
     .from('pagos')
     .select('id, monto, moneda, estado, comprobante_path')
@@ -110,6 +125,13 @@ export default async function PortalClienteLotePage({
       </p>
       <p className="mb-6 text-sm font-medium">
         Total pendiente: {totalPendiente} {lote!.moneda}
+        {lote!.moneda === 'USD' && cotizacionVigente && (
+          <span className="font-normal text-gray-600">
+            {' '}
+            (≈ {convertirUsdAPesos(totalPendiente, cotizacionVigente.valor)} ARS a la cotización
+            del {cotizacionVigente.fecha})
+          </span>
+        )}
       </p>
       <table className="w-full text-sm">
         <thead>

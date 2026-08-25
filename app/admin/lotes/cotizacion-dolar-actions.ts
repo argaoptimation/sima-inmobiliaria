@@ -44,5 +44,14 @@ export async function guardarCotizacionDolar(formData: FormData) {
     redirect(`/admin/lotes?error=${encodeURIComponent(mensajeDeError(error))}`)
   }
 
+  // Log insert-only de cada carga/corrección del día (25/08/2026, pedido de
+  // Gabriel) -- el upsert de arriba solo deja ver el valor vigente, esta
+  // tabla aparte guarda cada valor que se cargó para poder mostrar el
+  // historial de correcciones en /admin/cotizacion-dolar (uso interno, no se
+  // le muestra al cliente).
+  await supabase
+    .from('cotizaciones_dolar_historial')
+    .insert({ fecha: hoy, valor, cargado_por: user!.id })
+
   redirect('/admin/lotes')
 }

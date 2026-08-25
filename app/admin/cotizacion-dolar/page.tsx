@@ -1,3 +1,4 @@
+import { Fragment } from 'react'
 import { createClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
 
@@ -25,7 +26,29 @@ export default async function HistorialCotizacionDolarPage() {
     .select('id, fecha, valor, cargado_por, created_at')
     .order('fecha', { ascending: false })
 
-  const cargadorIds = [...new Set((cotizaciones ?? []).map((c) => c.cargado_por))]
+  // Historial de CADA carga/corrección del día (25/08/2026, pedido de
+  // Gabriel) -- uso interno/admin únicamente, nunca se le muestra al
+  // cliente. Se agrupa por fecha para poder listar, debajo de cada día, las
+  // correcciones que hubo (si el día tuvo una sola carga, no se muestra
+  // nada extra).
+  const { data: historial } = await supabase
+    .from('cotizaciones_dolar_historial')
+    .select('id, fecha, valor, cargado_por, created_at')
+    .order('created_at', { ascending: true })
+
+  const historialPorFecha = new Map<string, typeof historial>()
+  for (const registro of historial ?? []) {
+    const lista = historialPorFecha.get(registro.fecha) ?? []
+    lista.push(registro)
+    historialPorFecha.set(registro.fecha, lista)
+  }
+
+  const cargadorIds = [
+    ...new Set([
+      ...(cotizaciones ?? []).map((c) => c.cargado_por),
+      ...(historial ?? []).map((h) => h.cargado_por),
+    ]),
+  ]
   const { data: cargadores } =
     cargadorIds.length > 0
       ? await supabase.from('profiles').select('id, full_name').in('id', cargadorIds)
@@ -55,16 +78,41 @@ export default async function HistorialCotizacionDolarPage() {
           </tr>
         </thead>
         <tbody>
-          {(cotizaciones ?? []).map((c) => (
-            <tr key={c.id} className="border-b">
-              <td className="py-2">{c.fecha}</td>
-              <td>{c.valor}</td>
-              <td>{nombreCargadorPorId.get(c.cargado_por) ?? '—'}</td>
-              <td>
-                {new Date(c.created_at).toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit' })}hs
-              </td>
-            </tr>
-          ))}
+          {(cotizaciones ?? []).map((c) => {
+            const correcciones = historialPorFecha.get(c.fecha) ?? []
+            return (
+              <Fragment key={c.id}>
+                <tr className="border-b">
+                  <td className="py-2">{c.fecha}</td>
+                  <td>{c.valor}</td>
+                  <td>{nombreCargadorPorId.get(c.cargado_por) ?? '—'}</td>
+                  <td>
+                    {new Date(c.created_at).toLocaleTimeString('es-AR', {
+                      hour: '2-digit',
+                      minute: '2-digit',
+                    })}
+                    hs
+                  </td>
+                </tr>
+                {correcciones.length > 1 && (
+                  <tr className="border-b bg-gray-50">
+                    <td colSpan={4} className="py-2 pl-4 text-xs text-gray-600">
+                      Se cargó {correcciones.length} veces este día:{' '}
+                      {correcciones
+                        .map(
+                          (registro) =>
+                            `${new Date(registro.created_at).toLocaleTimeString('es-AR', {
+                              hour: '2-digit',
+                              minute: '2-digit',
+                            })}hs → ${registro.valor} (${nombreCargadorPorId.get(registro.cargado_por) ?? '—'})`
+                        )
+                        .join(' · ')}
+                    </td>
+                  </tr>
+                )}
+              </Fragment>
+            )
+          })}
         </tbody>
       </table>
       {(cotizaciones ?? []).length === 0 && (

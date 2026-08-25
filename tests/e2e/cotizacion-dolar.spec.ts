@@ -27,9 +27,32 @@ async function restaurarCotizacion(
   }
 }
 
+// `cotizaciones_dolar_historial` (25/08) es insert-only -- a diferencia de
+// `cotizaciones_dolar`, un simple delete-y-restore de una fila no alcanza,
+// porque puede haber VARIAS filas reales de hoy (cada corrección que hizo
+// alguien de verdad). Se snapshotea la lista completa y se reinserta tal
+// cual (mismo id/fecha/valor/created_at) para no perder ningún registro
+// real.
+async function snapshotHistorialHoy(admin: ReturnType<typeof createAdminClient>, fecha: string) {
+  const { data } = await admin.from('cotizaciones_dolar_historial').select('*').eq('fecha', fecha)
+  return data ?? []
+}
+
+async function restaurarHistorialHoy(
+  admin: ReturnType<typeof createAdminClient>,
+  fecha: string,
+  originales: Record<string, unknown>[]
+) {
+  await admin.from('cotizaciones_dolar_historial').delete().eq('fecha', fecha)
+  if (originales.length > 0) {
+    await admin.from('cotizaciones_dolar_historial').insert(originales)
+  }
+}
+
 test.describe('Cotización del dólar', () => {
   let fixtures: TestFixtures
   let cotizacionHoyOriginal: Record<string, unknown> | null = null
+  let historialHoyOriginal: Record<string, unknown>[] = []
 
   test.beforeAll(async () => {
     fixtures = await ensureTestFixtures()
@@ -44,12 +67,15 @@ test.describe('Cotización del dólar', () => {
     // afterEach, nunca queda perdido.
     cotizacionHoyOriginal = await snapshotCotizacion(admin, hoy)
     await admin.from('cotizaciones_dolar').delete().eq('fecha', hoy)
+    historialHoyOriginal = await snapshotHistorialHoy(admin, hoy)
+    await admin.from('cotizaciones_dolar_historial').delete().eq('fecha', hoy)
   })
 
   test.afterEach(async () => {
     const admin = createAdminClient()
     const hoy = new Date().toISOString().slice(0, 10)
     await restaurarCotizacion(admin, hoy, cotizacionHoyOriginal)
+    await restaurarHistorialHoy(admin, hoy, historialHoyOriginal)
   })
 
   test('cargar la cotización de hoy muestra la leyenda de "ya cargada"', async ({ page }) => {
@@ -89,6 +115,13 @@ test.describe('Cotización del dólar', () => {
     const { data: cotizaciones } = await admin.from('cotizaciones_dolar').select('id, valor').eq('fecha', hoy)
     expect(cotizaciones).toHaveLength(1)
     expect(cotizaciones![0].valor).toBe(1600)
+
+    // El historial de correcciones (25/08) sí guarda las 2 cargas por
+    // separado, aunque la tabla principal solo tenga el valor vigente.
+    await page.goto('/admin/cotizacion-dolar')
+    await expect(page.getByText(/Se cargó 2 veces este día/)).toBeVisible()
+    await expect(page.getByText(/Se cargó 2 veces este día/)).toContainText('1500')
+    await expect(page.getByText(/Se cargó 2 veces este día/)).toContainText('1600')
   })
 
   test('en la pantalla de pago de una cuota en USD se muestra el equivalente en pesos', async ({ page }) => {
@@ -142,6 +175,56 @@ test.describe('Cotización del dólar', () => {
     await admin.from('lotes').delete().eq('id', lote.id)
   })
 
+  test('la vista general del lote (no solo la pantalla de pago) también muestra el equivalente en pesos', async ({
+    page,
+  }) => {
+    const admin = createAdminClient()
+
+    const hoy = new Date().toISOString().slice(0, 10)
+    await admin.from('cotizaciones_dolar').upsert(
+      { fecha: hoy, valor: 1000, cargado_por: fixtures.admin.id },
+      { onConflict: 'fecha' }
+    )
+
+    const { data: lote, error: errorLote } = await admin
+      .from('lotes')
+      .insert({
+        identificador: `E2E Vista General Dolar ${Date.now()}`,
+        moneda: 'USD',
+        estado: 'vendido',
+        precio_total: 200,
+        acreedor_id: fixtures.acreedorConDatos.id,
+        cliente_id: fixtures.cliente.id,
+      })
+      .select('id')
+      .single()
+
+    if (errorLote || !lote) {
+      throw new Error(`No se pudo crear el lote de prueba: ${errorLote?.message}`)
+    }
+
+    const { error: errorCuota } = await admin.from('cuotas').insert({
+      lote_id: lote.id,
+      numero: 1,
+      monto_base: 200,
+      saldo_pendiente: 200,
+      fecha_vencimiento: '2027-01-01',
+    })
+
+    if (errorCuota) {
+      throw new Error(`No se pudo crear la cuota de prueba: ${errorCuota.message}`)
+    }
+
+    await login(page, fixtures.cliente.email, fixtures.password)
+    await page.goto(`/portal-cliente/lotes/${lote.id}`)
+
+    await expect(page.getByText('Total pendiente: 200 USD')).toBeVisible()
+    await expect(page.getByText(/≈ 200000 ARS a la cotización del/)).toBeVisible()
+
+    await admin.from('cuotas').delete().eq('lote_id', lote.id)
+    await admin.from('lotes').delete().eq('id', lote.id)
+  })
+
   test('el historial muestra el valor cargado hoy y los de días anteriores', async ({ page }) => {
     const admin = createAdminClient()
     const ayer = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString().slice(0, 10)
@@ -162,8 +245,12 @@ test.describe('Cotización del dólar', () => {
       await page.getByRole('link', { name: 'Ver historial completo →' }).click()
       await page.waitForURL('**/admin/cotizacion-dolar')
 
-      const filaHoy = page.locator('tbody tr').filter({ hasText: '1500' })
-      const filaAyer = page.locator('tbody tr').filter({ hasText: ayer })
+      // Excluye la fila gris de "se cargó N veces este día" (25/08: nueva
+      // fila de historial de correcciones) -- si no, un valor que también
+      // aparece ahí (ej. "1500" dentro del resumen de correcciones) hace que
+      // el locator matchee 2 filas en vez de 1.
+      const filaHoy = page.locator('tbody tr:not(.bg-gray-50)').filter({ hasText: '1500' })
+      const filaAyer = page.locator('tbody tr:not(.bg-gray-50)').filter({ hasText: ayer })
       await expect(filaHoy).toBeVisible()
       await expect(filaAyer).toBeVisible()
       await expect(filaAyer).toContainText('1450')
