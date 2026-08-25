@@ -1,6 +1,7 @@
 import { createClient } from '@/lib/supabase/server'
+import { createAdminClient } from '@/lib/supabase/admin'
 import { requireAdministrador } from '@/lib/auth/require-admin'
-import { actualizarLoteo, crearLoteo, reasignarLotesEnBloque } from './actions'
+import { actualizarLoteo, crearLoteo, reasignarLotesEnBloque, subirPlantillaContrato } from './actions'
 
 export default async function LoteosPage({
   searchParams,
@@ -23,8 +24,18 @@ export default async function LoteosPage({
 
   const { data: loteos } = await supabase
     .from('loteos')
-    .select('id, nombre')
+    .select('id, nombre, plantilla_contrato_path, plantilla_contrato_nombre')
     .order('nombre', { ascending: true })
+
+  const admin = createAdminClient()
+  const urlPlantillaPorLoteoId = new Map<string, string>()
+  for (const loteo of loteos ?? []) {
+    if (!loteo.plantilla_contrato_path) continue
+    const { data: signedUrl } = await admin.storage
+      .from('comprobantes')
+      .createSignedUrl(loteo.plantilla_contrato_path, 300)
+    if (signedUrl?.signedUrl) urlPlantillaPorLoteoId.set(loteo.id, signedUrl.signedUrl)
+  }
 
   const { data: cantidadesPorLoteo } = await supabase.from('lotes').select('loteo_id')
   const cantidadPorLoteoId = new Map<string, number>()
@@ -94,6 +105,7 @@ export default async function LoteosPage({
             <th className="py-2">Loteo</th>
             <th>Cantidad de lotes</th>
             <th>Renombrar</th>
+            <th>Plantilla de contrato</th>
           </tr>
         </thead>
         <tbody>
@@ -119,6 +131,29 @@ export default async function LoteosPage({
                   </button>
                 </form>
               </td>
+              <td>
+                <div className="flex flex-col gap-1">
+                  {loteo.plantilla_contrato_path ? (
+                    <span className="text-xs text-gray-600">
+                      {urlPlantillaPorLoteoId.has(loteo.id) ? (
+                        <a href={urlPlantillaPorLoteoId.get(loteo.id)} target="_blank" className="underline">
+                          {loteo.plantilla_contrato_nombre ?? 'Ver plantilla actual'}
+                        </a>
+                      ) : (
+                        (loteo.plantilla_contrato_nombre ?? 'Cargada')
+                      )}
+                    </span>
+                  ) : (
+                    <span className="text-xs text-amber-700">Sin plantilla cargada</span>
+                  )}
+                  <form action={subirPlantillaContrato.bind(null, loteo.id)} className="flex items-center gap-2">
+                    <input name="plantilla" type="file" accept=".docx" required className="text-xs" />
+                    <button type="submit" className="rounded border px-2 py-1 text-xs">
+                      {loteo.plantilla_contrato_path ? 'Reemplazar' : 'Subir'}
+                    </button>
+                  </form>
+                </div>
+              </td>
             </tr>
           ))}
           <tr className="border-b text-gray-600">
@@ -128,6 +163,7 @@ export default async function LoteosPage({
               </a>
             </td>
             <td>{sinLoteo}</td>
+            <td></td>
             <td></td>
           </tr>
         </tbody>

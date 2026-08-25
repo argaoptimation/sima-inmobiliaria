@@ -12,6 +12,7 @@ import {
   eliminarDocumentoLote,
   rescindirLote,
   volverADisponible,
+  generarContratoLote,
 } from './actions'
 import { agregarParticipante, quitarParticipante } from './participantes-actions'
 import { cancelarReserva } from '../actions'
@@ -77,7 +78,7 @@ export default async function LoteDetallePage({
   const { data: lote } = await supabase
     .from('lotes')
     .select(
-      'id, identificador, moneda, estado, cliente_id, admin_id, acreedor_id, vendedor_id, cuenta_cobro_id, cuenta_cobro_externa_id, ubicacion, precio_total, documento_firmado_path, interes_moratorio_diario, indice_tipo, ciclo_actual'
+      'id, identificador, moneda, estado, cliente_id, admin_id, acreedor_id, vendedor_id, cuenta_cobro_id, cuenta_cobro_externa_id, ubicacion, precio_total, documento_firmado_path, interes_moratorio_diario, indice_tipo, ciclo_actual, loteo_id, numero_lote, manzana, superficie_m2, cuenta_rentas, nomenclatura_catastral, matricula'
     )
     .eq('id', id)
     .single()
@@ -410,6 +411,15 @@ export default async function LoteDetallePage({
   const subirDocumentoConId = subirDocumentoLote.bind(null, id)
   const rescindirConId = rescindirLote.bind(null, id)
   const volverADisponibleConId = volverADisponible.bind(null, id)
+  const generarContratoConId = generarContratoLote.bind(null, id)
+
+  // Para "Generar contrato": hace falta saber si el loteo de este lote ya
+  // tiene una plantilla cargada, para mostrar el botón habilitado o el
+  // aviso de "cargá una plantilla primero" en vez de dejar que falle recién
+  // al hacer clic.
+  const { data: loteoDelLote } = lote!.loteo_id
+    ? await supabase.from('loteos').select('plantilla_contrato_path').eq('id', lote!.loteo_id).single()
+    : { data: null }
 
   return (
     <main className="max-w-2xl">
@@ -787,10 +797,102 @@ export default async function LoteDetallePage({
                 </span>
               </label>
             )}
+
+            <p className="mt-2 text-sm font-medium text-gray-700">
+              Datos legales del lote (opcionales -- solo hacen falta para generar el contrato)
+            </p>
+            <div className="grid grid-cols-2 gap-3">
+              <label className="text-sm">
+                Número de lote
+                <input
+                  name="numeroLote"
+                  defaultValue={lote!.numero_lote ?? ''}
+                  className="mt-1 block w-full rounded border px-3 py-2"
+                />
+              </label>
+              <label className="text-sm">
+                Manzana
+                <input
+                  name="manzana"
+                  defaultValue={lote!.manzana ?? ''}
+                  className="mt-1 block w-full rounded border px-3 py-2"
+                />
+              </label>
+              <label className="text-sm">
+                Superficie (m2)
+                <input
+                  name="superficieM2"
+                  type="number"
+                  step="0.01"
+                  min="0"
+                  defaultValue={lote!.superficie_m2 ?? ''}
+                  className="mt-1 block w-full rounded border px-3 py-2"
+                />
+              </label>
+              <label className="text-sm">
+                Cuenta en rentas
+                <input
+                  name="cuentaRentas"
+                  defaultValue={lote!.cuenta_rentas ?? ''}
+                  className="mt-1 block w-full rounded border px-3 py-2"
+                />
+              </label>
+              <label className="text-sm">
+                Nomenclatura catastral
+                <input
+                  name="nomenclaturaCatastral"
+                  defaultValue={lote!.nomenclatura_catastral ?? ''}
+                  className="mt-1 block w-full rounded border px-3 py-2"
+                />
+              </label>
+              <label className="text-sm">
+                Matrícula
+                <input
+                  name="matricula"
+                  defaultValue={lote!.matricula ?? ''}
+                  className="mt-1 block w-full rounded border px-3 py-2"
+                />
+              </label>
+            </div>
+
             <button type="submit" className="self-start rounded bg-black px-3 py-2 text-sm text-white">
               Guardar
             </button>
           </form>
+        </>
+      )}
+
+      {perfilPropio!.role !== 'cobrador' && lote!.estado === 'vendido' && (
+        <>
+          <h2 className="mb-2 mt-8 text-lg font-semibold">Contrato</h2>
+          {loteoDelLote?.plantilla_contrato_path ? (
+            <form action={generarContratoConId} className="mb-8 flex flex-wrap items-end gap-3">
+              <label className="text-sm">
+                Fecha del contrato
+                <input
+                  name="fechaContrato"
+                  type="date"
+                  required
+                  defaultValue={new Date().toISOString().slice(0, 10)}
+                  className="mt-1 block rounded border px-3 py-2"
+                />
+              </label>
+              <button type="submit" className="rounded bg-black px-3 py-2 text-sm text-white">
+                Generar contrato
+              </button>
+              <span className="text-xs text-gray-500">
+                Se guarda como un documento más de este lote, con los datos cargados hasta ahora.
+              </span>
+            </form>
+          ) : (
+            <p className="mb-8 text-sm text-amber-700">
+              El loteo de este lote todavía no tiene una plantilla de contrato cargada --{' '}
+              <a href="/admin/loteos" className="underline">
+                subí una acá
+              </a>{' '}
+              para poder generarlo.
+            </p>
+          )}
         </>
       )}
 
