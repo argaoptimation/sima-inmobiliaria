@@ -1,5 +1,5 @@
 import { createClient } from '@/lib/supabase/server'
-import { requireAdministrador } from '@/lib/auth/require-admin'
+import { requireAdminOCobrador } from '@/lib/auth/require-admin'
 
 export default async function HistorialLotesPage({
   searchParams,
@@ -8,7 +8,7 @@ export default async function HistorialLotesPage({
 }) {
   const { estado: filtroEstado, desde: filtroDesde, hasta: filtroHasta } = await searchParams
 
-  await requireAdministrador()
+  await requireAdminOCobrador()
 
   const supabase = await createClient()
 

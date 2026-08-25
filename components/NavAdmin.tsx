@@ -23,7 +23,7 @@ export function NavAdmin({ role, pagosPendientes }: { role: string; pagosPendien
         {esAdministrador && <a href="/admin/clientes">Clientes</a>}
         {esAdministrador && <a href="/admin/cuentas-externas">Cuentas externas</a>}
         {esAdministrador && <a href="/admin/cuentas-corrientes">Cuentas corrientes</a>}
-        {esAdministrador && <a href="/admin/historial-lotes">Historial</a>}
+        {puedeVerIndices && <a href="/admin/historial-lotes">Historial</a>}
         {puedeVerIndices && <a href="/admin/indices">Índices</a>}
         {puedeVerEfectivoYCaja && <a href="/admin/efectivo">Efectivo</a>}
         {puedeVerEfectivoYCaja && <a href="/admin/cierre-caja">Cierre de caja</a>}

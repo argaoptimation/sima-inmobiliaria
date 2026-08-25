@@ -152,47 +152,47 @@ test.describe('Reserva de lote (fase 1: texto + comprobante de seña)', () => {
     await expect(page.locator('main form')).toHaveCount(0)
   })
 
-  test('vendedor y cobrador no pueden abrir el detalle del lote ni ven Pagos/Usuarios', async ({
+  test('vendedor no puede abrir el detalle del lote ni ve Pagos/Usuarios', async ({ page }) => {
+    const loteId = await crearLoteDisponible(`E2E Lote Detalle Bloqueado Vendedor ${Date.now()}`)
+
+    await login(page, fixtures.vendedorSinLotes.email, fixtures.password)
+
+    await test.step('no puede abrir el detalle', async () => {
+      await page.goto(`/admin/lotes/${loteId}`)
+      await page.waitForURL('**/admin/lotes')
+      await expect(page).toHaveURL(/\/admin\/lotes$/)
+    })
+
+    await test.step('no ve Pagos ni Usuarios en la nav', async () => {
+      await page.goto('/admin/lotes')
+      await expect(page.getByRole('link', { name: 'Pagos' })).toHaveCount(0)
+      await expect(page.getByRole('link', { name: 'Usuarios' })).toHaveCount(0)
+      await expect(page.getByRole('link', { name: 'Mi perfil' })).toBeVisible()
+    })
+  })
+
+  // 25/08: Nicolás confirmó que el cobrador SÍ puede ver el detalle
+  // completo del lote (si pagó, historial, etc.) -- lo único que no tiene
+  // que ver es el reparto entre acreedores (Destinos/Cobro/Participantes,
+  // ya gateados aparte) ni editar datos generales/documentos.
+  test('cobrador puede abrir el detalle del lote pero no ve Datos generales ni Cobro', async ({
     page,
   }) => {
-    await test.step('vendedor', async () => {
-      const loteId = await crearLoteDisponible(`E2E Lote Detalle Bloqueado Vendedor ${Date.now()}`)
+    const loteId = await crearLoteDisponible(`E2E Lote Detalle Cobrador ${Date.now()}`)
 
-      await login(page, fixtures.vendedorSinLotes.email, fixtures.password)
+    await login(page, fixtures.cobrador.email, fixtures.password)
 
-      await test.step('no puede abrir el detalle', async () => {
-        await page.goto(`/admin/lotes/${loteId}`)
-        await page.waitForURL('**/admin/lotes')
-        await expect(page).toHaveURL(/\/admin\/lotes$/)
-      })
+    await page.goto(`/admin/lotes/${loteId}`)
+    await expect(page).toHaveURL(new RegExp(`/admin/lotes/${loteId}$`))
+    await expect(page.getByText('Estado: disponible')).toBeVisible()
+    await expect(page.getByRole('heading', { name: 'Datos generales' })).toHaveCount(0)
+    await expect(page.getByRole('heading', { name: 'Cobro' })).toHaveCount(0)
+    await expect(page.getByRole('heading', { name: 'Participantes adicionales' })).toHaveCount(0)
 
-      await test.step('no ve Pagos ni Usuarios en la nav', async () => {
-        await page.goto('/admin/lotes')
-        await expect(page.getByRole('link', { name: 'Pagos' })).toHaveCount(0)
-        await expect(page.getByRole('link', { name: 'Usuarios' })).toHaveCount(0)
-        await expect(page.getByRole('link', { name: 'Mi perfil' })).toBeVisible()
-      })
-    })
-
-    await test.step('cobrador', async () => {
-      const loteId = await crearLoteDisponible(`E2E Lote Detalle Bloqueado Cobrador ${Date.now()}`)
-
-      await logout(page)
-      await login(page, fixtures.cobrador.email, fixtures.password)
-
-      await test.step('no puede abrir el detalle', async () => {
-        await page.goto(`/admin/lotes/${loteId}`)
-        await page.waitForURL('**/admin/lotes')
-        await expect(page).toHaveURL(/\/admin\/lotes$/)
-      })
-
-      await test.step('no ve Pagos ni Usuarios en la nav', async () => {
-        await page.goto('/admin/lotes')
-        await expect(page.getByRole('link', { name: 'Pagos' })).toHaveCount(0)
-        await expect(page.getByRole('link', { name: 'Usuarios' })).toHaveCount(0)
-        await expect(page.getByRole('link', { name: 'Mi perfil' })).toBeVisible()
-      })
-    })
+    await page.goto('/admin/lotes')
+    await expect(page.getByRole('link', { name: 'Pagos' })).toHaveCount(0)
+    await expect(page.getByRole('link', { name: 'Usuarios' })).toHaveCount(0)
+    await expect(page.getByRole('link', { name: 'Mi perfil' })).toBeVisible()
   })
 
   test('el listado de lotes de un vendedor muestra disponibles y reservados (por cualquiera), pero "Reservar" solo aparece en los disponibles', async ({

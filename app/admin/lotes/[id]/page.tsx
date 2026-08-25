@@ -3,7 +3,7 @@ import { createAdminClient } from '@/lib/supabase/admin'
 import { calcularEstadoCobranza } from '@/lib/cobranza/estado-cliente'
 import { calcularInteresMoratorio } from '@/lib/cobranza/interes-moratorio'
 import { notFound, redirect } from 'next/navigation'
-import { requireAdminOAcreedor } from '@/lib/auth/require-admin'
+import { requireAdminAcreedorOCobrador } from '@/lib/auth/require-admin'
 import {
   actualizarDatosGenerales,
   actualizarCobro,
@@ -53,7 +53,7 @@ export default async function LoteDetallePage({
   const { id } = await params
   const { error, editarUsuario } = await searchParams
 
-  await requireAdminOAcreedor()
+  await requireAdminAcreedorOCobrador()
 
   const supabase = await createClient()
 
@@ -450,7 +450,10 @@ export default async function LoteDetallePage({
         </p>
       )}
 
-      {destinosOrdenados.length > 0 && (
+      {/* Destinos = reparto entre acreedor/vendedor/participantes -- Nicolás
+          confirmó 25/08 que el cobrador puede ver todo lo de si el cliente
+          pagó o no, pero NO el reparto entre acreedores. */}
+      {destinosOrdenados.length > 0 && perfilPropio!.role !== 'cobrador' && (
         <div className="mb-6 rounded border border-gray-200 bg-gray-50 p-3 text-sm">
           <h2 className="mb-2 text-base font-semibold">Destinos (a quién se distribuyó)</h2>
           <p className="mb-2 text-gray-600">
@@ -670,66 +673,76 @@ export default async function LoteDetallePage({
         </>
       )}
 
-      <h2 className="mb-2 mt-8 text-lg font-semibold">Datos generales</h2>
-      <form action={actualizarDatosGeneralesConId} className="mb-8 flex flex-col gap-3">
-        <label className="text-sm">
-          Identificador
-          <input
-            name="identificador"
-            defaultValue={lote!.identificador}
-            required
-            className="mt-1 block w-full rounded border px-3 py-2"
-          />
-        </label>
-        <label className="text-sm">
-          Ubicación
-          <input
-            name="ubicacion"
-            defaultValue={lote!.ubicacion ?? ''}
-            placeholder="Ej: Loteo San Martín, Manzana 3"
-            className="mt-1 block w-full rounded border px-3 py-2"
-          />
-        </label>
-        <label className="text-sm">
-          Precio total del lote
-          <input
-            name="precioTotal"
-            type="number"
-            step="0.01"
-            min="0"
-            defaultValue={lote!.precio_total ?? ''}
-            className="mt-1 block w-full rounded border px-3 py-2"
-          />
-        </label>
-        {lote!.moneda === 'ARS' && (
-          <label className="text-sm">
-            Índice de ajuste (opcional — solo para lotes en pesos)
-            <select
-              name="indiceTipo"
-              defaultValue={lote!.indice_tipo ?? ''}
-              className="mt-1 block w-full rounded border px-3 py-2"
-            >
-              <option value="">— sin índice —</option>
-              {nombresIndicesDisponibles.map((nombre) => (
-                <option key={nombre} value={nombre}>
-                  {nombre}
-                </option>
-              ))}
-            </select>
-            <span className="mt-1 block text-xs text-gray-500">
-              Si elegís un índice, las cuotas de este lote se ajustan solas cada mes con el valor
-              que se cargue en{' '}
-              <a href="/admin/indices" className="underline">
-                Índices
-              </a>
-              . Los índices disponibles acá son los que ya se cargaron al menos una vez ahí.
-            </span>
-          </label>
-        )}
-        <button type="submit" className="self-start rounded bg-black px-3 py-2 text-sm text-white">
-          Guardar
-        </button>
-      </form>
+      {/* Editar datos generales / gestionar documentos: son operaciones,
+          no solo "ver si el cliente pagó" -- Nicolás (25/08) solo confirmó
+          que el cobrador puede VER, así que estos quedan afuera hasta que
+          se confirme explícitamente que también puede editarlos. La lista
+          de documentos (debajo) sigue visible para todos -- ver sí es
+          parte de lo que Nicolás confirmó. */}
+      {perfilPropio!.role !== 'cobrador' && (
+        <>
+          <h2 className="mb-2 mt-8 text-lg font-semibold">Datos generales</h2>
+          <form action={actualizarDatosGeneralesConId} className="mb-8 flex flex-col gap-3">
+            <label className="text-sm">
+              Identificador
+              <input
+                name="identificador"
+                defaultValue={lote!.identificador}
+                required
+                className="mt-1 block w-full rounded border px-3 py-2"
+              />
+            </label>
+            <label className="text-sm">
+              Ubicación
+              <input
+                name="ubicacion"
+                defaultValue={lote!.ubicacion ?? ''}
+                placeholder="Ej: Loteo San Martín, Manzana 3"
+                className="mt-1 block w-full rounded border px-3 py-2"
+              />
+            </label>
+            <label className="text-sm">
+              Precio total del lote
+              <input
+                name="precioTotal"
+                type="number"
+                step="0.01"
+                min="0"
+                defaultValue={lote!.precio_total ?? ''}
+                className="mt-1 block w-full rounded border px-3 py-2"
+              />
+            </label>
+            {lote!.moneda === 'ARS' && (
+              <label className="text-sm">
+                Índice de ajuste (opcional — solo para lotes en pesos)
+                <select
+                  name="indiceTipo"
+                  defaultValue={lote!.indice_tipo ?? ''}
+                  className="mt-1 block w-full rounded border px-3 py-2"
+                >
+                  <option value="">— sin índice —</option>
+                  {nombresIndicesDisponibles.map((nombre) => (
+                    <option key={nombre} value={nombre}>
+                      {nombre}
+                    </option>
+                  ))}
+                </select>
+                <span className="mt-1 block text-xs text-gray-500">
+                  Si elegís un índice, las cuotas de este lote se ajustan solas cada mes con el
+                  valor que se cargue en{' '}
+                  <a href="/admin/indices" className="underline">
+                    Índices
+                  </a>
+                  . Los índices disponibles acá son los que ya se cargaron al menos una vez ahí.
+                </span>
+              </label>
+            )}
+            <button type="submit" className="self-start rounded bg-black px-3 py-2 text-sm text-white">
+              Guardar
+            </button>
+          </form>
+        </>
+      )}
 
       <h2 className="mb-2 mt-8 text-lg font-semibold">Documentos</h2>
       {documentosConUrl.length === 0 ? (
@@ -748,16 +761,19 @@ export default async function LoteDetallePage({
                   <span>{documento.descripcion} (link no disponible)</span>
                 )}
                 <span className="text-gray-500">— subido por {documento.nombreSubidoPor}</span>
-                <form action={eliminarDocumentoConId}>
-                  <button type="submit" className="text-sm text-red-700 underline">
-                    Eliminar
-                  </button>
-                </form>
+                {perfilPropio!.role !== 'cobrador' && (
+                  <form action={eliminarDocumentoConId}>
+                    <button type="submit" className="text-sm text-red-700 underline">
+                      Eliminar
+                    </button>
+                  </form>
+                )}
               </li>
             )
           })}
         </ul>
       )}
+      {perfilPropio!.role !== 'cobrador' && (
       <form action={subirDocumentoConId} className="mb-8 flex flex-col gap-3">
         <label className="text-sm">
           Descripción
@@ -776,6 +792,7 @@ export default async function LoteDetallePage({
           Subir documento
         </button>
       </form>
+      )}
 
       {perfilPropio!.role === 'administrador' && (
         <>
@@ -966,7 +983,7 @@ export default async function LoteDetallePage({
                 </li>
               ))}
             </ul>
-            {perfilPropio!.role === 'administrador' && (
+            {(perfilPropio!.role === 'administrador' || perfilPropio!.role === 'cobrador') && (
               <a href="/admin/historial-lotes" className="underline">
                 Ver historial de todos los lotes →
               </a>

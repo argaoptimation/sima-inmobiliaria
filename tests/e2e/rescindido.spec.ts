@@ -2,7 +2,7 @@ import { test, expect } from '@playwright/test'
 import { readFileSync } from 'node:fs'
 import path from 'node:path'
 import { ensureTestFixtures, createAdminClient, TestFixtures } from './fixtures/test-data'
-import { login } from './utils/login'
+import { login, logout } from './utils/login'
 
 const COMPROBANTE_PATH = path.join(__dirname, 'fixtures', 'comprobante-test.pdf')
 const COMPROBANTE_BYTES = readFileSync(COMPROBANTE_PATH)
@@ -336,8 +336,15 @@ test.describe('Rescindido de lote (24/08)', () => {
     await expect(page.getByRole('link', { name: identificador })).toHaveCount(0)
   })
 
-  test('un cobrador no puede acceder a /admin/historial-lotes (solo admin)', async ({ page }) => {
+  // 25/08: Nicolás confirmó que el cobrador también puede ver el historial
+  // global de lotes -- solo acreedor/vendedor quedan afuera.
+  test('un cobrador SÍ puede acceder a /admin/historial-lotes, un acreedor no', async ({ page }) => {
     await login(page, fixtures.cobrador.email, fixtures.password)
+    await page.goto('/admin/historial-lotes')
+    await expect(page).toHaveURL(/\/admin\/historial-lotes/)
+
+    await logout(page)
+    await login(page, fixtures.acreedorConDatos.email, fixtures.password)
     await page.goto('/admin/historial-lotes')
     await expect(page).toHaveURL(/\/admin\/lotes/)
   })
