@@ -96,6 +96,80 @@ export async function eliminarLote(loteId: string) {
   redirect('/admin/lotes')
 }
 
+// vendido -> rescindido: el lote deja de estar en cobranza activa, pero
+// conserva cliente_id y las cuotas/pagos tal cual quedaron (es el registro
+// histórico de ese ciclo -- ver historialDelLote / totalCobradoDelLote).
+export async function rescindirLote(loteId: string) {
+  await requireAdministrador()
+
+  const supabase = await createClient()
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
+
+  const { data: lote } = await supabase.from('lotes').select('estado').eq('id', loteId).single()
+
+  if (!lote || lote.estado !== 'vendido') {
+    redirect(
+      `/admin/lotes/${loteId}?error=${encodeURIComponent('Solo se puede rescindir un lote que está vendido')}`
+    )
+  }
+
+  const { error } = await supabase.from('lotes').update({ estado: 'rescindido' }).eq('id', loteId)
+
+  if (error) {
+    redirect(`/admin/lotes/${loteId}?error=${encodeURIComponent(mensajeDeError(error))}`)
+  }
+
+  await supabase.from('lote_historial_estados').insert({
+    lote_id: loteId,
+    estado_anterior: 'vendido',
+    estado_nuevo: 'rescindido',
+    cambiado_por: user!.id,
+  })
+
+  redirect(`/admin/lotes/${loteId}`)
+}
+
+// rescindido -> disponible: deja el lote listo para venderse de nuevo.
+// Saca el cliente asignado (un lote "disponible" en el resto de la app
+// siempre asume que no tiene cliente) -- pero NO toca las cuotas/pagos
+// viejos, que quedan como historial de ese ciclo anterior.
+export async function volverADisponible(loteId: string) {
+  await requireAdministrador()
+
+  const supabase = await createClient()
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
+
+  const { data: lote } = await supabase.from('lotes').select('estado').eq('id', loteId).single()
+
+  if (!lote || lote.estado !== 'rescindido') {
+    redirect(
+      `/admin/lotes/${loteId}?error=${encodeURIComponent('Solo se puede volver a disponible un lote rescindido')}`
+    )
+  }
+
+  const { error } = await supabase
+    .from('lotes')
+    .update({ estado: 'disponible', cliente_id: null })
+    .eq('id', loteId)
+
+  if (error) {
+    redirect(`/admin/lotes/${loteId}?error=${encodeURIComponent(mensajeDeError(error))}`)
+  }
+
+  await supabase.from('lote_historial_estados').insert({
+    lote_id: loteId,
+    estado_anterior: 'rescindido',
+    estado_nuevo: 'disponible',
+    cambiado_por: user!.id,
+  })
+
+  redirect(`/admin/lotes/${loteId}`)
+}
+
 export async function actualizarCobro(loteId: string, formData: FormData) {
   await requireAdministrador()
 

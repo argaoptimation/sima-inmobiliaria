@@ -10,11 +10,15 @@ import {
   eliminarLote,
   subirDocumentoLote,
   eliminarDocumentoLote,
+  rescindirLote,
+  volverADisponible,
 } from './actions'
 import { agregarParticipante, quitarParticipante } from './participantes-actions'
 import { cancelarReserva } from '../actions'
 import { BotonEliminarLote } from './BotonEliminarLote'
 import { BotonCancelarReserva } from '../BotonCancelarReserva'
+import { BotonRescindir } from './BotonRescindir'
+import { BotonVolverADisponible } from './BotonVolverADisponible'
 import { tieneDatosTransferencia } from '@/lib/lotes/validar-cuenta-cobro'
 import { telefonoParaWhatsApp } from '@/lib/telefono/prefijos'
 import { mesDeFecha } from '@/lib/lotes/aplicar-indexacion'
@@ -281,6 +285,47 @@ export default async function LoteDetallePage({
     })
   )
 
+  // Historial de rescindido/vuelta a disponible + cuánto se cobró mientras
+  // estuvo vendido -- solo tiene sentido pedirlo si el lote ya pasó por
+  // ese ciclo (rescindido ahora, o tuvo historial en algún momento).
+  const { data: historialEstados } = await supabase
+    .from('lote_historial_estados')
+    .select('estado_anterior, estado_nuevo, cambiado_por, created_at')
+    .eq('lote_id', id)
+    .order('created_at', { ascending: true })
+
+  const cambiadorIds = [...new Set((historialEstados ?? []).map((h) => h.cambiado_por))]
+  const { data: cambiadores } =
+    cambiadorIds.length > 0
+      ? await supabase.from('profiles').select('id, full_name').in('id', cambiadorIds)
+      : { data: [] }
+  const nombreCambiadorPorId = new Map((cambiadores ?? []).map((persona) => [persona.id, persona.full_name]))
+
+  let totalCobradoHistorico: number | null = null
+  if ((historialEstados ?? []).length > 0) {
+    // pagos.lote_id ya identifica directo a qué lote pertenece cada pago
+    // (desde que un cliente puede tener varios lotes) -- sumamos lo
+    // REALMENTE imputado (no pagos.monto) para que una corrección de monto
+    // ya aplicada quede reflejada bien.
+    const { data: pagosConfirmados } = await supabase
+      .from('pagos')
+      .select('id')
+      .eq('lote_id', id)
+      .eq('estado', 'confirmado')
+
+    const pagoIdsConfirmados = (pagosConfirmados ?? []).map((p) => p.id)
+
+    const { data: imputaciones } =
+      pagoIdsConfirmados.length > 0
+        ? await supabase.from('pago_imputaciones').select('monto_imputado').in('pago_id', pagoIdsConfirmados)
+        : { data: [] }
+
+    totalCobradoHistorico = (imputaciones ?? []).reduce(
+      (acumulado, i) => acumulado + i.monto_imputado,
+      0
+    )
+  }
+
   const actualizarDatosGeneralesConId = actualizarDatosGenerales.bind(null, id)
 
   const { data: indicesDisponibles } =
@@ -293,6 +338,8 @@ export default async function LoteDetallePage({
   const eliminarLoteConId = eliminarLote.bind(null, id)
   const cancelarReservaConId = cancelarReserva.bind(null, id)
   const subirDocumentoConId = subirDocumentoLote.bind(null, id)
+  const rescindirConId = rescindirLote.bind(null, id)
+  const volverADisponibleConId = volverADisponible.bind(null, id)
 
   return (
     <main className="max-w-2xl">
@@ -312,6 +359,12 @@ export default async function LoteDetallePage({
               </a>
               <BotonCancelarReserva cancelarReservaAction={cancelarReservaConId} />
             </>
+          )}
+          {perfilPropio!.role === 'administrador' && lote!.estado === 'vendido' && (
+            <BotonRescindir rescindirAction={rescindirConId} />
+          )}
+          {perfilPropio!.role === 'administrador' && lote!.estado === 'rescindido' && (
+            <BotonVolverADisponible volverADisponibleAction={volverADisponibleConId} />
           )}
           {perfilPropio!.role === 'administrador' && (
             <BotonEliminarLote eliminarLoteAction={eliminarLoteConId} />
@@ -345,6 +398,28 @@ export default async function LoteDetallePage({
             {estado === 'normal' ? 'Normal' : estado === 'moroso' ? 'Moroso' : 'Candidato a prejudicial'}
           </span>
         </p>
+      )}
+
+      {(historialEstados ?? []).length > 0 && (
+        <div className="mb-6 rounded border border-gray-200 bg-gray-50 p-3 text-sm">
+          <h2 className="mb-2 text-base font-semibold">Historial del lote</h2>
+          {totalCobradoHistorico !== null && (
+            <p className="mb-2">
+              Total cobrado mientras estuvo vendido:{' '}
+              <span className="font-semibold">
+                {totalCobradoHistorico} {lote!.moneda}
+              </span>
+            </p>
+          )}
+          <ul className="list-inside list-disc">
+            {(historialEstados ?? []).map((cambio, i) => (
+              <li key={i}>
+                {cambio.estado_anterior} → {cambio.estado_nuevo} — {nombreCambiadorPorId.get(cambio.cambiado_por) ?? '—'} —{' '}
+                {new Date(cambio.created_at).toLocaleDateString('es-AR')}
+              </li>
+            ))}
+          </ul>
+        </div>
       )}
 
       {reserva && (
