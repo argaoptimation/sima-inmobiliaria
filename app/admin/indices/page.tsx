@@ -3,6 +3,8 @@ import { requireAdministrador } from '@/lib/auth/require-admin'
 import { obtenerMesesIndiceFaltantes } from '@/lib/lotes/meses-indice-faltantes'
 import { cargarValorIndice, corregirValorIndice, eliminarValorIndice } from './actions'
 import { BotonEliminarIndice } from './BotonEliminarIndice'
+import { FormularioCargarIndice } from './FormularioCargarIndice'
+import { FormularioCorregirIndice } from './FormularioCorregirIndice'
 
 const NOMBRES_MES = [
   'Enero',
@@ -70,6 +72,29 @@ export default async function IndicesPage({
 
   const mesesFaltantes = await obtenerMesesIndiceFaltantes(supabase)
 
+  // Blast radius de "corregir"/"eliminar" el valor más reciente de cada
+  // índice: a cuántos lotes distintos ya les tocó ese período (exacto o
+  // como fallback) -- pedido de Gabriel 24/08 para que el riesgo de una
+  // corrección no quede invisible hasta después de aplicarla.
+  const nombresConValorReciente = [...masRecientePorNombre.keys()]
+  const { data: ajustesParaBlastRadius } =
+    nombresConValorReciente.length > 0
+      ? await supabase
+          .from('ajustes_indexacion')
+          .select('lote_id, indice_nombre, indice_periodo')
+          .in('indice_nombre', nombresConValorReciente)
+      : { data: [] }
+
+  const cantidadLotesAfectadosPorNombre = new Map<string, number>()
+  for (const [nombre, info] of masRecientePorNombre) {
+    const loteIdsAfectados = new Set(
+      (ajustesParaBlastRadius ?? [])
+        .filter((a) => a.indice_nombre === nombre && a.indice_periodo === info.periodo)
+        .map((a) => a.lote_id)
+    )
+    cantidadLotesAfectadosPorNombre.set(nombre, loteIdsAfectados.size)
+  }
+
   return (
     <main>
       <h1 className="mb-2 text-xl font-semibold">Índices</h1>
@@ -128,61 +153,12 @@ export default async function IndicesPage({
         </div>
       )}
 
-      <form
-        id="form-cargar"
-        action={cargarValorIndice}
-        className="mb-8 flex flex-wrap items-end gap-3 rounded border p-3"
-      >
-        <label className="text-sm">
-          Índice existente
-          <select
-            name="nombreExistente"
-            defaultValue={prellenarNombre && nombresExistentes.includes(prellenarNombre) ? prellenarNombre : ''}
-            className="mt-1 block rounded border px-3 py-2"
-          >
-            <option value="">— elegir —</option>
-            {nombresExistentes.map((nombre) => (
-              <option key={nombre} value={nombre}>
-                {nombre}
-              </option>
-            ))}
-          </select>
-        </label>
-        <label className="text-sm">
-          O un índice nuevo
-          <input
-            name="nombreNuevo"
-            type="text"
-            placeholder="Ej: IPC"
-            defaultValue={prellenarNombre && !nombresExistentes.includes(prellenarNombre) ? prellenarNombre : ''}
-            className="mt-1 block rounded border px-3 py-2"
-          />
-        </label>
-        <label className="text-sm">
-          Mes
-          <input
-            name="periodo"
-            type="month"
-            required
-            defaultValue={prellenarMes ?? ''}
-            className="mt-1 block rounded border px-3 py-2"
-          />
-        </label>
-        <label className="text-sm">
-          Valor (%)
-          <input
-            name="valor"
-            type="number"
-            step="0.01"
-            placeholder="Ej: 3"
-            required
-            className="mt-1 block rounded border px-3 py-2"
-          />
-        </label>
-        <button type="submit" className="rounded bg-black px-3 py-2 text-sm text-white">
-          Cargar
-        </button>
-      </form>
+      <FormularioCargarIndice
+        cargarValorIndiceAction={cargarValorIndice}
+        nombresExistentes={nombresExistentes}
+        prellenarNombre={prellenarNombre}
+        prellenarMes={prellenarMes}
+      />
 
       <p className="mb-2 text-sm text-gray-600">
         Solo se puede corregir el valor MÁS RECIENTE cargado de cada índice (abajo). Un mes viejo
@@ -212,27 +188,20 @@ export default async function IndicesPage({
                   <td>{formatearPeriodo(info.periodo)}</td>
                   <td>{info.valor}%</td>
                   <td>
-                    <form action={corregirValorIndice} className="flex items-center gap-2">
-                      <input type="hidden" name="nombre" value={nombre} />
-                      <input type="hidden" name="periodo" value={info.periodo} />
-                      <input
-                        name="valorNuevo"
-                        type="number"
-                        step="0.01"
-                        defaultValue={info.valor}
-                        required
-                        className="w-24 rounded border px-2 py-1"
-                      />
-                      <button type="submit" className="rounded border px-2 py-1">
-                        Corregir
-                      </button>
-                    </form>
+                    <FormularioCorregirIndice
+                      corregirValorIndiceAction={corregirValorIndice}
+                      nombre={nombre}
+                      periodo={info.periodo}
+                      valorActual={info.valor}
+                      cantidadLotesAfectados={cantidadLotesAfectadosPorNombre.get(nombre) ?? 0}
+                    />
                   </td>
                   <td>
                     <BotonEliminarIndice
                       eliminarValorIndiceAction={eliminarValorIndice}
                       nombre={nombre}
                       periodo={info.periodo}
+                      cantidadLotesAfectados={cantidadLotesAfectadosPorNombre.get(nombre) ?? 0}
                     />
                   </td>
                 </tr>

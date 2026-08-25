@@ -18,12 +18,13 @@ export default async function CuentaCorrienteDetallePage({
   searchParams,
 }: {
   params: Promise<{ id: string }>
-  searchParams: Promise<{ error?: string; ok?: string }>
+  searchParams: Promise<{ error?: string; ok?: string; lote?: string; origen?: string; desde?: string; hasta?: string }>
 }) {
   await requireAdministrador()
 
   const { id } = await params
-  const { error, ok } = await searchParams
+  const { error, ok, lote: filtroLoteId, origen: filtroOrigen, desde: filtroDesde, hasta: filtroHasta } =
+    await searchParams
 
   const supabase = await createClient()
 
@@ -39,6 +40,9 @@ export default async function CuentaCorrienteDetallePage({
     notFound()
   }
 
+  // Se trae TODO sin filtrar -- el saldo mostrado arriba siempre tiene que
+  // ser el real (todos los movimientos), los filtros de abajo son solo
+  // para acotar qué se lista en la tabla, no para qué se suma.
   const { data: movimientosData } = await supabase
     .from('movimientos_cuenta_corriente')
     .select(
@@ -82,6 +86,25 @@ export default async function CuentaCorrienteDetallePage({
     movimientos.map((m) => ({ tipo: m.tipo, monto: m.monto, moneda: m.moneda }))
   )
   const entradasSaldo = Object.entries(saldos).filter(([, monto]) => monto !== 0)
+
+  // Filtros solo sobre qué se LISTA (el saldo de arriba ya se calculó con
+  // todo) -- pedido de Gabriel 24/08 para no tener que scrollear un
+  // historial larguísimo para encontrar un movimiento puntual.
+  const movimientosFiltrados = movimientos.filter((movimiento) => {
+    if (filtroLoteId && movimiento.lote_id !== filtroLoteId) return false
+    if (filtroOrigen && movimiento.origen !== filtroOrigen) return false
+    if (filtroDesde && movimiento.fecha_evento < filtroDesde) return false
+    if (filtroHasta && movimiento.fecha_evento > filtroHasta) return false
+    return true
+  })
+
+  const loteIdsConMovimientos = new Set(
+    movimientos.map((m) => m.lote_id).filter((loteId): loteId is string => loteId !== null)
+  )
+  const lotesConMovimientos = (lotes ?? []).filter((lote) => loteIdsConMovimientos.has(lote.id))
+  const origenesConMovimientos = [...new Set(movimientos.map((m) => m.origen))]
+
+  const hayFiltrosActivos = Boolean(filtroLoteId || filtroOrigen || filtroDesde || filtroHasta)
 
   return (
     <main className="max-w-3xl">
@@ -172,6 +195,70 @@ export default async function CuentaCorrienteDetallePage({
       {movimientos.length === 0 ? (
         <p className="text-sm text-gray-600">Sin movimientos todavía.</p>
       ) : (
+        <>
+          <form method="get" className="mb-4 flex flex-wrap items-end gap-3">
+            {lotesConMovimientos.length > 0 && (
+              <label className="text-sm">
+                Lote
+                <select
+                  name="lote"
+                  defaultValue={filtroLoteId ?? ''}
+                  className="mt-1 block rounded border px-3 py-2"
+                >
+                  <option value="">Todos</option>
+                  {lotesConMovimientos.map((lote) => (
+                    <option key={lote.id} value={lote.id}>
+                      {lote.identificador}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            )}
+            <label className="text-sm">
+              Origen
+              <select
+                name="origen"
+                defaultValue={filtroOrigen ?? ''}
+                className="mt-1 block rounded border px-3 py-2"
+              >
+                <option value="">Todos</option>
+                {origenesConMovimientos.map((origen) => (
+                  <option key={origen} value={origen}>
+                    {ETIQUETA_ORIGEN[origen] ?? origen}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label className="text-sm">
+              Desde
+              <input
+                type="date"
+                name="desde"
+                defaultValue={filtroDesde ?? ''}
+                className="mt-1 block rounded border px-3 py-2"
+              />
+            </label>
+            <label className="text-sm">
+              Hasta
+              <input
+                type="date"
+                name="hasta"
+                defaultValue={filtroHasta ?? ''}
+                className="mt-1 block rounded border px-3 py-2"
+              />
+            </label>
+            <button type="submit" className="rounded border px-3 py-2 text-sm">
+              Filtrar
+            </button>
+            {hayFiltrosActivos && (
+              <a href={`/admin/cuentas-corrientes/${id}`} className="text-sm underline">
+                Limpiar filtros
+              </a>
+            )}
+          </form>
+          {movimientosFiltrados.length === 0 ? (
+            <p className="text-sm text-gray-600">Ningún movimiento coincide con los filtros.</p>
+          ) : (
         <table className="w-full text-sm">
           <thead>
             <tr className="border-b text-left">
@@ -184,7 +271,7 @@ export default async function CuentaCorrienteDetallePage({
             </tr>
           </thead>
           <tbody>
-            {movimientos.map((movimiento) => (
+            {movimientosFiltrados.map((movimiento) => (
               <tr key={movimiento.id} className="border-b">
                 <td className="py-2">{new Date(movimiento.fecha_evento).toLocaleDateString('es-AR')}</td>
                 <td>{movimiento.tipo === 'debe' ? 'Debe' : 'Haber'}</td>
@@ -210,6 +297,8 @@ export default async function CuentaCorrienteDetallePage({
             ))}
           </tbody>
         </table>
+          )}
+        </>
       )}
     </main>
   )

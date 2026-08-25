@@ -34,31 +34,21 @@ interface CuotaFila {
 // `limiteHasta`: no procesa cuotas que venzan en o después de ese mes --
 // esta carga puntual de índice solo justifica ajustar hasta ahí, lo que
 // venza después espera a que se cargue el índice que le toca.
+//
+// `cicloActual`/`valoresDisponibles` vienen ya resueltos por el llamador
+// (una sola vez para todos los lotes de esta carga, ver cargarValorIndice)
+// en vez de volver a pedirlos acá -- con 250-300 lotes cargados a un mismo
+// índice, repetir estas dos consultas por lote era el cuello de botella
+// real de la carga (pedido de Gabriel 24/08).
 async function aplicarCatchUpParaLote(
   supabase: SupabaseServerClient,
   loteId: string,
+  cicloActual: number,
   indiceNombre: string,
+  valoresDisponibles: ValorIndiceDisponible[],
   limiteHasta: string,
   aplicadoPor: string
 ) {
-  // El índice solo se aplica al ciclo de venta VIGENTE de este lote. Un
-  // lote puede tener cuotas de un ciclo anterior (rescindido y vuelto a
-  // vender, ver migración 0039) que quedan como historial cerrado -- nunca
-  // se les vuelve a aplicar nada, aunque todavía tengan saldo pendiente.
-  const { data: loteInfo } = await supabase.from('lotes').select('ciclo_actual').eq('id', loteId).single()
-  if (!loteInfo) return
-  const cicloActual = loteInfo.ciclo_actual
-
-  const { data: valoresIndice } = await supabase
-    .from('indices_valores')
-    .select('periodo, valor')
-    .eq('nombre', indiceNombre)
-
-  const valoresDisponibles: ValorIndiceDisponible[] = (valoresIndice ?? []).map((v) => ({
-    periodo: v.periodo,
-    valor: v.valor,
-  }))
-
   const { data: cuotas } = await supabase
     .from('cuotas')
     .select('id, numero, monto_base, monto_ajustado, saldo_pendiente, fecha_vencimiento')
@@ -269,6 +259,32 @@ async function buscarAjustesQueUsaronPeriodo(
   return data ?? []
 }
 
+// Corre `procesar` para cada afectado, en paralelo ENTRE lotes distintos
+// pero secuencial DENTRO de un mismo lote -- dos entradas del mismo lote_id
+// (puede pasar si dos meses salteados usaron el mismo período como
+// fallback) tienen que respetar el orden original porque cada una cascadea
+// sobre el resultado de la anterior; lotes distintos son filas separadas y
+// no tienen ese problema.
+async function procesarAfectadosPorLote<T extends { lote_id: string }>(
+  afectados: T[],
+  procesar: (afectado: T) => Promise<void>
+) {
+  const porLote = new Map<string, T[]>()
+  for (const afectado of afectados) {
+    const grupo = porLote.get(afectado.lote_id) ?? []
+    grupo.push(afectado)
+    porLote.set(afectado.lote_id, grupo)
+  }
+
+  await Promise.all(
+    [...porLote.values()].map(async (grupo) => {
+      for (const afectado of grupo) {
+        await procesar(afectado)
+      }
+    })
+  )
+}
+
 export async function cargarValorIndice(formData: FormData) {
   await requireAdministrador()
 
@@ -326,14 +342,37 @@ export async function cargarValorIndice(formData: FormData) {
   // sentido seguir escalándolas por índice si nadie las está pagando.
   const { data: lotesConEsteIndice } = await supabase
     .from('lotes')
-    .select('id')
+    .select('id, ciclo_actual')
     .eq('moneda', 'ARS')
     .eq('indice_tipo', nombre)
     .eq('estado', 'vendido')
 
-  for (const lote of lotesConEsteIndice ?? []) {
-    await aplicarCatchUpParaLote(supabase, lote.id, nombre, limiteHasta, user!.id)
-  }
+  const { data: valoresIndice } = await supabase
+    .from('indices_valores')
+    .select('periodo, valor')
+    .eq('nombre', nombre)
+
+  const valoresDisponibles: ValorIndiceDisponible[] = (valoresIndice ?? []).map((v) => ({
+    periodo: v.periodo,
+    valor: v.valor,
+  }))
+
+  // Cada lote es independiente (fila propia en cuotas/ajustes_indexacion),
+  // así que corren en paralelo -- con 250-300 lotes, hacerlo secuencial
+  // multiplicaba el tiempo de carga por la cantidad de lotes.
+  await Promise.all(
+    (lotesConEsteIndice ?? []).map((lote) =>
+      aplicarCatchUpParaLote(
+        supabase,
+        lote.id,
+        lote.ciclo_actual,
+        nombre,
+        valoresDisponibles,
+        limiteHasta,
+        user!.id
+      )
+    )
+  )
 
   redirect('/admin/indices')
 }
@@ -393,8 +432,8 @@ export async function corregirValorIndice(formData: FormData) {
 
   const afectados = await buscarAjustesQueUsaronPeriodo(supabase, nombre, periodo)
 
-  for (const { lote_id, ciclo, fecha_desde } of afectados) {
-    await recalcularCuotaYPropagar(
+  await procesarAfectadosPorLote(afectados, ({ lote_id, ciclo, fecha_desde }) =>
+    recalcularCuotaYPropagar(
       supabase,
       lote_id,
       ciclo,
@@ -403,7 +442,7 @@ export async function corregirValorIndice(formData: FormData) {
       nombre,
       user!.id
     )
-  }
+  )
 
   redirect(`/admin/indices?ok=${encodeURIComponent('Índice corregido')}`)
 }
@@ -457,11 +496,11 @@ export async function eliminarValorIndice(formData: FormData) {
     valor: v.valor,
   }))
 
-  for (const { lote_id, ciclo, fecha_desde } of afectados) {
+  await procesarAfectadosPorLote(afectados, ({ lote_id, ciclo, fecha_desde }) => {
     const periodoNecesario = calcularPeriodoIndiceNecesario(fecha_desde)
     const fallback = buscarValorIndiceAplicable(periodoNecesario, valoresDisponibles)
-    await recalcularCuotaYPropagar(supabase, lote_id, ciclo, fecha_desde, fallback, nombre, user!.id)
-  }
+    return recalcularCuotaYPropagar(supabase, lote_id, ciclo, fecha_desde, fallback, nombre, user!.id)
+  })
 
   const { error: errorDelete } = await supabase
     .from('indices_valores')

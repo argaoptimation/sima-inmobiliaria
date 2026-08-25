@@ -31,6 +31,7 @@ export default async function LotesPage({
     loteo?: string
     cliente?: string
     cobranza?: string
+    estado?: string
     q?: string
     error?: string
   }>
@@ -43,6 +44,7 @@ export default async function LotesPage({
     loteo: filtroLoteoId,
     cliente: filtroCliente,
     cobranza: filtroCobranza,
+    estado: filtroEstado,
     q: filtroTexto,
     error,
   } = await searchParams
@@ -114,6 +116,10 @@ export default async function LotesPage({
 
   if (filtroLoteoId) {
     queryLotes = queryLotes.eq('loteo_id', filtroLoteoId)
+  }
+
+  if (filtroEstado && !esVendedorOCobrador) {
+    queryLotes = queryLotes.eq('estado', filtroEstado)
   }
 
   const { data: lotes } = await queryLotes
@@ -273,6 +279,7 @@ export default async function LotesPage({
     if (filtroLoteoId) params.set('loteo', filtroLoteoId)
     if (filtroCliente) params.set('cliente', filtroCliente)
     if (filtroCobranza) params.set('cobranza', filtroCobranza)
+    if (filtroEstado) params.set('estado', filtroEstado)
     if (filtroTexto) params.set('q', filtroTexto)
     params.set('sort', columna)
     params.set('dir', columnaOrden === columna && ordenAscendente ? 'desc' : 'asc')
@@ -458,6 +465,22 @@ export default async function LotesPage({
         )}
         {!esVendedorOCobrador && (
           <label className="text-sm">
+            Estado
+            <select
+              name="estado"
+              defaultValue={filtroEstado ?? ''}
+              className="mt-1 block rounded border px-3 py-2"
+            >
+              <option value="">Todos</option>
+              <option value="disponible">Disponible</option>
+              <option value="reservado">Reservado</option>
+              <option value="vendido">Vendido</option>
+              <option value="rescindido">Rescindido</option>
+            </select>
+          </label>
+        )}
+        {!esVendedorOCobrador && (
+          <label className="text-sm">
             Cobranza
             <select
               name="cobranza"
@@ -480,6 +503,7 @@ export default async function LotesPage({
           filtroLoteoId ||
           filtroCliente ||
           filtroCobranza ||
+          filtroEstado ||
           filtroTexto ||
           sort ||
           dir) && (
@@ -489,7 +513,7 @@ export default async function LotesPage({
         )}
       </form>
 
-      {lotesFiltrados.length === 0 && (filtroCliente || filtroCobranza) ? (
+      {lotesFiltrados.length === 0 && (filtroCliente || filtroCobranza || filtroEstado) ? (
         <p className="text-sm text-gray-600">Ningún lote coincide con los filtros.</p>
       ) : (
       <table className="w-full text-sm">

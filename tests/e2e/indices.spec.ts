@@ -252,6 +252,7 @@ test.describe('Índices — carga manual y aplicación automática a mes vencido
 
     const filaCorregir = page.locator('tbody tr', { hasText: nombreIndice })
     await filaCorregir.locator('input[name="valorNuevo"]').fill('3')
+    page.once('dialog', (dialog) => dialog.accept())
     await filaCorregir.getByRole('button', { name: 'Corregir' }).click()
     await page.waitForURL('**/admin/indices**')
     await expect(page.getByText('Índice corregido')).toBeVisible()
@@ -296,6 +297,7 @@ test.describe('Índices — carga manual y aplicación automática a mes vencido
       .insert({ nombre: nombreIndice, periodo: '2027-02-01', valor: 4, cargado_por: fixtures.admin.id })
 
     await filaReciente.locator('input[name="valorNuevo"]').fill('1')
+    page.once('dialog', (dialog) => dialog.accept())
     await filaReciente.getByRole('button', { name: 'Corregir' }).click()
 
     await expect(page.getByText('Solo se puede corregir el mes más reciente cargado de este índice')).toBeVisible()
@@ -659,6 +661,7 @@ test.describe('Índices — compuesto encadenado, fallback y catch-up (23/08)', 
     // 103.000 * 1.10 = 113.300.
     const filaCorregir = page.locator('tbody tr', { hasText: indiceA })
     await filaCorregir.locator('input[name="valorNuevo"]').fill('3')
+    page.once('dialog', (dialog) => dialog.accept())
     await filaCorregir.getByRole('button', { name: 'Corregir' }).click()
     await page.waitForURL('**/admin/indices**')
     await expect(page.getByText('Índice corregido')).toBeVisible()
@@ -715,6 +718,7 @@ test.describe('Índices — compuesto encadenado, fallback y catch-up (23/08)', 
     // tiene ningún ajuste propio) y actualizarla también.
     const filaIndiceA = page.locator('tbody tr', { hasText: indiceA })
     await filaIndiceA.locator('input[name="valorNuevo"]').fill('3')
+    page.once('dialog', (dialog) => dialog.accept())
     await filaIndiceA.getByRole('button', { name: 'Corregir' }).click()
     await page.waitForURL('**/admin/indices**')
     await expect(page.getByText('Índice corregido')).toBeVisible()

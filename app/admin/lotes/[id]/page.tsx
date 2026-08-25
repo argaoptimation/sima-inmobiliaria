@@ -450,28 +450,6 @@ export default async function LoteDetallePage({
         </p>
       )}
 
-      {(historialEstados ?? []).length > 0 && (
-        <div className="mb-6 rounded border border-gray-200 bg-gray-50 p-3 text-sm">
-          <h2 className="mb-2 text-base font-semibold">Historial del lote</h2>
-          {totalCobradoHistorico !== null && (
-            <p className="mb-2">
-              Total cobrado mientras estuvo vendido:{' '}
-              <span className="font-semibold">
-                {totalCobradoHistorico} {lote!.moneda}
-              </span>
-            </p>
-          )}
-          <ul className="list-inside list-disc">
-            {(historialEstados ?? []).map((cambio, i) => (
-              <li key={i}>
-                {cambio.estado_anterior} → {cambio.estado_nuevo} — {nombreCambiadorPorId.get(cambio.cambiado_por) ?? '—'} —{' '}
-                {new Date(cambio.created_at).toLocaleDateString('es-AR')}
-              </li>
-            ))}
-          </ul>
-        </div>
-      )}
-
       {destinosOrdenados.length > 0 && (
         <div className="mb-6 rounded border border-gray-200 bg-gray-50 p-3 text-sm">
           <h2 className="mb-2 text-base font-semibold">Destinos (a quién se distribuyó)</h2>
@@ -963,6 +941,33 @@ export default async function LoteDetallePage({
             </button>
           </form>
         </>
+      )}
+
+      {(historialEstados ?? []).length > 0 && (
+        <details className="mt-10 rounded border border-gray-200 text-sm text-gray-600">
+          <summary className="cursor-pointer select-none p-3 font-medium">
+            Historial de estados del lote ({(historialEstados ?? []).length})
+          </summary>
+          <div className="border-t border-gray-200 p-3">
+            {totalCobradoHistorico !== null && (
+              <p className="mb-2">
+                Total cobrado mientras estuvo vendido:{' '}
+                <span className="font-semibold">
+                  {totalCobradoHistorico} {lote!.moneda}
+                </span>
+              </p>
+            )}
+            <ul className="list-inside list-disc">
+              {(historialEstados ?? []).map((cambio, i) => (
+                <li key={i}>
+                  {cambio.estado_anterior} → {cambio.estado_nuevo} —{' '}
+                  {nombreCambiadorPorId.get(cambio.cambiado_por) ?? '—'} —{' '}
+                  {new Date(cambio.created_at).toLocaleDateString('es-AR')}
+                </li>
+              ))}
+            </ul>
+          </div>
+        </details>
       )}
     </main>
   )

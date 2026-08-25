@@ -4,20 +4,22 @@ export function BotonEliminarIndice({
   eliminarValorIndiceAction,
   nombre,
   periodo,
+  cantidadLotesAfectados,
 }: {
   eliminarValorIndiceAction: (formData: FormData) => Promise<void>
   nombre: string
   periodo: string
+  cantidadLotesAfectados: number
 }) {
   return (
     <form
       action={eliminarValorIndiceAction}
       onSubmit={(evento) => {
-        if (
-          !confirm(
-            `¿Seguro que querés eliminar "${nombre}" de ese mes? Si ya se aplicó a alguna cuota pendiente, se revierte el ajuste.`
-          )
-        ) {
+        const aviso =
+          cantidadLotesAfectados > 0
+            ? `¿Seguro que querés eliminar "${nombre}" de ese mes? Esto revierte el ajuste en ${cantidadLotesAfectados} lote${cantidadLotesAfectados === 1 ? '' : 's'} que ya lo usaron.`
+            : `¿Seguro que querés eliminar "${nombre}" de ese mes? Por ahora ningún lote lo usó todavía.`
+        if (!confirm(aviso)) {
           evento.preventDefault()
         }
       }}

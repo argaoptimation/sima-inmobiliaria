@@ -168,7 +168,10 @@ test.describe('Cuenta corriente', () => {
     await page.goto(`/admin/cuentas-corrientes/${fixtures.acreedorConDatos.id}`)
     await expect(saldo).toHaveText('80 USD')
 
-    await page.getByRole('combobox', { name: 'Origen' }).selectOption('pago_directo_cliente')
+    // .first(): el formulario "Registrar plata" tiene su propio Origen, y
+    // ahora también lo tiene el filtro de la tabla de Movimientos más abajo
+    // (pedido de Gabriel 24/08) -- el de registrar sale primero en el DOM.
+    await page.locator('select[name="origen"]').first().selectOption('pago_directo_cliente')
     await page.locator('input[name="monto"]').fill('100')
     await page.locator('select[name="moneda"]').selectOption('USD')
     await page.locator('input[name="fechaEvento"]').fill('2026-08-19')
@@ -185,7 +188,10 @@ test.describe('Cuenta corriente', () => {
     await login(page, fixtures.admin.email, fixtures.password)
     await page.goto(`/admin/cuentas-corrientes/${fixtures.acreedorConDatos.id}`)
 
-    await page.getByRole('combobox', { name: 'Origen' }).selectOption('pago_directo_cliente')
+    // .first(): el formulario "Registrar plata" tiene su propio Origen, y
+    // ahora también lo tiene el filtro de la tabla de Movimientos más abajo
+    // (pedido de Gabriel 24/08) -- el de registrar sale primero en el DOM.
+    await page.locator('select[name="origen"]').first().selectOption('pago_directo_cliente')
     await page.locator('input[name="monto"]').fill('100')
     await page.locator('input[name="fechaEvento"]').fill('2026-08-19')
     await page.getByRole('button', { name: 'Agregar movimiento' }).click()

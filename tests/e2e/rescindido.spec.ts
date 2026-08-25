@@ -102,6 +102,9 @@ test.describe('Rescindido de lote (24/08)', () => {
     await page.reload()
 
     await expect(page.getByText('Estado: rescindido')).toBeVisible()
+    // El historial de estados va colapsado dentro de un <details> (pedido
+    // de Gabriel 24/08: que no ocupe lugar visual salvo que se abra).
+    await page.getByText(/Historial de estados del lote/).click()
     await expect(page.getByText('Total cobrado mientras estuvo vendido: 1000 USD')).toBeVisible()
     await expect(page.getByText('vendido → rescindido')).toBeVisible()
     await expect(page.getByRole('button', { name: 'Rescindir' })).toHaveCount(0)
@@ -118,6 +121,7 @@ test.describe('Rescindido de lote (24/08)', () => {
     }).toPass({ timeout: 5000 })
 
     await page.reload()
+    await page.getByText(/Historial de estados del lote/).click()
     await expect(page.getByText('vendido → rescindido')).toBeVisible()
     await expect(page.getByText('rescindido → disponible')).toBeVisible()
     // El total cobrado sigue mostrándose -- es el historial de ese ciclo,
