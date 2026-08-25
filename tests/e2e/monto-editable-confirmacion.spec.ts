@@ -76,7 +76,7 @@ test.describe('Monto editable al confirmar un pago', () => {
     // el servidor ya terminó de procesar el submit -- resuelve al toque,
     // antes de que el UPDATE se haya aplicado. Esperamos, en cambio, a que la
     // columna "Confirmado acreedor" refleje el resultado real.
-    await expect(fila.locator('td').nth(6)).toHaveText('Sí')
+    await expect(fila.locator('td').nth(7)).toHaveText('Sí')
 
     const admin = createAdminClient()
     const { data: pago } = await admin.from('pagos').select('monto').eq('id', pagoId).single()
@@ -96,7 +96,7 @@ test.describe('Monto editable al confirmar un pago', () => {
     await page.goto('/admin/pagos')
     let fila = filaPorComprobante(page, nombreArchivo)
     await fila.getByRole('button', { name: 'Confirmar mi parte' }).click()
-    await expect(fila.locator('td').nth(7)).toHaveText('Sí') // Confirmado admin
+    await expect(fila.locator('td').nth(8)).toHaveText('Sí') // Confirmado admin
 
     const admin = createAdminClient()
     const { data: tras1raConfirmacion } = await admin
@@ -113,7 +113,7 @@ test.describe('Monto editable al confirmar un pago', () => {
     fila = filaPorComprobante(page, nombreArchivo)
     await fila.getByLabel('Monto a confirmar').fill('500')
     await fila.getByRole('button', { name: 'Confirmar mi parte' }).click()
-    await expect(fila.locator('td').nth(3)).toHaveText('500 USD')
+    await expect(fila.locator('td').nth(4)).toHaveText('500 USD')
 
     const { data: trasEdicion } = await admin
       .from('pagos')
@@ -150,7 +150,7 @@ test.describe('Monto editable al confirmar un pago', () => {
     const filaAcreedor = filaPorComprobante(paginaAcreedor, nombreArchivo)
     await filaAcreedor.getByLabel('Monto a confirmar').fill('500')
     await filaAcreedor.getByRole('button', { name: 'Confirmar mi parte' }).click()
-    await expect(filaAcreedor.locator('td').nth(3)).toHaveText('500 USD')
+    await expect(filaAcreedor.locator('td').nth(4)).toHaveText('500 USD')
     await contextoAcreedor.close()
 
     // El admin, sin refrescar, intenta confirmar con el 50 viejo que sigue en su pantalla.
@@ -184,7 +184,7 @@ test.describe('Monto editable al confirmar un pago', () => {
     let fila = filaPorComprobante(page, nombreArchivo)
     await fila.getByLabel('Monto a confirmar').fill('500')
     await fila.getByRole('button', { name: 'Confirmar mi parte' }).click()
-    await expect(fila.locator('td').nth(3)).toHaveText('500 USD')
+    await expect(fila.locator('td').nth(4)).toHaveText('500 USD')
 
     await logout(page)
     await login(page, fixtures.admin.email, fixtures.password)
@@ -192,7 +192,7 @@ test.describe('Monto editable al confirmar un pago', () => {
     fila = filaPorComprobante(page, nombreArchivo)
     await expect(fila.getByLabel('Monto a confirmar')).toHaveValue('500')
     await fila.getByRole('button', { name: 'Confirmar mi parte' }).click()
-    await expect(fila.locator('td').nth(5)).toHaveText('confirmado') // Estado
+    await expect(fila.locator('td').nth(6)).toHaveText('confirmado') // Estado
 
     const admin = createAdminClient()
     const { data: pago } = await admin

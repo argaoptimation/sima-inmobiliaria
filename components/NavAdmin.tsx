@@ -6,6 +6,10 @@ export function NavAdmin({ role, pagosPendientes }: { role: string; pagosPendien
   // Índices: según Nicolás, además del admin puede cargarlos/corregirlos
   // un cobrador (ej. el contador) -- ver lib/auth/require-admin.ts.
   const puedeVerIndices = role === 'administrador' || role === 'cobrador'
+  // Efectivo/caja: el cobrador (ej. Belén) carga los pagos en efectivo e
+  // imprime la caja, según Nicolás -- ver Notas_Decisiones_SIMA.txt punto
+  // 14/22.
+  const puedeVerEfectivoYCaja = role === 'administrador' || role === 'cobrador'
 
   return (
     <nav className="flex items-center justify-between border-b p-4 text-sm">
@@ -21,6 +25,8 @@ export function NavAdmin({ role, pagosPendientes }: { role: string; pagosPendien
         {esAdministrador && <a href="/admin/cuentas-corrientes">Cuentas corrientes</a>}
         {esAdministrador && <a href="/admin/historial-lotes">Historial</a>}
         {puedeVerIndices && <a href="/admin/indices">Índices</a>}
+        {puedeVerEfectivoYCaja && <a href="/admin/efectivo">Efectivo</a>}
+        {puedeVerEfectivoYCaja && <a href="/admin/cierre-caja">Cierre de caja</a>}
         <a href="/mi-perfil">Mi perfil</a>
       </div>
       <form action={logout}>

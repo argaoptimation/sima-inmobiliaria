@@ -83,14 +83,14 @@ test.describe('Cuenta corriente', () => {
       await page.goto('/admin/pagos')
       const filaAcreedor = filaPorComprobante(page, nombreArchivo)
       await filaAcreedor.getByRole('button', { name: 'Confirmar mi parte' }).click()
-      await expect(filaAcreedor.locator('td').nth(6)).toHaveText('Sí')
+      await expect(filaAcreedor.locator('td').nth(7)).toHaveText('Sí')
 
       await logout(page)
       await login(page, fixtures.admin.email, fixtures.password)
       await page.goto('/admin/pagos')
       const fila = filaPorComprobante(page, nombreArchivo)
       await fila.getByRole('button', { name: 'Confirmar mi parte' }).click()
-      await expect(fila.locator('td').nth(5)).toHaveText('confirmado')
+      await expect(fila.locator('td').nth(6)).toHaveText('confirmado')
     })
 
     await test.step('se posteó el Debe automático de 800 USD para el acreedor', async () => {

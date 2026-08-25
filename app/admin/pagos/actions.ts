@@ -31,14 +31,17 @@ export async function confirmarPago(pagoId: string, formData: FormData) {
 
   const { data: pago } = await supabase
     .from('pagos')
-    .select('comprobante_path, cliente_id, lote_id, moneda, motivo')
+    .select('comprobante_path, cliente_id, lote_id, moneda, motivo, medio_pago')
     .eq('id', pagoId)
     .single()
 
-  if (!pago || !pago.comprobante_path) {
-    // No se puede confirmar un pago del que todavia no se subio comprobante:
-    // no hay evidencia que revisar.
+  // Un pago en efectivo no tiene comprobante que subir -- la evidencia es
+  // que el admin lo tiene físicamente en la mano, no un archivo (ver
+  // Notas_Decisiones_SIMA.txt punto 22). Para transferencia se sigue
+  // exigiendo el comprobante como antes.
+  if (!pago || (!pago.comprobante_path && pago.medio_pago !== 'efectivo')) {
     revalidatePath('/admin/pagos')
+    revalidatePath('/admin/efectivo')
     return
   }
 
@@ -142,12 +145,14 @@ export async function confirmarPago(pagoId: string, formData: FormData) {
 
   // Claim atomico: solo un llamador puede ganar este UPDATE, ya sea contra
   // una carrera de doble click o contra un reintento tras una falla parcial.
-  // Si el lote redirige el cobro a una cuenta externa (sin login), alcanza
-  // con la confirmacion del admin -- no tiene sentido pedirle a alguien sin
-  // cuenta que confirme nada. Dos ramas explicitas (en vez de armar un solo
-  // query condicional) para que quede clara la diferencia exacta entre
+  // Alcanza con la confirmacion del admin sola (sin la cruzada del
+  // acreedor) en dos casos: el lote redirige el cobro a una cuenta externa
+  // (sin login, nadie del otro lado para confirmar), o el pago es en
+  // efectivo (la confirmación de Nicolás YA ES la evidencia, ver punto 22
+  // de Notas_Decisiones_SIMA.txt). Dos ramas explicitas (en vez de armar un
+  // solo query condicional) para que quede clara la diferencia exacta entre
   // ambos casos, sin depender de como encadena internamente el builder.
-  const { data: pagoClaimado, error: errorClaim } = lote!.cuenta_cobro_externa_id
+  const { data: pagoClaimado, error: errorClaim } = lote!.cuenta_cobro_externa_id || pago.medio_pago === 'efectivo'
     ? await supabase
         .from('pagos')
         .update({ estado: 'confirmado' })
@@ -251,6 +256,8 @@ export async function confirmarPago(pagoId: string, formData: FormData) {
   }
 
   revalidatePath('/admin/pagos')
+  revalidatePath('/admin/efectivo')
+  revalidatePath('/admin/cierre-caja')
   revalidatePath('/portal-cliente')
 }
 
@@ -270,7 +277,7 @@ export async function editarMontoPago(pagoId: string, formData: FormData) {
 
   const { data: pago } = await supabase
     .from('pagos')
-    .select('id, cliente_id, lote_id, moneda, comprobante_path, motivo, estado, monto')
+    .select('id, cliente_id, lote_id, moneda, comprobante_path, motivo, estado, monto, medio_pago')
     .eq('id', pagoId)
     .single()
 
@@ -316,6 +323,10 @@ export async function editarMontoPago(pagoId: string, formData: FormData) {
       moneda: pago!.moneda,
       comprobante_path: pago!.comprobante_path,
       motivo: 'ajuste',
+      // Hereda el medio de pago del original -- una corrección sobre un
+      // pago en efectivo tiene que seguir contando como efectivo en el
+      // cierre de caja, no caer en el default 'transferencia'.
+      medio_pago: pago!.medio_pago,
       estado: 'confirmado',
       confirmado_admin_por: user!.id,
       confirmado_admin_at: new Date().toISOString(),

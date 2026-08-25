@@ -16,6 +16,7 @@ type Pago = {
   lote_id: string
   monto_recibido: number | null
   moneda_recibida: string | null
+  medio_pago: 'efectivo' | 'transferencia'
 }
 
 export default async function PagosPage({
@@ -40,7 +41,7 @@ export default async function PagosPage({
     .single()
 
   const columnasPago =
-    'id, monto, moneda, comprobante_path, motivo, estado, confirmado_acreedor_por, confirmado_admin_por, cliente_id, lote_id, monto_recibido, moneda_recibida'
+    'id, monto, moneda, comprobante_path, motivo, estado, confirmado_acreedor_por, confirmado_admin_por, cliente_id, lote_id, monto_recibido, moneda_recibida, medio_pago'
 
   let loteIdsBusqueda: string[] | null = null
 
@@ -220,6 +221,7 @@ export default async function PagosPage({
             <th className="py-2">Lote</th>
             <th>Cliente</th>
             <th>Motivo</th>
+            <th>Medio</th>
             <th>Monto</th>
             <th>Comprobante</th>
             <th>Estado</th>
@@ -246,6 +248,7 @@ export default async function PagosPage({
                         ? 'Entrega'
                         : 'Cuota'}
                 </td>
+                <td>{pago.medio_pago === 'efectivo' ? 'Efectivo' : 'Transferencia'}</td>
                 <td>
                   {pago.monto} {pago.moneda}
                 </td>
@@ -258,13 +261,17 @@ export default async function PagosPage({
                     ) : (
                       <span className="text-gray-500">Comprobante no disponible</span>
                     )
+                  ) : pago.medio_pago === 'efectivo' ? (
+                    <span className="text-gray-500">— (efectivo, no hace falta)</span>
                   ) : (
                     <span className="text-gray-500">Sin comprobante</span>
                   )}
                 </td>
                 <td>{pago.estado}</td>
                 <td>
-                  {pago.cuentaCobroExterna ? (
+                  {pago.medio_pago === 'efectivo' ? (
+                    <span className="text-gray-500">— (efectivo)</span>
+                  ) : pago.cuentaCobroExterna ? (
                     <span className="text-gray-500">— (cuenta externa)</span>
                   ) : pago.sinAcreedorVinculado ? (
                     <span className="font-semibold text-red-700">⚠ Lote sin acreedor vinculado</span>
@@ -277,9 +284,14 @@ export default async function PagosPage({
                 <td>{pago.confirmado_admin_por ? 'Sí' : 'No'}</td>
                 <td>
                   {pago.estado === 'pendiente' &&
-                    (pago.comprobante_path ? (
+                  pago.medio_pago === 'efectivo' &&
+                  perfilPropio!.role !== 'administrador' ? (
+                    <span className="text-gray-500">Pendiente de confirmación del admin</span>
+                  ) : (
+                    pago.estado === 'pendiente' &&
+                    (pago.comprobante_path || pago.medio_pago === 'efectivo' ? (
                       <>
-                        {pago.sinAcreedorVinculado && (
+                        {pago.sinAcreedorVinculado && pago.medio_pago !== 'efectivo' && (
                           <p className="mb-2 font-semibold text-red-700">
                             ⚠ Este lote todavía no tiene un acreedor vinculado. Podés confirmar
                             tu parte, pero el pago no se va a completar hasta asignar uno desde
@@ -329,7 +341,7 @@ export default async function PagosPage({
                       </>
                     ) : (
                       <span className="text-gray-500">Esperando comprobante</span>
-                    ))}
+                    )))}
                   {pago.estado === 'confirmado' &&
                     pago.motivo !== 'ajuste' &&
                     perfilPropio!.role === 'administrador' && (
