@@ -43,6 +43,13 @@ function formatearPeriodoIndice(periodo: string): string {
   return `${MESES_ABREVIADOS[mes - 1]} ${anio}`
 }
 
+const MOTIVO_PAGO_ETIQUETA: Record<string, string> = {
+  cuota: 'Cuota',
+  sena: 'Seña',
+  entrega: 'Entrega',
+  ajuste: 'Corrección',
+}
+
 export default async function LoteDetallePage({
   params,
   searchParams,
@@ -98,6 +105,19 @@ export default async function LoteDetallePage({
     .eq('lote_id', id)
     .eq('ciclo', lote!.ciclo_actual)
     .order('numero', { ascending: true })
+
+  // Historial de pagos del lote -- pedido de Gabriel 25/08 para que se vea
+  // acá mismo (sin ir a /admin/pagos) qué se cobró, cuándo y por qué medio
+  // (efectivo/transferencia). Todo el historial del lote, no acotado al
+  // ciclo vigente (a diferencia de cuotas/ajustes): es justamente un
+  // historial, tiene sentido que muestre también lo cobrado en un ciclo
+  // anterior si el lote fue rescindido y revendido -- mismo criterio que
+  // ya usa "Total cobrado mientras estuvo vendido" más arriba.
+  const { data: pagosDelLote } = await supabase
+    .from('pagos')
+    .select('id, monto, moneda, medio_pago, motivo, estado, created_at')
+    .eq('lote_id', id)
+    .order('created_at', { ascending: false })
 
   const { data: ajustesIndexacion } = await supabase
     .from('ajustes_indexacion')
@@ -639,6 +659,36 @@ export default async function LoteDetallePage({
           })}
         </tbody>
       </table>
+
+      {(pagosDelLote ?? []).length > 0 && (
+        <>
+          <h2 className="mb-2 mt-6 text-lg font-semibold">Historial de pagos</h2>
+          <table className="mb-2 w-full text-sm">
+            <thead>
+              <tr className="border-b text-left">
+                <th className="py-2">Fecha</th>
+                <th>Motivo</th>
+                <th>Medio</th>
+                <th>Monto</th>
+                <th>Estado</th>
+              </tr>
+            </thead>
+            <tbody>
+              {(pagosDelLote ?? []).map((pago) => (
+                <tr key={pago.id} className="border-b">
+                  <td className="py-2">{new Date(pago.created_at).toLocaleDateString('es-AR')}</td>
+                  <td>{MOTIVO_PAGO_ETIQUETA[pago.motivo] ?? pago.motivo}</td>
+                  <td>{pago.medio_pago === 'efectivo' ? 'Efectivo' : 'Transferencia'}</td>
+                  <td>
+                    {pago.monto} {pago.moneda}
+                  </td>
+                  <td>{pago.estado === 'confirmado' ? 'Confirmado' : 'Pendiente'}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </>
+      )}
 
       {(ajustesIndexacion ?? []).length > 0 && (
         <>

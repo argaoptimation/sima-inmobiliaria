@@ -108,6 +108,22 @@ test.describe('Efectivo y cierre de caja (25/08)', () => {
         return data?.saldo_pendiente ?? null
       })
       .toBe(0)
+
+    // El detalle del lote muestra el historial de pagos con el medio
+    // (pedido de Gabriel 25/08) -- visible también para el cobrador, que
+    // ahora puede ver el detalle de cualquier lote (sin el reparto).
+    await logout(page)
+    await login(page, fixtures.cobrador.email, fixtures.password)
+    await page.goto(`/admin/lotes/${loteId}`)
+
+    // Scoped a la tabla de "Historial de pagos" en particular -- la de
+    // Cuotas también tiene una columna con "1000 USD" (monto base).
+    const filaHistorialPago = page
+      .locator('h2:has-text("Historial de pagos") ~ table tbody tr')
+      .filter({ hasText: '1000 USD' })
+    await expect(filaHistorialPago).toBeVisible()
+    await expect(filaHistorialPago.getByText('Efectivo', { exact: true })).toBeVisible()
+    await expect(filaHistorialPago.getByText('Confirmado', { exact: true })).toBeVisible()
   })
 
   test('un vendedor o un acreedor NO pueden acceder a /admin/efectivo ni a /admin/cierre-caja (solo admin o cobrador)', async ({
