@@ -68,7 +68,7 @@ export async function guardarDistribucionLote(loteId: string, formData: FormData
 
   const supabase = await createClient()
 
-  const { data: lote } = await supabase.from('lotes').select('estado').eq('id', loteId).single()
+  const { data: lote } = await supabase.from('lotes').select('estado, ciclo_actual').eq('id', loteId).single()
 
   if (!lote || lote.estado !== 'vendido') {
     redirect(
@@ -76,7 +76,11 @@ export async function guardarDistribucionLote(loteId: string, formData: FormData
     )
   }
 
-  const { data: cuotas } = await supabase.from('cuotas').select('id, numero').eq('lote_id', loteId)
+  const { data: cuotas } = await supabase
+    .from('cuotas')
+    .select('id, numero')
+    .eq('lote_id', loteId)
+    .eq('ciclo', lote.ciclo_actual)
 
   if (!cuotas) {
     redirect(

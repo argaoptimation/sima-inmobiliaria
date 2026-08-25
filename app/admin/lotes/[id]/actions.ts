@@ -143,7 +143,7 @@ export async function volverADisponible(loteId: string) {
     data: { user },
   } = await supabase.auth.getUser()
 
-  const { data: lote } = await supabase.from('lotes').select('estado').eq('id', loteId).single()
+  const { data: lote } = await supabase.from('lotes').select('estado, ciclo_actual').eq('id', loteId).single()
 
   if (!lote || lote.estado !== 'rescindido') {
     redirect(
@@ -151,9 +151,13 @@ export async function volverADisponible(loteId: string) {
     )
   }
 
+  // Suma 1 al ciclo de venta: la próxima vez que este lote se venda, sus
+  // cuotas nuevas quedan marcadas con el ciclo nuevo -- así nunca chocan
+  // con las cuotas del ciclo anterior (unique es lote_id+ciclo+numero,
+  // no solo lote_id+numero) y el motor de índices tampoco las mezcla.
   const { error } = await supabase
     .from('lotes')
-    .update({ estado: 'disponible', cliente_id: null })
+    .update({ estado: 'disponible', cliente_id: null, ciclo_actual: lote!.ciclo_actual + 1 })
     .eq('id', loteId)
 
   if (error) {

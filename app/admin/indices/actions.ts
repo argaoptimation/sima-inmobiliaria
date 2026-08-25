@@ -41,6 +41,14 @@ async function aplicarCatchUpParaLote(
   limiteHasta: string,
   aplicadoPor: string
 ) {
+  // El índice solo se aplica al ciclo de venta VIGENTE de este lote. Un
+  // lote puede tener cuotas de un ciclo anterior (rescindido y vuelto a
+  // vender, ver migración 0039) que quedan como historial cerrado -- nunca
+  // se les vuelve a aplicar nada, aunque todavía tengan saldo pendiente.
+  const { data: loteInfo } = await supabase.from('lotes').select('ciclo_actual').eq('id', loteId).single()
+  if (!loteInfo) return
+  const cicloActual = loteInfo.ciclo_actual
+
   const { data: valoresIndice } = await supabase
     .from('indices_valores')
     .select('periodo, valor')
@@ -55,6 +63,7 @@ async function aplicarCatchUpParaLote(
     .from('cuotas')
     .select('id, numero, monto_base, monto_ajustado, saldo_pendiente, fecha_vencimiento')
     .eq('lote_id', loteId)
+    .eq('ciclo', cicloActual)
     .order('fecha_vencimiento', { ascending: true })
 
   if (!cuotas || cuotas.length === 0) return
@@ -63,6 +72,7 @@ async function aplicarCatchUpParaLote(
     .from('ajustes_indexacion')
     .select('fecha_desde, indice_periodo')
     .eq('lote_id', loteId)
+    .eq('ciclo', cicloActual)
 
   // Un placeholder en 0% (indice_periodo null, ver recalcularCuotaYPropagar)
   // NO cuenta como "ya procesado" -- sigue elegible para que un catch-up
@@ -107,6 +117,7 @@ async function aplicarCatchUpParaLote(
 
     const { error: errorAjuste } = await supabase.from('ajustes_indexacion').insert({
       lote_id: loteId,
+      ciclo: cicloActual,
       porcentaje: valorAplicable.valor,
       fecha_desde: mesCuota,
       indice_nombre: indiceNombre,
@@ -141,6 +152,7 @@ async function aplicarCatchUpParaLote(
 async function recalcularCuotaYPropagar(
   supabase: SupabaseServerClient,
   loteId: string,
+  ciclo: number,
   fechaDesdeCuota: string,
   nuevoValorAplicable: ValorIndiceDisponible | null,
   indiceNombre: string,
@@ -150,6 +162,7 @@ async function recalcularCuotaYPropagar(
     .from('cuotas')
     .select('id, numero, monto_base, monto_ajustado, saldo_pendiente, fecha_vencimiento')
     .eq('lote_id', loteId)
+    .eq('ciclo', ciclo)
     .order('fecha_vencimiento', { ascending: true })
 
   if (!cuotas || cuotas.length === 0) return
@@ -180,9 +193,15 @@ async function recalcularCuotaYPropagar(
   // distingue un placeholder de un ajuste real -- aplicarCatchUpParaLote
   // sigue tratando el mes como "sin cargar todavía" y lo vuelve a
   // procesar solo si en el futuro se carga un valor de verdad.
-  await supabase.from('ajustes_indexacion').delete().eq('lote_id', loteId).eq('fecha_desde', fechaDesdeCuota)
+  await supabase
+    .from('ajustes_indexacion')
+    .delete()
+    .eq('lote_id', loteId)
+    .eq('ciclo', ciclo)
+    .eq('fecha_desde', fechaDesdeCuota)
   await supabase.from('ajustes_indexacion').insert({
     lote_id: loteId,
+    ciclo,
     porcentaje: nuevoValorAplicable?.valor ?? 0,
     fecha_desde: fechaDesdeCuota,
     indice_nombre: nuevoValorAplicable ? indiceNombre : null,
@@ -202,6 +221,7 @@ async function recalcularCuotaYPropagar(
     .from('ajustes_indexacion')
     .select('fecha_desde, porcentaje, indice_nombre, indice_periodo')
     .eq('lote_id', loteId)
+    .eq('ciclo', ciclo)
     .gt('fecha_desde', fechaDesdeCuota)
     .order('fecha_desde', { ascending: true })
 
@@ -242,7 +262,7 @@ async function buscarAjustesQueUsaronPeriodo(
 ) {
   const { data } = await supabase
     .from('ajustes_indexacion')
-    .select('lote_id, fecha_desde')
+    .select('lote_id, ciclo, fecha_desde')
     .eq('indice_nombre', indiceNombre)
     .eq('indice_periodo', periodo)
 
@@ -300,11 +320,16 @@ export async function cargarValorIndice(formData: FormData) {
   // disponible -- ver aplicarCatchUpParaLote).
   const { hastaExclusive: limiteHasta } = calcularRangoMesSiguiente(periodo)
 
+  // Solo lotes ACTIVOS (vendido): uno rescindido, disponible o reservado
+  // puede tener cuotas viejas con saldo pendiente (deuda que quedó sin
+  // cobrar de un ciclo anterior, ver migración 0039), pero no tiene
+  // sentido seguir escalándolas por índice si nadie las está pagando.
   const { data: lotesConEsteIndice } = await supabase
     .from('lotes')
     .select('id')
     .eq('moneda', 'ARS')
     .eq('indice_tipo', nombre)
+    .eq('estado', 'vendido')
 
   for (const lote of lotesConEsteIndice ?? []) {
     await aplicarCatchUpParaLote(supabase, lote.id, nombre, limiteHasta, user!.id)
@@ -368,10 +393,11 @@ export async function corregirValorIndice(formData: FormData) {
 
   const afectados = await buscarAjustesQueUsaronPeriodo(supabase, nombre, periodo)
 
-  for (const { lote_id, fecha_desde } of afectados) {
+  for (const { lote_id, ciclo, fecha_desde } of afectados) {
     await recalcularCuotaYPropagar(
       supabase,
       lote_id,
+      ciclo,
       fecha_desde,
       { periodo, valor: valorNuevo },
       nombre,
@@ -431,10 +457,10 @@ export async function eliminarValorIndice(formData: FormData) {
     valor: v.valor,
   }))
 
-  for (const { lote_id, fecha_desde } of afectados) {
+  for (const { lote_id, ciclo, fecha_desde } of afectados) {
     const periodoNecesario = calcularPeriodoIndiceNecesario(fecha_desde)
     const fallback = buscarValorIndiceAplicable(periodoNecesario, valoresDisponibles)
-    await recalcularCuotaYPropagar(supabase, lote_id, fecha_desde, fallback, nombre, user!.id)
+    await recalcularCuotaYPropagar(supabase, lote_id, ciclo, fecha_desde, fallback, nombre, user!.id)
   }
 
   const { error: errorDelete } = await supabase

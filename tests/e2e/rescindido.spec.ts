@@ -1,6 +1,11 @@
 import { test, expect } from '@playwright/test'
+import { readFileSync } from 'node:fs'
+import path from 'node:path'
 import { ensureTestFixtures, createAdminClient, TestFixtures } from './fixtures/test-data'
 import { login } from './utils/login'
+
+const COMPROBANTE_PATH = path.join(__dirname, 'fixtures', 'comprobante-test.pdf')
+const COMPROBANTE_BYTES = readFileSync(COMPROBANTE_PATH)
 
 async function crearLoteVendidoConPagoConfirmado(
   identificador: string,
@@ -61,7 +66,7 @@ async function crearLoteVendidoConPagoConfirmado(
     throw new Error(`No se pudo imputar el pago de prueba: ${errorImputacion.message}`)
   }
 
-  return { loteId: lote.id as string }
+  return { loteId: lote.id as string, cuotaIds: cuotas.map((c) => c.id as string) }
 }
 
 test.describe('Rescindido de lote (24/08)', () => {
@@ -156,5 +161,134 @@ test.describe('Rescindido de lote (24/08)', () => {
     await page.goto(`/admin/lotes/${loteId}`)
 
     await expect(page.getByRole('button', { name: 'Rescindir' })).toHaveCount(0)
+  })
+
+  test('regresión 24/08: revender un lote rescindido-y-disponible no choca con las cuotas viejas (ciclo de venta)', async ({
+    page,
+  }) => {
+    const admin = createAdminClient()
+
+    // Ciclo 1: lote vendido con deuda sin cobrar -- esto es justo lo que
+    // antes rompía al revender (unique(lote_id, numero) sin distinguir
+    // ciclo).
+    const { data: lote, error } = await admin
+      .from('lotes')
+      .insert({
+        identificador: `E2E Reventa ${Date.now()}`,
+        moneda: 'USD',
+        estado: 'vendido',
+        precio_total: 2000,
+        cliente_id: fixtures.cliente.id,
+        acreedor_id: fixtures.acreedorConDatos.id,
+      })
+      .select('id')
+      .single()
+    if (error || !lote) throw new Error(`No se pudo crear el lote: ${error?.message}`)
+
+    const { error: errorCuota } = await admin
+      .from('cuotas')
+      .insert({ lote_id: lote.id, numero: 1, monto_base: 500, saldo_pendiente: 500, fecha_vencimiento: '2027-01-10' })
+    if (errorCuota) throw new Error(`No se pudo crear la cuota: ${errorCuota.message}`)
+
+    await login(page, fixtures.admin.email, fixtures.password)
+    await page.goto(`/admin/lotes/${lote.id}`)
+
+    page.once('dialog', (dialog) => dialog.accept())
+    await page.getByRole('button', { name: 'Rescindir' }).click()
+    await page.waitForURL(`**/admin/lotes/${lote.id}`)
+
+    await expect(async () => {
+      const { data: l } = await admin.from('lotes').select('estado').eq('id', lote.id).single()
+      expect(l?.estado).toBe('rescindido')
+    }).toPass({ timeout: 5000 })
+
+    await page.reload()
+    page.once('dialog', (dialog) => dialog.accept())
+    await page.getByRole('button', { name: 'Volver a disponible' }).click()
+    await page.waitForURL(`**/admin/lotes/${lote.id}`)
+
+    await expect(async () => {
+      const { data: l } = await admin.from('lotes').select('estado, ciclo_actual').eq('id', lote.id).single()
+      expect(l?.estado).toBe('disponible')
+      expect(l?.ciclo_actual).toBe(2)
+    }).toPass({ timeout: 5000 })
+
+    // Bypass del flujo de reserva (no es lo que este test verifica) --
+    // vender exige estado "reservado".
+    await admin.from('lotes').update({ estado: 'reservado' }).eq('id', lote.id)
+
+    const email = `comprador.reventa.${Date.now()}@sima-e2e.invalid`
+    await page.goto(`/admin/lotes/${lote.id}/vender`)
+    await page.getByPlaceholder('Nombre completo del comprador').fill('Comprador Reventa E2E')
+    await page.getByPlaceholder('Email del comprador').fill(email)
+    await page.locator('input[name="fechaPrimeraCuota"]').fill('2027-06-01')
+    await page.getByPlaceholder('Cantidad de cuotas (1 para venta al contado)').fill('2')
+    await page.setInputFiles('input[name="documentoFirmado"]', {
+      name: `e2e-documento-reventa-${Date.now()}.pdf`,
+      mimeType: 'application/pdf',
+      buffer: COMPROBANTE_BYTES,
+    })
+    await page.getByRole('button', { name: 'Confirmar venta y enviar invitación' }).click()
+    await page.waitForURL('**/admin/lotes')
+
+    // Sin choque: la venta se completó y quedó vendido de nuevo.
+    const { data: loteFinal } = await admin
+      .from('lotes')
+      .select('estado, ciclo_actual')
+      .eq('id', lote.id)
+      .single()
+    expect(loteFinal?.estado).toBe('vendido')
+    expect(loteFinal?.ciclo_actual).toBe(2)
+
+    const { data: todasLasCuotas } = await admin
+      .from('cuotas')
+      .select('numero, ciclo, saldo_pendiente')
+      .eq('lote_id', lote.id)
+      .order('ciclo', { ascending: true })
+      .order('numero', { ascending: true })
+
+    // Ciclo 1 (la deuda vieja) queda intacta, sin tocar.
+    expect(todasLasCuotas?.filter((c) => c.ciclo === 1)).toEqual([{ numero: 1, ciclo: 1, saldo_pendiente: 500 }])
+    // Ciclo 2 (la venta nueva) tiene sus 2 cuotas propias, numero 1 y 2 --
+    // el mismo "numero 1" que ya existía en el ciclo 1, sin violar
+    // ningún unique constraint.
+    expect(todasLasCuotas?.filter((c) => c.ciclo === 2)).toHaveLength(2)
+
+    // El detalle del lote solo muestra las cuotas del ciclo VIGENTE (2),
+    // no mezcla la deuda vieja del ciclo 1 en la tabla activa.
+    await page.goto(`/admin/lotes/${lote.id}`)
+    const tablaCuotas = page.locator('h2', { hasText: 'Cuotas' }).locator('xpath=following-sibling::table[1]')
+    await expect(tablaCuotas.locator('tbody tr')).toHaveCount(2)
+  })
+
+  test('destinos: muestra a quién se distribuyó cada cuota, sumado por participante (pedido 24/08)', async ({
+    page,
+  }) => {
+    const { loteId, cuotaIds } = await crearLoteVendidoConPagoConfirmado(
+      `E2E Destinos ${Date.now()}`,
+      fixtures.cliente.id,
+      fixtures.acreedorConDatos.id
+    )
+
+    const admin = createAdminClient()
+    // El acreedor cobra de las 2 cuotas (300 + 400 = 700 en total), el
+    // vendedor solo de la primera (200).
+    await admin.from('cuota_distribuciones').insert([
+      { cuota_id: cuotaIds[0], profile_id: fixtures.acreedorConDatos.id, monto: 300 },
+      { cuota_id: cuotaIds[0], profile_id: fixtures.vendedorLoteA.id, monto: 200 },
+      { cuota_id: cuotaIds[1], profile_id: fixtures.acreedorConDatos.id, monto: 400 },
+    ])
+
+    await login(page, fixtures.admin.email, fixtures.password)
+    await page.goto(`/admin/lotes/${loteId}`)
+    page.once('dialog', (dialog) => dialog.accept())
+    await page.getByRole('button', { name: 'Rescindir' }).click()
+    await page.waitForURL(`**/admin/lotes/${loteId}`)
+
+    await page.reload()
+
+    const seccionDestinos = page.locator('h2', { hasText: 'Destinos' }).locator('xpath=..')
+    await expect(seccionDestinos.getByText('E2E Acreedor Con Datos — 700 USD')).toBeVisible()
+    await expect(seccionDestinos.getByText('E2E Vendedor A — 200 USD')).toBeVisible()
   })
 })

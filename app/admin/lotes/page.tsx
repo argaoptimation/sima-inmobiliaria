@@ -88,7 +88,7 @@ export default async function LotesPage({
   let queryLotes = supabase
     .from('lotes')
     .select(
-      'id, identificador, moneda, estado, cantidad_cuotas, ubicacion, precio_total, acreedor_id, loteo_id, cliente_id'
+      'id, identificador, moneda, estado, cantidad_cuotas, ubicacion, precio_total, acreedor_id, loteo_id, cliente_id, ciclo_actual'
     )
     .order(columnaOrden, { ascending: ordenAscendente })
 
@@ -157,14 +157,24 @@ export default async function LotesPage({
   const clientePorId = new Map((clientes ?? []).map((cliente) => [cliente.id, cliente]))
   const esAdministrador = perfilPropio!.role === 'administrador'
 
-  const { data: cuotasPorLote } =
+  const cicloActualPorLoteId = new Map(lotesVendidos.map((lote) => [lote.id, lote.ciclo_actual]))
+
+  const { data: cuotasPorLoteSinFiltrar } =
     loteVendidoIds.length > 0
       ? await supabase
           .from('cuotas')
-          .select('lote_id, saldo_pendiente, fecha_vencimiento')
+          .select('lote_id, ciclo, saldo_pendiente, fecha_vencimiento')
           .in('lote_id', loteVendidoIds)
           .order('fecha_vencimiento', { ascending: true })
       : { data: [] }
+
+  // Acotado al ciclo de venta VIGENTE de cada lote (ver migración 0039):
+  // un lote rescindido-y-revendido puede tener cuotas viejas sin cobrar de
+  // un ciclo anterior, que no tienen que contar para el estado de cobranza
+  // del cliente ACTUAL.
+  const cuotasPorLote = (cuotasPorLoteSinFiltrar ?? []).filter(
+    (cuota) => cuota.ciclo === cicloActualPorLoteId.get(cuota.lote_id)
+  )
 
   const cuotasAgrupadasPorLote = new Map<string, { saldo_pendiente: number; fecha_vencimiento: string }[]>()
   for (const cuota of cuotasPorLote ?? []) {

@@ -48,7 +48,7 @@ export async function confirmarPago(pagoId: string, formData: FormData) {
   // redundante.
   const { data: lote } = await supabase
     .from('lotes')
-    .select('id, acreedor_id, identificador, cuenta_cobro_externa_id')
+    .select('id, acreedor_id, identificador, cuenta_cobro_externa_id, ciclo_actual')
     .eq('id', pago.lote_id)
     .single()
 
@@ -200,10 +200,14 @@ export async function confirmarPago(pagoId: string, formData: FormData) {
     }
   }
 
+  // Acotado al ciclo de venta VIGENTE (ver migración 0039): si este lote
+  // fue rescindido y revendido, un pago del cliente actual nunca se tiene
+  // que imputar contra deuda vieja de un ciclo anterior.
   const { data: cuotas } = await supabase
     .from('cuotas')
     .select('id, saldo_pendiente')
     .eq('lote_id', lote.id)
+    .eq('ciclo', lote.ciclo_actual)
     .gt('saldo_pendiente', 0)
     .order('numero', { ascending: true })
 
@@ -325,10 +329,20 @@ export async function editarMontoPago(pagoId: string, formData: FormData) {
   }
 
   if (delta > 0) {
+    // Acotado al ciclo de venta VIGENTE (ver migración 0039) -- mismo
+    // motivo que en confirmarPago: nunca imputar contra deuda vieja de un
+    // ciclo anterior si este lote fue rescindido y revendido.
+    const { data: loteDelPago } = await supabase
+      .from('lotes')
+      .select('ciclo_actual')
+      .eq('id', pago!.lote_id)
+      .single()
+
     const { data: cuotas } = await supabase
       .from('cuotas')
       .select('id, saldo_pendiente')
       .eq('lote_id', pago!.lote_id)
+      .eq('ciclo', loteDelPago?.ciclo_actual ?? 1)
       .gt('saldo_pendiente', 0)
       .order('numero', { ascending: true })
 

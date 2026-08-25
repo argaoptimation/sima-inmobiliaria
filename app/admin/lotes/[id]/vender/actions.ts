@@ -84,7 +84,7 @@ export async function venderLote(loteId: string, formData: FormData) {
 
   const { data: loteActual, error: errorLoteActual } = await admin
     .from('lotes')
-    .select('estado, precio_total, moneda')
+    .select('estado, precio_total, moneda, ciclo_actual')
     .eq('id', loteId)
     .single()
 
@@ -381,6 +381,7 @@ export async function venderLote(loteId: string, formData: FormData) {
       cuotas.map((cuota) => ({
         lote_id: loteId,
         numero: cuota.numero,
+        ciclo: loteActual!.ciclo_actual,
         monto_base: cuota.montoBase,
         saldo_pendiente: cuota.montoBase,
         fecha_vencimiento: cuota.fechaVencimiento,

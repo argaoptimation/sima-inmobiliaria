@@ -21,7 +21,7 @@ export default async function DistribucionLotePage({
 
   const { data: lote } = await supabase
     .from('lotes')
-    .select('id, identificador, moneda, estado, precio_total')
+    .select('id, identificador, moneda, estado, precio_total, ciclo_actual')
     .eq('id', id)
     .single()
 
@@ -33,6 +33,7 @@ export default async function DistribucionLotePage({
     .from('cuotas')
     .select('id, numero, monto_base')
     .eq('lote_id', id)
+    .eq('ciclo', lote.ciclo_actual)
     .order('numero', { ascending: true })
 
   const { data: staff } = await supabase

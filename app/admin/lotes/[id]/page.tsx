@@ -70,7 +70,7 @@ export default async function LoteDetallePage({
   const { data: lote } = await supabase
     .from('lotes')
     .select(
-      'id, identificador, moneda, estado, cliente_id, admin_id, acreedor_id, vendedor_id, cuenta_cobro_id, cuenta_cobro_externa_id, ubicacion, precio_total, documento_firmado_path, interes_moratorio_diario, indice_tipo'
+      'id, identificador, moneda, estado, cliente_id, admin_id, acreedor_id, vendedor_id, cuenta_cobro_id, cuenta_cobro_externa_id, ubicacion, precio_total, documento_firmado_path, interes_moratorio_diario, indice_tipo, ciclo_actual'
     )
     .eq('id', id)
     .single()
@@ -96,12 +96,14 @@ export default async function LoteDetallePage({
     .from('cuotas')
     .select('id, numero, monto_base, monto_ajustado, saldo_pendiente, fecha_vencimiento')
     .eq('lote_id', id)
+    .eq('ciclo', lote!.ciclo_actual)
     .order('numero', { ascending: true })
 
   const { data: ajustesIndexacion } = await supabase
     .from('ajustes_indexacion')
     .select('fecha_desde, porcentaje, indice_nombre, indice_periodo, aplicado_por, created_at')
     .eq('lote_id', id)
+    .eq('ciclo', lote!.ciclo_actual)
     .order('fecha_desde', { ascending: true })
 
   const ajustePorMesCuota = new Map((ajustesIndexacion ?? []).map((a) => [a.fecha_desde, a]))
@@ -326,6 +328,54 @@ export default async function LoteDetallePage({
     )
   }
 
+  // Destinos: a quién se le distribuyó cada cuota de este lote, según la
+  // distribución ya configurada por cuota (cuota_distribuciones) -- pedido
+  // de Gabriel para poder ver esto directo en el lote rescindido, sin
+  // tener que ir a la pantalla aparte de "Ver / editar distribución".
+  // Acotado al ciclo VIGENTE (mismo motivo que el resto: no mezclar la
+  // distribución de un ciclo de venta anterior).
+  const cuotaIdsDelCicloActual = (cuotas ?? []).map((cuota) => cuota.id)
+  const { data: distribucionesDelLote } =
+    cuotaIdsDelCicloActual.length > 0
+      ? await supabase
+          .from('cuota_distribuciones')
+          .select('profile_id, cuenta_externa_id, monto')
+          .in('cuota_id', cuotaIdsDelCicloActual)
+      : { data: [] }
+
+  const destinoPorClave = new Map<string, { nombre: string; monto: number }>()
+  if ((distribucionesDelLote ?? []).length > 0) {
+    const profileIds = [
+      ...new Set((distribucionesDelLote ?? []).map((d) => d.profile_id).filter(Boolean) as string[]),
+    ]
+    const cuentaExternaIds = [
+      ...new Set((distribucionesDelLote ?? []).map((d) => d.cuenta_externa_id).filter(Boolean) as string[]),
+    ]
+
+    const { data: profilesDestino } =
+      profileIds.length > 0
+        ? await supabase.from('profiles').select('id, full_name').in('id', profileIds)
+        : { data: [] }
+    const { data: cuentasExternasDestino } =
+      cuentaExternaIds.length > 0
+        ? await supabase.from('cuentas_externas').select('id, titular').in('id', cuentaExternaIds)
+        : { data: [] }
+
+    const nombreProfilePorId = new Map((profilesDestino ?? []).map((p) => [p.id, p.full_name]))
+    const nombreCuentaExternaPorId = new Map((cuentasExternasDestino ?? []).map((c) => [c.id, c.titular]))
+
+    for (const fila of distribucionesDelLote ?? []) {
+      const clave = fila.profile_id ?? `externa:${fila.cuenta_externa_id}`
+      const nombre = fila.profile_id
+        ? (nombreProfilePorId.get(fila.profile_id) ?? '—')
+        : `${nombreCuentaExternaPorId.get(fila.cuenta_externa_id!) ?? '—'} (cuenta externa)`
+      const existente = destinoPorClave.get(clave)
+      destinoPorClave.set(clave, { nombre, monto: (existente?.monto ?? 0) + fila.monto })
+    }
+  }
+
+  const destinosOrdenados = [...destinoPorClave.values()].sort((a, b) => b.monto - a.monto)
+
   const actualizarDatosGeneralesConId = actualizarDatosGenerales.bind(null, id)
 
   const { data: indicesDisponibles } =
@@ -416,6 +466,26 @@ export default async function LoteDetallePage({
               <li key={i}>
                 {cambio.estado_anterior} → {cambio.estado_nuevo} — {nombreCambiadorPorId.get(cambio.cambiado_por) ?? '—'} —{' '}
                 {new Date(cambio.created_at).toLocaleDateString('es-AR')}
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+
+      {destinosOrdenados.length > 0 && (
+        <div className="mb-6 rounded border border-gray-200 bg-gray-50 p-3 text-sm">
+          <h2 className="mb-2 text-base font-semibold">Destinos (a quién se distribuyó)</h2>
+          <p className="mb-2 text-gray-600">
+            Según la distribución configurada por cuota (
+            <a href={`/admin/lotes/${id}/distribucion`} className="underline">
+              ver / editar el detalle por cuota →
+            </a>
+            ).
+          </p>
+          <ul className="list-inside list-disc">
+            {destinosOrdenados.map((destino, i) => (
+              <li key={i}>
+                {destino.nombre} — {destino.monto} {lote!.moneda}
               </li>
             ))}
           </ul>
