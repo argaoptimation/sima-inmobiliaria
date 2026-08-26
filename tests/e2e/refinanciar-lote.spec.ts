@@ -3,10 +3,13 @@ import { ensureTestFixtures, createAdminClient, TestFixtures } from './fixtures/
 import { login } from './utils/login'
 
 // Spec de la feature "Refinanciar" (26/08) -- ver Notas_Decisiones_SIMA.txt
-// puntos 73/80/94/95. Spec confirmada por Nicolás: las cuotas vencidas
-// impagas + futuras seleccionadas se marcan "Refinanció" (dejan de contar
-// saldo pendiente) y se generan cuotas nuevas con el plan que se carga a
-// mano. El lote sigue "vendido" -- no es un estado nuevo.
+// puntos 73/80/94/95. Spec confirmada por Nicolás: se refinancia TODA la
+// deuda de una vez (todas las cuotas con saldo pendiente -- vencidas
+// impagas + futuras -- no una selección puntual), y se carga a mano en
+// cuántas cuotas nuevas se reparte ese total, con el mismo mecanismo de
+// cantidad + automático/manual que se usa al vender un lote. Las cuotas
+// viejas quedan "Refinanció" (saldo 0). El lote sigue "vendido" -- no es un
+// estado nuevo.
 
 async function crearLoteVendidoConCuotas(
   identificador: string,
@@ -56,10 +59,10 @@ test.describe('Refinanciar cuotas (26/08)', () => {
     fixtures = await ensureTestFixtures()
   })
 
-  test('refinancia las cuotas con saldo, genera cuotas nuevas y queda en el historial (lote y global)', async ({
+  test('modo automático: refinancia toda la deuda pendiente en la cantidad de cuotas elegida', async ({
     page,
   }) => {
-    const identificador = `E2E Refinanciar ${Date.now()}`
+    const identificador = `E2E Refinanciar Auto ${Date.now()}`
     const { loteId } = await crearLoteVendidoConCuotas(
       identificador,
       fixtures.cliente.id,
@@ -71,22 +74,19 @@ test.describe('Refinanciar cuotas (26/08)', () => {
 
     await page.getByText('Refinanciar cuotas').click()
 
-    // Cuota 1 ya está saldada (saldo 0) -- no debe ofrecerse para
-    // refinanciar, solo las 2 con saldo pendiente.
-    const opciones = page.locator('form', { has: page.locator('input[name="cuotaIds"]') })
-    await expect(opciones.getByText(/Cuota 1 —/)).toHaveCount(0)
-    await expect(opciones.getByText(/Cuota 2 —/)).toBeVisible()
-    await expect(opciones.getByText(/Cuota 3 —/)).toBeVisible()
+    const seccion = page.locator('details', { has: page.getByText('Refinanciar cuotas') })
 
-    const checkboxesCuotas = opciones.locator('input[name="cuotaIds"]')
-    const cantidadCheckboxes = await checkboxesCuotas.count()
-    for (let i = 0; i < cantidadCheckboxes; i++) {
-      await checkboxesCuotas.nth(i).check()
-    }
-    await opciones.locator('input[name="cantidadCuotasNuevas"]').fill('2')
-    await opciones.locator('input[name="montoCuotaNueva"]').fill('900')
-    await opciones.locator('input[name="fechaPrimeraCuotaNueva"]').fill('2027-06-01')
-    await opciones.getByRole('button', { name: 'Refinanciar seleccionadas' }).click()
+    // Deuda total (cuotas 2 y 3, la 1 ya está saldada) mostrada de una,
+    // sin que haya que elegir cuáles -- se refinancia todo junto.
+    await expect(seccion).toContainText('las 2 cuota(s) con saldo pendiente')
+    await expect(seccion).toContainText('cuotas 2, 3')
+    await expect(seccion).toContainText('2000 USD')
+
+    await seccion.locator('input[name="fechaPrimeraCuotaNueva"]').fill('2027-06-01')
+    await seccion.locator('input[name="cantidadCuotasNuevas"]').fill('4')
+    // Modo automático es el default -- no hace falta tocar el radio.
+    await expect(seccion.getByText('4 cuotas de 500')).toBeVisible()
+    await seccion.getByRole('button', { name: 'Refinanciar' }).click()
 
     await page.waitForURL(`**/admin/lotes/${loteId}?ok=*`)
 
@@ -98,12 +98,13 @@ test.describe('Refinanciar cuotas (26/08)', () => {
         .eq('lote_id', loteId)
         .order('numero', { ascending: true })
 
-      expect(cuotas).toHaveLength(5)
+      expect(cuotas).toHaveLength(7)
       expect(cuotas![0]).toMatchObject({ numero: 1, refinanciada: false, saldo_pendiente: 0 })
       expect(cuotas![1]).toMatchObject({ numero: 2, refinanciada: true, saldo_pendiente: 0 })
       expect(cuotas![2]).toMatchObject({ numero: 3, refinanciada: true, saldo_pendiente: 0 })
-      expect(cuotas![3]).toMatchObject({ numero: 4, refinanciada: false, saldo_pendiente: 900, monto_base: 900 })
-      expect(cuotas![4]).toMatchObject({ numero: 5, refinanciada: false, saldo_pendiente: 900, monto_base: 900 })
+      for (let numero = 4; numero <= 7; numero++) {
+        expect(cuotas![numero - 1]).toMatchObject({ numero, refinanciada: false, saldo_pendiente: 500, monto_base: 500 })
+      }
 
       const { data: lote } = await admin.from('lotes').select('estado').eq('id', loteId).single()
       expect(lote?.estado).toBe('vendido')
@@ -111,25 +112,24 @@ test.describe('Refinanciar cuotas (26/08)', () => {
 
     await page.reload()
 
-    // Las cuotas 2 y 3 muestran "Refinanció" en vez de un saldo numérico.
     const tablaCuotas = page.locator('h2', { hasText: 'Cuotas' }).locator('xpath=following-sibling::table[1]')
     const filaCuota2 = tablaCuotas.locator('tbody tr').nth(1)
     await expect(filaCuota2.getByText('Refinanció')).toBeVisible()
     const filaCuota4 = tablaCuotas.locator('tbody tr').nth(3)
-    await expect(filaCuota4).toContainText('900 USD')
+    await expect(filaCuota4).toContainText('500 USD')
 
-    // La sección de refinanciar ya no ofrece las cuotas viejas -- solo
-    // quedarían las 2 nuevas si hiciera falta refinanciar de nuevo.
+    // La sección de refinanciar ya no incluye las cuotas viejas -- solo
+    // quedarían las 4 nuevas si hiciera falta refinanciar de nuevo.
     await page.getByText('Refinanciar cuotas').click()
-    await expect(page.getByText(/Cuota 2 —/)).toHaveCount(0)
-    await expect(page.getByText(/Cuota 4 —/)).toBeVisible()
+    await expect(seccion).toContainText('las 4 cuota(s) con saldo pendiente')
+    await expect(seccion).toContainText('cuotas 4, 5, 6, 7')
 
     // Historial del lote (vida del lote).
     await page.getByText(/Historial de estados del lote/).click()
     const historialLote = page.locator('details', { hasText: 'Historial de estados del lote' })
     const filaRefinanciado = historialLote.locator('li', { hasText: 'Refinanció' })
     await expect(filaRefinanciado).toContainText('E2E Admin')
-    await expect(filaRefinanciado).toContainText('2 cuota(s) refinanciada(s) → 2 cuota(s) nueva(s) de 900 USD')
+    await expect(filaRefinanciado).toContainText('Deuda de 2000 USD (2 cuota(s)) → 4 cuota(s) nueva(s)')
 
     // Historial global.
     await page.goto('/admin/historial-lotes')
@@ -145,6 +145,41 @@ test.describe('Refinanciar cuotas (26/08)', () => {
     await expect(page.locator('tbody tr', { hasText: identificador })).toBeVisible()
   })
 
+  test('modo manual: cada cuota nueva se carga con un monto propio', async ({ page }) => {
+    const { loteId } = await crearLoteVendidoConCuotas(
+      `E2E Refinanciar Manual ${Date.now()}`,
+      fixtures.cliente.id,
+      fixtures.acreedorConDatos.id
+    )
+    const admin = createAdminClient()
+
+    await login(page, fixtures.admin.email, fixtures.password)
+    await page.goto(`/admin/lotes/${loteId}`)
+    await page.getByText('Refinanciar cuotas').click()
+
+    const seccion = page.locator('details', { has: page.getByText('Refinanciar cuotas') })
+    await seccion.locator('input[name="fechaPrimeraCuotaNueva"]').fill('2027-06-01')
+    await seccion.locator('input[name="cantidadCuotasNuevas"]').fill('2')
+    await seccion.getByText('Manual').click()
+    await seccion.getByPlaceholder('Cuota 1').fill('1200')
+    await seccion.getByPlaceholder('Cuota 2').fill('800')
+    await expect(seccion).toContainText('Suma total de las cuotas cargadas: 2000')
+    await seccion.getByRole('button', { name: 'Refinanciar' }).click()
+    await page.waitForURL(`**/admin/lotes/${loteId}?ok=*`)
+
+    await expect(async () => {
+      const { data: cuotas } = await admin
+        .from('cuotas')
+        .select('numero, monto_base, saldo_pendiente')
+        .eq('lote_id', loteId)
+        .order('numero', { ascending: true })
+
+      expect(cuotas).toHaveLength(5)
+      expect(cuotas![3]).toMatchObject({ numero: 4, monto_base: 1200, saldo_pendiente: 1200 })
+      expect(cuotas![4]).toMatchObject({ numero: 5, monto_base: 800, saldo_pendiente: 800 })
+    }).toPass({ timeout: 5000 })
+  })
+
   test('el cliente ve "Refinanció" en su cuota vieja y puede pagar la cuota nueva', async ({ page }) => {
     const { loteId } = await crearLoteVendidoConCuotas(
       `E2E Refinanciar Cliente ${Date.now()}`,
@@ -158,16 +193,10 @@ test.describe('Refinanciar cuotas (26/08)', () => {
     await page.goto(`/admin/lotes/${loteId}`)
     await page.getByText('Refinanciar cuotas').click()
 
-    const opciones = page.locator('form', { has: page.locator('input[name="cuotaIds"]') })
-    const checkboxesCuotas = opciones.locator('input[name="cuotaIds"]')
-    const cantidadCheckboxes = await checkboxesCuotas.count()
-    for (let i = 0; i < cantidadCheckboxes; i++) {
-      await checkboxesCuotas.nth(i).check()
-    }
-    await opciones.locator('input[name="cantidadCuotasNuevas"]').fill('1')
-    await opciones.locator('input[name="montoCuotaNueva"]').fill('2000')
-    await opciones.locator('input[name="fechaPrimeraCuotaNueva"]').fill('2027-06-01')
-    await opciones.getByRole('button', { name: 'Refinanciar seleccionadas' }).click()
+    const seccion = page.locator('details', { has: page.getByText('Refinanciar cuotas') })
+    await seccion.locator('input[name="fechaPrimeraCuotaNueva"]').fill('2027-06-01')
+    await seccion.locator('input[name="cantidadCuotasNuevas"]').fill('1')
+    await seccion.getByRole('button', { name: 'Refinanciar' }).click()
     await page.waitForURL(`**/admin/lotes/${loteId}?ok=*`)
 
     await expect(async () => {

@@ -9,7 +9,8 @@ import { excedeTamanioMaximo, MAX_ARCHIVO_MB } from '@/lib/storage/validar-taman
 import { mensajeDeError } from '@/lib/errores'
 import { armarDatosContrato } from '@/lib/contratos/armar-datos-contrato'
 import { generarContrato, ErrorPlantillaContrato } from '@/lib/contratos/generar-contrato'
-import { generarCuotas } from '@/lib/lotes/generar-cuotas'
+import { generarCuotas, generarCuotasManual } from '@/lib/lotes/generar-cuotas'
+import { calcularMontoCuota } from '@/lib/lotes/calcular-monto-cuota'
 
 function idOVacio(valor: FormDataEntryValue | null): string | null {
   const texto = valor as string | null
@@ -198,12 +199,15 @@ export async function volverADisponible(loteId: string) {
 }
 
 // Refinanciación (spec confirmada por Nicolás, ver Notas_Decisiones_SIMA.txt
-// puntos 73/80/94): las cuotas vencidas impagas + futuras seleccionadas se
-// marcan "refinanciada" y su saldo pendiente se lleva a 0 (dejan de contar
-// en cobranza/totales, se muestran con la etiqueta "Refinanció"). Se generan
-// cuotas nuevas con el plan que se carga a mano, dentro del MISMO ciclo de
-// venta (esto no es una reventa). El lote sigue "vendido" -- no es un
-// estado nuevo, sigue comportándose igual en todo lo demás.
+// puntos 73/80/94/95): se refinancia TODA la deuda de una vez -- todas las
+// cuotas con saldo pendiente (vencidas impagas + futuras), no una selección
+// puntual -- y se carga a mano en cuántas cuotas nuevas se reparte ese
+// total, con el mismo mecanismo de cantidad + automático/manual que se usa
+// al vender un lote (ver CuotasYDocumento). Las cuotas viejas quedan
+// "refinanciada" con saldo 0 (se muestran con la etiqueta "Refinanció"), se
+// generan las cuotas nuevas dentro del MISMO ciclo de venta (esto no es una
+// reventa). El lote sigue "vendido" -- no es un estado nuevo, sigue
+// comportándose igual en todo lo demás.
 export async function refinanciarLote(loteId: string, formData: FormData) {
   await requireAdministrador()
 
@@ -224,16 +228,8 @@ export async function refinanciarLote(loteId: string, formData: FormData) {
     )
   }
 
-  const cuotaIds = formData.getAll('cuotaIds') as string[]
-
-  if (cuotaIds.length === 0) {
-    redirect(
-      `/admin/lotes/${loteId}?error=${encodeURIComponent('Seleccioná al menos una cuota para refinanciar')}`
-    )
-  }
-
   const cantidadNueva = Number(formData.get('cantidadCuotasNuevas'))
-  const montoNuevo = Number(formData.get('montoCuotaNueva'))
+  const modo = ((formData.get('modo') as string) || 'automatico').trim()
   const fechaPrimeraCuotaNueva = ((formData.get('fechaPrimeraCuotaNueva') as string) || '').trim()
 
   if (!Number.isInteger(cantidadNueva) || cantidadNueva < 1 || cantidadNueva > 600) {
@@ -241,12 +237,6 @@ export async function refinanciarLote(loteId: string, formData: FormData) {
       `/admin/lotes/${loteId}?error=${encodeURIComponent(
         'La cantidad de cuotas nuevas tiene que ser un número entero entre 1 y 600'
       )}`
-    )
-  }
-
-  if (!Number.isFinite(montoNuevo) || montoNuevo <= 0) {
-    redirect(
-      `/admin/lotes/${loteId}?error=${encodeURIComponent('El monto de la cuota nueva tiene que ser mayor a 0')}`
     )
   }
 
@@ -258,32 +248,54 @@ export async function refinanciarLote(loteId: string, formData: FormData) {
 
   const admin = createAdminClient()
 
-  // Revalida en el servidor que las cuotas elegidas realmente pertenecen a
-  // este lote+ciclo y todavía tienen saldo pendiente -- el checkbox del
-  // formulario ya las filtra así, esto es la barrera server-side.
-  const { data: cuotasSeleccionadas } = await admin
+  // Se toma TODA la deuda del lote de una -- no una selección puntual de
+  // cuotas -- exactamente como lo pidió Nicolás.
+  const { data: cuotasConSaldo } = await admin
     .from('cuotas')
     .select('id, saldo_pendiente')
     .eq('lote_id', loteId)
     .eq('ciclo', lote!.ciclo_actual)
-    .in('id', cuotaIds)
+    .gt('saldo_pendiente', 0)
 
-  if (!cuotasSeleccionadas || cuotasSeleccionadas.length !== cuotaIds.length) {
+  if (!cuotasConSaldo || cuotasConSaldo.length === 0) {
     redirect(
-      `/admin/lotes/${loteId}?error=${encodeURIComponent('Una de las cuotas seleccionadas no pertenece a este lote')}`
+      `/admin/lotes/${loteId}?error=${encodeURIComponent('Este lote no tiene cuotas con saldo pendiente para refinanciar')}`
     )
   }
 
-  if (cuotasSeleccionadas!.some((cuota) => cuota.saldo_pendiente <= 0)) {
-    redirect(
-      `/admin/lotes/${loteId}?error=${encodeURIComponent('Solo se pueden refinanciar cuotas con saldo pendiente')}`
-    )
+  const totalDeuda =
+    Math.round(cuotasConSaldo!.reduce((acumulado, cuota) => acumulado + cuota.saldo_pendiente, 0) * 100) / 100
+
+  let montosManuales: number[] = []
+  if (modo === 'manual') {
+    const montosManualesRaw: string[] = []
+    for (let i = 1; i <= cantidadNueva; i++) {
+      montosManualesRaw.push(((formData.get(`cuotaMonto${i}`) as string) || '').trim())
+    }
+
+    if (montosManualesRaw.some((valor) => valor === '')) {
+      redirect(
+        `/admin/lotes/${loteId}?error=${encodeURIComponent('Completá el monto de todas las cuotas nuevas')}`
+      )
+    }
+
+    montosManuales = montosManualesRaw.map((valor) => Number(valor))
+    if (!montosManuales.every((monto) => Number.isFinite(monto) && monto >= 0)) {
+      redirect(
+        `/admin/lotes/${loteId}?error=${encodeURIComponent(
+          'Los montos de las cuotas nuevas tienen que ser números válidos, no negativos'
+        )}`
+      )
+    }
   }
 
   const { error: errorMarcar } = await admin
     .from('cuotas')
     .update({ refinanciada: true, saldo_pendiente: 0 })
-    .in('id', cuotaIds)
+    .in(
+      'id',
+      cuotasConSaldo!.map((cuota) => cuota.id)
+    )
 
   if (errorMarcar) {
     redirect(`/admin/lotes/${loteId}?error=${encodeURIComponent(mensajeDeError(errorMarcar))}`)
@@ -300,7 +312,10 @@ export async function refinanciarLote(loteId: string, formData: FormData) {
 
   const numeroInicial = Math.max(0, ...(cuotasDelCiclo ?? []).map((cuota) => cuota.numero)) + 1
 
-  const cuotasNuevas = generarCuotas(cantidadNueva, montoNuevo, fechaPrimeraCuotaNueva)
+  const cuotasNuevas =
+    modo === 'manual'
+      ? generarCuotasManual(montosManuales, fechaPrimeraCuotaNueva)
+      : generarCuotas(cantidadNueva, calcularMontoCuota(totalDeuda, cantidadNueva), fechaPrimeraCuotaNueva, totalDeuda)
 
   const { error: errorInsertarCuotas } = await admin.from('cuotas').insert(
     cuotasNuevas.map((cuota) => ({
@@ -321,7 +336,7 @@ export async function refinanciarLote(loteId: string, formData: FormData) {
     lote_id: loteId,
     evento: 'refinanciado',
     cambiado_por: user!.id,
-    detalle: `${cuotaIds.length} cuota(s) refinanciada(s) → ${cantidadNueva} cuota(s) nueva(s) de ${montoNuevo} ${lote!.moneda}`,
+    detalle: `Deuda de ${totalDeuda} ${lote!.moneda} (${cuotasConSaldo!.length} cuota(s)) → ${cantidadNueva} cuota(s) nueva(s)`,
   })
 
   redirect(`/admin/lotes/${loteId}?ok=${encodeURIComponent('Refinanciación registrada')}`)

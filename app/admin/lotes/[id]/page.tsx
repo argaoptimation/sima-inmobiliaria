@@ -25,6 +25,8 @@ import { tieneDatosTransferencia } from '@/lib/lotes/validar-cuenta-cobro'
 import { telefonoParaWhatsApp } from '@/lib/telefono/prefijos'
 import { mesDeFecha } from '@/lib/lotes/aplicar-indexacion'
 import { EVENTO_HISTORIAL_ETIQUETA } from '@/lib/lotes/eventos-historial'
+import { FiltroEnVivo } from '@/components/FiltroEnVivo'
+import { RefinanciarCuotas } from './RefinanciarCuotas'
 
 const MESES_ABREVIADOS = [
   'Ene',
@@ -58,10 +60,16 @@ export default async function LoteDetallePage({
   searchParams,
 }: {
   params: Promise<{ id: string }>
-  searchParams: Promise<{ error?: string; ok?: string; editarUsuario?: string }>
+  searchParams: Promise<{
+    error?: string
+    ok?: string
+    editarUsuario?: string
+    historialDesde?: string
+    historialHasta?: string
+  }>
 }) {
   const { id } = await params
-  const { error, ok, editarUsuario } = await searchParams
+  const { error, ok, editarUsuario, historialDesde, historialHasta } = await searchParams
 
   await requireAdminAcreedorOCobrador()
 
@@ -332,6 +340,18 @@ export default async function LoteDetallePage({
   // implican nada que rescindir).
   const pasoPorRescindido = (historialEstados ?? []).some((h) => h.evento === 'rescindido')
 
+  // Filtro desde/hasta del historial de ESTE lote (26/08, pedido de
+  // Gabriel: si el día de mañana un lote tiene muchos movimientos, el
+  // desplegable quedaría eterno sin poder acotarlo). El total cobrado de
+  // arriba sigue calculándose sobre el historial COMPLETO, sin filtrar --
+  // el filtro solo acota qué se lista.
+  const historialFiltrado = (historialEstados ?? []).filter((cambio) => {
+    if (historialDesde && cambio.created_at < historialDesde) return false
+    if (historialHasta && cambio.created_at > `${historialHasta}T23:59:59`) return false
+    return true
+  })
+  const hayFiltroHistorial = Boolean(historialDesde || historialHasta)
+
   let totalCobradoHistorico: number | null = null
   if (pasoPorRescindido) {
     // pagos.lote_id ya identifica directo a qué lote pertenece cada pago
@@ -423,6 +443,8 @@ export default async function LoteDetallePage({
   const generarContratoConId = generarContratoLote.bind(null, id)
 
   const cuotasRefinanciables = (cuotas ?? []).filter((cuota) => cuota.saldo_pendiente > 0)
+  const totalDeudaRefinanciable =
+    Math.round(cuotasRefinanciables.reduce((acumulado, cuota) => acumulado + cuota.saldo_pendiente, 0) * 100) / 100
 
   // Para "Generar contrato": hace falta saber si el loteo de este lote ya
   // tiene una plantilla cargada, para mostrar el botón habilitado o el
@@ -691,57 +713,29 @@ export default async function LoteDetallePage({
       {perfilPropio!.role === 'administrador' && lote!.estado === 'vendido' && cuotasRefinanciables.length > 0 && (
         <details className="mb-6 rounded border border-gray-200 text-sm">
           <summary className="cursor-pointer select-none p-3 font-medium">Refinanciar cuotas</summary>
-          <form action={refinanciarConId} className="border-t border-gray-200 p-3">
-            <p className="mb-3 text-gray-600">
-              Marcá las cuotas que se refinancian (vencidas impagas + futuras) y cargá el plan
-              nuevo -- las viejas quedan marcadas &quot;Refinanció&quot; en vez de un saldo, y se
-              generan cuotas nuevas a partir de acá.
+          <form action={refinanciarConId} className="flex flex-col gap-3 border-t border-gray-200 p-3">
+            <p className="text-gray-600">
+              Se refinancia toda la deuda de una vez: las {cuotasRefinanciables.length} cuota(s) con
+              saldo pendiente (vencidas impagas + futuras, cuotas{' '}
+              {cuotasRefinanciables.map((cuota) => cuota.numero).join(', ')}) suman{' '}
+              <span className="font-semibold">
+                {totalDeudaRefinanciable} {lote!.moneda}
+              </span>
+              . Quedan marcadas &quot;Refinanció&quot; en vez de un saldo, y se generan cuotas
+              nuevas a partir de acá con el plan de abajo.
             </p>
-            <ul className="mb-3 flex flex-col gap-1">
-              {cuotasRefinanciables.map((cuota) => (
-                <li key={cuota.id}>
-                  <label className="flex items-center gap-2">
-                    <input type="checkbox" name="cuotaIds" value={cuota.id} />
-                    Cuota {cuota.numero} — vence {cuota.fecha_vencimiento} — saldo {cuota.saldo_pendiente}{' '}
-                    {lote!.moneda}
-                  </label>
-                </li>
-              ))}
-            </ul>
-            <div className="mb-3 flex flex-wrap items-end gap-3">
-              <label className="text-sm">
-                Cantidad de cuotas nuevas
-                <input
-                  type="number"
-                  name="cantidadCuotasNuevas"
-                  min="1"
-                  required
-                  className="mt-1 block rounded border px-3 py-2"
-                />
-              </label>
-              <label className="text-sm">
-                Monto por cuota nueva
-                <input
-                  type="number"
-                  step="0.01"
-                  name="montoCuotaNueva"
-                  min="0.01"
-                  required
-                  className="mt-1 block rounded border px-3 py-2"
-                />
-              </label>
-              <label className="text-sm">
-                Fecha primera cuota nueva
-                <input
-                  type="date"
-                  name="fechaPrimeraCuotaNueva"
-                  required
-                  className="mt-1 block rounded border px-3 py-2"
-                />
-              </label>
-            </div>
-            <button type="submit" className="rounded bg-black px-3 py-2 text-sm text-white">
-              Refinanciar seleccionadas
+            <label className="text-sm">
+              Fecha de la primera cuota nueva
+              <input
+                type="date"
+                name="fechaPrimeraCuotaNueva"
+                required
+                className="mt-1 block w-full rounded border px-3 py-2"
+              />
+            </label>
+            <RefinanciarCuotas totalDeuda={totalDeudaRefinanciable} moneda={lote!.moneda} />
+            <button type="submit" className="self-start rounded bg-black px-3 py-2 text-sm text-white">
+              Refinanciar
             </button>
           </form>
         </details>
@@ -1190,7 +1184,7 @@ export default async function LoteDetallePage({
       )}
 
       {(historialEstados ?? []).length > 0 && (
-        <details className="mt-10 rounded border border-gray-200 text-sm text-gray-600">
+        <details className="mt-10 rounded border border-gray-200 text-sm text-gray-600" open={hayFiltroHistorial || undefined}>
           <summary className="cursor-pointer select-none p-3 font-medium">
             Historial de estados del lote ({(historialEstados ?? []).length})
           </summary>
@@ -1203,8 +1197,36 @@ export default async function LoteDetallePage({
                 </span>
               </p>
             )}
+            <FiltroEnVivo className="mb-3 flex flex-wrap items-end gap-3">
+              <label className="text-sm">
+                Desde
+                <input
+                  type="date"
+                  name="historialDesde"
+                  defaultValue={historialDesde ?? ''}
+                  className="mt-1 block rounded border px-2 py-1"
+                />
+              </label>
+              <label className="text-sm">
+                Hasta
+                <input
+                  type="date"
+                  name="historialHasta"
+                  defaultValue={historialHasta ?? ''}
+                  className="mt-1 block rounded border px-2 py-1"
+                />
+              </label>
+              {hayFiltroHistorial && (
+                <a href={`/admin/lotes/${id}`} className="text-sm underline">
+                  Limpiar filtro
+                </a>
+              )}
+            </FiltroEnVivo>
+            {historialFiltrado.length === 0 ? (
+              <p className="mb-2 text-gray-600">Ningún movimiento coincide con el filtro.</p>
+            ) : (
             <ul className="mb-2 list-inside list-disc">
-              {(historialEstados ?? []).map((cambio, i) => (
+              {historialFiltrado.map((cambio, i) => (
                 <li key={i}>
                   {cambio.estado_anterior && cambio.estado_nuevo
                     ? `${cambio.estado_anterior} → ${cambio.estado_nuevo}`
@@ -1215,6 +1237,7 @@ export default async function LoteDetallePage({
                 </li>
               ))}
             </ul>
+            )}
             {(perfilPropio!.role === 'administrador' || perfilPropio!.role === 'cobrador') && (
               <a href="/admin/historial-lotes" className="underline">
                 Ver historial de todos los lotes →
