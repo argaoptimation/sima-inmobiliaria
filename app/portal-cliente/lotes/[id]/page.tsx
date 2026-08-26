@@ -101,7 +101,7 @@ export default async function PortalClienteLotePage({
   )
 
   return (
-    <main className="mx-auto mt-12 max-w-2xl p-6">
+    <main className="mx-auto mt-12 max-w-3xl p-6">
       <a href="/portal-cliente" className="mb-4 inline-block text-sm underline">
         ← Volver a tus lotes
       </a>
@@ -123,14 +123,13 @@ export default async function PortalClienteLotePage({
           {estado}
         </span>
       </p>
+      {lote!.moneda === 'USD' && cotizacionVigente && (
+        <p className="mb-4 rounded border border-blue-200 bg-blue-50 px-3 py-2 text-sm text-blue-900">
+          Cotización del dólar hoy: <span className="font-semibold">{cotizacionVigente.valor} ARS</span>
+        </p>
+      )}
       <p className="mb-6 text-sm font-medium">
         Total pendiente: {totalPendiente} {lote!.moneda}
-        {lote!.moneda === 'USD' && cotizacionVigente && (
-          <span className="font-normal text-gray-600">
-            {' '}
-            (≈ {convertirUsdAPesos(totalPendiente, cotizacionVigente.valor)} ARS)
-          </span>
-        )}
       </p>
       <table className="w-full text-sm">
         <thead>
@@ -157,18 +156,18 @@ export default async function PortalClienteLotePage({
               <tr key={cuota.id} className="border-b">
                 <td className="py-2">{cuota.numero}</td>
                 <td>{cuota.fecha_vencimiento}</td>
-                <td>
+                <td className="py-2">
                   {cuota.monto_base} {lote!.moneda}
                   {lote!.moneda === 'USD' && cotizacionVigente && (
-                    <span className="block text-xs text-gray-500">
+                    <span className="mt-1 block w-fit rounded bg-gray-100 px-1.5 py-0.5 text-xs text-gray-600">
                       ≈ {convertirUsdAPesos(cuota.monto_base, cotizacionVigente.valor)} ARS
                     </span>
                   )}
                 </td>
-                <td>
+                <td className="py-2">
                   {cuota.saldo_pendiente} {lote!.moneda}
                   {lote!.moneda === 'USD' && cotizacionVigente && (
-                    <span className="block text-xs text-gray-500">
+                    <span className="mt-1 block w-fit rounded bg-gray-100 px-1.5 py-0.5 text-xs text-gray-600">
                       ≈ {convertirUsdAPesos(cuota.saldo_pendiente, cotizacionVigente.valor)} ARS
                     </span>
                   )}

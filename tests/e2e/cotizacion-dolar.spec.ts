@@ -222,12 +222,15 @@ test.describe('Cotización del dólar', () => {
     await login(page, fixtures.cliente.email, fixtures.password)
     await page.goto(`/portal-cliente/lotes/${lote.id}`)
 
+    // La cotización del día se muestra una sola vez, global, arriba de todo
+    // (pedido de Gabriel, 26/08) -- no repetida en cada línea.
+    await expect(page.getByText(/Cotización del dólar hoy: 1000 ARS/)).toBeVisible()
+
+    // El total pendiente ya no repite el equivalente en pesos -- alcanza con
+    // que cada cuota lo muestre (pedido de Gabriel, 26/08).
     const filaTotal = page.locator('p', { hasText: 'Total pendiente' })
     await expect(filaTotal).toContainText('150 USD')
-    await expect(filaTotal).toContainText('≈ 150000 ARS')
-    // No debe mencionar el valor de la cotización -- al cliente solo le
-    // importa el monto que tiene que pagar (pedido de Gabriel, 25/08).
-    await expect(filaTotal).not.toContainText('cotización')
+    await expect(filaTotal).not.toContainText('ARS')
 
     const filaCuota = page.locator('tbody tr', { hasText: '2027-01-01' })
     await expect(filaCuota).toContainText('≈ 200000 ARS') // monto base

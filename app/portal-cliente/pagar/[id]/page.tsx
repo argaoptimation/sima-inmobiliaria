@@ -80,11 +80,16 @@ export default async function PagarCuotaPage({
       : { data: null }
 
   return (
-    <main className="mx-auto mt-12 max-w-md p-6">
+    <main className="mx-auto mt-12 max-w-lg p-6">
       <a href={`/portal-cliente/lotes/${cuota!.lote_id}`} className="mb-4 inline-block text-sm underline">
         ← Volver al lote
       </a>
-      <h1 className="mb-6 text-xl font-semibold">Registrar pago</h1>
+      <h1 className="mb-4 text-xl font-semibold">Registrar pago</h1>
+      {lote!.moneda === 'USD' && cotizacionVigente && (
+        <p className="mb-4 rounded border border-blue-200 bg-blue-50 px-3 py-2 text-sm text-blue-900">
+          Cotización del dólar hoy: <span className="font-semibold">{cotizacionVigente.valor} ARS</span>
+        </p>
+      )}
       <div className="mb-6 rounded bg-gray-100 p-3 text-sm">
         {datosCompletos ? (
           <>
