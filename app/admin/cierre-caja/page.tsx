@@ -1,5 +1,6 @@
 import { createClient } from '@/lib/supabase/server'
 import { requireAdminOCobrador } from '@/lib/auth/require-admin'
+import { FiltroEnVivo } from '@/components/FiltroEnVivo'
 
 function hoyISO(): string {
   return new Date().toISOString().slice(0, 10)
@@ -21,7 +22,7 @@ export default async function CierreCajaPage({
   const { data: pagosData } = await supabase
     .from('pagos')
     .select(
-      'id, monto, moneda, medio_pago, motivo, confirmado_acreedor_at, confirmado_admin_at, lote_id, lotes(identificador)'
+      'id, monto, moneda, medio_pago, motivo, cliente_id, confirmado_acreedor_at, confirmado_admin_at, lote_id, lotes(identificador)'
     )
     .eq('estado', 'confirmado')
 
@@ -31,6 +32,7 @@ export default async function CierreCajaPage({
     moneda: string
     medio_pago: 'efectivo' | 'transferencia'
     motivo: string
+    cliente_id: string
     confirmado_acreedor_at: string | null
     confirmado_admin_at: string | null
     lote_id: string
@@ -52,6 +54,13 @@ export default async function CierreCajaPage({
   }
 
   const pagosDelDia = pagos.filter((pago) => fechaDeConfirmacion(pago) === fecha)
+
+  const clienteIds = [...new Set(pagosDelDia.map((pago) => pago.cliente_id))]
+  const { data: clientes } =
+    clienteIds.length > 0
+      ? await supabase.from('profiles').select('id, full_name').in('id', clienteIds)
+      : { data: [] }
+  const nombreClientePorId = new Map((clientes ?? []).map((persona) => [persona.id, persona.full_name]))
 
   const totalesPorMedioYMoneda = new Map<string, number>()
   for (const pago of pagosDelDia) {
@@ -81,7 +90,7 @@ export default async function CierreCajaPage({
         para toda la operación.
       </p>
 
-      <form method="get" className="mb-6 flex items-end gap-3">
+      <FiltroEnVivo className="mb-6 flex items-end gap-3">
         <label className="text-sm">
           Fecha
           <input
@@ -95,7 +104,7 @@ export default async function CierreCajaPage({
         <button type="submit" className="rounded border px-3 py-2 text-sm">
           Ver
         </button>
-      </form>
+      </FiltroEnVivo>
 
       <div className="mb-6 grid gap-4 sm:grid-cols-2">
         <div className="rounded border border-gray-200 bg-gray-50 p-4">
@@ -134,7 +143,12 @@ export default async function CierreCajaPage({
         </div>
       </div>
 
-      <h2 className="mb-2 text-lg font-semibold">Detalle del día</h2>
+      <div className="mb-2 flex items-center justify-between">
+        <h2 className="text-lg font-semibold">Detalle del día</h2>
+        <a href={`/admin/cierre-caja/export?fecha=${fecha}`} className="text-sm underline">
+          Descargar CSV →
+        </a>
+      </div>
       {pagosDelDia.length === 0 ? (
         <p className="text-sm text-gray-600">Ningún pago confirmado este día.</p>
       ) : (
@@ -142,6 +156,7 @@ export default async function CierreCajaPage({
           <thead>
             <tr className="border-b text-left">
               <th className="py-2">Lote</th>
+              <th>Cliente</th>
               <th>Medio</th>
               <th>Motivo</th>
               <th>Monto</th>
@@ -155,6 +170,7 @@ export default async function CierreCajaPage({
                     {pago.lotes?.identificador ?? '—'}
                   </a>
                 </td>
+                <td>{nombreClientePorId.get(pago.cliente_id) ?? '—'}</td>
                 <td>{pago.medio_pago === 'efectivo' ? 'Efectivo' : 'Transferencia'}</td>
                 <td>{MOTIVO_ETIQUETA[pago.motivo] ?? pago.motivo}</td>
                 <td>

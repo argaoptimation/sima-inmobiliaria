@@ -226,5 +226,16 @@ test.describe('Efectivo y cierre de caja (25/08)', () => {
     const filaTransferencia = page.locator('tbody tr', { hasText: loteTransferencia!.identificador })
     await expect(filaTransferencia.getByText('Transferencia', { exact: true })).toBeVisible()
     await expect(filaTransferencia.getByText('450 USD')).toBeVisible()
+
+    // Descarga en CSV del mismo detalle (25/08, pedido de Gabriel para
+    // poder compartirle a Nico un resumen del día sin transcribirlo a mano).
+    const hoyISO = new Date().toISOString().slice(0, 10)
+    const respuesta = await page.request.get(`/admin/cierre-caja/export?fecha=${hoyISO}`)
+    expect(respuesta.ok()).toBe(true)
+    expect(respuesta.headers()['content-type']).toContain('text/csv')
+    const csv = await respuesta.text()
+    expect(csv).toContain(loteEfectivo!.identificador)
+    expect(csv).toContain(loteTransferencia!.identificador)
+    expect(csv).toContain('E2E Cliente')
   })
 })
