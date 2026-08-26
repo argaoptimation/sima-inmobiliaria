@@ -117,6 +117,45 @@ async function cargarIndice(page: import('@playwright/test').Page, nombre: strin
   await page.waitForURL('**/admin/indices')
 }
 
+// El aviso de "mes de índice faltante" (25/08: corregido para que solo
+// mire cuotas YA VENCIDAS, ver lib/lotes/meses-indice-faltantes.ts) necesita
+// vencimientos en el pasado respecto de "hoy" -- a diferencia del resto de
+// los tests de este archivo, que usan fechas fijas en 2027/2028 porque solo
+// les importa la mecánica de encadenado entre cuotas, no si el mes "ya
+// pasó" de verdad.
+const NOMBRES_MES = [
+  'Enero',
+  'Febrero',
+  'Marzo',
+  'Abril',
+  'Mayo',
+  'Junio',
+  'Julio',
+  'Agosto',
+  'Septiembre',
+  'Octubre',
+  'Noviembre',
+  'Diciembre',
+]
+
+/** Fecha (YYYY-MM-DD) del día `dia` del mes que está `mesesAtras` meses antes de hoy. */
+function fechaMesesAtras(mesesAtras: number, dia: number): string {
+  const hoy = new Date()
+  const fecha = new Date(Date.UTC(hoy.getUTCFullYear(), hoy.getUTCMonth() - mesesAtras, dia))
+  return fecha.toISOString().slice(0, 10)
+}
+
+/** "YYYY-MM" del mes que está `mesesAtras` meses antes de hoy -- para el input "Mes". */
+function periodoInputMesesAtras(mesesAtras: number): string {
+  return fechaMesesAtras(mesesAtras, 1).slice(0, 7)
+}
+
+/** Etiqueta tipo "Junio 2026" del mes que está `mesesAtras` meses antes de hoy. */
+function nombreMesAtras(mesesAtras: number): string {
+  const [anio, mes] = fechaMesesAtras(mesesAtras, 1).split('-').map(Number)
+  return `${NOMBRES_MES[mes - 1]} ${anio}`
+}
+
 test.describe('Índices — carga manual y aplicación automática a mes vencido', () => {
   let fixtures: TestFixtures
 
@@ -371,23 +410,24 @@ test.describe('Índices — carga manual y aplicación automática a mes vencido
       nombreIndice,
       fixtures.cliente.id,
       fixtures.acreedorConDatos.id,
-      '2028-01-15',
+      fechaMesesAtras(1, 15),
       100000
     )
 
     await login(page, fixtures.admin.email, fixtures.password)
     await page.goto('/admin/indices')
 
-    await expect(page.getByText(`${nombreIndice} — Diciembre 2027`)).toBeVisible()
+    const etiquetaMesFaltante = `${nombreIndice} — ${nombreMesAtras(2)}`
+    await expect(page.getByText(etiquetaMesFaltante)).toBeVisible()
 
     // Cargando el mes que faltaba, el aviso para ESE índice desaparece.
     await page.getByPlaceholder('Ej: IPC').fill(nombreIndice)
-    await page.getByRole('textbox', { name: 'Mes' }).fill('2027-12')
+    await page.getByRole('textbox', { name: 'Mes' }).fill(periodoInputMesesAtras(2))
     await page.getByPlaceholder('Ej: 3').fill('2')
     await page.getByRole('button', { name: 'Cargar' }).click()
     await page.waitForURL('**/admin/indices')
 
-    await expect(page.getByText(`${nombreIndice} — Diciembre 2027`)).not.toBeVisible()
+    await expect(page.getByText(etiquetaMesFaltante)).not.toBeVisible()
   })
 
   test('aviso de orden: si faltan dos meses del mismo índice, el más nuevo avisa que hay que cargar el más viejo primero (pedido 24/08)', async ({
@@ -395,14 +435,14 @@ test.describe('Índices — carga manual y aplicación automática a mes vencido
   }) => {
     const nombreIndice = `IPC-E2E-Orden-${Date.now()}`
 
-    // Cuota que vence en febrero necesita el índice de enero (el más
-    // viejo pendiente). Cuota que vence en marzo necesita el de febrero.
+    // Cuota vencida hace 2 meses necesita el índice de hace 3 (el más
+    // viejo pendiente). Cuota vencida hace 1 mes necesita el de hace 2.
     await crearLoteVendidoConIndice(
       `E2E Orden Viejo ${Date.now()}`,
       nombreIndice,
       fixtures.cliente.id,
       fixtures.acreedorConDatos.id,
-      '2028-02-15',
+      fechaMesesAtras(2, 15),
       100000
     )
     await crearLoteVendidoConIndice(
@@ -410,23 +450,25 @@ test.describe('Índices — carga manual y aplicación automática a mes vencido
       nombreIndice,
       fixtures.cliente.id,
       fixtures.acreedorConDatos.id,
-      '2028-03-15',
+      fechaMesesAtras(1, 15),
       100000
     )
 
     await login(page, fixtures.admin.email, fixtures.password)
     await page.goto('/admin/indices')
 
-    const filaVieja = page.locator('li', { hasText: `${nombreIndice} — Enero 2028` })
-    const filaNueva = page.locator('li', { hasText: `${nombreIndice} — Febrero 2028` })
+    const mesViejo = nombreMesAtras(3)
+    const mesNuevo = nombreMesAtras(2)
+    const filaVieja = page.locator('li', { hasText: `${nombreIndice} — ${mesViejo}` })
+    const filaNueva = page.locator('li', { hasText: `${nombreIndice} — ${mesNuevo}` })
 
-    // El mes más viejo pendiente (enero) no lleva ninguna advertencia.
+    // El mes más viejo pendiente no lleva ninguna advertencia.
     await expect(filaVieja).toBeVisible()
     await expect(filaVieja.getByText(/Ojo: todavía falta cargar/)).toHaveCount(0)
 
-    // El mes más nuevo (febrero) sí avisa que hay que cargar enero antes.
+    // El mes más nuevo sí avisa que hay que cargar el más viejo antes.
     await expect(
-      filaNueva.getByText(new RegExp(`Ojo: todavía falta cargar Enero 2028 de ${nombreIndice}`))
+      filaNueva.getByText(new RegExp(`Ojo: todavía falta cargar ${mesViejo} de ${nombreIndice}`))
     ).toBeVisible()
   })
 
@@ -795,7 +837,7 @@ test.describe('Índices — compuesto encadenado, fallback y catch-up (23/08)', 
       nombreIndice,
       fixtures.cliente.id,
       fixtures.acreedorConDatos.id,
-      '2028-02-15',
+      fechaMesesAtras(1, 15),
       100000
     )
 
@@ -817,7 +859,7 @@ test.describe('Índices — compuesto encadenado, fallback y catch-up (23/08)', 
     await filaFaltante.getByRole('link', { name: /cargar ahora/ }).click()
 
     await expect(page.locator('#form-cargar input[name="nombreNuevo"]')).toHaveValue(nombreIndice)
-    await expect(page.locator('#form-cargar input[name="periodo"]')).toHaveValue('2028-01')
+    await expect(page.locator('#form-cargar input[name="periodo"]')).toHaveValue(periodoInputMesesAtras(2))
   })
 
   test('el índice nunca se aplica sobre un monto que incluya mora -- son mecanismos separados', async ({

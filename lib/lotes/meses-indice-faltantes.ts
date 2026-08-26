@@ -14,13 +14,21 @@ export interface MesIndiceFaltante {
   lotes: LoteConMesFaltante[]
 }
 
-// Cuotas en pesos, todavía pendientes, cuyo índice del mes anterior ("a mes
-// vencido") nunca se cargó -- compute on read, mismo criterio que
-// obtenerCuotasSinDistribucion. Agrupado por (índice, mes), no por cuota:
-// con muchos clientes puede haber cientos de cuotas compartiendo el mismo
-// hueco, y lo que importa mostrar es qué mes falta cargar -- pero desde el
-// 24/08 también se listan los lotes concretos afectados (pedido de
-// Gabriel: poder ir directo a cargarlo, no solo saber que "algo" falta).
+// Cuotas en pesos, YA VENCIDAS (o que vencen hoy) y todavía pendientes,
+// cuyo índice del mes anterior ("a mes vencido") nunca se cargó -- compute
+// on read, mismo criterio que obtenerCuotasSinDistribucion. Agrupado por
+// (índice, mes), no por cuota: con muchos clientes puede haber cientos de
+// cuotas compartiendo el mismo hueco, y lo que importa mostrar es qué mes
+// falta cargar -- pero desde el 24/08 también se listan los lotes
+// concretos afectados (pedido de Gabriel: poder ir directo a cargarlo, no
+// solo saber que "algo" falta).
+//
+// Filtro por vencimiento <= hoy (25/08, corrección de un bug real que
+// encontró Gabriel): antes se avisaba de CUALQUIER cuota pendiente, incluidas
+// las que vencen recién dentro de varios meses -- una cuota de abril 2027
+// no necesita el índice de marzo 2027 hoy, lo va a necesitar cuando llegue
+// ese mes. Avisar tan lejos en el futuro no tiene sentido: el índice de un
+// mes que todavía no pasó ni siquiera existe para cargar.
 export async function obtenerMesesIndiceFaltantes(
   supabase: SupabaseServerClient
 ): Promise<MesIndiceFaltante[]> {
@@ -34,6 +42,8 @@ export async function obtenerMesesIndiceFaltantes(
 
   const lotePorId = new Map(lotes.map((lote) => [lote.id, lote]))
 
+  const hoy = new Date().toISOString().slice(0, 10)
+
   const { data: cuotasPendientes } = await supabase
     .from('cuotas')
     .select('lote_id, fecha_vencimiento')
@@ -42,6 +52,7 @@ export async function obtenerMesesIndiceFaltantes(
       lotes.map((lote) => lote.id)
     )
     .gt('saldo_pendiente', 0)
+    .lte('fecha_vencimiento', hoy)
 
   const necesarios = new Map<string, { nombre: string; periodo: string; loteIds: Set<string> }>()
   for (const cuota of cuotasPendientes ?? []) {
