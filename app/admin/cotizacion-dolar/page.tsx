@@ -1,10 +1,17 @@
 import { Fragment } from 'react'
 import { createClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
+import { FiltroEnVivo } from '@/components/FiltroEnVivo'
 
 const ROLES_CON_ACCESO = ['administrador', 'acreedor', 'vendedor', 'cobrador']
 
-export default async function HistorialCotizacionDolarPage() {
+export default async function HistorialCotizacionDolarPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ desde?: string; hasta?: string }>
+}) {
+  const { desde, hasta } = await searchParams
+
   const supabase = await createClient()
 
   const {
@@ -21,20 +28,33 @@ export default async function HistorialCotizacionDolarPage() {
     redirect('/login')
   }
 
-  const { data: cotizaciones } = await supabase
+  let queryCotizaciones = supabase
     .from('cotizaciones_dolar')
     .select('id, fecha, valor, cargado_por, created_at')
     .order('fecha', { ascending: false })
+
+  if (desde) queryCotizaciones = queryCotizaciones.gte('fecha', desde)
+  if (hasta) queryCotizaciones = queryCotizaciones.lte('fecha', hasta)
+
+  const { data: cotizaciones } = await queryCotizaciones
 
   // Historial de CADA carga/corrección del día (25/08/2026, pedido de
   // Gabriel) -- uso interno/admin únicamente, nunca se le muestra al
   // cliente. Se agrupa por fecha para poder listar, debajo de cada día, las
   // correcciones que hubo (si el día tuvo una sola carga, no se muestra
-  // nada extra).
-  const { data: historial } = await supabase
+  // nada extra). Filtrado por el mismo rango desde/hasta que la tabla
+  // principal (26/08/2026, pedido de Gabriel: poder buscar "lo que se cargó
+  // hace un mes" por rango de fecha, igual que en el resto de los
+  // historiales del admin).
+  let queryHistorial = supabase
     .from('cotizaciones_dolar_historial')
     .select('id, fecha, valor, cargado_por, created_at')
     .order('created_at', { ascending: true })
+
+  if (desde) queryHistorial = queryHistorial.gte('fecha', desde)
+  if (hasta) queryHistorial = queryHistorial.lte('fecha', hasta)
+
+  const { data: historial } = await queryHistorial
 
   const historialPorFecha = new Map<string, typeof historial>()
   for (const registro of historial ?? []) {
@@ -67,6 +87,32 @@ export default async function HistorialCotizacionDolarPage() {
         Un valor por día. El de hoy se puede corregir desde &quot;Lotes&quot;; los días anteriores
         quedan firmes.
       </p>
+
+      <FiltroEnVivo className="mb-6 flex flex-wrap items-end gap-3">
+        <label className="text-sm">
+          Desde
+          <input
+            type="date"
+            name="desde"
+            defaultValue={desde ?? ''}
+            className="mt-1 block rounded border px-3 py-2"
+          />
+        </label>
+        <label className="text-sm">
+          Hasta
+          <input
+            type="date"
+            name="hasta"
+            defaultValue={hasta ?? ''}
+            className="mt-1 block rounded border px-3 py-2"
+          />
+        </label>
+        {(desde || hasta) && (
+          <a href="/admin/cotizacion-dolar" className="text-sm underline">
+            Limpiar filtro
+          </a>
+        )}
+      </FiltroEnVivo>
 
       <table className="w-full text-sm">
         <thead>
@@ -116,7 +162,11 @@ export default async function HistorialCotizacionDolarPage() {
         </tbody>
       </table>
       {(cotizaciones ?? []).length === 0 && (
-        <p className="mt-4 text-sm text-gray-600">Todavía no se cargó ninguna cotización.</p>
+        <p className="mt-4 text-sm text-gray-600">
+          {desde || hasta
+            ? 'Ninguna cotización cargada en ese rango de fechas.'
+            : 'Todavía no se cargó ninguna cotización.'}
+        </p>
       )}
     </main>
   )
