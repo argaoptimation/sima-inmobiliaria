@@ -128,8 +128,7 @@ export default async function PortalClienteLotePage({
         {lote!.moneda === 'USD' && cotizacionVigente && (
           <span className="font-normal text-gray-600">
             {' '}
-            (≈ {convertirUsdAPesos(totalPendiente, cotizacionVigente.valor)} ARS a la cotización
-            del {cotizacionVigente.fecha})
+            (≈ {convertirUsdAPesos(totalPendiente, cotizacionVigente.valor)} ARS)
           </span>
         )}
       </p>
@@ -160,9 +159,19 @@ export default async function PortalClienteLotePage({
                 <td>{cuota.fecha_vencimiento}</td>
                 <td>
                   {cuota.monto_base} {lote!.moneda}
+                  {lote!.moneda === 'USD' && cotizacionVigente && (
+                    <span className="block text-xs text-gray-500">
+                      ≈ {convertirUsdAPesos(cuota.monto_base, cotizacionVigente.valor)} ARS
+                    </span>
+                  )}
                 </td>
                 <td>
                   {cuota.saldo_pendiente} {lote!.moneda}
+                  {lote!.moneda === 'USD' && cotizacionVigente && (
+                    <span className="block text-xs text-gray-500">
+                      ≈ {convertirUsdAPesos(cuota.saldo_pendiente, cotizacionVigente.valor)} ARS
+                    </span>
+                  )}
                 </td>
                 <td>
                   {interesMoratorio > 0 && (

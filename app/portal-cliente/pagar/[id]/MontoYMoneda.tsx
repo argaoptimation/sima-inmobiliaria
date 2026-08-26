@@ -41,7 +41,6 @@ export function MontoYMoneda({
       {monedaLote === 'USD' && cotizacionVigente && monto > 0 && (
         <p className="rounded border border-blue-200 bg-blue-50 p-3 text-sm text-blue-900">
           Equivalente en pesos: {convertirUsdAPesos(monto, cotizacionVigente.valor)} ARS
-          (cotización del {cotizacionVigente.fecha}: {cotizacionVigente.valor} ARS por USD)
         </p>
       )}
 

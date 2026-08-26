@@ -57,8 +57,10 @@ test.describe('Flujo completo de pago con confirmación cruzada', () => {
       await expect(filasCuotas).toHaveCount(3)
 
       for (let i = 0; i < 3; i++) {
-        await expect(filasCuotas.nth(i).locator('td').nth(2)).toHaveText('1000 USD')
-        await expect(filasCuotas.nth(i).locator('td').nth(3)).toHaveText('1000 USD')
+        // toContainText, no toHaveText: si hay cotización del día cargada,
+        // la celda también muestra el equivalente en ARS debajo (25/08).
+        await expect(filasCuotas.nth(i).locator('td').nth(2)).toContainText('1000 USD')
+        await expect(filasCuotas.nth(i).locator('td').nth(3)).toContainText('1000 USD')
       }
     })
 
@@ -140,9 +142,9 @@ test.describe('Flujo completo de pago con confirmación cruzada', () => {
       await page.goto(`/portal-cliente/lotes/${fixtures.loteId}`)
 
       const filasCuotas = page.locator('main table').nth(0).locator('tbody tr')
-      await expect(filasCuotas.nth(0).locator('td').nth(3)).toHaveText('0 USD') // cuota 1
-      await expect(filasCuotas.nth(1).locator('td').nth(3)).toHaveText('500 USD') // cuota 2
-      await expect(filasCuotas.nth(2).locator('td').nth(3)).toHaveText('1000 USD') // cuota 3, intacta
+      await expect(filasCuotas.nth(0).locator('td').nth(3)).toContainText('0 USD') // cuota 1
+      await expect(filasCuotas.nth(1).locator('td').nth(3)).toContainText('500 USD') // cuota 2
+      await expect(filasCuotas.nth(2).locator('td').nth(3)).toContainText('1000 USD') // cuota 3, intacta
     })
   })
 })

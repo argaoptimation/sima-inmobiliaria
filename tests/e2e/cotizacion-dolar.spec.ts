@@ -203,23 +203,45 @@ test.describe('Cotización del dólar', () => {
       throw new Error(`No se pudo crear el lote de prueba: ${errorLote?.message}`)
     }
 
-    const { error: errorCuota } = await admin.from('cuotas').insert({
-      lote_id: lote.id,
-      numero: 1,
-      monto_base: 200,
-      saldo_pendiente: 200,
-      fecha_vencimiento: '2027-01-01',
-    })
+    const { data: cuota, error: errorCuota } = await admin
+      .from('cuotas')
+      .insert({
+        lote_id: lote.id,
+        numero: 1,
+        monto_base: 200,
+        saldo_pendiente: 150,
+        fecha_vencimiento: '2027-01-01',
+      })
+      .select('id')
+      .single()
 
-    if (errorCuota) {
-      throw new Error(`No se pudo crear la cuota de prueba: ${errorCuota.message}`)
+    if (errorCuota || !cuota) {
+      throw new Error(`No se pudo crear la cuota de prueba: ${errorCuota?.message}`)
     }
 
     await login(page, fixtures.cliente.email, fixtures.password)
     await page.goto(`/portal-cliente/lotes/${lote.id}`)
 
-    await expect(page.getByText('Total pendiente: 200 USD')).toBeVisible()
-    await expect(page.getByText(/≈ 200000 ARS a la cotización del/)).toBeVisible()
+    const filaTotal = page.locator('p', { hasText: 'Total pendiente' })
+    await expect(filaTotal).toContainText('150 USD')
+    await expect(filaTotal).toContainText('≈ 150000 ARS')
+    // No debe mencionar el valor de la cotización -- al cliente solo le
+    // importa el monto que tiene que pagar (pedido de Gabriel, 25/08).
+    await expect(filaTotal).not.toContainText('cotización')
+
+    const filaCuota = page.locator('tbody tr', { hasText: '2027-01-01' })
+    await expect(filaCuota).toContainText('≈ 200000 ARS') // monto base
+    await expect(filaCuota).toContainText('≈ 150000 ARS') // saldo pendiente
+    await expect(filaCuota).not.toContainText('cotización')
+
+    // Desde "Pagar cuota" se puede volver al lote (25/08, antes no había
+    // forma de volver salvo el botón "atrás" del navegador).
+    await filaCuota.getByRole('link', { name: 'Pagar cuota' }).click()
+    await page.waitForURL(new RegExp(`/portal-cliente/pagar/${cuota.id}`))
+    await expect(page.getByRole('link', { name: '← Volver al lote' })).toHaveAttribute(
+      'href',
+      `/portal-cliente/lotes/${lote.id}`
+    )
 
     await admin.from('cuotas').delete().eq('lote_id', lote.id)
     await admin.from('lotes').delete().eq('id', lote.id)

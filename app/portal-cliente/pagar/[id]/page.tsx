@@ -81,6 +81,9 @@ export default async function PagarCuotaPage({
 
   return (
     <main className="mx-auto mt-12 max-w-md p-6">
+      <a href={`/portal-cliente/lotes/${cuota!.lote_id}`} className="mb-4 inline-block text-sm underline">
+        ← Volver al lote
+      </a>
       <h1 className="mb-6 text-xl font-semibold">Registrar pago</h1>
       <div className="mb-6 rounded bg-gray-100 p-3 text-sm">
         {datosCompletos ? (
