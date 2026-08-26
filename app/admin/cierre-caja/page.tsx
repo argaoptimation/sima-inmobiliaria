@@ -101,9 +101,6 @@ export default async function CierreCajaPage({
             className="mt-1 block rounded border px-3 py-2"
           />
         </label>
-        <button type="submit" className="rounded border px-3 py-2 text-sm">
-          Ver
-        </button>
       </FiltroEnVivo>
 
       <div className="mb-6 grid gap-4 sm:grid-cols-2">
@@ -146,7 +143,7 @@ export default async function CierreCajaPage({
       <div className="mb-2 flex items-center justify-between">
         <h2 className="text-lg font-semibold">Detalle del día</h2>
         <a href={`/admin/cierre-caja/export?fecha=${fecha}`} className="text-sm underline">
-          Descargar CSV →
+          Descargar Excel →
         </a>
       </div>
       {pagosDelDia.length === 0 ? (

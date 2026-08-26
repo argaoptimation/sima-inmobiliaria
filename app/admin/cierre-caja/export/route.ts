@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import ExcelJS from 'exceljs'
 import { createClient } from '@/lib/supabase/server'
 import { requireAdminOCobrador } from '@/lib/auth/require-admin'
 
@@ -9,23 +10,14 @@ const MOTIVO_ETIQUETA: Record<string, string> = {
   ajuste: 'Corrección',
 }
 
-// Una coma, comilla o salto de línea adentro de un campo rompería el CSV
-// si no se escapa -- el identificador del lote es texto libre.
-function celdaCsv(valor: string): string {
-  if (/[",\n]/.test(valor)) {
-    return `"${valor.replace(/"/g, '""')}"`
-  }
-  return valor
-}
-
 function hoyISO(): string {
   return new Date().toISOString().slice(0, 10)
 }
 
-// Descarga en CSV (se abre directo en Excel) del mismo resumen que muestra
-// /admin/cierre-caja para un día puntual -- pedido de Gabriel (25/08) para
-// poder compartirle a Nico un detalle completo del día sin tener que
-// transcribirlo a mano.
+// Descarga en .xlsx (planilla real, con columnas separadas -- no un CSV
+// aplanado) del mismo resumen que muestra /admin/cierre-caja para un día
+// puntual -- pedido de Gabriel (25-26/08) para poder compartirle a Nico un
+// detalle completo del día sin tener que transcribirlo a mano.
 export async function GET(request: NextRequest) {
   await requireAdminOCobrador()
 
@@ -81,46 +73,69 @@ export async function GET(request: NextRequest) {
     totalesPorMedioYMoneda.set(clave, (totalesPorMedioYMoneda.get(clave) ?? 0) + pago.monto)
   }
 
-  const filasResumen = [...totalesPorMedioYMoneda.entries()].map(([clave, total]) => {
-    const [medio, moneda] = clave.split('|')
-    return [medio === 'efectivo' ? 'Efectivo' : 'Transferencia', moneda, String(total)]
-      .map(celdaCsv)
-      .join(',')
-  })
+  const workbook = new ExcelJS.Workbook()
+  const hoja = workbook.addWorksheet('Cierre de caja')
 
-  const filasDetalle = pagosDelDia.map((pago) =>
-    [
-      pago.lotes?.identificador ?? '',
-      nombreClientePorId.get(pago.cliente_id) ?? '',
+  const ESTILO_TITULO = { font: { bold: true, size: 14 } } as const
+  const ESTILO_SUBTITULO = { font: { bold: true, size: 12 } } as const
+  const ESTILO_ENCABEZADO = {
+    font: { bold: true, color: { argb: 'FFFFFFFF' } },
+    fill: { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF1F2937' } } as const,
+  }
+
+  hoja.addRow([`Cierre de caja — ${fecha}`]).font = ESTILO_TITULO.font
+  hoja.addRow([])
+
+  hoja.addRow(['Resumen']).font = ESTILO_SUBTITULO.font
+  const filaEncabezadoResumen = hoja.addRow(['Medio', 'Moneda', 'Total'])
+  filaEncabezadoResumen.eachCell((celda) => {
+    celda.font = ESTILO_ENCABEZADO.font
+    celda.fill = ESTILO_ENCABEZADO.fill
+  })
+  for (const [clave, total] of totalesPorMedioYMoneda.entries()) {
+    const [medio, moneda] = clave.split('|')
+    hoja.addRow([medio === 'efectivo' ? 'Efectivo' : 'Transferencia', moneda, total])
+  }
+  if (totalesPorMedioYMoneda.size === 0) {
+    hoja.addRow(['Sin movimientos este día.'])
+  }
+
+  hoja.addRow([])
+  hoja.addRow(['Detalle']).font = ESTILO_SUBTITULO.font
+  const filaEncabezadoDetalle = hoja.addRow(['Lote', 'Cliente', 'Medio', 'Motivo', 'Monto', 'Moneda'])
+  filaEncabezadoDetalle.eachCell((celda) => {
+    celda.font = ESTILO_ENCABEZADO.font
+    celda.fill = ESTILO_ENCABEZADO.fill
+  })
+  for (const pago of pagosDelDia) {
+    hoja.addRow([
+      pago.lotes?.identificador ?? '—',
+      nombreClientePorId.get(pago.cliente_id) ?? '—',
       pago.medio_pago === 'efectivo' ? 'Efectivo' : 'Transferencia',
       MOTIVO_ETIQUETA[pago.motivo] ?? pago.motivo,
-      String(pago.monto),
+      pago.monto,
       pago.moneda,
-    ]
-      .map(celdaCsv)
-      .join(',')
-  )
+    ])
+  }
+  if (pagosDelDia.length === 0) {
+    hoja.addRow(['Ningún pago confirmado este día.'])
+  }
 
-  const bloques = [
-    `Cierre de caja — ${fecha}`,
-    '',
-    'Resumen',
-    'Medio,Moneda,Total',
-    ...filasResumen,
-    '',
-    'Detalle',
-    'Lote,Cliente,Medio,Motivo,Monto,Moneda',
-    ...filasDetalle,
+  hoja.columns = [
+    { width: 26 },
+    { width: 26 },
+    { width: 16 },
+    { width: 14 },
+    { width: 14 },
+    { width: 10 },
   ]
 
-  // BOM al principio para que Excel abra los acentos bien en vez de mostrar
-  // caracteres raros (quirk conocido de Excel con UTF-8 sin BOM).
-  const csv = '﻿' + bloques.join('\r\n')
+  const buffer = await workbook.xlsx.writeBuffer()
 
-  return new NextResponse(csv, {
+  return new NextResponse(buffer, {
     headers: {
-      'Content-Type': 'text/csv; charset=utf-8',
-      'Content-Disposition': `attachment; filename="cierre-caja-${fecha}.csv"`,
+      'Content-Type': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+      'Content-Disposition': `attachment; filename="cierre-caja-${fecha}.xlsx"`,
     },
   })
 }
