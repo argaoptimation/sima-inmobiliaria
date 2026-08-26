@@ -263,6 +263,29 @@ test.describe('Rescindido de lote (24/08)', () => {
     await page.goto(`/admin/lotes/${lote.id}`)
     const tablaCuotas = page.locator('h2', { hasText: 'Cuotas' }).locator('xpath=following-sibling::table[1]')
     await expect(tablaCuotas.locator('tbody tr')).toHaveCount(2)
+
+    // Regresión 26/08 (bug real encontrado revisando refinanciación): el
+    // portal del CLIENTE NUEVO tampoco tiene que mezclar la deuda vieja del
+    // ciclo 1 (que era de otro comprador) con la suya del ciclo 2.
+    const { data: compradorNuevo } = await admin
+      .from('profiles')
+      .select('id')
+      .eq('email', email)
+      .single()
+    // inviteUserByEmail deja el mail sin confirmar (a diferencia de
+    // ensureTestFixtures, que usa createUser con email_confirm: true) --
+    // hay que confirmarlo a mano para poder loguearse con contraseña acá.
+    await admin.auth.admin.updateUserById(compradorNuevo!.id, {
+      password: fixtures.password,
+      email_confirm: true,
+    })
+
+    await logout(page)
+    await login(page, email, fixtures.password)
+    await page.goto(`/portal-cliente/lotes/${lote.id}`)
+
+    await expect(page.locator('tbody tr')).toHaveCount(2)
+    await expect(page.getByText('Todavía no registraste ningún pago.')).toBeVisible()
   })
 
   test('destinos: muestra a quién se distribuyó cada cuota, sumado por participante (pedido 24/08)', async ({

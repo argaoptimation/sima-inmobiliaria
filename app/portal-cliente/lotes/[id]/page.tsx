@@ -34,7 +34,7 @@ export default async function PortalClienteLotePage({
 
   const { data: lote } = await supabase
     .from('lotes')
-    .select('id, identificador, moneda, cliente_id, interes_moratorio_diario')
+    .select('id, identificador, moneda, cliente_id, interes_moratorio_diario, ciclo_actual')
     .eq('id', id)
     .single()
 
@@ -42,10 +42,15 @@ export default async function PortalClienteLotePage({
     notFound()
   }
 
+  // Acotado al ciclo VIGENTE (26/08, bug real encontrado): sin este filtro,
+  // un lote que se rescindió y se revendió a otro cliente mezclaba acá la
+  // deuda vieja del dueño anterior con la del ciclo actual -- mismo
+  // criterio que ya usa el detalle del lote en /admin.
   const { data: cuotas } = await supabase
     .from('cuotas')
     .select('id, numero, monto_base, saldo_pendiente, fecha_vencimiento, refinanciada')
     .eq('lote_id', lote!.id)
+    .eq('ciclo', lote!.ciclo_actual)
     .order('numero', { ascending: true })
 
   const hoy = new Date().toISOString().slice(0, 10)
@@ -78,10 +83,14 @@ export default async function PortalClienteLotePage({
           .maybeSingle()
       : { data: null }
 
+  // .eq('cliente_id', ...) además de lote_id -- mismo motivo que el filtro
+  // de ciclo en cuotas: si el lote se rescindió y se revendió, los pagos
+  // del dueño anterior también cuelgan de este lote_id.
   const { data: pagos } = await supabase
     .from('pagos')
     .select('id, monto, moneda, estado, comprobante_path')
     .eq('lote_id', lote!.id)
+    .eq('cliente_id', user!.id)
     .order('created_at', { ascending: false })
 
   const admin = createAdminClient()
@@ -158,11 +167,6 @@ export default async function PortalClienteLotePage({
                 <td>{cuota.fecha_vencimiento}</td>
                 <td className="py-2">
                   {cuota.monto_base} {lote!.moneda}
-                  {lote!.moneda === 'USD' && cotizacionVigente && (
-                    <span className="mt-1 block w-fit rounded bg-gray-100 px-1.5 py-0.5 text-xs text-gray-600">
-                      ≈ {convertirUsdAPesos(cuota.monto_base, cotizacionVigente.valor)} ARS
-                    </span>
-                  )}
                 </td>
                 <td className="py-2">
                   {cuota.refinanciada ? (

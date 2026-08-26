@@ -232,8 +232,11 @@ test.describe('Cotización del dólar', () => {
     await expect(filaTotal).toContainText('150 USD')
     await expect(filaTotal).not.toContainText('ARS')
 
+    // Monto base ya no repite el equivalente en pesos (26/08, pedido de
+    // Gabriel: mucha "mugre visual" en vano) -- alcanza con que lo muestre
+    // el saldo pendiente, que es lo único que le interesa al cliente.
     const filaCuota = page.locator('tbody tr', { hasText: '2027-01-01' })
-    await expect(filaCuota).toContainText('≈ 200000 ARS') // monto base
+    await expect(filaCuota).not.toContainText('≈ 200000 ARS') // monto base
     await expect(filaCuota).toContainText('≈ 150000 ARS') // saldo pendiente
     await expect(filaCuota).not.toContainText('cotización')
 
