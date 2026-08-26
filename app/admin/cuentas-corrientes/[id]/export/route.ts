@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
-import { requireAdministrador } from '@/lib/auth/require-admin'
+import { requireAdminOTitularCuenta } from '@/lib/auth/require-admin'
 
 const ETIQUETA_ORIGEN: Record<string, string> = {
   cobro_cuota: 'Cobro de cuota (automático)',
@@ -22,9 +22,9 @@ function celdaCsv(valor: string): string {
 }
 
 export async function GET(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
-  await requireAdministrador()
-
   const { id } = await params
+  await requireAdminOTitularCuenta(id)
+
   const { searchParams } = new URL(request.url)
   const filtroLoteId = searchParams.get('lote')
   const filtroOrigen = searchParams.get('origen')

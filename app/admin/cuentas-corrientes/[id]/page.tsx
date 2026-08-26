@@ -1,5 +1,5 @@
 import { createClient } from '@/lib/supabase/server'
-import { requireAdministrador } from '@/lib/auth/require-admin'
+import { requireAdminOTitularCuenta } from '@/lib/auth/require-admin'
 import { notFound } from 'next/navigation'
 import { calcularSaldoCuentaCorrientePorMoneda } from '@/lib/cuenta-corriente/calcular-saldo'
 import { agregarMovimientoManual } from '../actions'
@@ -22,9 +22,8 @@ export default async function CuentaCorrienteDetallePage({
   params: Promise<{ id: string }>
   searchParams: Promise<{ error?: string; ok?: string; lote?: string; origen?: string; desde?: string; hasta?: string }>
 }) {
-  await requireAdministrador()
-
   const { id } = await params
+  const { esAdmin } = await requireAdminOTitularCuenta(id)
   const { error, ok, lote: filtroLoteId, origen: filtroOrigen, desde: filtroDesde, hasta: filtroHasta } =
     await searchParams
 
@@ -73,11 +72,11 @@ export default async function CuentaCorrienteDetallePage({
   // Sugerencias de "de quién vino la plata" -- puede ser un cliente (el
   // caso más común de "pago directo") o cualquier otra persona del
   // sistema. El campo sigue siendo texto libre (no hay ninguna FK que
-  // resolver), el datalist es solo para no tipear de cero.
-  const { data: personasParaSugerir } = await supabase
-    .from('profiles')
-    .select('full_name')
-    .order('full_name')
+  // resolver), el datalist es solo para no tipear de cero. Solo hace falta
+  // para el alta manual de movimientos, que es admin-only.
+  const { data: personasParaSugerir } = esAdmin
+    ? await supabase.from('profiles').select('full_name').order('full_name')
+    : { data: [] }
 
   // Dos personas distintas pueden compartir nombre (ej. dos clientes
   // llamados "Juan Pérez") -- el datalist solo necesita el texto una vez,
@@ -118,10 +117,13 @@ export default async function CuentaCorrienteDetallePage({
 
   return (
     <main className="max-w-3xl">
-      <a href="/admin/cuentas-corrientes" className="mb-4 inline-block text-sm underline">
-        ← Volver a Cuentas corrientes
+      <a
+        href={esAdmin ? '/admin/cuentas-corrientes' : '/admin/lotes'}
+        className="mb-4 inline-block text-sm underline"
+      >
+        {esAdmin ? '← Volver a Cuentas corrientes' : '← Volver'}
       </a>
-      <h1 className="mb-1 text-xl font-semibold">{persona!.full_name}</h1>
+      <h1 className="mb-1 text-xl font-semibold">{esAdmin ? persona!.full_name : 'Mi cuenta corriente'}</h1>
       <p className="mb-6 text-sm text-gray-600">{persona!.role}</p>
 
       {error && <p className="mb-4 rounded bg-red-100 p-2 text-sm text-red-700">{error}</p>}
@@ -137,12 +139,16 @@ export default async function CuentaCorrienteDetallePage({
         Positivo: la empresa todavía le debe. Negativo: cobró de más y le debe a la empresa.
       </p>
 
-      <h2 className="mb-2 text-lg font-semibold">Registrar movimiento manual</h2>
-      <FormularioMovimientoManual
-        agregarMovimientoManualAction={agregarMovimientoManualConId}
-        nombresUnicosParaSugerir={nombresUnicosParaSugerir}
-        lotes={lotes ?? []}
-      />
+      {esAdmin && (
+        <>
+          <h2 className="mb-2 text-lg font-semibold">Registrar movimiento manual</h2>
+          <FormularioMovimientoManual
+            agregarMovimientoManualAction={agregarMovimientoManualConId}
+            nombresUnicosParaSugerir={nombresUnicosParaSugerir}
+            lotes={lotes ?? []}
+          />
+        </>
+      )}
 
       <h2 className="mb-2 text-lg font-semibold">Movimientos</h2>
       <a

@@ -242,3 +242,46 @@ test.describe('Cuenta corriente', () => {
     expect(movimientos).toHaveLength(0)
   })
 })
+
+test.describe('Cuenta corriente propia (26/08)', () => {
+  let fixtures: TestFixtures
+
+  test.beforeAll(async () => {
+    fixtures = await ensureTestFixtures()
+  })
+
+  test('un acreedor puede ver su propia cuenta corriente, en modo lectura, desde el nav y desde Mi perfil', async ({
+    page,
+  }) => {
+    await login(page, fixtures.acreedorConDatos.email, fixtures.password)
+
+    // Desde el nav.
+    await page.goto('/admin/lotes')
+    await page.getByRole('link', { name: 'Mi cuenta corriente' }).click()
+    await page.waitForURL(`**/admin/cuentas-corrientes/${fixtures.acreedorConDatos.id}`)
+    await expect(page.getByRole('heading', { name: 'Mi cuenta corriente' })).toBeVisible()
+
+    // No es una pantalla de gestión: sin alta manual de movimientos ni
+    // descarga -- solo consulta de lo propio.
+    await expect(page.getByRole('heading', { name: 'Registrar movimiento manual' })).not.toBeVisible()
+
+    // Desde "Mi perfil" también hay un link directo al detalle.
+    await page.goto('/mi-perfil')
+    await page.getByRole('link', { name: 'Ver detalle de movimientos →' }).click()
+    await page.waitForURL(`**/admin/cuentas-corrientes/${fixtures.acreedorConDatos.id}`)
+  })
+
+  test('un vendedor NO puede ver la cuenta corriente de otra persona', async ({ page }) => {
+    await login(page, fixtures.vendedorLoteA.email, fixtures.password)
+    await page.goto(`/admin/cuentas-corrientes/${fixtures.acreedorConDatos.id}`)
+    await page.waitForURL('**/admin/lotes')
+  })
+
+  test('un vendedor tampoco puede acceder al listado /admin/cuentas-corrientes (sigue siendo admin-only)', async ({
+    page,
+  }) => {
+    await login(page, fixtures.vendedorLoteA.email, fixtures.password)
+    await page.goto('/admin/cuentas-corrientes')
+    await page.waitForURL('**/admin/lotes')
+  })
+})

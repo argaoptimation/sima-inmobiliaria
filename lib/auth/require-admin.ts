@@ -157,6 +157,46 @@ export async function requireAdminOCobrador() {
   }
 }
 
+// Cuenta corriente de una persona: el admin puede ver la de cualquiera.
+// Acreedor/vendedor/cobrador pueden ver SOLO la propia (26/08, ver
+// Notas_Decisiones_SIMA.txt): antes esta pantalla era admin-only y esos
+// roles no tenían ninguna forma de consultar sus propias liquidaciones. El
+// `esAdmin` que devuelve sirve para que la pantalla oculte las acciones de
+// gestión (alta manual de movimientos, descarga) cuando es la propia
+// persona mirando en modo solo-lectura, no un admin.
+export async function requireAdminOTitularCuenta(personaId: string): Promise<{ esAdmin: boolean }> {
+  const supabase = await createClient()
+
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
+
+  if (!user) {
+    redirect('/login')
+  }
+
+  const { data: profile } = await supabase
+    .from('profiles')
+    .select('role')
+    .eq('id', user!.id)
+    .single()
+
+  if (!profile) {
+    redirect('/login')
+  }
+
+  if (profile!.role === 'administrador') {
+    return { esAdmin: true }
+  }
+
+  const rolesConCuentaPropia = ['acreedor', 'vendedor', 'cobrador']
+  if (rolesConCuentaPropia.includes(profile!.role) && user!.id === personaId) {
+    return { esAdmin: false }
+  }
+
+  redirect('/admin/lotes')
+}
+
 export async function requireAccesoParaReservar(loteId: string) {
   const supabase = await createClient()
 

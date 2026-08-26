@@ -34,7 +34,7 @@ export default async function AdminLayout({ children }: { children: React.ReactN
 
   return (
     <div>
-      <NavAdmin role={profile.role} pagosPendientes={pagosPendientes} />
+      <NavAdmin role={profile.role} pagosPendientes={pagosPendientes} userId={user.id} />
       <div className="p-6">{children}</div>
     </div>
   )

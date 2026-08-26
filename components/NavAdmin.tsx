@@ -1,8 +1,20 @@
 import { logout } from '@/app/login/actions'
 
-export function NavAdmin({ role, pagosPendientes }: { role: string; pagosPendientes: number }) {
+export function NavAdmin({
+  role,
+  pagosPendientes,
+  userId,
+}: {
+  role: string
+  pagosPendientes: number
+  userId: string
+}) {
   const puedeVerPagosYUsuarios = role === 'administrador' || role === 'acreedor'
   const esAdministrador = role === 'administrador'
+  // Acreedor/vendedor/cobrador ahora pueden ver su propia cuenta corriente
+  // en modo lectura (26/08) -- antes esa pantalla era admin-only y no
+  // tenían ninguna forma de consultar sus propias liquidaciones.
+  const tieneCuentaPropia = role === 'acreedor' || role === 'vendedor' || role === 'cobrador'
   // Índices: según Nicolás, además del admin puede cargarlos/corregirlos
   // un cobrador (ej. el contador) -- ver lib/auth/require-admin.ts.
   const puedeVerIndices = role === 'administrador' || role === 'cobrador'
@@ -23,6 +35,7 @@ export function NavAdmin({ role, pagosPendientes }: { role: string; pagosPendien
         {esAdministrador && <a href="/admin/clientes">Clientes</a>}
         {esAdministrador && <a href="/admin/cuentas-externas">Cuentas externas</a>}
         {esAdministrador && <a href="/admin/cuentas-corrientes">Cuentas corrientes</a>}
+        {tieneCuentaPropia && <a href={`/admin/cuentas-corrientes/${userId}`}>Mi cuenta corriente</a>}
         {puedeVerIndices && <a href="/admin/historial-lotes">Historial</a>}
         {puedeVerIndices && <a href="/admin/indices">Índices</a>}
         {puedeVerEfectivoYCaja && <a href="/admin/efectivo">Efectivo</a>}
