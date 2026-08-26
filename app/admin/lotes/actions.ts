@@ -13,6 +13,10 @@ export async function crearLote(formData: FormData) {
   const supabase = await createClient()
   const admin = createAdminClient()
 
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
+
   const identificador = formData.get('identificador') as string
   const moneda = formData.get('moneda') as 'USD' | 'ARS'
   const ubicacion = ((formData.get('ubicacion') as string) || '').trim() || null
@@ -81,13 +85,17 @@ export async function crearLote(formData: FormData) {
     acreedorIdFinal = acreedorExistente!.id
   }
 
-  const { error: errorLote } = await supabase.from('lotes').insert({
-    identificador,
-    moneda,
-    ubicacion,
-    precio_total: precioTotal,
-    acreedor_id: acreedorIdFinal,
-  })
+  const { data: loteCreado, error: errorLote } = await supabase
+    .from('lotes')
+    .insert({
+      identificador,
+      moneda,
+      ubicacion,
+      precio_total: precioTotal,
+      acreedor_id: acreedorIdFinal,
+    })
+    .select('id')
+    .single()
 
   if (errorLote) {
     const mensaje = mensajeDeError(errorLote, {
@@ -95,6 +103,16 @@ export async function crearLote(formData: FormData) {
     })
     redirect(`/admin/lotes/nuevo?error=${encodeURIComponent(mensaje)}`)
   }
+
+  // Primer evento de la "vida del lote" (26/08, pedido de Nicolás: un
+  // historial que muestre también los lotes que van ingresando, no solo
+  // rescindido/vuelto a disponible).
+  await supabase.from('lote_historial_estados').insert({
+    lote_id: loteCreado!.id,
+    evento: 'creado',
+    estado_nuevo: 'disponible',
+    cambiado_por: user!.id,
+  })
 
   redirect('/admin/lotes')
 }

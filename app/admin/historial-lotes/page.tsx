@@ -1,28 +1,41 @@
 import { createClient } from '@/lib/supabase/server'
 import { requireAdminOCobrador } from '@/lib/auth/require-admin'
 import { FiltroEnVivo } from '@/components/FiltroEnVivo'
+import { EVENTO_HISTORIAL_ETIQUETA } from '@/lib/lotes/eventos-historial'
 
 export default async function HistorialLotesPage({
   searchParams,
 }: {
-  searchParams: Promise<{ estado?: string; desde?: string; hasta?: string }>
+  searchParams: Promise<{ estado?: string; evento?: string; desde?: string; hasta?: string }>
 }) {
-  const { estado: filtroEstado, desde: filtroDesde, hasta: filtroHasta } = await searchParams
+  const {
+    estado: filtroEstado,
+    evento: filtroEvento,
+    desde: filtroDesde,
+    hasta: filtroHasta,
+  } = await searchParams
 
   await requireAdminOCobrador()
 
   const supabase = await createClient()
 
-  // Vista global (todos los lotes juntos) de cada cambio de estado --
-  // pedido de Gabriel 25/08 para no tener que abrir lote por lote a ver
-  // si/cuándo se rescindió alguno. Los filtros van por el estado AL QUE
-  // pasó (ej. "rescindido") y por rango de fecha del cambio.
+  // Vista global (todos los lotes juntos) de cada movimiento -- pedido de
+  // Gabriel 25/08 (cambios de estado) ampliado 26/08 a pedido de Nicolás
+  // (también lotes creados, reservados, vendidos y refinanciaciones, no
+  // solo rescindido/vuelto a disponible -- "como un historial de búsqueda,
+  // en orden cronológico"). Dos filtros independientes: "Pasó a estado"
+  // (el valor real de lotes.estado, solo aplica a los movimientos que
+  // cambian el estado) y "Movimiento" (el evento en sí, cubre TODOS los
+  // tipos incluidos los que no cambian estado como "creado"/"refinanció").
   let query = supabase
     .from('lote_historial_estados')
-    .select('id, lote_id, estado_anterior, estado_nuevo, cambiado_por, created_at, lotes(identificador)')
+    .select(
+      'id, lote_id, evento, estado_anterior, estado_nuevo, cambiado_por, detalle, created_at, lotes(identificador)'
+    )
     .order('created_at', { ascending: false })
 
   if (filtroEstado) query = query.eq('estado_nuevo', filtroEstado)
+  if (filtroEvento) query = query.eq('evento', filtroEvento)
   if (filtroDesde) query = query.gte('created_at', filtroDesde)
   if (filtroHasta) query = query.lte('created_at', `${filtroHasta}T23:59:59`)
 
@@ -31,9 +44,11 @@ export default async function HistorialLotesPage({
   const historial = (historialData ?? []) as unknown as Array<{
     id: string
     lote_id: string
-    estado_anterior: string
-    estado_nuevo: string
+    evento: string
+    estado_anterior: string | null
+    estado_nuevo: string | null
     cambiado_por: string
+    detalle: string | null
     created_at: string
     lotes: { identificador: string } | null
   }>
@@ -45,12 +60,17 @@ export default async function HistorialLotesPage({
       : { data: [] }
   const nombreCambiadorPorId = new Map((cambiadores ?? []).map((persona) => [persona.id, persona.full_name]))
 
-  // Opciones del filtro "Estado": todos los estados a los que se haya
-  // pasado alguna vez, sin filtrar (para no perder opciones al filtrar).
-  const { data: todoElHistorial } = await supabase.from('lote_historial_estados').select('estado_nuevo')
-  const estadosDisponibles = [...new Set((todoElHistorial ?? []).map((h) => h.estado_nuevo))].sort()
+  // Opciones de los filtros: todos los valores que se hayan visto alguna
+  // vez, sin filtrar (para no perder opciones al filtrar).
+  const { data: todoElHistorial } = await supabase
+    .from('lote_historial_estados')
+    .select('estado_nuevo, evento')
+  const estadosDisponibles = [
+    ...new Set((todoElHistorial ?? []).map((h) => h.estado_nuevo).filter((v): v is string => Boolean(v))),
+  ].sort()
+  const eventosDisponibles = [...new Set((todoElHistorial ?? []).map((h) => h.evento))].sort()
 
-  const hayFiltrosActivos = Boolean(filtroEstado || filtroDesde || filtroHasta)
+  const hayFiltrosActivos = Boolean(filtroEstado || filtroEvento || filtroDesde || filtroHasta)
 
   return (
     <main>
@@ -59,11 +79,26 @@ export default async function HistorialLotesPage({
       </a>
       <h1 className="mb-2 text-xl font-semibold">Historial de lotes</h1>
       <p className="mb-6 text-sm text-gray-600">
-        Todos los cambios de estado (rescindido, vuelto a disponible, etc.) de todos los lotes,
-        en un solo lugar.
+        Todos los movimientos de todos los lotes en un solo lugar (alta, reserva, venta,
+        rescisión, refinanciación, etc.), en orden cronológico.
       </p>
 
       <FiltroEnVivo className="mb-4 flex flex-wrap items-end gap-3">
+        <label className="text-sm">
+          Movimiento
+          <select
+            name="evento"
+            defaultValue={filtroEvento ?? ''}
+            className="mt-1 block rounded border px-3 py-2"
+          >
+            <option value="">Todos</option>
+            {eventosDisponibles.map((evento) => (
+              <option key={evento} value={evento}>
+                {EVENTO_HISTORIAL_ETIQUETA[evento] ?? evento}
+              </option>
+            ))}
+          </select>
+        </label>
         <label className="text-sm">
           Pasó a estado
           <select
@@ -109,7 +144,7 @@ export default async function HistorialLotesPage({
 
       {historial.length === 0 ? (
         <p className="text-sm text-gray-600">
-          {hayFiltrosActivos ? 'Ningún cambio coincide con los filtros.' : 'Todavía no hubo ningún cambio de estado.'}
+          {hayFiltrosActivos ? 'Ningún movimiento coincide con los filtros.' : 'Todavía no hubo ningún movimiento.'}
         </p>
       ) : (
         <table className="w-full text-sm">
@@ -130,7 +165,10 @@ export default async function HistorialLotesPage({
                   </a>
                 </td>
                 <td>
-                  {cambio.estado_anterior} → {cambio.estado_nuevo}
+                  {cambio.estado_anterior && cambio.estado_nuevo
+                    ? `${cambio.estado_anterior} → ${cambio.estado_nuevo}`
+                    : (EVENTO_HISTORIAL_ETIQUETA[cambio.evento] ?? cambio.evento)}
+                  {cambio.detalle && <span className="block text-xs text-gray-500">{cambio.detalle}</span>}
                 </td>
                 <td>{nombreCambiadorPorId.get(cambio.cambiado_por) ?? '—'}</td>
                 <td>{new Date(cambio.created_at).toLocaleString('es-AR')}</td>

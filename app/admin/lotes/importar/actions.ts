@@ -18,6 +18,10 @@ export async function importarLotes(formData: FormData) {
 
   const supabase = await createClient()
 
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
+
   const emailsUnicos = [...new Set(resultado.lotes.map((lote) => lote.acreedorEmail))]
 
   const { data: acreedores } = await supabase
@@ -39,13 +43,17 @@ export async function importarLotes(formData: FormData) {
   }
 
   for (const lote of resultado.lotes) {
-    const { error: errorLote } = await supabase.from('lotes').insert({
-      identificador: lote.identificador,
-      ubicacion: lote.ubicacion,
-      precio_total: lote.precioTotal,
-      moneda: lote.moneda,
-      acreedor_id: idPorEmail.get(lote.acreedorEmail),
-    })
+    const { data: loteCreado, error: errorLote } = await supabase
+      .from('lotes')
+      .insert({
+        identificador: lote.identificador,
+        ubicacion: lote.ubicacion,
+        precio_total: lote.precioTotal,
+        moneda: lote.moneda,
+        acreedor_id: idPorEmail.get(lote.acreedorEmail),
+      })
+      .select('id')
+      .single()
 
     if (errorLote) {
       const mensaje = mensajeDeError(errorLote, {
@@ -55,6 +63,13 @@ export async function importarLotes(formData: FormData) {
         `/admin/lotes/importar?error=${encodeURIComponent(`No se pudo crear "${lote.identificador}": ${mensaje}`)}`
       )
     }
+
+    await supabase.from('lote_historial_estados').insert({
+      lote_id: loteCreado!.id,
+      evento: 'creado',
+      estado_nuevo: 'disponible',
+      cambiado_por: user!.id,
+    })
   }
 
   redirect('/admin/lotes')

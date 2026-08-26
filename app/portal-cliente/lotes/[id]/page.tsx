@@ -44,7 +44,7 @@ export default async function PortalClienteLotePage({
 
   const { data: cuotas } = await supabase
     .from('cuotas')
-    .select('id, numero, monto_base, saldo_pendiente, fecha_vencimiento')
+    .select('id, numero, monto_base, saldo_pendiente, fecha_vencimiento, refinanciada')
     .eq('lote_id', lote!.id)
     .order('numero', { ascending: true })
 
@@ -165,11 +165,17 @@ export default async function PortalClienteLotePage({
                   )}
                 </td>
                 <td className="py-2">
-                  {cuota.saldo_pendiente} {lote!.moneda}
-                  {lote!.moneda === 'USD' && cotizacionVigente && (
-                    <span className="mt-1 block w-fit rounded bg-gray-100 px-1.5 py-0.5 text-xs text-gray-600">
-                      ≈ {convertirUsdAPesos(cuota.saldo_pendiente, cotizacionVigente.valor)} ARS
-                    </span>
+                  {cuota.refinanciada ? (
+                    <span className="italic text-gray-500">Refinanció</span>
+                  ) : (
+                    <>
+                      {cuota.saldo_pendiente} {lote!.moneda}
+                      {lote!.moneda === 'USD' && cotizacionVigente && (
+                        <span className="mt-1 block w-fit rounded bg-gray-100 px-1.5 py-0.5 text-xs text-gray-600">
+                          ≈ {convertirUsdAPesos(cuota.saldo_pendiente, cotizacionVigente.valor)} ARS
+                        </span>
+                      )}
+                    </>
                   )}
                 </td>
                 <td>

@@ -9,6 +9,7 @@ import { excedeTamanioMaximo, MAX_ARCHIVO_MB } from '@/lib/storage/validar-taman
 import { mensajeDeError } from '@/lib/errores'
 import { armarDatosContrato } from '@/lib/contratos/armar-datos-contrato'
 import { generarContrato, ErrorPlantillaContrato } from '@/lib/contratos/generar-contrato'
+import { generarCuotas } from '@/lib/lotes/generar-cuotas'
 
 function idOVacio(valor: FormDataEntryValue | null): string | null {
   const texto = valor as string | null
@@ -143,6 +144,7 @@ export async function rescindirLote(loteId: string) {
 
   await supabase.from('lote_historial_estados').insert({
     lote_id: loteId,
+    evento: 'rescindido',
     estado_anterior: 'vendido',
     estado_nuevo: 'rescindido',
     cambiado_por: user!.id,
@@ -186,12 +188,143 @@ export async function volverADisponible(loteId: string) {
 
   await supabase.from('lote_historial_estados').insert({
     lote_id: loteId,
+    evento: 'vuelto_disponible',
     estado_anterior: 'rescindido',
     estado_nuevo: 'disponible',
     cambiado_por: user!.id,
   })
 
   redirect(`/admin/lotes/${loteId}`)
+}
+
+// Refinanciación (spec confirmada por Nicolás, ver Notas_Decisiones_SIMA.txt
+// puntos 73/80/94): las cuotas vencidas impagas + futuras seleccionadas se
+// marcan "refinanciada" y su saldo pendiente se lleva a 0 (dejan de contar
+// en cobranza/totales, se muestran con la etiqueta "Refinanció"). Se generan
+// cuotas nuevas con el plan que se carga a mano, dentro del MISMO ciclo de
+// venta (esto no es una reventa). El lote sigue "vendido" -- no es un
+// estado nuevo, sigue comportándose igual en todo lo demás.
+export async function refinanciarLote(loteId: string, formData: FormData) {
+  await requireAdministrador()
+
+  const supabase = await createClient()
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
+
+  const { data: lote } = await supabase
+    .from('lotes')
+    .select('estado, ciclo_actual, moneda')
+    .eq('id', loteId)
+    .single()
+
+  if (!lote || lote.estado !== 'vendido') {
+    redirect(
+      `/admin/lotes/${loteId}?error=${encodeURIComponent('Solo se puede refinanciar un lote que está vendido')}`
+    )
+  }
+
+  const cuotaIds = formData.getAll('cuotaIds') as string[]
+
+  if (cuotaIds.length === 0) {
+    redirect(
+      `/admin/lotes/${loteId}?error=${encodeURIComponent('Seleccioná al menos una cuota para refinanciar')}`
+    )
+  }
+
+  const cantidadNueva = Number(formData.get('cantidadCuotasNuevas'))
+  const montoNuevo = Number(formData.get('montoCuotaNueva'))
+  const fechaPrimeraCuotaNueva = ((formData.get('fechaPrimeraCuotaNueva') as string) || '').trim()
+
+  if (!Number.isInteger(cantidadNueva) || cantidadNueva < 1 || cantidadNueva > 600) {
+    redirect(
+      `/admin/lotes/${loteId}?error=${encodeURIComponent(
+        'La cantidad de cuotas nuevas tiene que ser un número entero entre 1 y 600'
+      )}`
+    )
+  }
+
+  if (!Number.isFinite(montoNuevo) || montoNuevo <= 0) {
+    redirect(
+      `/admin/lotes/${loteId}?error=${encodeURIComponent('El monto de la cuota nueva tiene que ser mayor a 0')}`
+    )
+  }
+
+  if (!fechaPrimeraCuotaNueva) {
+    redirect(
+      `/admin/lotes/${loteId}?error=${encodeURIComponent('Ingresá la fecha de la primera cuota nueva')}`
+    )
+  }
+
+  const admin = createAdminClient()
+
+  // Revalida en el servidor que las cuotas elegidas realmente pertenecen a
+  // este lote+ciclo y todavía tienen saldo pendiente -- el checkbox del
+  // formulario ya las filtra así, esto es la barrera server-side.
+  const { data: cuotasSeleccionadas } = await admin
+    .from('cuotas')
+    .select('id, saldo_pendiente')
+    .eq('lote_id', loteId)
+    .eq('ciclo', lote!.ciclo_actual)
+    .in('id', cuotaIds)
+
+  if (!cuotasSeleccionadas || cuotasSeleccionadas.length !== cuotaIds.length) {
+    redirect(
+      `/admin/lotes/${loteId}?error=${encodeURIComponent('Una de las cuotas seleccionadas no pertenece a este lote')}`
+    )
+  }
+
+  if (cuotasSeleccionadas!.some((cuota) => cuota.saldo_pendiente <= 0)) {
+    redirect(
+      `/admin/lotes/${loteId}?error=${encodeURIComponent('Solo se pueden refinanciar cuotas con saldo pendiente')}`
+    )
+  }
+
+  const { error: errorMarcar } = await admin
+    .from('cuotas')
+    .update({ refinanciada: true, saldo_pendiente: 0 })
+    .in('id', cuotaIds)
+
+  if (errorMarcar) {
+    redirect(`/admin/lotes/${loteId}?error=${encodeURIComponent(mensajeDeError(errorMarcar))}`)
+  }
+
+  // El número de las cuotas nuevas continúa después de la última cuota que
+  // ya existe en este ciclo -- no se reinicia en 1 (chocaría con el unique
+  // lote_id+ciclo+numero).
+  const { data: cuotasDelCiclo } = await admin
+    .from('cuotas')
+    .select('numero')
+    .eq('lote_id', loteId)
+    .eq('ciclo', lote!.ciclo_actual)
+
+  const numeroInicial = Math.max(0, ...(cuotasDelCiclo ?? []).map((cuota) => cuota.numero)) + 1
+
+  const cuotasNuevas = generarCuotas(cantidadNueva, montoNuevo, fechaPrimeraCuotaNueva)
+
+  const { error: errorInsertarCuotas } = await admin.from('cuotas').insert(
+    cuotasNuevas.map((cuota) => ({
+      lote_id: loteId,
+      numero: numeroInicial + cuota.numero - 1,
+      ciclo: lote!.ciclo_actual,
+      monto_base: cuota.montoBase,
+      saldo_pendiente: cuota.montoBase,
+      fecha_vencimiento: cuota.fechaVencimiento,
+    }))
+  )
+
+  if (errorInsertarCuotas) {
+    redirect(`/admin/lotes/${loteId}?error=${encodeURIComponent(mensajeDeError(errorInsertarCuotas))}`)
+  }
+
+  await admin.from('lote_historial_estados').insert({
+    lote_id: loteId,
+    evento: 'refinanciado',
+    cambiado_por: user!.id,
+    detalle: `${cuotaIds.length} cuota(s) refinanciada(s) → ${cantidadNueva} cuota(s) nueva(s) de ${montoNuevo} ${lote!.moneda}`,
+  })
+
+  redirect(`/admin/lotes/${loteId}?ok=${encodeURIComponent('Refinanciación registrada')}`)
 }
 
 export async function actualizarCobro(loteId: string, formData: FormData) {

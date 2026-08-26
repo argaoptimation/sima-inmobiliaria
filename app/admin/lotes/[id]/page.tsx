@@ -12,6 +12,7 @@ import {
   eliminarDocumentoLote,
   rescindirLote,
   volverADisponible,
+  refinanciarLote,
   generarContratoLote,
 } from './actions'
 import { agregarParticipante, quitarParticipante } from './participantes-actions'
@@ -23,6 +24,7 @@ import { BotonVolverADisponible } from './BotonVolverADisponible'
 import { tieneDatosTransferencia } from '@/lib/lotes/validar-cuenta-cobro'
 import { telefonoParaWhatsApp } from '@/lib/telefono/prefijos'
 import { mesDeFecha } from '@/lib/lotes/aplicar-indexacion'
+import { EVENTO_HISTORIAL_ETIQUETA } from '@/lib/lotes/eventos-historial'
 
 const MESES_ABREVIADOS = [
   'Ene',
@@ -56,10 +58,10 @@ export default async function LoteDetallePage({
   searchParams,
 }: {
   params: Promise<{ id: string }>
-  searchParams: Promise<{ error?: string; editarUsuario?: string }>
+  searchParams: Promise<{ error?: string; ok?: string; editarUsuario?: string }>
 }) {
   const { id } = await params
-  const { error, editarUsuario } = await searchParams
+  const { error, ok, editarUsuario } = await searchParams
 
   await requireAdminAcreedorOCobrador()
 
@@ -102,7 +104,7 @@ export default async function LoteDetallePage({
 
   const { data: cuotas } = await supabase
     .from('cuotas')
-    .select('id, numero, monto_base, monto_ajustado, saldo_pendiente, fecha_vencimiento')
+    .select('id, numero, monto_base, monto_ajustado, saldo_pendiente, fecha_vencimiento, refinanciada')
     .eq('lote_id', id)
     .eq('ciclo', lote!.ciclo_actual)
     .order('numero', { ascending: true })
@@ -313,7 +315,7 @@ export default async function LoteDetallePage({
   // ese ciclo (rescindido ahora, o tuvo historial en algún momento).
   const { data: historialEstados } = await supabase
     .from('lote_historial_estados')
-    .select('estado_anterior, estado_nuevo, cambiado_por, created_at')
+    .select('evento, estado_anterior, estado_nuevo, cambiado_por, detalle, created_at')
     .eq('lote_id', id)
     .order('created_at', { ascending: true })
 
@@ -324,8 +326,14 @@ export default async function LoteDetallePage({
       : { data: [] }
   const nombreCambiadorPorId = new Map((cambiadores ?? []).map((persona) => [persona.id, persona.full_name]))
 
+  // "Total cobrado mientras estuvo vendido" solo tiene sentido si el lote
+  // ya pasó por un ciclo de rescisión -- no para cualquier fila de
+  // historial (ahora también hay filas de "creado"/"reservado"/etc. que no
+  // implican nada que rescindir).
+  const pasoPorRescindido = (historialEstados ?? []).some((h) => h.evento === 'rescindido')
+
   let totalCobradoHistorico: number | null = null
-  if ((historialEstados ?? []).length > 0) {
+  if (pasoPorRescindido) {
     // pagos.lote_id ya identifica directo a qué lote pertenece cada pago
     // (desde que un cliente puede tener varios lotes) -- sumamos lo
     // REALMENTE imputado (no pagos.monto) para que una corrección de monto
@@ -411,7 +419,10 @@ export default async function LoteDetallePage({
   const subirDocumentoConId = subirDocumentoLote.bind(null, id)
   const rescindirConId = rescindirLote.bind(null, id)
   const volverADisponibleConId = volverADisponible.bind(null, id)
+  const refinanciarConId = refinanciarLote.bind(null, id)
   const generarContratoConId = generarContratoLote.bind(null, id)
+
+  const cuotasRefinanciables = (cuotas ?? []).filter((cuota) => cuota.saldo_pendiente > 0)
 
   // Para "Generar contrato": hace falta saber si el loteo de este lote ya
   // tiene una plantilla cargada, para mostrar el botón habilitado o el
@@ -453,6 +464,7 @@ export default async function LoteDetallePage({
       </div>
 
       {error && <p className="mb-4 rounded bg-red-100 p-2 text-sm text-red-700">{error}</p>}
+      {ok && <p className="mb-4 rounded bg-green-100 p-2 text-sm text-green-800">{ok}</p>}
 
       <p className="mb-1 text-sm">Moneda: {lote!.moneda}</p>
       <p className="mb-1 text-sm">Estado: {lote!.estado}</p>
@@ -654,7 +666,13 @@ export default async function LoteDetallePage({
                   )}
                 </td>
                 <td>
-                  {cuota.saldo_pendiente} {lote!.moneda}
+                  {cuota.refinanciada ? (
+                    <span className="italic text-gray-500">Refinanció</span>
+                  ) : (
+                    <>
+                      {cuota.saldo_pendiente} {lote!.moneda}
+                    </>
+                  )}
                 </td>
                 <td>
                   {interesMoratorio > 0 && (
@@ -669,6 +687,65 @@ export default async function LoteDetallePage({
           })}
         </tbody>
       </table>
+
+      {perfilPropio!.role === 'administrador' && lote!.estado === 'vendido' && cuotasRefinanciables.length > 0 && (
+        <details className="mb-6 rounded border border-gray-200 text-sm">
+          <summary className="cursor-pointer select-none p-3 font-medium">Refinanciar cuotas</summary>
+          <form action={refinanciarConId} className="border-t border-gray-200 p-3">
+            <p className="mb-3 text-gray-600">
+              Marcá las cuotas que se refinancian (vencidas impagas + futuras) y cargá el plan
+              nuevo -- las viejas quedan marcadas &quot;Refinanció&quot; en vez de un saldo, y se
+              generan cuotas nuevas a partir de acá.
+            </p>
+            <ul className="mb-3 flex flex-col gap-1">
+              {cuotasRefinanciables.map((cuota) => (
+                <li key={cuota.id}>
+                  <label className="flex items-center gap-2">
+                    <input type="checkbox" name="cuotaIds" value={cuota.id} />
+                    Cuota {cuota.numero} — vence {cuota.fecha_vencimiento} — saldo {cuota.saldo_pendiente}{' '}
+                    {lote!.moneda}
+                  </label>
+                </li>
+              ))}
+            </ul>
+            <div className="mb-3 flex flex-wrap items-end gap-3">
+              <label className="text-sm">
+                Cantidad de cuotas nuevas
+                <input
+                  type="number"
+                  name="cantidadCuotasNuevas"
+                  min="1"
+                  required
+                  className="mt-1 block rounded border px-3 py-2"
+                />
+              </label>
+              <label className="text-sm">
+                Monto por cuota nueva
+                <input
+                  type="number"
+                  step="0.01"
+                  name="montoCuotaNueva"
+                  min="0.01"
+                  required
+                  className="mt-1 block rounded border px-3 py-2"
+                />
+              </label>
+              <label className="text-sm">
+                Fecha primera cuota nueva
+                <input
+                  type="date"
+                  name="fechaPrimeraCuotaNueva"
+                  required
+                  className="mt-1 block rounded border px-3 py-2"
+                />
+              </label>
+            </div>
+            <button type="submit" className="rounded bg-black px-3 py-2 text-sm text-white">
+              Refinanciar seleccionadas
+            </button>
+          </form>
+        </details>
+      )}
 
       {(pagosDelLote ?? []).length > 0 && (
         <>
@@ -1129,9 +1206,12 @@ export default async function LoteDetallePage({
             <ul className="mb-2 list-inside list-disc">
               {(historialEstados ?? []).map((cambio, i) => (
                 <li key={i}>
-                  {cambio.estado_anterior} → {cambio.estado_nuevo} —{' '}
-                  {nombreCambiadorPorId.get(cambio.cambiado_por) ?? '—'} —{' '}
+                  {cambio.estado_anterior && cambio.estado_nuevo
+                    ? `${cambio.estado_anterior} → ${cambio.estado_nuevo}`
+                    : (EVENTO_HISTORIAL_ETIQUETA[cambio.evento] ?? cambio.evento)}{' '}
+                  — {nombreCambiadorPorId.get(cambio.cambiado_por) ?? '—'} —{' '}
                   {new Date(cambio.created_at).toLocaleDateString('es-AR')}
+                  {cambio.detalle && <span className="text-gray-500"> — {cambio.detalle}</span>}
                 </li>
               ))}
             </ul>

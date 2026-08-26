@@ -375,6 +375,14 @@ export async function venderLote(loteId: string, formData: FormData) {
     )
   }
 
+  await admin.from('lote_historial_estados').insert({
+    lote_id: loteId,
+    evento: 'vendido',
+    estado_anterior: 'reservado',
+    estado_nuevo: 'vendido',
+    cambiado_por: adminUser!.id,
+  })
+
   const { data: cuotasCreadas, error: errorCuotas } = await admin
     .from('cuotas')
     .insert(

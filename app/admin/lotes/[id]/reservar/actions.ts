@@ -212,6 +212,14 @@ export async function reservarLote(loteId: string, formData: FormData) {
     )
   }
 
+  await admin.from('lote_historial_estados').insert({
+    lote_id: loteId,
+    evento: 'reservado',
+    estado_anterior: 'disponible',
+    estado_nuevo: 'reservado',
+    cambiado_por: user!.id,
+  })
+
   // Si se reasignó vendedor_id y la cuenta de cobro apuntaba al vendedor que
   // acabamos de reemplazar (no al admin ni al acreedor), queda apuntando a
   // alguien ya no asociado al lote. La limpiamos best-effort: la reserva ya
