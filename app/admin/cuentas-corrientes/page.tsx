@@ -2,6 +2,7 @@ import { createClient } from '@/lib/supabase/server'
 import { requireAdministrador } from '@/lib/auth/require-admin'
 import { calcularSaldoCuentaCorrientePorMoneda } from '@/lib/cuenta-corriente/calcular-saldo'
 import { obtenerCuotasSinDistribucion } from '@/lib/cuenta-corriente/cuotas-sin-distribucion'
+import { FiltroEnVivo } from '@/components/FiltroEnVivo'
 
 export default async function CuentasCorrientesPage({
   searchParams,
@@ -61,7 +62,7 @@ export default async function CuentasCorrientesPage({
         </div>
       )}
 
-      <form method="get" className="mb-4 flex items-end gap-3">
+      <FiltroEnVivo className="mb-4 flex items-end gap-3">
         <label className="text-sm">
           Buscar
           <input
@@ -80,7 +81,7 @@ export default async function CuentasCorrientesPage({
             Limpiar
           </a>
         )}
-      </form>
+      </FiltroEnVivo>
 
       {(personas ?? []).length === 0 && filtroTexto ? (
         <p className="text-sm text-gray-600">Nadie coincide con la búsqueda.</p>

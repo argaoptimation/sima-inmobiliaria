@@ -1,5 +1,6 @@
 import { createClient } from '@/lib/supabase/server'
 import { requireAdminOCobrador } from '@/lib/auth/require-admin'
+import { FiltroEnVivo } from '@/components/FiltroEnVivo'
 
 export default async function HistorialLotesPage({
   searchParams,
@@ -62,7 +63,7 @@ export default async function HistorialLotesPage({
         en un solo lugar.
       </p>
 
-      <form method="get" className="mb-4 flex flex-wrap items-end gap-3">
+      <FiltroEnVivo className="mb-4 flex flex-wrap items-end gap-3">
         <label className="text-sm">
           Pasó a estado
           <select
@@ -104,7 +105,7 @@ export default async function HistorialLotesPage({
             Limpiar filtros
           </a>
         )}
-      </form>
+      </FiltroEnVivo>
 
       {historial.length === 0 ? (
         <p className="text-sm text-gray-600">

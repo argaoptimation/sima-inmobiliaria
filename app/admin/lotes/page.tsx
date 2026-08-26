@@ -8,6 +8,7 @@ import { guardarCotizacionDolar } from './cotizacion-dolar-actions'
 import { calcularEstadoCobranza } from '@/lib/cobranza/estado-cliente'
 import { armarLinkWhatsApp, armarMensajeWhatsApp } from '@/lib/cobranza/plantillas-whatsapp'
 import { telefonoParaWhatsApp } from '@/lib/telefono/prefijos'
+import { FiltroEnVivo } from '@/components/FiltroEnVivo'
 
 const COLUMNAS_ORDENABLES = ['identificador', 'ubicacion', 'precio_total', 'moneda', 'estado'] as const
 type ColumnaOrdenable = (typeof COLUMNAS_ORDENABLES)[number]
@@ -392,7 +393,7 @@ export default async function LotesPage({
         </>
       )}
 
-      <form method="get" className="mb-4 flex flex-wrap items-end gap-3">
+      <FiltroEnVivo className="mb-4 flex flex-wrap items-end gap-3">
         <input type="hidden" name="sort" value={columnaOrden} />
         <input type="hidden" name="dir" value={ordenAscendente ? 'asc' : 'desc'} />
         <label className="text-sm">
@@ -511,7 +512,7 @@ export default async function LotesPage({
             Limpiar filtros y orden
           </a>
         )}
-      </form>
+      </FiltroEnVivo>
 
       {lotesFiltrados.length === 0 && (filtroCliente || filtroCobranza || filtroEstado) ? (
         <p className="text-sm text-gray-600">Ningún lote coincide con los filtros.</p>

@@ -1,5 +1,6 @@
 import { createClient } from '@/lib/supabase/server'
 import { requireAdministrador } from '@/lib/auth/require-admin'
+import { FiltroEnVivo } from '@/components/FiltroEnVivo'
 
 export default async function ClientesPage({
   searchParams,
@@ -45,7 +46,7 @@ export default async function ClientesPage({
     <main className="max-w-2xl">
       <h1 className="mb-6 text-xl font-semibold">Clientes</h1>
 
-      <form method="get" className="mb-4 flex items-end gap-3">
+      <FiltroEnVivo className="mb-4 flex items-end gap-3">
         <label className="text-sm">
           Buscar
           <input
@@ -64,7 +65,7 @@ export default async function ClientesPage({
             Limpiar
           </a>
         )}
-      </form>
+      </FiltroEnVivo>
 
       {(clientes ?? []).length === 0 ? (
         <p className="text-sm text-gray-600">

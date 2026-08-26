@@ -8,6 +8,7 @@ import {
 } from './actions'
 import { BotonEliminarUsuario } from './BotonEliminarUsuario'
 import { tieneDatosTransferencia } from '@/lib/lotes/validar-cuenta-cobro'
+import { FiltroEnVivo } from '@/components/FiltroEnVivo'
 
 export default async function UsuariosPage({
   searchParams,
@@ -136,7 +137,7 @@ export default async function UsuariosPage({
         </button>
       </form>
 
-      <form method="get" className="mb-4 flex items-end gap-3">
+      <FiltroEnVivo className="mb-4 flex items-end gap-3">
         <label className="text-sm">
           Buscar
           <input
@@ -155,7 +156,7 @@ export default async function UsuariosPage({
             Limpiar
           </a>
         )}
-      </form>
+      </FiltroEnVivo>
       {(staff ?? []).length === 0 && filtroTexto ? (
         <p className="text-sm text-gray-600">Ningún usuario coincide con la búsqueda.</p>
       ) : (

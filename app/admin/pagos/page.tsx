@@ -2,6 +2,7 @@ import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { requireAdminOAcreedor } from '@/lib/auth/require-admin'
 import { confirmarPago, editarMontoPago } from './actions'
+import { FiltroEnVivo } from '@/components/FiltroEnVivo'
 
 type Pago = {
   id: string
@@ -245,7 +246,7 @@ export default async function PagosPage({
     <main>
       <h1 className="mb-6 text-xl font-semibold">Pagos</h1>
       {error && <p className="mb-4 rounded bg-red-100 p-2 text-sm text-red-700">{error}</p>}
-      <form method="get" className="mb-4 flex flex-wrap items-end gap-3">
+      <FiltroEnVivo className="mb-4 flex flex-wrap items-end gap-3">
         <label className="text-sm">
           Buscar
           <input
@@ -293,7 +294,7 @@ export default async function PagosPage({
             Limpiar filtros
           </a>
         )}
-      </form>
+      </FiltroEnVivo>
       <table className="w-full text-sm">
         <thead>
           <tr className="border-b text-left">

@@ -1,6 +1,7 @@
 import { createClient } from '@/lib/supabase/server'
 import { requireAdministrador } from '@/lib/auth/require-admin'
 import { calcularSaldoPorMoneda } from '@/lib/cuentas-externas/calcular-saldo'
+import { FiltroEnVivo } from '@/components/FiltroEnVivo'
 
 export default async function CuentasExternasPage({
   searchParams,
@@ -52,7 +53,7 @@ export default async function CuentasExternasPage({
         </a>
       </div>
 
-      <form method="get" className="mb-4 flex items-end gap-3">
+      <FiltroEnVivo className="mb-4 flex items-end gap-3">
         <label className="text-sm">
           Buscar
           <input
@@ -71,7 +72,7 @@ export default async function CuentasExternasPage({
             Limpiar
           </a>
         )}
-      </form>
+      </FiltroEnVivo>
 
       {(cuentasExternas ?? []).length === 0 ? (
         <p className="text-sm text-gray-600">

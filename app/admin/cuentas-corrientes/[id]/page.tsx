@@ -4,6 +4,7 @@ import { notFound } from 'next/navigation'
 import { calcularSaldoCuentaCorrientePorMoneda } from '@/lib/cuenta-corriente/calcular-saldo'
 import { agregarMovimientoManual } from '../actions'
 import { FormularioMovimientoManual } from './FormularioMovimientoManual'
+import { FiltroEnVivo } from '@/components/FiltroEnVivo'
 
 const ETIQUETA_ORIGEN: Record<string, string> = {
   cobro_cuota: 'Cobro de cuota (automático)',
@@ -154,7 +155,7 @@ export default async function CuentaCorrienteDetallePage({
         <p className="text-sm text-gray-600">Sin movimientos todavía.</p>
       ) : (
         <>
-          <form method="get" className="mb-4 flex flex-wrap items-end gap-3">
+          <FiltroEnVivo className="mb-4 flex flex-wrap items-end gap-3">
             {lotesConMovimientos.length > 0 && (
               <label className="text-sm">
                 Lote
@@ -213,7 +214,7 @@ export default async function CuentaCorrienteDetallePage({
                 Limpiar filtros
               </a>
             )}
-          </form>
+          </FiltroEnVivo>
           {movimientosFiltrados.length === 0 ? (
             <p className="text-sm text-gray-600">Ningún movimiento coincide con los filtros.</p>
           ) : (
