@@ -6,6 +6,8 @@ import { redirect } from 'next/navigation'
 import { requireAdministrador } from '@/lib/auth/require-admin'
 import { mensajeDeError } from '@/lib/errores'
 import { excedeTamanioMaximo, MAX_ARCHIVO_MB } from '@/lib/storage/validar-tamanio-archivo'
+import { extraerPlaceholders } from '@/lib/contratos/extraer-placeholders'
+import { PLACEHOLDERS_CONOCIDOS } from '@/lib/contratos/armar-datos-contrato'
 
 export async function crearLoteo(formData: FormData) {
   await requireAdministrador()
@@ -100,6 +102,15 @@ export async function subirPlantillaContrato(loteoId: string, formData: FormData
     )
   }
 
+  // Aviso (no bloquea la subida) si la plantilla tiene algún {placeholder}
+  // que el sistema no sabe completar -- típicamente un typo en el nombre.
+  // Gabriel (25/08): que se vea resaltado para que lo complete a mano si
+  // hace falta, sin impedir subir la plantilla igual.
+  const placeholdersEncontrados = extraerPlaceholders(Buffer.from(await archivo.arrayBuffer()))
+  const placeholdersDesconocidos = placeholdersEncontrados.filter(
+    (nombre) => !PLACEHOLDERS_CONOCIDOS.includes(nombre)
+  )
+
   const admin = createAdminClient()
   const path = `loteos/${loteoId}/plantilla-contrato-${Date.now()}.docx`
 
@@ -131,6 +142,14 @@ export async function subirPlantillaContrato(loteoId: string, formData: FormData
 
   if (loteoPrevio?.plantilla_contrato_path) {
     await admin.storage.from('comprobantes').remove([loteoPrevio.plantilla_contrato_path])
+  }
+
+  if (placeholdersDesconocidos.length > 0) {
+    const params = new URLSearchParams({
+      ok: 'Plantilla de contrato guardada',
+      placeholdersDesconocidos: placeholdersDesconocidos.join(','),
+    })
+    redirect(`/admin/loteos?${params.toString()}`)
   }
 
   redirect(`/admin/loteos?ok=${encodeURIComponent('Plantilla de contrato guardada')}`)

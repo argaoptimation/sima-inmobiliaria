@@ -5,14 +5,10 @@ import { login } from './utils/login'
 
 const NOMBRE_LOTEO = 'E2E Loteo Contrato'
 
-// Arma un .docx mínimo con placeholders reales del esquema de
-// lib/contratos/armar-datos-contrato.ts -- mismo mecanismo (PizZip a mano)
-// usado para construir la plantilla modelo real, ver Notas_Decisiones_SIMA.txt
-// punto 89.
-function plantillaDocx(): Buffer {
-  const texto =
-    'Cliente: {cliente_nombre}. Lote {lote_numero} ({lote_numero_letras}), manzana {lote_manzana} ({lote_manzana_letras}), superficie {lote_superficie_m2} m2 ({lote_superficie_m2_letras} metros cuadrados). Cuenta en rentas {lote_cuenta_rentas}. Precio total {precio_total_letras} ({precio_total} {moneda_abrev}).'
-
+// Arma un .docx mínimo a partir de un texto cualquiera -- mismo mecanismo
+// (PizZip a mano) usado para construir la plantilla modelo real, ver
+// Notas_Decisiones_SIMA.txt punto 89.
+function docxConTexto(texto: string): Buffer {
   const documentXml = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">
 <w:body><w:p><w:r><w:t xml:space="preserve">${texto}</w:t></w:r></w:p></w:body>
@@ -33,6 +29,13 @@ function plantillaDocx(): Buffer {
   zip.file('_rels/.rels', rootRelsXml)
   zip.file('word/document.xml', documentXml)
   return zip.generate({ type: 'nodebuffer' })
+}
+
+// Placeholders reales del esquema de lib/contratos/armar-datos-contrato.ts.
+function plantillaDocx(): Buffer {
+  return docxConTexto(
+    'Cliente: {cliente_nombre}. Lote {lote_numero} ({lote_numero_letras}), manzana {lote_manzana} ({lote_manzana_letras}), superficie {lote_superficie_m2} m2 ({lote_superficie_m2_letras} metros cuadrados). Cuenta en rentas {lote_cuenta_rentas}. Precio total {precio_total_letras} ({precio_total} {moneda_abrev}).'
+  )
 }
 
 test.describe('Generación de contrato por loteo (25/08)', () => {
@@ -126,5 +129,40 @@ test.describe('Generación de contrato por loteo (25/08)', () => {
 
     await expect(page.getByRole('heading', { name: 'Contrato' })).not.toBeVisible()
     await expect(page.locator('input[name="numeroLote"]')).toHaveCount(0)
+  })
+
+  test('subir una plantilla con un placeholder no reconocido avisa pero no bloquea la subida', async ({
+    page,
+  }) => {
+    await login(page, fixtures.admin.email, fixtures.password)
+
+    const admin = createAdminClient()
+    await admin.from('loteos').delete().eq('nombre', `${NOMBRE_LOTEO} Con Typo`)
+
+    await page.goto('/admin/loteos')
+    await page.getByPlaceholder('Ej: Loteo San Martín').fill(`${NOMBRE_LOTEO} Con Typo`)
+    await page.getByRole('button', { name: 'Crear loteo' }).click()
+    await page.waitForURL(/\/admin\/loteos/)
+
+    const filaLoteo = page.locator('tr', { hasText: `${NOMBRE_LOTEO} Con Typo` })
+    await filaLoteo.locator('input[type="file"]').setInputFiles({
+      name: 'plantilla-con-typo.docx',
+      mimeType: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+      // {cliente_nombree} con doble "e" al final -- typo deliberado, no
+      // está en la tabla de placeholders conocidos.
+      buffer: docxConTexto('Hola {cliente_nombree}.'),
+    })
+    await filaLoteo.getByRole('button', { name: 'Subir' }).click()
+    await page.waitForURL(/\/admin\/loteos\?/)
+
+    // No bloquea: la plantilla queda guardada de todas formas.
+    await expect(page.locator('tr', { hasText: `${NOMBRE_LOTEO} Con Typo` })).toContainText(
+      'plantilla-con-typo.docx'
+    )
+    // Pero avisa, resaltando el placeholder exacto que no reconoce.
+    await expect(page.getByText(/no reconocemos/)).toBeVisible()
+    await expect(page.locator('code', { hasText: '{cliente_nombree}' })).toBeVisible()
+
+    await admin.from('loteos').delete().eq('nombre', `${NOMBRE_LOTEO} Con Typo`)
   })
 })

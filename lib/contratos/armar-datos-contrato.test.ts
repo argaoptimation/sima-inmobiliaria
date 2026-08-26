@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { armarDatosContrato, type DatosParaContrato } from './armar-datos-contrato'
+import { armarDatosContrato, PLACEHOLDERS_CONOCIDOS, type DatosParaContrato } from './armar-datos-contrato'
 
 // Caso de referencia: los valores reales del modelo "BOLETO Quintana
 // Prueba- modelo.docx" (ver Notas_Decisiones_SIMA.txt puntos 46 y 89),
@@ -82,5 +82,10 @@ describe('armarDatosContrato', () => {
     const datos = armarDatosContrato({ ...DATOS_QUINTANA, numeroLote: '12 bis' })
     expect(datos.lote_numero).toBe('12 bis')
     expect(datos.lote_numero_letras).toBe('12 bis')
+  })
+
+  it('PLACEHOLDERS_CONOCIDOS está sincronizada con las claves reales', () => {
+    const claves = Object.keys(armarDatosContrato(DATOS_QUINTANA)).sort()
+    expect([...PLACEHOLDERS_CONOCIDOS].sort()).toEqual(claves)
   })
 })

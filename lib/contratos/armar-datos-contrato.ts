@@ -70,6 +70,45 @@ function numeroOVacio(valor: number | null): string {
   return valor === null || valor === undefined ? '' : String(valor)
 }
 
+// Lista de todos los placeholders que el sistema sabe completar -- se usa
+// para avisar si una plantilla subida tiene un {placeholder} que no está
+// acá (typo o nombre inventado), ver lib/contratos/extraer-placeholders.ts.
+// Mantener sincronizada con las claves que devuelve armarDatosContrato.
+export const PLACEHOLDERS_CONOCIDOS = [
+  'fecha_contrato_texto',
+  'acreedor_nombre',
+  'acreedor_dni',
+  'acreedor_domicilio',
+  'cliente_nombre',
+  'cliente_dni',
+  'cliente_domicilio',
+  'cliente_email',
+  'lote_identificador',
+  'lote_numero',
+  'lote_numero_letras',
+  'lote_manzana',
+  'lote_manzana_letras',
+  'lote_ubicacion',
+  'lote_superficie_m2',
+  'lote_superficie_m2_letras',
+  'lote_cuenta_rentas',
+  'lote_nomenclatura_catastral',
+  'lote_matricula',
+  'moneda_nombre',
+  'moneda_abrev',
+  'precio_total',
+  'precio_total_letras',
+  'sena_monto',
+  'sena_monto_letras',
+  'cantidad_cuotas',
+  'cantidad_cuotas_letras',
+  'monto_cuota',
+  'monto_cuota_letras',
+  'primera_cuota_mes_texto',
+  'interes_moratorio_diario',
+  'interes_moratorio_diario_letras',
+]
+
 // Placeholders disponibles para las plantillas de contrato (sintaxis
 // docxtemplater, `{nombre_del_campo}` dentro del .docx) -- esta función ES
 // la referencia de qué placeholders existen y de dónde sale cada uno.

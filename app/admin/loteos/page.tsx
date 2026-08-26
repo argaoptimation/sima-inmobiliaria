@@ -2,6 +2,7 @@ import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { requireAdministrador } from '@/lib/auth/require-admin'
 import { actualizarLoteo, crearLoteo, reasignarLotesEnBloque, subirPlantillaContrato } from './actions'
+import { FiltroEnVivo } from '@/components/FiltroEnVivo'
 
 export default async function LoteosPage({
   searchParams,
@@ -13,10 +14,20 @@ export default async function LoteosPage({
     ubicacion?: string
     moneda?: string
     loteoActual?: string
+    placeholdersDesconocidos?: string
   }>
 }) {
-  const { error, ok, q: filtroTexto, ubicacion: filtroUbicacion, moneda: filtroMoneda, loteoActual } =
-    await searchParams
+  const {
+    error,
+    ok,
+    q: filtroTexto,
+    ubicacion: filtroUbicacion,
+    moneda: filtroMoneda,
+    loteoActual,
+    placeholdersDesconocidos,
+  } = await searchParams
+
+  const listaPlaceholdersDesconocidos = placeholdersDesconocidos?.split(',').filter(Boolean) ?? []
 
   await requireAdministrador()
 
@@ -76,6 +87,17 @@ export default async function LoteosPage({
     <main>
       {error && <p className="mb-4 rounded bg-red-100 p-2 text-sm text-red-700">{error}</p>}
       {ok && <p className="mb-4 rounded bg-green-100 p-2 text-sm text-green-800">{ok}</p>}
+      {listaPlaceholdersDesconocidos.length > 0 && (
+        <p className="mb-4 rounded border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900">
+          ⚠ La plantilla se guardó igual, pero tiene {listaPlaceholdersDesconocidos.length === 1 ? 'un placeholder' : 'placeholders'} que no reconocemos (revisá si hay un error de tipeo, o completalo a mano en el contrato generado):{' '}
+          {listaPlaceholdersDesconocidos.map((nombre, i) => (
+            <span key={nombre}>
+              {i > 0 && ', '}
+              <code className="rounded bg-red-100 px-1 font-mono text-red-700">{`{${nombre}}`}</code>
+            </span>
+          ))}
+        </p>
+      )}
 
       <h1 className="mb-2 text-xl font-semibold">Loteos</h1>
       <p className="mb-6 text-sm text-gray-600">
@@ -175,7 +197,7 @@ export default async function LoteosPage({
         loteo de destino.
       </p>
 
-      <form method="get" className="mb-4 flex flex-wrap items-end gap-3">
+      <FiltroEnVivo className="mb-4 flex flex-wrap items-end gap-3">
         <label className="text-sm">
           Identificador
           <input
@@ -228,7 +250,7 @@ export default async function LoteosPage({
             Limpiar filtros
           </a>
         )}
-      </form>
+      </FiltroEnVivo>
 
       <form action={reasignarLotesEnBloque}>
         <div className="mb-3 flex items-end gap-2">
@@ -265,7 +287,11 @@ export default async function LoteosPage({
                 <td className="py-2">
                   <input type="checkbox" name="loteIds" value={lote.id} />
                 </td>
-                <td>{lote.identificador}</td>
+                <td>
+                  <a href={`/admin/lotes/${lote.id}`} className="underline">
+                    {lote.identificador}
+                  </a>
+                </td>
                 <td>{lote.ubicacion ?? '—'}</td>
                 <td>{lote.moneda}</td>
                 <td>{lote.estado}</td>
