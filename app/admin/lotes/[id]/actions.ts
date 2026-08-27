@@ -159,8 +159,13 @@ export async function rescindirLote(loteId: string) {
 // cuotas vencidas es apenas una señal de "posible prejudicial", nunca la
 // marca real). Un lote vendido puede pasar y salir de esta marca las veces
 // que haga falta, cada cambio queda en el historial.
-export async function marcarPrejudicial(loteId: string) {
+// volverA: a dónde redirigir después (el detalle del lote por defecto). El
+// Panel de Morosos pasa '/admin/panel-morosos' acá para poder marcar varios
+// candidatos seguidos sin salir de la lista cada vez.
+export async function marcarPrejudicial(loteId: string, volverA?: string) {
   await requireAdministrador()
+
+  const destino = volverA || `/admin/lotes/${loteId}`
 
   const supabase = await createClient()
   const {
@@ -170,15 +175,13 @@ export async function marcarPrejudicial(loteId: string) {
   const { data: lote } = await supabase.from('lotes').select('estado').eq('id', loteId).single()
 
   if (!lote || lote.estado !== 'vendido') {
-    redirect(
-      `/admin/lotes/${loteId}?error=${encodeURIComponent('Solo se puede marcar como Prejudicial un lote vendido')}`
-    )
+    redirect(`${destino}?error=${encodeURIComponent('Solo se puede marcar como Prejudicial un lote vendido')}`)
   }
 
   const { error } = await supabase.from('lotes').update({ marcado_prejudicial: true }).eq('id', loteId)
 
   if (error) {
-    redirect(`/admin/lotes/${loteId}?error=${encodeURIComponent(mensajeDeError(error))}`)
+    redirect(`${destino}?error=${encodeURIComponent(mensajeDeError(error))}`)
   }
 
   await supabase.from('lote_historial_estados').insert({
@@ -187,7 +190,7 @@ export async function marcarPrejudicial(loteId: string) {
     cambiado_por: user!.id,
   })
 
-  redirect(`/admin/lotes/${loteId}?ok=${encodeURIComponent('Lote marcado como Prejudicial')}`)
+  redirect(`${destino}?ok=${encodeURIComponent('Lote marcado como Prejudicial')}`)
 }
 
 export async function desmarcarPrejudicial(loteId: string) {

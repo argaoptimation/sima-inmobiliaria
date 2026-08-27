@@ -33,6 +33,7 @@ export function NavAdmin({
         )}
         {puedeVerPagosYUsuarios && <a href="/admin/usuarios">Usuarios</a>}
         {esAdministrador && <a href="/admin/clientes">Clientes</a>}
+        {esAdministrador && <a href="/admin/panel-morosos">Panel de Morosos</a>}
         {esAdministrador && <a href="/admin/cuentas-externas">Cuentas externas</a>}
         {esAdministrador && <a href="/admin/cuentas-corrientes">Cuentas corrientes</a>}
         {tieneCuentaPropia && <a href={`/admin/cuentas-corrientes/${userId}`}>Mi cuenta corriente</a>}

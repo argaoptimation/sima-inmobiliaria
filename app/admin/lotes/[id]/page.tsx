@@ -444,7 +444,7 @@ export default async function LoteDetallePage({
   const subirDocumentoConId = subirDocumentoLote.bind(null, id)
   const rescindirConId = rescindirLote.bind(null, id)
   const volverADisponibleConId = volverADisponible.bind(null, id)
-  const marcarPrejudicialConId = marcarPrejudicial.bind(null, id)
+  const marcarPrejudicialConId = marcarPrejudicial.bind(null, id, undefined)
   const desmarcarPrejudicialConId = desmarcarPrejudicial.bind(null, id)
   const refinanciarConId = refinanciarLote.bind(null, id)
   const generarContratoConId = generarContratoLote.bind(null, id)
