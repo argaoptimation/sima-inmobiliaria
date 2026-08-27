@@ -93,7 +93,7 @@ export default async function LotesPage({
   let queryLotes = supabase
     .from('lotes')
     .select(
-      'id, identificador, moneda, estado, cantidad_cuotas, ubicacion, precio_total, acreedor_id, loteo_id, cliente_id, ciclo_actual'
+      'id, identificador, moneda, estado, cantidad_cuotas, ubicacion, precio_total, acreedor_id, loteo_id, cliente_id, ciclo_actual, marcado_prejudicial'
     )
     .order(columnaOrden, { ascending: ordenAscendente })
 
@@ -221,6 +221,7 @@ export default async function LotesPage({
         {
           saldoPendiente,
           estadoCobranza,
+          marcadoPrejudicial: lote.marcado_prejudicial,
           mensajeWhatsApp,
           telefono: telefonoParaWhatsApp(cliente?.telefono_prefijo ?? null, cliente?.telefono_numero ?? null),
         },
@@ -244,9 +245,13 @@ export default async function LotesPage({
         ? null
         : cobranza.saldoPendiente === 0
           ? 'pagado'
-          : cobranza.estadoCobranza === 'normal'
-            ? 'al_dia'
-            : cobranza.estadoCobranza
+          : cobranza.marcadoPrejudicial
+            ? 'prejudicial'
+            : cobranza.estadoCobranza === 'normal'
+              ? 'al_dia'
+              : cobranza.estadoCobranza === 'moroso'
+                ? 'moroso'
+                : 'posible_prejudicial'
       if (etiquetaCobranza !== filtroCobranza) return false
     }
     return true
@@ -494,6 +499,7 @@ export default async function LotesPage({
               <option value="pagado">Pagado</option>
               <option value="al_dia">Al día</option>
               <option value="moroso">Moroso</option>
+              <option value="posible_prejudicial">Posible prejudicial</option>
               <option value="prejudicial">Prejudicial</option>
             </select>
           </label>
@@ -587,20 +593,24 @@ export default async function LotesPage({
                           className={
                             cobranza.saldoPendiente === 0
                               ? 'text-gray-600'
-                              : cobranza.estadoCobranza === 'normal'
-                                ? 'text-gray-700'
-                                : cobranza.estadoCobranza === 'moroso'
-                                  ? 'font-semibold text-red-600'
-                                  : 'font-bold text-red-800'
+                              : cobranza.marcadoPrejudicial
+                                ? 'font-bold text-red-800'
+                                : cobranza.estadoCobranza === 'normal'
+                                  ? 'text-gray-700'
+                                  : cobranza.estadoCobranza === 'moroso'
+                                    ? 'font-semibold text-red-600'
+                                    : 'font-semibold text-orange-700'
                           }
                         >
                           {cobranza.saldoPendiente === 0
                             ? 'Pagado'
-                            : cobranza.estadoCobranza === 'normal'
-                              ? 'Al día'
-                              : cobranza.estadoCobranza === 'moroso'
-                                ? 'Moroso'
-                                : 'Prejudicial'}
+                            : cobranza.marcadoPrejudicial
+                              ? 'Prejudicial'
+                              : cobranza.estadoCobranza === 'normal'
+                                ? 'Al día'
+                                : cobranza.estadoCobranza === 'moroso'
+                                  ? 'Moroso'
+                                  : 'Posible prejudicial'}
                         </span>
                         {cobranza.mensajeWhatsApp && cobranza.telefono && (
                           <a

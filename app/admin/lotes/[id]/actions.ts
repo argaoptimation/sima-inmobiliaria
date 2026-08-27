@@ -154,6 +154,65 @@ export async function rescindirLote(loteId: string) {
   redirect(`/admin/lotes/${loteId}`)
 }
 
+// Prejudicial es un paso MANUAL del admin, no automático (Nicolás: "es un
+// caso importante"; reforzado 26/08 -- lo que calcula solo el sistema por
+// cuotas vencidas es apenas una señal de "posible prejudicial", nunca la
+// marca real). Un lote vendido puede pasar y salir de esta marca las veces
+// que haga falta, cada cambio queda en el historial.
+export async function marcarPrejudicial(loteId: string) {
+  await requireAdministrador()
+
+  const supabase = await createClient()
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
+
+  const { data: lote } = await supabase.from('lotes').select('estado').eq('id', loteId).single()
+
+  if (!lote || lote.estado !== 'vendido') {
+    redirect(
+      `/admin/lotes/${loteId}?error=${encodeURIComponent('Solo se puede marcar como Prejudicial un lote vendido')}`
+    )
+  }
+
+  const { error } = await supabase.from('lotes').update({ marcado_prejudicial: true }).eq('id', loteId)
+
+  if (error) {
+    redirect(`/admin/lotes/${loteId}?error=${encodeURIComponent(mensajeDeError(error))}`)
+  }
+
+  await supabase.from('lote_historial_estados').insert({
+    lote_id: loteId,
+    evento: 'marcado_prejudicial',
+    cambiado_por: user!.id,
+  })
+
+  redirect(`/admin/lotes/${loteId}?ok=${encodeURIComponent('Lote marcado como Prejudicial')}`)
+}
+
+export async function desmarcarPrejudicial(loteId: string) {
+  await requireAdministrador()
+
+  const supabase = await createClient()
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
+
+  const { error } = await supabase.from('lotes').update({ marcado_prejudicial: false }).eq('id', loteId)
+
+  if (error) {
+    redirect(`/admin/lotes/${loteId}?error=${encodeURIComponent(mensajeDeError(error))}`)
+  }
+
+  await supabase.from('lote_historial_estados').insert({
+    lote_id: loteId,
+    evento: 'desmarcado_prejudicial',
+    cambiado_por: user!.id,
+  })
+
+  redirect(`/admin/lotes/${loteId}?ok=${encodeURIComponent('Lote sacado de Prejudicial')}`)
+}
+
 // rescindido -> disponible: deja el lote listo para venderse de nuevo.
 // Saca el cliente asignado (un lote "disponible" en el resto de la app
 // siempre asume que no tiene cliente) -- pero NO toca las cuotas/pagos

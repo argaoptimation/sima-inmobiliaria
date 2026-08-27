@@ -8,4 +8,6 @@ export const EVENTO_HISTORIAL_ETIQUETA: Record<string, string> = {
   rescindido: 'Rescindido',
   vuelto_disponible: 'Volvió a disponible',
   refinanciado: 'Refinanció',
+  marcado_prejudicial: 'Pasó a Prejudicial',
+  desmarcado_prejudicial: 'Salió de Prejudicial',
 }

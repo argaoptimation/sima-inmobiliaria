@@ -37,7 +37,7 @@ export default async function ClienteDetallePage({
 
   const { data: lotes } = await supabase
     .from('lotes')
-    .select('id, identificador, moneda, estado')
+    .select('id, identificador, moneda, estado, marcado_prejudicial')
     .eq('cliente_id', id)
     .order('identificador')
 
@@ -121,7 +121,17 @@ export default async function ClienteDetallePage({
             {lotesConSaldo.map((lote) => (
               <tr key={lote.id} className="border-b">
                 <td className="py-2">{lote.identificador}</td>
-                <td>{lote.estado === 'vendido' ? lote.estadoCobranza : lote.estado}</td>
+                <td>
+                  {lote.estado !== 'vendido'
+                    ? lote.estado
+                    : lote.marcado_prejudicial
+                      ? 'Prejudicial'
+                      : lote.estadoCobranza === 'normal'
+                        ? 'Al día'
+                        : lote.estadoCobranza === 'moroso'
+                          ? 'Moroso'
+                          : 'Posible prejudicial'}
+                </td>
                 <td>
                   {lote.saldoPendiente} {lote.moneda}
                 </td>

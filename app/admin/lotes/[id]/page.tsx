@@ -14,6 +14,8 @@ import {
   eliminarDocumentoLote,
   rescindirLote,
   volverADisponible,
+  marcarPrejudicial,
+  desmarcarPrejudicial,
   refinanciarLote,
   generarContratoLote,
 } from './actions'
@@ -23,6 +25,7 @@ import { BotonEliminarLote } from './BotonEliminarLote'
 import { BotonCancelarReserva } from '../BotonCancelarReserva'
 import { BotonRescindir } from './BotonRescindir'
 import { BotonVolverADisponible } from './BotonVolverADisponible'
+import { BotonMarcarPrejudicial, BotonDesmarcarPrejudicial } from './BotonPrejudicial'
 import { tieneDatosTransferencia } from '@/lib/lotes/validar-cuenta-cobro'
 import { telefonoParaWhatsApp } from '@/lib/telefono/prefijos'
 import { mesDeFecha } from '@/lib/lotes/aplicar-indexacion'
@@ -90,7 +93,7 @@ export default async function LoteDetallePage({
   const { data: lote } = await supabase
     .from('lotes')
     .select(
-      'id, identificador, moneda, estado, cliente_id, admin_id, acreedor_id, vendedor_id, cuenta_cobro_id, cuenta_cobro_externa_id, ubicacion, precio_total, documento_firmado_path, interes_moratorio_diario, indice_tipo, ciclo_actual, loteo_id, numero_lote, manzana, superficie_m2, cuenta_rentas, nomenclatura_catastral, matricula'
+      'id, identificador, moneda, estado, cliente_id, admin_id, acreedor_id, vendedor_id, cuenta_cobro_id, cuenta_cobro_externa_id, ubicacion, precio_total, documento_firmado_path, interes_moratorio_diario, indice_tipo, ciclo_actual, loteo_id, numero_lote, manzana, superficie_m2, cuenta_rentas, nomenclatura_catastral, matricula, marcado_prejudicial'
     )
     .eq('id', id)
     .single()
@@ -441,6 +444,8 @@ export default async function LoteDetallePage({
   const subirDocumentoConId = subirDocumentoLote.bind(null, id)
   const rescindirConId = rescindirLote.bind(null, id)
   const volverADisponibleConId = volverADisponible.bind(null, id)
+  const marcarPrejudicialConId = marcarPrejudicial.bind(null, id)
+  const desmarcarPrejudicialConId = desmarcarPrejudicial.bind(null, id)
   const refinanciarConId = refinanciarLote.bind(null, id)
   const generarContratoConId = generarContratoLote.bind(null, id)
 
@@ -476,7 +481,14 @@ export default async function LoteDetallePage({
             </>
           )}
           {perfilPropio!.role === 'administrador' && lote!.estado === 'vendido' && (
-            <BotonRescindir rescindirAction={rescindirConId} />
+            <>
+              {lote!.marcado_prejudicial ? (
+                <BotonDesmarcarPrejudicial desmarcarPrejudicialAction={desmarcarPrejudicialConId} />
+              ) : (
+                <BotonMarcarPrejudicial marcarPrejudicialAction={marcarPrejudicialConId} />
+              )}
+              <BotonRescindir rescindirAction={rescindirConId} />
+            </>
           )}
           {perfilPropio!.role === 'administrador' && lote!.estado === 'rescindido' && (
             <BotonVolverADisponible volverADisponibleAction={volverADisponibleConId} />
@@ -504,14 +516,22 @@ export default async function LoteDetallePage({
           Estado de cobranza:{' '}
           <span
             className={
-              estado === 'normal'
-                ? 'text-green-700'
-                : estado === 'moroso'
-                  ? 'text-amber-700'
-                  : 'text-red-700'
+              lote!.marcado_prejudicial
+                ? 'font-semibold text-red-800'
+                : estado === 'normal'
+                  ? 'text-green-700'
+                  : estado === 'moroso'
+                    ? 'text-amber-700'
+                    : 'text-orange-700'
             }
           >
-            {estado === 'normal' ? 'Normal' : estado === 'moroso' ? 'Moroso' : 'Candidato a prejudicial'}
+            {lote!.marcado_prejudicial
+              ? 'Prejudicial'
+              : estado === 'normal'
+                ? 'Normal'
+                : estado === 'moroso'
+                  ? 'Moroso'
+                  : 'Posible prejudicial'}
           </span>
         </p>
       )}
