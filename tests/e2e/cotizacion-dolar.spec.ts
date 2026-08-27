@@ -235,7 +235,7 @@ test.describe('Cotización del dólar', () => {
     // Monto base ya no repite el equivalente en pesos (26/08, pedido de
     // Gabriel: mucha "mugre visual" en vano) -- alcanza con que lo muestre
     // el saldo pendiente, que es lo único que le interesa al cliente.
-    const filaCuota = page.locator('tbody tr', { hasText: '2027-01-01' })
+    const filaCuota = page.locator('tbody tr', { hasText: '01/01/2027' })
     await expect(filaCuota).not.toContainText('≈ 200000 ARS') // monto base
     await expect(filaCuota).toContainText('≈ 150000 ARS') // saldo pendiente
     await expect(filaCuota).not.toContainText('cotización')
@@ -277,8 +277,9 @@ test.describe('Cotización del dólar', () => {
       // fila de historial de correcciones) -- si no, un valor que también
       // aparece ahí (ej. "1500" dentro del resumen de correcciones) hace que
       // el locator matchee 2 filas en vez de 1.
+      const ayerVisual = ayer.split('-').reverse().join('/')
       const filaHoy = page.locator('tbody tr:not(.bg-gray-50)').filter({ hasText: '1500' })
-      const filaAyer = page.locator('tbody tr:not(.bg-gray-50)').filter({ hasText: ayer })
+      const filaAyer = page.locator('tbody tr:not(.bg-gray-50)').filter({ hasText: ayerVisual })
       await expect(filaHoy).toBeVisible()
       await expect(filaAyer).toBeVisible()
       await expect(filaAyer).toContainText('1450')

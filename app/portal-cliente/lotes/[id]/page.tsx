@@ -3,6 +3,7 @@ import { createAdminClient } from '@/lib/supabase/admin'
 import { calcularEstadoCobranza } from '@/lib/cobranza/estado-cliente'
 import { calcularInteresMoratorio } from '@/lib/cobranza/interes-moratorio'
 import { convertirUsdAPesos } from '@/lib/cobranza/cotizacion-dolar'
+import { formatearFechaCorta } from '@/lib/fecha/formatear-fecha-corta'
 import { notFound, redirect } from 'next/navigation'
 import { logout } from '@/app/login/actions'
 
@@ -164,7 +165,7 @@ export default async function PortalClienteLotePage({
             return (
               <tr key={cuota.id} className="border-b">
                 <td className="py-2">{cuota.numero}</td>
-                <td>{cuota.fecha_vencimiento}</td>
+                <td>{formatearFechaCorta(cuota.fecha_vencimiento)}</td>
                 <td className="py-2">
                   {cuota.monto_base} {lote!.moneda}
                 </td>

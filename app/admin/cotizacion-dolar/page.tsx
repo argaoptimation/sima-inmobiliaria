@@ -2,6 +2,7 @@ import { Fragment } from 'react'
 import { createClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
 import { FiltroEnVivo } from '@/components/FiltroEnVivo'
+import { formatearFechaCorta } from '@/lib/fecha/formatear-fecha-corta'
 
 const ROLES_CON_ACCESO = ['administrador', 'acreedor', 'vendedor', 'cobrador']
 
@@ -129,7 +130,7 @@ export default async function HistorialCotizacionDolarPage({
             return (
               <Fragment key={c.id}>
                 <tr className="border-b">
-                  <td className="py-2">{c.fecha}</td>
+                  <td className="py-2">{formatearFechaCorta(c.fecha)}</td>
                   <td>{c.valor}</td>
                   <td>{nombreCargadorPorId.get(c.cargado_por) ?? '—'}</td>
                   <td>
