@@ -11,6 +11,8 @@ import { telefonoParaWhatsApp } from '@/lib/telefono/prefijos'
 import { FiltroEnVivo } from '@/components/FiltroEnVivo'
 import { hoyArgentina } from '@/lib/fecha/hoy-argentina'
 import { formatearFechaCorta } from '@/lib/fecha/formatear-fecha-corta'
+import { EnlaceBoton } from '@/components/EnlaceBoton'
+import { BotonEnvio } from '@/components/BotonEnvio'
 
 const COLUMNAS_ORDENABLES = ['identificador', 'ubicacion', 'precio_total', 'moneda', 'estado'] as const
 type ColumnaOrdenable = (typeof COLUMNAS_ORDENABLES)[number]
@@ -22,6 +24,9 @@ const ETIQUETAS_COLUMNA: Record<ColumnaOrdenable, string> = {
   moneda: 'Moneda',
   estado: 'Estado',
 }
+
+const INPUT_CLASE =
+  'mt-1 block rounded-lg border border-blue-100 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200'
 
 export default async function LotesPage({
   searchParams,
@@ -294,15 +299,32 @@ export default async function LotesPage({
     return `/admin/lotes?${params.toString()}`
   }
 
+  function claseCobranza(cobranza: { saldoPendiente: number; marcadoPrejudicial: boolean; estadoCobranza: string }) {
+    if (cobranza.saldoPendiente === 0) return 'bg-slate-100 text-slate-600'
+    if (cobranza.marcadoPrejudicial) return 'bg-red-100 text-red-800 font-bold'
+    if (cobranza.estadoCobranza === 'normal') return 'bg-green-50 text-green-700'
+    if (cobranza.estadoCobranza === 'moroso') return 'bg-red-50 text-red-600 font-semibold'
+    return 'bg-amber-50 text-amber-700 font-semibold'
+  }
+
+  function etiquetaCobranza(cobranza: { saldoPendiente: number; marcadoPrejudicial: boolean; estadoCobranza: string }) {
+    if (cobranza.saldoPendiente === 0) return 'Pagado'
+    if (cobranza.marcadoPrejudicial) return 'Prejudicial'
+    if (cobranza.estadoCobranza === 'normal') return 'Al día'
+    if (cobranza.estadoCobranza === 'moroso') return 'Moroso'
+    return 'Posible prejudicial'
+  }
+
   return (
     <main>
-      {error && <p className="mb-4 rounded bg-red-100 p-2 text-sm text-red-700">{error}</p>}
+      {error && <p className="mb-4 rounded-lg bg-red-50 p-3 text-sm text-red-700">{error}</p>}
 
-      <div className="mb-6 rounded border border-gray-200 bg-gray-50 p-3 text-sm">
+      <div className="mb-6 rounded-xl border border-blue-100 bg-white p-4 shadow-sm">
         {cotizacionHoy ? (
-          <p className="mb-2 text-green-700">
-            ✓ Cotización de hoy ({formatearFechaCorta(hoy)}) ya cargada: <span className="font-medium">{cotizacionHoy.valor}</span>{' '}
-            ARS por USD — cargada por {cargadorCotizacion?.full_name ?? '—'} a las{' '}
+          <p className="mb-3 text-sm text-green-700">
+            ✓ Cotización de hoy ({formatearFechaCorta(hoy)}) ya cargada:{' '}
+            <span className="font-semibold text-blue-900">{cotizacionHoy.valor}</span> ARS por USD — cargada por{' '}
+            {cargadorCotizacion?.full_name ?? '—'} a las{' '}
             {new Date(cotizacionHoy.created_at).toLocaleTimeString('es-AR', {
               hour: '2-digit',
               minute: '2-digit',
@@ -310,12 +332,12 @@ export default async function LotesPage({
             hs.
           </p>
         ) : (
-          <p className="mb-2 font-semibold text-amber-700">
+          <p className="mb-3 text-sm font-semibold text-amber-700">
             ⚠ Todavía no cargaste la cotización del dólar de hoy ({formatearFechaCorta(hoy)}).
           </p>
         )}
-        <form action={guardarCotizacionDolar} className="flex items-end gap-2">
-          <label className="text-sm">
+        <form action={guardarCotizacionDolar} className="flex flex-wrap items-end gap-2">
+          <label className="text-sm text-slate-600">
             {cotizacionHoy ? 'Corregir cotización de hoy' : 'Cotización de hoy'} (ARS por USD)
             <input
               name="valor"
@@ -325,114 +347,120 @@ export default async function LotesPage({
               placeholder="Ej: 1500"
               defaultValue={cotizacionHoy?.valor ?? ''}
               required
-              className="mt-1 block rounded border px-3 py-2"
+              className={INPUT_CLASE}
             />
           </label>
-          <button type="submit" className="rounded bg-black px-3 py-2 text-sm text-white">
+          <BotonEnvio className="cursor-pointer rounded-lg bg-blue-800 px-3 py-2 text-sm font-semibold text-white transition-colors hover:bg-blue-900">
             {cotizacionHoy ? 'Corregir' : 'Cargar'}
-          </button>
+          </BotonEnvio>
         </form>
-        <a href="/admin/cotizacion-dolar" className="mt-2 inline-block text-sm underline">
+        <EnlaceBoton
+          href="/admin/cotizacion-dolar"
+          className="mt-2 inline-block text-sm font-medium text-blue-800 underline-offset-4 hover:text-blue-900 hover:underline"
+        >
           Ver historial completo →
-        </a>
+        </EnlaceBoton>
       </div>
 
-      <div className="mb-6 flex items-center justify-between">
-        <h1 className="text-xl font-semibold">Lotes</h1>
+      <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
+        <h1 className="text-xl font-extrabold text-blue-900">Lotes</h1>
         {!esVendedorOCobrador && (
           <div className="flex gap-3">
-            <a href="/admin/lotes/importar" className="rounded border px-3 py-2 text-sm">
+            <EnlaceBoton
+              href="/admin/lotes/importar"
+              className="rounded-lg border border-blue-800 px-3 py-2 text-sm font-semibold text-blue-800 transition-colors hover:bg-blue-50"
+            >
               Importar varios
-            </a>
-            <a href="/admin/lotes/nuevo" className="rounded bg-black px-3 py-2 text-sm text-white">
+            </EnlaceBoton>
+            <EnlaceBoton
+              href="/admin/lotes/nuevo"
+              className="rounded-lg bg-blue-800 px-3 py-2 text-sm font-semibold text-white transition-colors hover:bg-blue-900"
+            >
               + Nuevo lote
-            </a>
+            </EnlaceBoton>
           </div>
         )}
       </div>
 
       {esVendedorOCobrador && (
         <>
-          <h2 className="mb-2 text-lg font-semibold">Lotes que reservaste</h2>
+          <h2 className="mb-2 text-lg font-bold text-blue-900">Lotes que reservaste</h2>
           {(misLotesReservados ?? []).length === 0 ? (
-            <p className="mb-8 text-sm text-gray-600">Todavía no reservaste ningún lote.</p>
+            <p className="mb-8 text-sm text-slate-600">Todavía no reservaste ningún lote.</p>
           ) : (
-            <table className="mb-8 w-full text-sm">
-              <thead>
-                <tr className="border-b text-left">
-                  <th className="py-2">Identificador</th>
-                  <th>Ubicación</th>
-                  <th>Precio total</th>
-                  <th>Moneda</th>
-                  <th>Estado</th>
-                  <th></th>
-                </tr>
-              </thead>
-              <tbody>
-                {misLotesReservados!.map((lote) => {
-                  const cancelarReservaConId = cancelarReserva.bind(null, lote.id)
-                  return (
-                    <tr key={lote.id} className="border-b">
-                      <td className="py-2">{lote.identificador}</td>
-                      <td>{lote.ubicacion ?? '—'}</td>
-                      <td>
-                        {lote.precio_total ? `${lote.precio_total} ${lote.moneda}` : '—'}
-                      </td>
-                      <td>{lote.moneda}</td>
-                      <td>{lote.estado}</td>
-                      <td>
-                        <div className="flex flex-wrap items-center gap-3">
-                          <a href={`/admin/lotes/${lote.id}/info`} className="text-sm underline">
-                            Ver información del lote →
-                          </a>
-                          {lote.estado === 'reservado' && (
-                            <BotonCancelarReserva cancelarReservaAction={cancelarReservaConId} />
-                          )}
-                        </div>
-                      </td>
-                    </tr>
-                  )
-                })}
-              </tbody>
-            </table>
+            <div className="mb-8 overflow-x-auto rounded-xl border border-blue-100 bg-white shadow-sm">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="bg-blue-50 text-left text-blue-900">
+                    <th className="px-4 py-3 font-semibold">Identificador</th>
+                    <th className="px-4 py-3 font-semibold">Ubicación</th>
+                    <th className="px-4 py-3 font-semibold">Precio total</th>
+                    <th className="px-4 py-3 font-semibold">Moneda</th>
+                    <th className="px-4 py-3 font-semibold">Estado</th>
+                    <th className="px-4 py-3"></th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {misLotesReservados!.map((lote) => {
+                    const cancelarReservaConId = cancelarReserva.bind(null, lote.id)
+                    return (
+                      <tr key={lote.id} className="border-t border-blue-100 hover:bg-blue-50/40">
+                        <td className="px-4 py-3 font-medium text-slate-800">{lote.identificador}</td>
+                        <td className="px-4 py-3 text-slate-600">{lote.ubicacion ?? '—'}</td>
+                        <td className="px-4 py-3 text-slate-600">
+                          {lote.precio_total ? `${lote.precio_total} ${lote.moneda}` : '—'}
+                        </td>
+                        <td className="px-4 py-3 text-slate-600">{lote.moneda}</td>
+                        <td className="px-4 py-3 text-slate-600">{lote.estado}</td>
+                        <td className="px-4 py-3">
+                          <div className="flex flex-wrap items-center gap-3">
+                            <EnlaceBoton
+                              href={`/admin/lotes/${lote.id}/info`}
+                              className="text-sm font-medium text-blue-800 underline-offset-4 hover:text-blue-900 hover:underline"
+                            >
+                              Ver información del lote →
+                            </EnlaceBoton>
+                            {lote.estado === 'reservado' && (
+                              <BotonCancelarReserva cancelarReservaAction={cancelarReservaConId} />
+                            )}
+                          </div>
+                        </td>
+                      </tr>
+                    )
+                  })}
+                </tbody>
+              </table>
+            </div>
           )}
-          <h2 className="mb-2 text-lg font-semibold">Lotes disponibles y reservados</h2>
+          <h2 className="mb-2 text-lg font-bold text-blue-900">Lotes disponibles y reservados</h2>
         </>
       )}
 
-      <FiltroEnVivo className="mb-4 flex flex-wrap items-end gap-3">
+      <FiltroEnVivo className="mb-4 flex flex-wrap items-end gap-3 rounded-xl border border-blue-100 bg-white p-4 shadow-sm">
         <input type="hidden" name="sort" value={columnaOrden} />
         <input type="hidden" name="dir" value={ordenAscendente ? 'asc' : 'desc'} />
-        <label className="text-sm">
+        <label className="text-sm text-slate-600">
           Buscar
           <input
             type="text"
             name="q"
             placeholder="Buscar identificador"
             defaultValue={filtroTexto ?? ''}
-            className="mt-1 block rounded border px-3 py-2"
+            className={INPUT_CLASE}
           />
         </label>
-        <label className="text-sm">
+        <label className="text-sm text-slate-600">
           Moneda
-          <select
-            name="moneda"
-            defaultValue={filtroMoneda ?? ''}
-            className="mt-1 block rounded border px-3 py-2"
-          >
+          <select name="moneda" defaultValue={filtroMoneda ?? ''} className={INPUT_CLASE}>
             <option value="">Todas</option>
             <option value="USD">USD</option>
             <option value="ARS">ARS</option>
           </select>
         </label>
         {perfilPropio!.role !== 'acreedor' && (
-          <label className="text-sm">
+          <label className="text-sm text-slate-600">
             Acreedor
-            <select
-              name="acreedor"
-              defaultValue={filtroAcreedorId ?? ''}
-              className="mt-1 block rounded border px-3 py-2"
-            >
+            <select name="acreedor" defaultValue={filtroAcreedorId ?? ''} className={INPUT_CLASE}>
               <option value="">Todos</option>
               {(todosLosAcreedores ?? []).map((persona) => (
                 <option key={persona.id} value={persona.id}>
@@ -443,13 +471,9 @@ export default async function LotesPage({
           </label>
         )}
         {!esVendedorOCobrador && (
-          <label className="text-sm">
+          <label className="text-sm text-slate-600">
             Loteo
-            <select
-              name="loteo"
-              defaultValue={filtroLoteoId ?? ''}
-              className="mt-1 block rounded border px-3 py-2"
-            >
+            <select name="loteo" defaultValue={filtroLoteoId ?? ''} className={INPUT_CLASE}>
               <option value="">Todos</option>
               {(todosLosLoteos ?? []).map((loteo) => (
                 <option key={loteo.id} value={loteo.id}>
@@ -460,25 +484,21 @@ export default async function LotesPage({
           </label>
         )}
         {esAdministrador && (
-          <label className="text-sm">
+          <label className="text-sm text-slate-600">
             Cliente
             <input
               type="text"
               name="cliente"
               placeholder="Nombre del cliente"
               defaultValue={filtroCliente ?? ''}
-              className="mt-1 block rounded border px-3 py-2"
+              className={INPUT_CLASE}
             />
           </label>
         )}
         {!esVendedorOCobrador && (
-          <label className="text-sm">
+          <label className="text-sm text-slate-600">
             Estado
-            <select
-              name="estado"
-              defaultValue={filtroEstado ?? ''}
-              className="mt-1 block rounded border px-3 py-2"
-            >
+            <select name="estado" defaultValue={filtroEstado ?? ''} className={INPUT_CLASE}>
               <option value="">Todos</option>
               <option value="disponible">Disponible</option>
               <option value="reservado">Reservado</option>
@@ -488,13 +508,9 @@ export default async function LotesPage({
           </label>
         )}
         {!esVendedorOCobrador && (
-          <label className="text-sm">
+          <label className="text-sm text-slate-600">
             Cobranza
-            <select
-              name="cobranza"
-              defaultValue={filtroCobranza ?? ''}
-              className="mt-1 block rounded border px-3 py-2"
-            >
+            <select name="cobranza" defaultValue={filtroCobranza ?? ''} className={INPUT_CLASE}>
               <option value="">Todas</option>
               <option value="pagado">Pagado</option>
               <option value="al_dia">Al día</option>
@@ -504,7 +520,10 @@ export default async function LotesPage({
             </select>
           </label>
         )}
-        <button type="submit" className="rounded border px-3 py-2 text-sm">
+        <button
+          type="submit"
+          className="cursor-pointer rounded-lg border border-blue-800 px-3 py-2 text-sm font-semibold text-blue-800 transition-colors hover:bg-blue-50"
+        >
           Filtrar
         </button>
         {(filtroMoneda ||
@@ -516,159 +535,175 @@ export default async function LotesPage({
           filtroTexto ||
           sort ||
           dir) && (
-          <a href="/admin/lotes" className="text-sm underline">
+          <EnlaceBoton
+            href="/admin/lotes"
+            className="text-sm font-medium text-blue-800 underline-offset-4 hover:text-blue-900 hover:underline"
+          >
             Limpiar filtros y orden
-          </a>
+          </EnlaceBoton>
         )}
       </FiltroEnVivo>
 
       {lotesFiltrados.length === 0 && (filtroCliente || filtroCobranza || filtroEstado) ? (
-        <p className="text-sm text-gray-600">Ningún lote coincide con los filtros.</p>
+        <p className="text-sm text-slate-600">Ningún lote coincide con los filtros.</p>
       ) : (
-      <table className="w-full text-sm">
-        <thead>
-          <tr className="border-b text-left">
-            {!esVendedorOCobrador && <th className="py-2">Loteo</th>}
-            {COLUMNAS_ORDENABLES.map((columna) => (
-              <th key={columna} className="py-2">
-                <a href={urlOrden(columna)} className="underline">
-                  {ETIQUETAS_COLUMNA[columna]}
-                  {columnaOrden === columna ? (ordenAscendente ? ' ▲' : ' ▼') : ''}
-                </a>
-              </th>
-            ))}
-            {!esVendedorOCobrador && <th>Acreedor</th>}
-            {!esVendedorOCobrador && <th>Cuotas</th>}
-            {esAdministrador && <th>Cliente</th>}
-            {!esVendedorOCobrador && <th>Cobranza</th>}
-            <th></th>
-          </tr>
-        </thead>
-        <tbody>
-          {lotesFiltrados.map((lote) => {
-            const eliminarLoteConId = eliminarLote.bind(null, lote.id)
-            const cobranza = cobranzaPorLote.get(lote.id)
-            return (
-              <tr key={lote.id} className="border-b">
-                {!esVendedorOCobrador && (
-                  <td className="py-2">{lote.loteo_id ? nombreLoteoPorId.get(lote.loteo_id) ?? '—' : '— sin asignar —'}</td>
-                )}
-                <td className="py-2">{lote.identificador}</td>
-                <td>{lote.ubicacion ?? '—'}</td>
-                <td>{lote.precio_total ? `${lote.precio_total} ${lote.moneda}` : '—'}</td>
-                <td>{lote.moneda}</td>
-                <td>{lote.estado}</td>
-                {!esVendedorOCobrador && (
-                  <td>
-                    {lote.acreedor_id ? (
-                      esAdministrador ? (
-                        <a href={`/admin/usuarios?editar=${lote.acreedor_id}`} className="underline">
-                          {nombreAcreedorPorId.get(lote.acreedor_id) ?? '—'}
-                        </a>
-                      ) : (
-                        nombreAcreedorPorId.get(lote.acreedor_id) ?? '—'
-                      )
-                    ) : (
-                      '— sin asignar —'
-                    )}
-                  </td>
-                )}
-                {!esVendedorOCobrador && <td>{lote.cantidad_cuotas}</td>}
-                {esAdministrador && (
-                  <td>
-                    {lote.estado === 'vendido' && lote.cliente_id ? (
-                      <a href={`/admin/clientes/${lote.cliente_id}`} className="underline">
-                        {clientePorId.get(lote.cliente_id)?.full_name ?? '—'}
-                      </a>
-                    ) : (
-                      '—'
-                    )}
-                  </td>
-                )}
-                {!esVendedorOCobrador && (
-                  <td>
-                    {cobranza ? (
-                      <div className="flex items-center gap-2">
-                        <span
-                          className={
-                            cobranza.saldoPendiente === 0
-                              ? 'text-gray-600'
-                              : cobranza.marcadoPrejudicial
-                                ? 'font-bold text-red-800'
-                                : cobranza.estadoCobranza === 'normal'
-                                  ? 'text-gray-700'
-                                  : cobranza.estadoCobranza === 'moroso'
-                                    ? 'font-semibold text-red-600'
-                                    : 'font-semibold text-orange-700'
-                          }
-                        >
-                          {cobranza.saldoPendiente === 0
-                            ? 'Pagado'
-                            : cobranza.marcadoPrejudicial
-                              ? 'Prejudicial'
-                              : cobranza.estadoCobranza === 'normal'
-                                ? 'Al día'
-                                : cobranza.estadoCobranza === 'moroso'
-                                  ? 'Moroso'
-                                  : 'Posible prejudicial'}
-                        </span>
-                        {cobranza.mensajeWhatsApp && cobranza.telefono && (
-                          <a
-                            href={armarLinkWhatsApp(cobranza.telefono, cobranza.mensajeWhatsApp)}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="text-sm underline"
-                          >
-                            WhatsApp
-                          </a>
-                        )}
-                      </div>
-                    ) : (
-                      '—'
-                    )}
-                  </td>
-                )}
-                <td>
-                  {esVendedorOCobrador ? (
-                    <div className="flex flex-wrap items-center gap-3">
-                      <a href={`/admin/lotes/${lote.id}/info`} className="text-sm underline">
-                        Ver información del lote →
-                      </a>
-                      {lote.estado === 'disponible' && (
-                        <a href={`/admin/lotes/${lote.id}/reservar`} className="text-sm underline">
-                          Reservar
-                        </a>
-                      )}
-                    </div>
-                  ) : (
-                    <div className="flex flex-wrap items-center gap-3">
-                      <a href={`/admin/lotes/${lote.id}/info`} className="text-sm underline">
-                        Ver información del lote →
-                      </a>
-                      <a href={`/admin/lotes/${lote.id}`} className="text-sm underline">
-                        Ver detalle
-                      </a>
-                      {lote.estado === 'disponible' && (
-                        <a href={`/admin/lotes/${lote.id}/reservar`} className="text-sm underline">
-                          Reservar
-                        </a>
-                      )}
-                      {perfilPropio!.role === 'administrador' && lote.estado === 'reservado' && (
-                        <a href={`/admin/lotes/${lote.id}/vender`} className="text-sm underline">
-                          Vender / asignar cliente
-                        </a>
-                      )}
-                      {perfilPropio!.role === 'administrador' && (
-                        <BotonEliminarLote eliminarLoteAction={eliminarLoteConId} compacto />
-                      )}
-                    </div>
-                  )}
-                </td>
+        <div className="overflow-x-auto rounded-xl border border-blue-100 bg-white shadow-sm">
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="bg-blue-50 text-left text-blue-900">
+                {!esVendedorOCobrador && <th className="px-4 py-3 font-semibold">Loteo</th>}
+                {COLUMNAS_ORDENABLES.map((columna) => (
+                  <th key={columna} className="px-4 py-3 font-semibold">
+                    <EnlaceBoton
+                      href={urlOrden(columna)}
+                      className="text-blue-900 underline-offset-4 hover:underline"
+                    >
+                      {ETIQUETAS_COLUMNA[columna]}
+                      {columnaOrden === columna ? (ordenAscendente ? ' ▲' : ' ▼') : ''}
+                    </EnlaceBoton>
+                  </th>
+                ))}
+                {!esVendedorOCobrador && <th className="px-4 py-3 font-semibold">Acreedor</th>}
+                {!esVendedorOCobrador && <th className="px-4 py-3 font-semibold">Cuotas</th>}
+                {esAdministrador && <th className="px-4 py-3 font-semibold">Cliente</th>}
+                {!esVendedorOCobrador && <th className="px-4 py-3 font-semibold">Cobranza</th>}
+                <th className="px-4 py-3"></th>
               </tr>
-            )
-          })}
-        </tbody>
-      </table>
+            </thead>
+            <tbody>
+              {lotesFiltrados.map((lote) => {
+                const eliminarLoteConId = eliminarLote.bind(null, lote.id)
+                const cobranza = cobranzaPorLote.get(lote.id)
+                return (
+                  <tr key={lote.id} className="border-t border-blue-100 hover:bg-blue-50/40">
+                    {!esVendedorOCobrador && (
+                      <td className="px-4 py-3 text-slate-600">
+                        {lote.loteo_id ? nombreLoteoPorId.get(lote.loteo_id) ?? '—' : '— sin asignar —'}
+                      </td>
+                    )}
+                    <td className="px-4 py-3 font-medium text-slate-800">{lote.identificador}</td>
+                    <td className="px-4 py-3 text-slate-600">{lote.ubicacion ?? '—'}</td>
+                    <td className="px-4 py-3 text-slate-600">
+                      {lote.precio_total ? `${lote.precio_total} ${lote.moneda}` : '—'}
+                    </td>
+                    <td className="px-4 py-3 text-slate-600">{lote.moneda}</td>
+                    <td className="px-4 py-3 text-slate-600">{lote.estado}</td>
+                    {!esVendedorOCobrador && (
+                      <td className="px-4 py-3">
+                        {lote.acreedor_id ? (
+                          esAdministrador ? (
+                            <EnlaceBoton
+                              href={`/admin/usuarios?editar=${lote.acreedor_id}`}
+                              className="text-blue-800 underline-offset-4 hover:underline"
+                            >
+                              {nombreAcreedorPorId.get(lote.acreedor_id) ?? '—'}
+                            </EnlaceBoton>
+                          ) : (
+                            <span className="text-slate-600">{nombreAcreedorPorId.get(lote.acreedor_id) ?? '—'}</span>
+                          )
+                        ) : (
+                          <span className="text-slate-500">— sin asignar —</span>
+                        )}
+                      </td>
+                    )}
+                    {!esVendedorOCobrador && <td className="px-4 py-3 text-slate-600">{lote.cantidad_cuotas}</td>}
+                    {esAdministrador && (
+                      <td className="px-4 py-3">
+                        {lote.estado === 'vendido' && lote.cliente_id ? (
+                          <EnlaceBoton
+                            href={`/admin/clientes/${lote.cliente_id}`}
+                            className="text-blue-800 underline-offset-4 hover:underline"
+                          >
+                            {clientePorId.get(lote.cliente_id)?.full_name ?? '—'}
+                          </EnlaceBoton>
+                        ) : (
+                          <span className="text-slate-500">—</span>
+                        )}
+                      </td>
+                    )}
+                    {!esVendedorOCobrador && (
+                      <td className="px-4 py-3">
+                        {cobranza ? (
+                          <div className="flex items-center gap-2">
+                            <span className={`rounded-full px-2.5 py-1 text-xs ${claseCobranza(cobranza)}`}>
+                              {etiquetaCobranza(cobranza)}
+                            </span>
+                            {cobranza.mensajeWhatsApp && cobranza.telefono && (
+                              <a
+                                href={armarLinkWhatsApp(cobranza.telefono, cobranza.mensajeWhatsApp)}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="text-sm font-medium text-blue-800 underline-offset-4 hover:text-blue-900 hover:underline"
+                              >
+                                WhatsApp
+                              </a>
+                            )}
+                          </div>
+                        ) : (
+                          <span className="text-slate-500">—</span>
+                        )}
+                      </td>
+                    )}
+                    <td className="px-4 py-3">
+                      {esVendedorOCobrador ? (
+                        <div className="flex flex-wrap items-center gap-3">
+                          <EnlaceBoton
+                            href={`/admin/lotes/${lote.id}/info`}
+                            className="text-sm font-medium text-blue-800 underline-offset-4 hover:text-blue-900 hover:underline"
+                          >
+                            Ver información del lote →
+                          </EnlaceBoton>
+                          {lote.estado === 'disponible' && (
+                            <EnlaceBoton
+                              href={`/admin/lotes/${lote.id}/reservar`}
+                              className="text-sm font-medium text-blue-800 underline-offset-4 hover:text-blue-900 hover:underline"
+                            >
+                              Reservar
+                            </EnlaceBoton>
+                          )}
+                        </div>
+                      ) : (
+                        <div className="flex flex-wrap items-center gap-3">
+                          <EnlaceBoton
+                            href={`/admin/lotes/${lote.id}/info`}
+                            className="text-sm font-medium text-blue-800 underline-offset-4 hover:text-blue-900 hover:underline"
+                          >
+                            Ver información del lote →
+                          </EnlaceBoton>
+                          <EnlaceBoton
+                            href={`/admin/lotes/${lote.id}`}
+                            className="text-sm font-medium text-blue-800 underline-offset-4 hover:text-blue-900 hover:underline"
+                          >
+                            Ver detalle
+                          </EnlaceBoton>
+                          {lote.estado === 'disponible' && (
+                            <EnlaceBoton
+                              href={`/admin/lotes/${lote.id}/reservar`}
+                              className="text-sm font-medium text-blue-800 underline-offset-4 hover:text-blue-900 hover:underline"
+                            >
+                              Reservar
+                            </EnlaceBoton>
+                          )}
+                          {perfilPropio!.role === 'administrador' && lote.estado === 'reservado' && (
+                            <EnlaceBoton
+                              href={`/admin/lotes/${lote.id}/vender`}
+                              className="text-sm font-medium text-blue-800 underline-offset-4 hover:text-blue-900 hover:underline"
+                            >
+                              Vender / asignar cliente
+                            </EnlaceBoton>
+                          )}
+                          {perfilPropio!.role === 'administrador' && (
+                            <BotonEliminarLote eliminarLoteAction={eliminarLoteConId} compacto />
+                          )}
+                        </div>
+                      )}
+                    </td>
+                  </tr>
+                )
+              })}
+            </tbody>
+          </table>
+        </div>
       )}
     </main>
   )

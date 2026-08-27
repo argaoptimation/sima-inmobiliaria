@@ -33,7 +33,7 @@ export default async function AdminLayout({ children }: { children: React.ReactN
   const pagosPendientes = await contarPagosPendientes(supabase, profile.role, user.id)
 
   return (
-    <div>
+    <div className="min-h-full">
       <NavAdmin role={profile.role} pagosPendientes={pagosPendientes} userId={user.id} />
       <div className="p-6">{children}</div>
     </div>

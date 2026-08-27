@@ -90,7 +90,11 @@ test.describe('Cotización del dólar', () => {
     await page.getByRole('button', { name: 'Cargar' }).click()
     await page.waitForURL('**/admin/lotes')
 
-    await expect(page.getByText(/Cotización de hoy .* ya cargada: 1500\.5/)).toBeVisible()
+    // Timeout largo (27/08): guardarCotizacionDolar hace revalidatePath +
+    // redirect a /admin/lotes -- la página más pesada de la app (muchos
+    // joins), a veces no termina de asentarse en los 5s default. Ver
+    // el mismo comentario más abajo, en el test de "cargarla dos veces".
+    await expect(page.getByText(/Cotización de hoy .* ya cargada: 1500\.5/)).toBeVisible({ timeout: 15000 })
   })
 
   test('cargarla dos veces el mismo día corrige el valor anterior (upsert, no error) y no duplica la fila', async ({
@@ -102,7 +106,7 @@ test.describe('Cotización del dólar', () => {
     await page.getByPlaceholder('Ej: 1500').fill('1500')
     await page.getByRole('button', { name: 'Cargar' }).click()
     await page.waitForURL('**/admin/lotes')
-    await expect(page.getByText(/ya cargada: 1500\b/)).toBeVisible()
+    await expect(page.getByText(/ya cargada: 1500\b/)).toBeVisible({ timeout: 15000 })
 
     // Segunda carga del mismo día: el botón ahora dice "Corregir" y el
     // input viene precargado con el valor ya guardado.
@@ -110,7 +114,13 @@ test.describe('Cotización del dólar', () => {
     await page.getByPlaceholder('Ej: 1500').fill('1600')
     await page.getByRole('button', { name: 'Corregir' }).click()
     await page.waitForURL('**/admin/lotes')
-    await expect(page.getByText(/ya cargada: 1600\b/)).toBeVisible()
+    // Timeout largo a propósito (27/08): desde que guardarCotizacionDolar
+    // llama revalidatePath('/admin/lotes') -- necesario para que el router
+    // cache del cliente no sirva la versión vieja tras el redirect, ver esa
+    // action -- esta segunda carga vuelve a traer TODA la data de /admin/lotes
+    // (la página más pesada de la app, muchos joins) en vez de servir algo
+    // cacheado, y a veces no llega a asentarse en los 5s default.
+    await expect(page.getByText(/ya cargada: 1600\b/)).toBeVisible({ timeout: 15000 })
 
     const admin = createAdminClient()
     const hoy = hoyArgentina()

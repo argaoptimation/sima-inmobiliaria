@@ -8,6 +8,7 @@ import { hoyArgentina } from '@/lib/fecha/hoy-argentina'
 import { notFound, redirect } from 'next/navigation'
 import { eliminarPago } from './actions'
 import { BotonEliminarPago } from './BotonEliminarPago'
+import { EnlaceBoton } from '@/components/EnlaceBoton'
 
 const ETIQUETA_ESTADO: Record<string, string> = {
   normal: 'Al día',
@@ -135,12 +136,12 @@ export default async function PortalClienteLotePage({
 
   return (
     <div className="mx-auto max-w-3xl px-6 py-10">
-      <a
+      <EnlaceBoton
         href="/portal-cliente"
         className="mb-4 inline-block text-sm font-medium text-blue-800 underline-offset-4 hover:text-blue-900 hover:underline"
       >
         ← Volver a tus lotes
-      </a>
+      </EnlaceBoton>
 
       {error && <p className="mb-4 rounded-lg bg-red-50 p-3 text-sm text-red-700">{error}</p>}
       {ok && <p className="mb-4 rounded-lg bg-green-50 p-3 text-sm text-green-700">{ok}</p>}
@@ -178,12 +179,12 @@ export default async function PortalClienteLotePage({
             <div className="mb-2 flex items-center justify-between">
               <span className="font-semibold text-blue-900">Cuota {cuota.numero}</span>
               {primeraImpaga?.id === cuota.id && (
-                <a
+                <EnlaceBoton
                   href={`/portal-cliente/pagar/${cuota.id}`}
                   className="inline-block whitespace-nowrap rounded-lg bg-blue-800 px-3 py-1.5 text-center text-xs font-semibold text-white transition-colors hover:bg-blue-900"
                 >
                   Pagar cuota
-                </a>
+                </EnlaceBoton>
               )}
             </div>
             <dl className="grid grid-cols-[auto_1fr] gap-x-3 gap-y-1.5 text-sm">
@@ -270,12 +271,12 @@ export default async function PortalClienteLotePage({
                 </td>
                 <td className="px-4 py-3 text-right">
                   {primeraImpaga?.id === cuota.id && (
-                    <a
+                    <EnlaceBoton
                       href={`/portal-cliente/pagar/${cuota.id}`}
                       className="inline-block whitespace-nowrap rounded-lg bg-blue-800 px-3 py-1.5 text-center text-xs font-semibold text-white transition-colors hover:bg-blue-900"
                     >
                       Pagar cuota
-                    </a>
+                    </EnlaceBoton>
                   )}
                 </td>
               </tr>
@@ -312,12 +313,12 @@ export default async function PortalClienteLotePage({
                       <span className="rounded-full bg-amber-50 px-2 py-1 text-xs font-semibold">
                         ⚠ Falta subir comprobante
                       </span>
-                      <a
+                      <EnlaceBoton
                         href={`/portal-cliente/pagos/${pago.id}/comprobante`}
                         className="font-medium text-blue-800 underline-offset-4 hover:text-blue-900 hover:underline"
                       >
                         Subir
-                      </a>
+                      </EnlaceBoton>
                     </div>
                   ) : pago.comprobanteUrl ? (
                     <a
@@ -361,12 +362,12 @@ export default async function PortalClienteLotePage({
                             <span className="rounded-full bg-amber-50 px-2 py-1 text-xs font-semibold">
                               ⚠ Falta subir comprobante
                             </span>
-                            <a
+                            <EnlaceBoton
                               href={`/portal-cliente/pagos/${pago.id}/comprobante`}
                               className="font-medium text-blue-800 underline-offset-4 hover:text-blue-900 hover:underline"
                             >
                               Subir
-                            </a>
+                            </EnlaceBoton>
                           </span>
                         ) : pago.comprobanteUrl ? (
                           <a

@@ -2,6 +2,7 @@
 
 import { createClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
+import { revalidatePath } from 'next/cache'
 import { mensajeDeError } from '@/lib/errores'
 import { hoyArgentina } from '@/lib/fecha/hoy-argentina'
 
@@ -54,5 +55,12 @@ export async function guardarCotizacionDolar(formData: FormData) {
     .from('cotizaciones_dolar_historial')
     .insert({ fecha: hoy, valor, cargado_por: user!.id })
 
+  // Necesario desde que /admin/lotes empezó a navegarse con next/link
+  // (27/08, spinner de carga): sin esto, el router cache del cliente podía
+  // servir la versión de la página que ya tenía prefetcheada de ANTES de
+  // este guardado -- el admin veía la cotización vieja hasta refrescar a
+  // mano. Con <a> plano (como era antes) nunca hacía falta, cada
+  // navegación era una carga completa sin caché.
+  revalidatePath('/admin/lotes')
   redirect('/admin/lotes')
 }

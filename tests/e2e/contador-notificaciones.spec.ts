@@ -14,10 +14,18 @@ const COMPROBANTE_BYTES = readFileSync(COMPROBANTE_PATH)
 // puede asumir en 0 al arrancar cada test. En vez de eso, se lee el valor
 // actual como línea de base y se comparan DELTAS antes/después de cada
 // acción, sin importar cuánto haya quedado pendiente de antes.
+// El contador dejó de ser texto "Pagos (N)" (27/08, ver NavAdmin.tsx) --
+// ahora es un badge (<span class="...rounded-full...">) aparte dentro del
+// link, que solo se renderiza si hay pendientes. `span.rounded-full` (no
+// solo `span`) porque EnlaceBoton envuelve el contenido del link en OTRO
+// span propio -- `locator('span')` a secas matchea los dos y tira
+// strict-mode violation (que el .catch() de abajo escondía como "0").
 async function leerContadorPagos(page: Page) {
-  const texto = await page.getByRole('link', { name: /^Pagos/ }).textContent()
-  const match = texto?.match(/\((\d+)\)/)
-  return match ? Number(match[1]) : 0
+  const badge = page.getByRole('link', { name: /^Pagos/ }).locator('span.rounded-full')
+  const visible = await badge.isVisible().catch(() => false)
+  if (!visible) return 0
+  const texto = await badge.textContent()
+  return texto ? Number(texto.trim()) : 0
 }
 
 // Nota: `ensureTestFixtures()` NO es memoizada -- cada llamada borra y
@@ -143,6 +151,6 @@ test.describe('Contador de pagos pendientes en la nav', () => {
 
     await login(page, fixtures.admin.email, fixtures.password)
     await page.goto('/admin/lotes')
-    await expect(page.getByRole('link', { name: /^Pagos/ })).toContainText('Pagos (')
+    await expect(page.getByRole('link', { name: /^Pagos/ }).locator('span.rounded-full')).toBeVisible()
   })
 })

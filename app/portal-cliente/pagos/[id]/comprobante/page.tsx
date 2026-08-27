@@ -1,6 +1,8 @@
 import { createClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
 import { subirComprobante } from './actions'
+import { EnlaceBoton } from '@/components/EnlaceBoton'
+import { BotonEnvio } from '@/components/BotonEnvio'
 
 export default async function ComprobantePagoPage({
   params,
@@ -44,12 +46,12 @@ export default async function ComprobantePagoPage({
 
   return (
     <div className="mx-auto max-w-md px-6 py-10">
-      <a
+      <EnlaceBoton
         href={volverHref}
         className="mb-4 inline-block text-sm font-medium text-blue-800 underline-offset-4 hover:text-blue-900 hover:underline"
       >
         ← Volver al lote
-      </a>
+      </EnlaceBoton>
 
       <div className="rounded-xl border border-blue-100 bg-white p-6 shadow-sm">
         <h1 className="mb-4 text-xl font-bold text-blue-900">Subir comprobante</h1>
@@ -86,12 +88,9 @@ export default async function ComprobantePagoPage({
                   className="mt-4 block w-full text-sm text-blue-900 file:mr-3 file:cursor-pointer file:rounded-lg file:border-0 file:bg-blue-800 file:px-4 file:py-2 file:text-sm file:font-semibold file:text-white file:transition-colors hover:file:bg-blue-900"
                 />
               </label>
-              <button
-                type="submit"
-                className="rounded-lg bg-blue-800 px-4 py-2.5 font-semibold text-white transition-colors hover:bg-blue-900 cursor-pointer"
-              >
+              <BotonEnvio className="rounded-lg bg-blue-800 px-4 py-2.5 font-semibold text-white transition-colors hover:bg-blue-900 cursor-pointer">
                 Finalizar
-              </button>
+              </BotonEnvio>
             </form>
           </>
         )}

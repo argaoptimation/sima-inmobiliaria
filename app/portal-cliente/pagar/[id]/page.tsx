@@ -4,6 +4,8 @@ import { registrarPago } from './actions'
 import { tieneDatosTransferencia } from '@/lib/lotes/validar-cuenta-cobro'
 import { hoyArgentina } from '@/lib/fecha/hoy-argentina'
 import { MontoYMoneda } from './MontoYMoneda'
+import { EnlaceBoton } from '@/components/EnlaceBoton'
+import { BotonEnvio } from '@/components/BotonEnvio'
 
 export default async function PagarCuotaPage({
   params,
@@ -82,12 +84,12 @@ export default async function PagarCuotaPage({
 
   return (
     <div className="mx-auto max-w-lg px-6 py-10">
-      <a
+      <EnlaceBoton
         href={`/portal-cliente/lotes/${cuota!.lote_id}`}
         className="mb-4 inline-block text-sm font-medium text-blue-800 underline-offset-4 hover:text-blue-900 hover:underline"
       >
         ← Volver al lote
-      </a>
+      </EnlaceBoton>
       <h1 className="mb-6 text-2xl font-extrabold text-blue-900">Registrar pago</h1>
 
       {lote!.moneda === 'USD' && cotizacionVigente && (
@@ -138,12 +140,9 @@ export default async function PagarCuotaPage({
           interesMoratorioDiario={lote!.interes_moratorio_diario}
           cotizacionVigente={cotizacionVigente}
         />
-        <button
-          type="submit"
-          className="rounded-lg bg-blue-800 px-4 py-2.5 font-semibold text-white transition-colors hover:bg-blue-900 cursor-pointer"
-        >
+        <BotonEnvio className="rounded-lg bg-blue-800 px-4 py-2.5 font-semibold text-white transition-colors hover:bg-blue-900 cursor-pointer">
           Ya transferí
-        </button>
+        </BotonEnvio>
       </form>
     </div>
   )

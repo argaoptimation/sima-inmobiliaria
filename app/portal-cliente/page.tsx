@@ -2,6 +2,8 @@ import { createClient } from '@/lib/supabase/server'
 import { calcularEstadoCobranza } from '@/lib/cobranza/estado-cliente'
 import { hoyArgentina } from '@/lib/fecha/hoy-argentina'
 import { redirect } from 'next/navigation'
+import Link from 'next/link'
+import { EnlaceBoton, IndicadorPendiente } from '@/components/EnlaceBoton'
 
 export default async function PortalClientePage() {
   const supabase = await createClient()
@@ -70,7 +72,7 @@ export default async function PortalClientePage() {
           columnas en 375px. */}
       <div className="space-y-3 md:hidden">
         {lotesConEstado.map((lote) => (
-          <a
+          <Link
             key={lote.id}
             href={`/portal-cliente/lotes/${lote.id}`}
             className="block rounded-xl border border-blue-100 bg-white p-4 shadow-sm transition-colors hover:bg-blue-50/40"
@@ -83,9 +85,11 @@ export default async function PortalClientePage() {
             </div>
             <div className="mt-2 flex items-center justify-between text-sm">
               <span className="text-slate-500">{lote.moneda}</span>
-              <span className="font-medium text-blue-800">Ver detalle →</span>
+              <span className="inline-flex items-center gap-2 font-medium text-blue-800">
+                Ver detalle → <IndicadorPendiente />
+              </span>
             </div>
-          </a>
+          </Link>
         ))}
       </div>
 
@@ -110,12 +114,12 @@ export default async function PortalClientePage() {
                   </span>
                 </td>
                 <td className="px-4 py-3 text-right">
-                  <a
+                  <EnlaceBoton
                     href={`/portal-cliente/lotes/${lote.id}`}
                     className="text-sm font-medium text-blue-800 underline-offset-4 hover:text-blue-900 hover:underline"
                   >
                     Ver detalle →
-                  </a>
+                  </EnlaceBoton>
                 </td>
               </tr>
             ))}

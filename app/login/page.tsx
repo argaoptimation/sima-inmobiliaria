@@ -1,6 +1,8 @@
 import Image from 'next/image'
 import { login } from './actions'
 import { CampoPassword } from '@/components/CampoPassword'
+import { EnlaceBoton } from '@/components/EnlaceBoton'
+import { BotonEnvio } from '@/components/BotonEnvio'
 
 export default async function LoginPage({
   searchParams,
@@ -31,20 +33,17 @@ export default async function LoginPage({
             className="rounded-lg border border-blue-100 px-3 py-2 placeholder:text-gray-400 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200"
           />
           <CampoPassword name="password" placeholder="Contraseña" required autoComplete="current-password" />
-          <button
-            type="submit"
-            className="cursor-pointer rounded-lg bg-blue-800 px-3 py-2 font-semibold text-white transition-colors hover:bg-blue-900"
-          >
+          <BotonEnvio className="cursor-pointer rounded-lg bg-blue-800 px-3 py-2 font-semibold text-white transition-colors hover:bg-blue-900">
             Ingresar
-          </button>
+          </BotonEnvio>
         </form>
 
-        <a
+        <EnlaceBoton
           href="/login/recuperar-contrasena"
           className="mt-4 block text-center text-sm text-blue-800 underline-offset-2 hover:underline"
         >
           ¿Olvidaste tu contraseña?
-        </a>
+        </EnlaceBoton>
       </div>
     </main>
   )

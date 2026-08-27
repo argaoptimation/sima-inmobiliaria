@@ -1,6 +1,7 @@
 import Image from 'next/image'
 import { setPassword } from './actions'
 import { CampoPassword } from '@/components/CampoPassword'
+import { BotonEnvio } from '@/components/BotonEnvio'
 
 export default async function SetPasswordPage({
   searchParams,
@@ -33,12 +34,9 @@ export default async function SetPasswordPage({
             minLength={8}
             autoComplete="new-password"
           />
-          <button
-            type="submit"
-            className="cursor-pointer rounded-lg bg-blue-800 px-3 py-2 font-semibold text-white transition-colors hover:bg-blue-900"
-          >
+          <BotonEnvio className="cursor-pointer rounded-lg bg-blue-800 px-3 py-2 font-semibold text-white transition-colors hover:bg-blue-900">
             Guardar
-          </button>
+          </BotonEnvio>
         </form>
       </div>
     </main>

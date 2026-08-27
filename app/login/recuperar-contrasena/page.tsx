@@ -1,5 +1,7 @@
 import Image from 'next/image'
 import { solicitarRecuperacion } from './actions'
+import { EnlaceBoton } from '@/components/EnlaceBoton'
+import { BotonEnvio } from '@/components/BotonEnvio'
 
 export default async function RecuperarContrasenaPage({
   searchParams,
@@ -35,21 +37,18 @@ export default async function RecuperarContrasenaPage({
               autoComplete="email"
               className="rounded-lg border border-blue-100 px-3 py-2 placeholder:text-gray-400 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200"
             />
-            <button
-              type="submit"
-              className="cursor-pointer rounded-lg bg-blue-800 px-3 py-2 font-semibold text-white transition-colors hover:bg-blue-900"
-            >
+            <BotonEnvio className="cursor-pointer rounded-lg bg-blue-800 px-3 py-2 font-semibold text-white transition-colors hover:bg-blue-900">
               Enviar link
-            </button>
+            </BotonEnvio>
           </form>
         )}
 
-        <a
+        <EnlaceBoton
           href="/login"
           className="mt-4 block text-center text-sm text-blue-800 underline-offset-2 hover:underline"
         >
           ← Volver a ingresar
-        </a>
+        </EnlaceBoton>
       </div>
     </main>
   )

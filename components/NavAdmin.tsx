@@ -1,4 +1,9 @@
 import { logout } from '@/app/login/actions'
+import { EnlaceBoton } from './EnlaceBoton'
+import { BotonEnvio } from './BotonEnvio'
+
+const ENLACE_CLASE =
+  'whitespace-nowrap rounded-lg px-2.5 py-1.5 text-sm font-medium text-blue-900/70 transition-colors hover:bg-blue-50 hover:text-blue-900'
 
 export function NavAdmin({
   role,
@@ -24,30 +29,90 @@ export function NavAdmin({
   const puedeVerEfectivoYCaja = role === 'administrador' || role === 'cobrador'
 
   return (
-    <nav className="flex items-center justify-between border-b p-4 text-sm">
-      <div className="flex gap-4">
-        <a href="/admin/lotes">Lotes</a>
-        {esAdministrador && <a href="/admin/loteos">Loteos</a>}
-        {puedeVerPagosYUsuarios && (
-          <a href="/admin/pagos">Pagos{pagosPendientes > 0 ? ` (${pagosPendientes})` : ''}</a>
-        )}
-        {puedeVerPagosYUsuarios && <a href="/admin/usuarios">Usuarios</a>}
-        {esAdministrador && <a href="/admin/clientes">Clientes</a>}
-        {esAdministrador && <a href="/admin/panel-morosos">Panel de Morosos</a>}
-        {esAdministrador && <a href="/admin/cuentas-externas">Cuentas externas</a>}
-        {esAdministrador && <a href="/admin/cuentas-corrientes">Cuentas corrientes</a>}
-        {tieneCuentaPropia && <a href={`/admin/cuentas-corrientes/${userId}`}>Mi cuenta corriente</a>}
-        {puedeVerIndices && <a href="/admin/historial-lotes">Historial</a>}
-        {puedeVerIndices && <a href="/admin/indices">Índices</a>}
-        {puedeVerEfectivoYCaja && <a href="/admin/efectivo">Efectivo</a>}
-        {puedeVerEfectivoYCaja && <a href="/admin/cierre-caja">Cierre de caja</a>}
-        <a href="/mi-perfil">Mi perfil</a>
+    <nav className="border-b border-blue-100 bg-white shadow-sm">
+      <div className="flex items-center justify-between gap-4 px-6 py-3">
+        <div className="flex flex-wrap items-center gap-1">
+          <EnlaceBoton href="/admin/lotes" className={ENLACE_CLASE}>
+            Lotes
+          </EnlaceBoton>
+          {esAdministrador && (
+            <EnlaceBoton href="/admin/loteos" className={ENLACE_CLASE}>
+              Loteos
+            </EnlaceBoton>
+          )}
+          {puedeVerPagosYUsuarios && (
+            <EnlaceBoton href="/admin/pagos" className={ENLACE_CLASE}>
+              Pagos
+              {pagosPendientes > 0 && (
+                <span className="ml-1.5 rounded-full bg-amber-100 px-1.5 py-0.5 text-xs font-bold text-amber-800">
+                  {pagosPendientes}
+                </span>
+              )}
+            </EnlaceBoton>
+          )}
+          {puedeVerPagosYUsuarios && (
+            <EnlaceBoton href="/admin/usuarios" className={ENLACE_CLASE}>
+              Usuarios
+            </EnlaceBoton>
+          )}
+          {esAdministrador && (
+            <EnlaceBoton href="/admin/clientes" className={ENLACE_CLASE}>
+              Clientes
+            </EnlaceBoton>
+          )}
+          {esAdministrador && (
+            <EnlaceBoton href="/admin/panel-morosos" className={ENLACE_CLASE}>
+              Panel de Morosos
+            </EnlaceBoton>
+          )}
+          {esAdministrador && (
+            <EnlaceBoton href="/admin/cuentas-externas" className={ENLACE_CLASE}>
+              Cuentas externas
+            </EnlaceBoton>
+          )}
+          {esAdministrador && (
+            <EnlaceBoton href="/admin/cuentas-corrientes" className={ENLACE_CLASE}>
+              Cuentas corrientes
+            </EnlaceBoton>
+          )}
+          {tieneCuentaPropia && (
+            <EnlaceBoton href={`/admin/cuentas-corrientes/${userId}`} className={ENLACE_CLASE}>
+              Mi cuenta corriente
+            </EnlaceBoton>
+          )}
+          {puedeVerIndices && (
+            <EnlaceBoton href="/admin/historial-lotes" className={ENLACE_CLASE}>
+              Historial
+            </EnlaceBoton>
+          )}
+          {puedeVerIndices && (
+            <EnlaceBoton href="/admin/indices" className={ENLACE_CLASE}>
+              Índices
+            </EnlaceBoton>
+          )}
+          {puedeVerEfectivoYCaja && (
+            <EnlaceBoton href="/admin/efectivo" className={ENLACE_CLASE}>
+              Efectivo
+            </EnlaceBoton>
+          )}
+          {puedeVerEfectivoYCaja && (
+            <EnlaceBoton href="/admin/cierre-caja" className={ENLACE_CLASE}>
+              Cierre de caja
+            </EnlaceBoton>
+          )}
+          <EnlaceBoton href="/mi-perfil" className={ENLACE_CLASE}>
+            Mi perfil
+          </EnlaceBoton>
+        </div>
+        <form action={logout} className="shrink-0">
+          <BotonEnvio
+            className="cursor-pointer whitespace-nowrap rounded-lg px-2.5 py-1.5 text-sm font-medium text-blue-900/70 transition-colors hover:bg-blue-50 hover:text-blue-900"
+            cargandoTexto="Cerrando sesión…"
+          >
+            Cerrar sesión
+          </BotonEnvio>
+        </form>
       </div>
-      <form action={logout}>
-        <button type="submit" className="underline">
-          Cerrar sesión
-        </button>
-      </form>
     </nav>
   )
 }
