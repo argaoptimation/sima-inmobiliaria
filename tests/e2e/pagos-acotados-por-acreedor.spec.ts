@@ -189,8 +189,14 @@ test.describe('Confirmación de pagos acotada al acreedor del lote', () => {
         await page.waitForURL(/\/admin\/pagos/)
 
         // El rechazo real pasó en el servidor al momento del submit (no en
-        // el render inicial): la Server Action redirige con un aviso.
-        await expect(page.getByText(/No sos el acreedor vinculado a este lote/)).toBeVisible()
+        // el render inicial). Desde que RLS está activa (27/08), ni
+        // siquiera llega a leer el pago para armar el aviso lindo ("No sos
+        // el acreedor...") -- la política de `pagos` ya lo filtra antes de
+        // eso, así que confirmarPago hace el mismo early-return silencioso
+        // que si el pago no existiera. El rechazo sigue siendo 100% real
+        // (se confirma en el paso siguiente, viendo el estado desde el
+        // admin), solo cambió el mensaje.
+        await expect(page.getByText(/No sos el acreedor vinculado a este lote/)).not.toBeVisible()
       })
 
       await test.step('el pago sigue sin confirmación del lado del acreedor', async () => {

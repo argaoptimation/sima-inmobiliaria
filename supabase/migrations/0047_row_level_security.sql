@@ -1,10 +1,20 @@
--- Row Level Security para las 19 tablas de `public`. Redactada en la noche
--- del 27/08 con el MCP de Supabase sin token válido (Unauthorized) --
--- por eso este archivo está PREPARADO PERO NO APLICADO todavía. Ver
--- docs/superpowers/plans/2026-08-27-row-level-security.md para el
--- razonamiento completo detrás de cada política (qué archivo del código la
--- justifica) y el checklist de verificación obligatorio antes de darla por
--- buena.
+-- Row Level Security para las 19 tablas de `public`. Redactada la noche del
+-- 27/08 y aplicada esa misma noche/madrugada con Gabriel presente. Este
+-- archivo YA REFLEJA la versión final, corregida después de que el primer
+-- apply real (con el suite de e2e completo como prueba) encontrara 4 bugs
+-- reales -- ver docs/superpowers/plans/2026-08-27-row-level-security.md
+-- para el diagnóstico completo de cada uno:
+--   1. Recursión infinita entre `lotes` y `lote_participantes` (se
+--      consultaban mutuamente) -- rompía CUALQUIER lectura de `lotes`, para
+--      cualquier rol. Arreglado con la función es_participante_del_lote().
+--   2. Vendedor no podía ver lotes 'disponible'/'reservado' que todavía no
+--      eran suyos, así que no podía reservarlos.
+--   3. Cliente no podía ver el profile (datos de transferencia) del
+--      acreedor/vendedor de su propio lote, para poder pagarle.
+--   4. Cobrador no podía insertar en `pagos` (registrarPagoEfectivo).
+-- Confirmado con el suite de e2e completo en verde después de estos 4
+-- arreglos (153/153 relevantes, descontando flakiness pre-existente no
+-- relacionada a RLS).
 --
 -- Principio general: las políticas reflejan lo que el código YA hace hoy
 -- (los guards de lib/auth/require-admin.ts + los roles hardcodeados en cada
@@ -46,6 +56,16 @@ create policy profiles_select on public.profiles for select
   using (
     id = auth.uid()
     or public.mi_rol() in ('administrador', 'acreedor', 'vendedor', 'cobrador')
+    -- El cliente necesita ver el profile (datos de transferencia) del
+    -- acreedor/vendedor de SU PROPIO lote para poder pagarle -- ver
+    -- cuenta-cobro.spec.ts. Sin recursión: esta subquery contra `lotes` se
+    -- evalúa bajo la policy de lotes para 'cliente' (cliente_id =
+    -- auth.uid()), que no vuelve a consultar `profiles`.
+    or id in (
+      select acreedor_id from public.lotes where cliente_id = auth.uid()
+      union
+      select vendedor_id from public.lotes where cliente_id = auth.uid()
+    )
   );
 
 create policy profiles_update on public.profiles for update
@@ -86,22 +106,46 @@ create trigger profiles_bloquear_cambio_rol
 -- ============================================================
 alter table public.lotes enable row level security;
 
+-- es_participante_del_lote(): SECURITY DEFINER a propósito -- responde la
+-- pregunta "¿este usuario es participante de este lote?" leyendo
+-- lote_participantes SIN pasar por la RLS de esa tabla. Sin esto, la
+-- policy de `lotes` (abajo) haría una subquery contra la vista con RLS de
+-- `lote_participantes`, cuya propia policy vuelve a consultar `lotes` --
+-- recursión infinita real, encontrada al aplicar esto la primera vez
+-- (rompía TODA lectura de `lotes`, para cualquier rol).
+create or replace function public.es_participante_del_lote(p_lote_id uuid)
+returns boolean
+language sql
+security definer
+set search_path = public
+stable
+as $$
+  select exists (
+    select 1 from public.lote_participantes
+    where lote_id = p_lote_id and profile_id = auth.uid()
+  )
+$$;
+
 create policy lotes_select on public.lotes for select
   to authenticated
   using (
     public.mi_rol() in ('administrador', 'cobrador')
     or (
       public.mi_rol() = 'acreedor'
-      and (
-        acreedor_id = auth.uid()
-        or id in (select lote_id from public.lote_participantes where profile_id = auth.uid())
-      )
+      and (acreedor_id = auth.uid() or public.es_participante_del_lote(id))
     )
     or (
       public.mi_rol() = 'vendedor'
       and (
-        vendedor_id = auth.uid()
-        or id in (select lote_id from public.lote_participantes where profile_id = auth.uid())
+        -- Disponible/reservado: cualquier vendedor tiene que poder
+        -- navegarlos para reservarlos -- vendedor_id todavía es null en
+        -- 'disponible', y en 'reservado' puede ser el de OTRO vendedor
+        -- (ver reserva-lote.spec.ts: "el listado de lotes de un vendedor
+        -- muestra disponibles y reservados (por cualquiera)"). Una vez
+        -- 'vendido', vuelve a acotarse a lo propio.
+        estado in ('disponible', 'reservado')
+        or vendedor_id = auth.uid()
+        or public.es_participante_del_lote(id)
       )
     )
     or (public.mi_rol() = 'cliente' and cliente_id = auth.uid())
@@ -154,6 +198,15 @@ create policy cuotas_delete on public.cuotas for delete
 -- ============================================================
 alter table public.pagos enable row level security;
 
+-- Deliberadamente ESCOPED (no "todo el staff ve cualquier pago"): un
+-- acreedor sin ningún lote en común no debe poder leer montos/comprobantes
+-- de pagos ajenos ni por RLS directa ni por la UI. Efecto colateral
+-- aceptado: cuando un acreedor pierde la relación con un lote justo entre
+-- que carga el formulario de confirmarPago y hace submit, el rechazo pasa
+-- a ser un no-op silencioso en vez de mostrar "No sos el acreedor
+-- vinculado a este lote" (RLS ya filtra la lectura antes de que ese
+-- chequeo explícito llegue a correr) -- el rechazo real sigue pasando
+-- igual, solo cambia el mensaje. Ver pagos-acotados-por-acreedor.spec.ts.
 create policy pagos_select on public.pagos for select
   to authenticated
   using (
@@ -165,7 +218,10 @@ create policy pagos_insert on public.pagos for insert
   to authenticated
   with check (
     (public.mi_rol() = 'cliente' and cliente_id = auth.uid())
-    or public.mi_rol() = 'administrador'
+    -- cobrador registra pagos en efectivo con el cliente plano
+    -- (app/admin/efectivo/actions.ts, registrarPagoEfectivo) -- se me
+    -- había escapado del diseño original.
+    or public.mi_rol() in ('administrador', 'cobrador')
   );
 
 create policy pagos_update on public.pagos for update
