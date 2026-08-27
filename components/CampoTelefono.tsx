@@ -24,13 +24,15 @@ export function CampoTelefono({
       <select
         name={nombrePrefijo}
         defaultValue={codigoSelectDesdeGuardado(prefijoGuardado)}
-        className="rounded border px-2 py-2 text-sm"
+        className="w-[5.5rem] shrink-0 rounded border px-1.5 py-2 text-sm"
         aria-label="Prefijo de país"
+        title="Prefijo de país"
       >
         {PREFIJOS_TELEFONO.map((prefijo) => (
           <option key={prefijo.codigo} value={prefijo.codigo}>
-            {prefijo.nombre}
-            {prefijo.codigo !== 'otro' ? ` (+${prefijo.codigo.replace('-do', '')})` : ''} {prefijo.bandera}
+            {prefijo.codigo === 'otro'
+              ? `${prefijo.bandera} Otro`
+              : `${prefijo.bandera} +${prefijo.codigo.replace('-do', '')}`}
           </option>
         ))}
       </select>

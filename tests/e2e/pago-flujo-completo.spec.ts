@@ -51,7 +51,7 @@ test.describe('Flujo completo de pago con confirmación cruzada', () => {
       await page.goto(`/portal-cliente/lotes/${fixtures.loteId}`)
 
       await expect(page.getByRole('heading', { name: 'E2E Test Lote' })).toBeVisible()
-      await expect(page.getByText('normal', { exact: true })).toBeVisible()
+      await expect(page.getByText('Al día', { exact: true })).toBeVisible()
 
       const filasCuotas = page.locator('main table').nth(0).locator('tbody tr')
       await expect(filasCuotas).toHaveCount(3)

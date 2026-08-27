@@ -50,3 +50,6 @@ next-env.d.ts
 
 # supabase CLI local state
 supabase/.temp
+
+# skills de terceros instalados localmente (herramienta de Claude Code, no código de la app)
+.claude/skills/

@@ -225,13 +225,18 @@ test.describe('Cotización del dólar', () => {
     await page.goto(`/portal-cliente/lotes/${lote.id}`)
 
     // La cotización del día se muestra una sola vez, global, arriba de todo
-    // (pedido de Gabriel, 26/08) -- no repetida en cada línea.
-    await expect(page.getByText(/Cotización del dólar hoy: 1000 ARS/)).toBeVisible()
+    // (pedido de Gabriel, 26/08) -- no repetida en cada línea. Rediseño del
+    // 27/08 partió la tarjeta en dos <p> (etiqueta + valor), ya no es una
+    // sola línea de texto.
+    const tarjetaCotizacion = page.locator('.rounded-xl', { hasText: 'Cotización del dólar hoy' })
+    await expect(tarjetaCotizacion).toContainText('1000')
+    await expect(tarjetaCotizacion).toContainText('ARS')
 
     // El total pendiente ya no repite el equivalente en pesos -- alcanza con
     // que cada cuota lo muestre (pedido de Gabriel, 26/08).
-    const filaTotal = page.locator('p', { hasText: 'Total pendiente' })
-    await expect(filaTotal).toContainText('150 USD')
+    const filaTotal = page.locator('.rounded-xl', { hasText: 'Total pendiente' })
+    await expect(filaTotal).toContainText('150')
+    await expect(filaTotal).toContainText('USD')
     await expect(filaTotal).not.toContainText('ARS')
 
     // Monto base ya no repite el equivalente en pesos (26/08, pedido de
