@@ -1,6 +1,7 @@
 import { createClient as createSupabaseClient } from '@supabase/supabase-js'
 import { existsSync, readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
+import { hoyArgentina } from '../../../lib/fecha/hoy-argentina'
 
 // -----------------------------------------------------------------------------
 // Provisión de datos de prueba para el suite E2E.
@@ -338,7 +339,7 @@ export async function ensureTestFixtures(): Promise<TestFixtures> {
   }
 
   // --- Lote de prueba fresco.
-  const hoy = new Date().toISOString().slice(0, 10)
+  const hoy = hoyArgentina()
 
   const { data: lote, error: errorLote } = await admin
     .from('lotes')

@@ -2,6 +2,7 @@
 
 import { useState } from 'react'
 import { BuscadorLote } from '../BuscadorLote'
+import { hoyArgentina } from '@/lib/fecha/hoy-argentina'
 
 export function FormularioMovimientoManual({
   agregarMovimientoManualAction,
@@ -61,7 +62,7 @@ export function FormularioMovimientoManual({
           name="fechaEvento"
           type="date"
           required
-          defaultValue={new Date().toISOString().slice(0, 10)}
+          defaultValue={hoyArgentina()}
           className="mt-1 block w-full rounded border px-3 py-2"
         />
       </label>

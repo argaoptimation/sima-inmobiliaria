@@ -9,6 +9,8 @@ import { calcularEstadoCobranza } from '@/lib/cobranza/estado-cliente'
 import { armarLinkWhatsApp, armarMensajeWhatsApp } from '@/lib/cobranza/plantillas-whatsapp'
 import { telefonoParaWhatsApp } from '@/lib/telefono/prefijos'
 import { FiltroEnVivo } from '@/components/FiltroEnVivo'
+import { hoyArgentina } from '@/lib/fecha/hoy-argentina'
+import { formatearFechaCorta } from '@/lib/fecha/formatear-fecha-corta'
 
 const COLUMNAS_ORDENABLES = ['identificador', 'ubicacion', 'precio_total', 'moneda', 'estado'] as const
 type ColumnaOrdenable = (typeof COLUMNAS_ORDENABLES)[number]
@@ -72,7 +74,7 @@ export default async function LotesPage({
 
   const esVendedorOCobrador = perfilPropio!.role === 'vendedor' || perfilPropio!.role === 'cobrador'
 
-  const hoy = new Date().toISOString().slice(0, 10)
+  const hoy = hoyArgentina()
   const { data: cotizacionHoy } = await supabase
     .from('cotizaciones_dolar')
     .select('valor, cargado_por, created_at')
@@ -294,7 +296,7 @@ export default async function LotesPage({
       <div className="mb-6 rounded border border-gray-200 bg-gray-50 p-3 text-sm">
         {cotizacionHoy ? (
           <p className="mb-2 text-green-700">
-            ✓ Cotización de hoy ({hoy}) ya cargada: <span className="font-medium">{cotizacionHoy.valor}</span>{' '}
+            ✓ Cotización de hoy ({formatearFechaCorta(hoy)}) ya cargada: <span className="font-medium">{cotizacionHoy.valor}</span>{' '}
             ARS por USD — cargada por {cargadorCotizacion?.full_name ?? '—'} a las{' '}
             {new Date(cotizacionHoy.created_at).toLocaleTimeString('es-AR', {
               hour: '2-digit',
@@ -304,7 +306,7 @@ export default async function LotesPage({
           </p>
         ) : (
           <p className="mb-2 font-semibold text-amber-700">
-            ⚠ Todavía no cargaste la cotización del dólar de hoy ({hoy}).
+            ⚠ Todavía no cargaste la cotización del dólar de hoy ({formatearFechaCorta(hoy)}).
           </p>
         )}
         <form action={guardarCotizacionDolar} className="flex items-end gap-2">

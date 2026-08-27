@@ -1,6 +1,8 @@
 import { test, expect } from '@playwright/test'
 import { ensureTestFixtures, createAdminClient, TestFixtures } from './fixtures/test-data'
 import { login } from './utils/login'
+import { hoyArgentina } from '../../lib/fecha/hoy-argentina'
+import { sumarDias } from '../../lib/fecha/sumar-dias'
 
 // `cotizaciones_dolar` es una tabla compartida con datos REALES cargados a
 // mano por Gabriel (una fila por fecha, `fecha` es la clave) -- no es
@@ -60,7 +62,7 @@ test.describe('Cotización del dólar', () => {
 
   test.beforeEach(async () => {
     const admin = createAdminClient()
-    const hoy = new Date().toISOString().slice(0, 10)
+    const hoy = hoyArgentina()
     // Guarda lo que había (si algo real) y arranca cada test desde "todavía
     // no cargaste la cotización de hoy" -- varios tests dependen de ese
     // estado vacío para poder probar el botón "Cargar". Se restaura en
@@ -73,7 +75,7 @@ test.describe('Cotización del dólar', () => {
 
   test.afterEach(async () => {
     const admin = createAdminClient()
-    const hoy = new Date().toISOString().slice(0, 10)
+    const hoy = hoyArgentina()
     await restaurarCotizacion(admin, hoy, cotizacionHoyOriginal)
     await restaurarHistorialHoy(admin, hoy, historialHoyOriginal)
   })
@@ -111,7 +113,7 @@ test.describe('Cotización del dólar', () => {
     await expect(page.getByText(/ya cargada: 1600\b/)).toBeVisible()
 
     const admin = createAdminClient()
-    const hoy = new Date().toISOString().slice(0, 10)
+    const hoy = hoyArgentina()
     const { data: cotizaciones } = await admin.from('cotizaciones_dolar').select('id, valor').eq('fecha', hoy)
     expect(cotizaciones).toHaveLength(1)
     expect(cotizaciones![0].valor).toBe(1600)
@@ -127,7 +129,7 @@ test.describe('Cotización del dólar', () => {
   test('en la pantalla de pago de una cuota en USD se muestra el equivalente en pesos', async ({ page }) => {
     const admin = createAdminClient()
 
-    const hoy = new Date().toISOString().slice(0, 10)
+    const hoy = hoyArgentina()
     await admin.from('cotizaciones_dolar').upsert(
       { fecha: hoy, valor: 1000, cargado_por: fixtures.admin.id },
       { onConflict: 'fecha' }
@@ -180,7 +182,7 @@ test.describe('Cotización del dólar', () => {
   }) => {
     const admin = createAdminClient()
 
-    const hoy = new Date().toISOString().slice(0, 10)
+    const hoy = hoyArgentina()
     await admin.from('cotizaciones_dolar').upsert(
       { fecha: hoy, valor: 1000, cargado_por: fixtures.admin.id },
       { onConflict: 'fecha' }
@@ -255,7 +257,11 @@ test.describe('Cotización del dólar', () => {
 
   test('el historial muestra el valor cargado hoy y los de días anteriores', async ({ page }) => {
     const admin = createAdminClient()
-    const ayer = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString().slice(0, 10)
+    // Un día antes de "hoy" en Argentina -- no `Date.now() - 24h` en UTC: entre
+    // las ~21hs y medianoche hora Arg, el día UTC ya adelantó, así que ese
+    // cálculo daría el día de HOY (no ayer), chocando con la fila de "hoy" de
+    // más abajo.
+    const ayer = sumarDias(hoyArgentina(), -1)
     const cotizacionAyerOriginal = await snapshotCotizacion(admin, ayer)
 
     try {

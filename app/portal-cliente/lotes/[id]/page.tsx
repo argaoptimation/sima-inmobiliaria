@@ -4,6 +4,7 @@ import { calcularEstadoCobranza } from '@/lib/cobranza/estado-cliente'
 import { calcularInteresMoratorio } from '@/lib/cobranza/interes-moratorio'
 import { convertirUsdAPesos } from '@/lib/cobranza/cotizacion-dolar'
 import { formatearFechaCorta } from '@/lib/fecha/formatear-fecha-corta'
+import { hoyArgentina } from '@/lib/fecha/hoy-argentina'
 import { notFound, redirect } from 'next/navigation'
 import { logout } from '@/app/login/actions'
 
@@ -54,7 +55,7 @@ export default async function PortalClienteLotePage({
     .eq('ciclo', lote!.ciclo_actual)
     .order('numero', { ascending: true })
 
-  const hoy = new Date().toISOString().slice(0, 10)
+  const hoy = hoyArgentina()
   const estado = calcularEstadoCobranza(
     (cuotas ?? []).map((cuota) => ({
       saldoPendiente: cuota.saldo_pendiente,

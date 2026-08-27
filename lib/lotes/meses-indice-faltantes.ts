@@ -1,5 +1,6 @@
 import { createClient } from '@/lib/supabase/server'
 import { calcularPeriodoIndiceNecesario } from './aplicar-indexacion'
+import { hoyArgentina } from '@/lib/fecha/hoy-argentina'
 
 type SupabaseServerClient = Awaited<ReturnType<typeof createClient>>
 
@@ -42,7 +43,7 @@ export async function obtenerMesesIndiceFaltantes(
 
   const lotePorId = new Map(lotes.map((lote) => [lote.id, lote]))
 
-  const hoy = new Date().toISOString().slice(0, 10)
+  const hoy = hoyArgentina()
 
   const { data: cuotasPendientes } = await supabase
     .from('cuotas')

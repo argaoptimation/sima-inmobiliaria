@@ -1,10 +1,7 @@
 import { createClient } from '@/lib/supabase/server'
 import { requireAdminOCobrador } from '@/lib/auth/require-admin'
 import { FiltroEnVivo } from '@/components/FiltroEnVivo'
-
-function hoyISO(): string {
-  return new Date().toISOString().slice(0, 10)
-}
+import { hoyArgentina as hoyISO, fechaEnArgentina } from '@/lib/fecha/hoy-argentina'
 
 export default async function CierreCajaPage({
   searchParams,
@@ -50,7 +47,7 @@ export default async function CierreCajaPage({
     )
     if (candidatos.length === 0) return null
     const masTardio = candidatos.reduce((a, b) => (a > b ? a : b))
-    return masTardio.slice(0, 10)
+    return fechaEnArgentina(masTardio)
   }
 
   const pagosDelDia = pagos.filter((pago) => fechaDeConfirmacion(pago) === fecha)

@@ -1,5 +1,6 @@
 import { createClient } from '@/lib/supabase/server'
 import { calcularEstadoCobranza } from '@/lib/cobranza/estado-cliente'
+import { hoyArgentina } from '@/lib/fecha/hoy-argentina'
 import { redirect } from 'next/navigation'
 import { logout } from '@/app/login/actions'
 
@@ -52,7 +53,7 @@ export default async function PortalClientePage() {
     )
   }
 
-  const hoy = new Date().toISOString().slice(0, 10)
+  const hoy = hoyArgentina()
 
   const lotesConEstado = await Promise.all(
     lotes.map(async (lote) => {

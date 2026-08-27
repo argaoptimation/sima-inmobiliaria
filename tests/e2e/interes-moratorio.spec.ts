@@ -3,6 +3,8 @@ import { readFileSync } from 'node:fs'
 import path from 'node:path'
 import { ensureTestFixtures, createAdminClient, TestFixtures } from './fixtures/test-data'
 import { login } from './utils/login'
+import { hoyArgentina } from '../../lib/fecha/hoy-argentina'
+import { sumarDias } from '../../lib/fecha/sumar-dias'
 
 const COMPROBANTE_PATH = path.join(__dirname, 'fixtures', 'comprobante-test.pdf')
 const COMPROBANTE_BYTES = readFileSync(COMPROBANTE_PATH)
@@ -161,9 +163,7 @@ test.describe('Interés moratorio diario por lote', () => {
     // Simula el ejemplo real de Nicolás: cuota de $100, vencida hace 4 días,
     // con $20 de saldo impago tras un pago parcial de $80 -- 1%/día sobre
     // $20 durante 4 días = $0.80 de interés acumulado a hoy.
-    const haceCuatroDias = new Date(Date.now() - 4 * 24 * 60 * 60 * 1000)
-      .toISOString()
-      .slice(0, 10)
+    const haceCuatroDias = sumarDias(hoyArgentina(), -4)
 
     const { data: cuota } = await admin
       .from('cuotas')

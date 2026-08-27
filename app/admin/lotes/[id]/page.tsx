@@ -3,6 +3,7 @@ import { createAdminClient } from '@/lib/supabase/admin'
 import { calcularEstadoCobranza } from '@/lib/cobranza/estado-cliente'
 import { calcularInteresMoratorio } from '@/lib/cobranza/interes-moratorio'
 import { formatearFechaCorta } from '@/lib/fecha/formatear-fecha-corta'
+import { hoyArgentina } from '@/lib/fecha/hoy-argentina'
 import { notFound, redirect } from 'next/navigation'
 import { requireAdminAcreedorOCobrador } from '@/lib/auth/require-admin'
 import {
@@ -149,7 +150,7 @@ export default async function LoteDetallePage({
     (aplicadoresIndexacion ?? []).map((persona) => [persona.id, persona.full_name])
   )
 
-  const hoy = new Date().toISOString().slice(0, 10)
+  const hoy = hoyArgentina()
   const estado =
     lote!.estado === 'vendido'
       ? calcularEstadoCobranza(
@@ -945,7 +946,7 @@ export default async function LoteDetallePage({
                   name="fechaContrato"
                   type="date"
                   required
-                  defaultValue={new Date().toISOString().slice(0, 10)}
+                  defaultValue={hoy}
                   className="mt-1 block rounded border px-3 py-2"
                 />
               </label>

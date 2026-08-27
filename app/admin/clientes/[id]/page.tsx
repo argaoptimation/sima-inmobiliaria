@@ -3,6 +3,7 @@ import { requireAdministrador } from '@/lib/auth/require-admin'
 import { calcularEstadoCobranza } from '@/lib/cobranza/estado-cliente'
 import { armarLinkWhatsApp, armarMensajeWhatsApp } from '@/lib/cobranza/plantillas-whatsapp'
 import { telefonoParaWhatsApp } from '@/lib/telefono/prefijos'
+import { hoyArgentina } from '@/lib/fecha/hoy-argentina'
 import { CampoTelefono, AyudaTelefono } from '@/components/CampoTelefono'
 import { notFound } from 'next/navigation'
 import { resetearContrasenaCliente, eliminarCliente, actualizarDatosCliente } from '../actions'
@@ -40,7 +41,7 @@ export default async function ClienteDetallePage({
     .eq('cliente_id', id)
     .order('identificador')
 
-  const hoy = new Date().toISOString().slice(0, 10)
+  const hoy = hoyArgentina()
 
   const lotesConSaldo = await Promise.all(
     (lotes ?? []).map(async (lote) => {

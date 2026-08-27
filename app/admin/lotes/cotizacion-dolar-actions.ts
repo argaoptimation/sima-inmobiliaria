@@ -3,6 +3,7 @@
 import { createClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
 import { mensajeDeError } from '@/lib/errores'
+import { hoyArgentina } from '@/lib/fecha/hoy-argentina'
 
 const ROLES_CON_ACCESO_A_LOTES = ['administrador', 'acreedor', 'vendedor', 'cobrador']
 
@@ -30,7 +31,7 @@ export async function guardarCotizacionDolar(formData: FormData) {
     redirect(`/admin/lotes?error=${encodeURIComponent('Ingresá un valor de cotización válido, mayor a cero')}`)
   }
 
-  const hoy = new Date().toISOString().slice(0, 10)
+  const hoy = hoyArgentina()
 
   // Upsert deliberado (a diferencia de los índices, que son insert-once): la
   // cotización del dólar es un valor operativo del día, no una publicación

@@ -2,6 +2,7 @@ import { test, expect } from '@playwright/test'
 import ExcelJS from 'exceljs'
 import { ensureTestFixtures, createAdminClient, TestFixtures } from './fixtures/test-data'
 import { login, logout } from './utils/login'
+import { hoyArgentina } from '../../lib/fecha/hoy-argentina'
 
 // Recibe clienteId/acreedorId como parámetros (en vez de llamar a
 // ensureTestFixtures() acá adentro) -- mismo patrón que ya usan
@@ -231,7 +232,7 @@ test.describe('Efectivo y cierre de caja (25/08)', () => {
     // Descarga en .xlsx (planilla real, con columnas) del mismo detalle
     // (25-26/08, pedido de Gabriel para poder compartirle a Nico un resumen
     // del día sin transcribirlo a mano).
-    const hoyISO = new Date().toISOString().slice(0, 10)
+    const hoyISO = hoyArgentina()
     const respuesta = await page.request.get(`/admin/cierre-caja/export?fecha=${hoyISO}`)
     expect(respuesta.ok()).toBe(true)
     expect(respuesta.headers()['content-type']).toContain('spreadsheetml')

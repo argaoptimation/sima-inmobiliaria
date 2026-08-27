@@ -2,6 +2,7 @@ import { createClient } from '@/lib/supabase/server'
 import { notFound, redirect } from 'next/navigation'
 import { registrarPago } from './actions'
 import { tieneDatosTransferencia } from '@/lib/lotes/validar-cuenta-cobro'
+import { hoyArgentina } from '@/lib/fecha/hoy-argentina'
 import { MontoYMoneda } from './MontoYMoneda'
 
 export default async function PagarCuotaPage({
@@ -67,7 +68,7 @@ export default async function PagarCuotaPage({
   // Fallback en cascada: la cotización más reciente en o antes de hoy --
   // resuelve solo el caso de fin de semana / día sin cargar (un ORDER BY +
   // LIMIT 1 hace de cascada, sin iterar día por día a mano).
-  const hoy = new Date().toISOString().slice(0, 10)
+  const hoy = hoyArgentina()
   const { data: cotizacionVigente } =
     lote!.moneda === 'USD'
       ? await supabase

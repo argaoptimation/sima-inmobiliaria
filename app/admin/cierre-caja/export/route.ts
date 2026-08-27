@@ -2,16 +2,13 @@ import { NextRequest, NextResponse } from 'next/server'
 import ExcelJS from 'exceljs'
 import { createClient } from '@/lib/supabase/server'
 import { requireAdminOCobrador } from '@/lib/auth/require-admin'
+import { hoyArgentina as hoyISO, fechaEnArgentina } from '@/lib/fecha/hoy-argentina'
 
 const MOTIVO_ETIQUETA: Record<string, string> = {
   cuota: 'Cuota',
   sena: 'Seña',
   entrega: 'Entrega',
   ajuste: 'Corrección',
-}
-
-function hoyISO(): string {
-  return new Date().toISOString().slice(0, 10)
 }
 
 // Descarga en .xlsx (planilla real, con columnas separadas -- no un CSV
@@ -55,7 +52,7 @@ export async function GET(request: NextRequest) {
     )
     if (candidatos.length === 0) return null
     const masTardio = candidatos.reduce((a, b) => (a > b ? a : b))
-    return masTardio.slice(0, 10)
+    return fechaEnArgentina(masTardio)
   }
 
   const pagosDelDia = pagos.filter((pago) => fechaDeConfirmacion(pago) === fecha)
