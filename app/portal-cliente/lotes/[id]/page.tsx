@@ -72,6 +72,22 @@ export default async function PortalClienteLotePage({
 
   const primeraImpaga = cuotas?.find((cuota) => cuota.saldo_pendiente > 0)
 
+  // Se calcula una sola vez acá (no en el render): la tabla de escritorio y
+  // las tarjetas de mobile muestran la misma cuota de dos formas distintas
+  // -- sin esto, "vencida"/interés moratorio quedarían duplicados en dos
+  // lugares del JSX, con riesgo real de que se desincronicen a futuro.
+  const cuotasConDatos = (cuotas ?? []).map((cuota) => {
+    const vencida = cuota.saldo_pendiente > 0 && cuota.fecha_vencimiento < hoy
+    const interesMoratorio = vencida
+      ? calcularInteresMoratorio(
+          { saldoPendiente: cuota.saldo_pendiente, fechaVencimiento: cuota.fecha_vencimiento },
+          lote!.interes_moratorio_diario,
+          hoy
+        )
+      : 0
+    return { ...cuota, interesMoratorio }
+  })
+
   const totalPendiente = (cuotas ?? []).reduce(
     (acumulado, cuota) => acumulado + cuota.saldo_pendiente,
     0
@@ -152,7 +168,64 @@ export default async function PortalClienteLotePage({
       </div>
 
       <h2 className="mb-3 text-lg font-bold text-blue-900">Cuotas</h2>
-      <div className="mb-10 overflow-hidden rounded-xl border border-blue-100 bg-white shadow-sm">
+
+      {/* Mobile: tarjetas apiladas -- la tabla de 6 columnas no entra en
+          375px sin scroll horizontal (checklist del design system lo pide
+          evitar). Desktop sigue con la tabla, oculta acá con `md:hidden`. */}
+      <div className="mb-10 space-y-3 md:hidden">
+        {cuotasConDatos.map((cuota) => (
+          <div key={cuota.id} className="rounded-xl border border-blue-100 bg-white p-4 shadow-sm">
+            <div className="mb-2 flex items-center justify-between">
+              <span className="font-semibold text-blue-900">Cuota {cuota.numero}</span>
+              {primeraImpaga?.id === cuota.id && (
+                <a
+                  href={`/portal-cliente/pagar/${cuota.id}`}
+                  className="inline-block whitespace-nowrap rounded-lg bg-blue-800 px-3 py-1.5 text-center text-xs font-semibold text-white transition-colors hover:bg-blue-900"
+                >
+                  Pagar cuota
+                </a>
+              )}
+            </div>
+            <dl className="grid grid-cols-[auto_1fr] gap-x-3 gap-y-1.5 text-sm">
+              <dt className="text-slate-500">Vencimiento</dt>
+              <dd className="text-right text-slate-700">{formatearFechaCorta(cuota.fecha_vencimiento)}</dd>
+              <dt className="text-slate-500">Monto base</dt>
+              <dd className="text-right text-slate-700">
+                {cuota.monto_base} {lote!.moneda}
+              </dd>
+              <dt className="text-slate-500">Saldo pendiente</dt>
+              <dd className="text-right">
+                {cuota.refinanciada ? (
+                  <span className="italic text-slate-500">Refinanció</span>
+                ) : (
+                  <>
+                    <span className="font-medium text-slate-800">
+                      {cuota.saldo_pendiente} {lote!.moneda}
+                    </span>
+                    {lote!.moneda === 'USD' && cotizacionVigente && (
+                      <span className="mt-1 block w-fit rounded bg-blue-50 px-1.5 py-0.5 text-xs text-blue-800 ml-auto">
+                        ≈ {convertirUsdAPesos(cuota.saldo_pendiente, cotizacionVigente.valor)} ARS
+                      </span>
+                    )}
+                  </>
+                )}
+              </dd>
+              {cuota.interesMoratorio > 0 && (
+                <>
+                  <dt className="text-slate-500">Interés moratorio</dt>
+                  <dd className="text-right">
+                    <span className="rounded-full bg-red-50 px-2 py-1 text-xs font-semibold text-red-600">
+                      +{cuota.interesMoratorio} {lote!.moneda}
+                    </span>
+                  </dd>
+                </>
+              )}
+            </dl>
+          </div>
+        ))}
+      </div>
+
+      <div className="mb-10 hidden overflow-hidden rounded-xl border border-blue-100 bg-white shadow-sm md:block">
         <table className="w-full text-sm">
           <thead>
             <tr className="bg-blue-50 text-left text-blue-900">
@@ -165,58 +238,48 @@ export default async function PortalClienteLotePage({
             </tr>
           </thead>
           <tbody>
-            {cuotas?.map((cuota) => {
-              const vencida = cuota.saldo_pendiente > 0 && cuota.fecha_vencimiento < hoy
-              const interesMoratorio = vencida
-                ? calcularInteresMoratorio(
-                    { saldoPendiente: cuota.saldo_pendiente, fechaVencimiento: cuota.fecha_vencimiento },
-                    lote!.interes_moratorio_diario,
-                    hoy
-                  )
-                : 0
-              return (
-                <tr key={cuota.id} className="border-t border-blue-100 hover:bg-blue-50/40">
-                  <td className="px-4 py-3 font-medium text-slate-800">{cuota.numero}</td>
-                  <td className="px-4 py-3 text-slate-600">{formatearFechaCorta(cuota.fecha_vencimiento)}</td>
-                  <td className="px-4 py-3 text-slate-600">
-                    {cuota.monto_base} {lote!.moneda}
-                  </td>
-                  <td className="px-4 py-3">
-                    {cuota.refinanciada ? (
-                      <span className="italic text-slate-500">Refinanció</span>
-                    ) : (
-                      <>
-                        <span className="font-medium text-slate-800">
-                          {cuota.saldo_pendiente} {lote!.moneda}
-                        </span>
-                        {lote!.moneda === 'USD' && cotizacionVigente && (
-                          <span className="mt-1 block w-fit rounded bg-blue-50 px-1.5 py-0.5 text-xs text-blue-800">
-                            ≈ {convertirUsdAPesos(cuota.saldo_pendiente, cotizacionVigente.valor)} ARS
-                          </span>
-                        )}
-                      </>
-                    )}
-                  </td>
-                  <td className="px-4 py-3">
-                    {interesMoratorio > 0 && (
-                      <span className="rounded-full bg-red-50 px-2 py-1 text-xs font-semibold text-red-600">
-                        +{interesMoratorio} {lote!.moneda}
+            {cuotasConDatos.map((cuota) => (
+              <tr key={cuota.id} className="border-t border-blue-100 hover:bg-blue-50/40">
+                <td className="px-4 py-3 font-medium text-slate-800">{cuota.numero}</td>
+                <td className="px-4 py-3 text-slate-600">{formatearFechaCorta(cuota.fecha_vencimiento)}</td>
+                <td className="px-4 py-3 text-slate-600">
+                  {cuota.monto_base} {lote!.moneda}
+                </td>
+                <td className="px-4 py-3">
+                  {cuota.refinanciada ? (
+                    <span className="italic text-slate-500">Refinanció</span>
+                  ) : (
+                    <>
+                      <span className="font-medium text-slate-800">
+                        {cuota.saldo_pendiente} {lote!.moneda}
                       </span>
-                    )}
-                  </td>
-                  <td className="px-4 py-3 text-right">
-                    {primeraImpaga?.id === cuota.id && (
-                      <a
-                        href={`/portal-cliente/pagar/${cuota.id}`}
-                        className="inline-block whitespace-nowrap rounded-lg bg-blue-800 px-3 py-1.5 text-center text-xs font-semibold text-white transition-colors hover:bg-blue-900"
-                      >
-                        Pagar cuota
-                      </a>
-                    )}
-                  </td>
-                </tr>
-              )
-            })}
+                      {lote!.moneda === 'USD' && cotizacionVigente && (
+                        <span className="mt-1 block w-fit rounded bg-blue-50 px-1.5 py-0.5 text-xs text-blue-800">
+                          ≈ {convertirUsdAPesos(cuota.saldo_pendiente, cotizacionVigente.valor)} ARS
+                        </span>
+                      )}
+                    </>
+                  )}
+                </td>
+                <td className="px-4 py-3">
+                  {cuota.interesMoratorio > 0 && (
+                    <span className="rounded-full bg-red-50 px-2 py-1 text-xs font-semibold text-red-600">
+                      +{cuota.interesMoratorio} {lote!.moneda}
+                    </span>
+                  )}
+                </td>
+                <td className="px-4 py-3 text-right">
+                  {primeraImpaga?.id === cuota.id && (
+                    <a
+                      href={`/portal-cliente/pagar/${cuota.id}`}
+                      className="inline-block whitespace-nowrap rounded-lg bg-blue-800 px-3 py-1.5 text-center text-xs font-semibold text-white transition-colors hover:bg-blue-900"
+                    >
+                      Pagar cuota
+                    </a>
+                  )}
+                </td>
+              </tr>
+            ))}
           </tbody>
         </table>
       </div>
@@ -227,60 +290,106 @@ export default async function PortalClienteLotePage({
           Todavía no registraste ningún pago.
         </div>
       ) : (
-        <div className="overflow-hidden rounded-xl border border-blue-100 bg-white shadow-sm">
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="bg-blue-50 text-left text-blue-900">
-                <th className="px-4 py-3 font-semibold">Monto</th>
-                <th className="px-4 py-3 font-semibold">Estado</th>
-                <th className="px-4 py-3 font-semibold">Comprobante</th>
-                <th className="px-4 py-3"></th>
-              </tr>
-            </thead>
-            <tbody>
-              {pagosConLink.map((pago) => {
-                const puedeEliminar = !pago.confirmado_acreedor_por && !pago.confirmado_admin_por
-                const eliminarPagoConId = eliminarPago.bind(null, pago.id)
-                return (
-                  <tr key={pago.id} className="border-t border-blue-100 hover:bg-blue-50/40">
-                    <td className="px-4 py-3 font-medium text-slate-800">
+        <>
+          {/* Mobile: misma lógica que Cuotas -- tarjetas en vez de tabla. */}
+          <div className="space-y-3 md:hidden">
+            {pagosConLink.map((pago) => {
+              const puedeEliminar = !pago.confirmado_acreedor_por && !pago.confirmado_admin_por
+              const eliminarPagoConId = eliminarPago.bind(null, pago.id)
+              return (
+                <div key={pago.id} className="rounded-xl border border-blue-100 bg-white p-4 shadow-sm">
+                  <div className="mb-2 flex items-center justify-between">
+                    <span className="font-semibold text-blue-900">
                       {pago.monto} {pago.moneda}
-                    </td>
-                    <td className="px-4 py-3 text-slate-600">{pago.estado}</td>
-                    <td className="px-4 py-3">
-                      {!pago.comprobante_path ? (
-                        <span className="inline-flex items-center gap-2 text-amber-700">
-                          <span className="rounded-full bg-amber-50 px-2 py-1 text-xs font-semibold">
-                            ⚠ Falta subir comprobante
+                    </span>
+                    <div className="flex items-center gap-2">
+                      <span className="text-sm text-slate-600">{pago.estado}</span>
+                      {puedeEliminar && <BotonEliminarPago eliminarPagoAction={eliminarPagoConId} />}
+                    </div>
+                  </div>
+                  {!pago.comprobante_path ? (
+                    <div className="flex flex-wrap items-center gap-2 text-sm text-amber-700">
+                      <span className="rounded-full bg-amber-50 px-2 py-1 text-xs font-semibold">
+                        ⚠ Falta subir comprobante
+                      </span>
+                      <a
+                        href={`/portal-cliente/pagos/${pago.id}/comprobante`}
+                        className="font-medium text-blue-800 underline-offset-4 hover:text-blue-900 hover:underline"
+                      >
+                        Subir
+                      </a>
+                    </div>
+                  ) : pago.comprobanteUrl ? (
+                    <a
+                      href={pago.comprobanteUrl}
+                      target="_blank"
+                      className="text-sm font-medium text-blue-800 underline-offset-4 hover:text-blue-900 hover:underline"
+                    >
+                      Ver comprobante
+                    </a>
+                  ) : (
+                    <span className="text-sm text-slate-500">Comprobante no disponible</span>
+                  )}
+                </div>
+              )
+            })}
+          </div>
+
+          <div className="hidden overflow-hidden rounded-xl border border-blue-100 bg-white shadow-sm md:block">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="bg-blue-50 text-left text-blue-900">
+                  <th className="px-4 py-3 font-semibold">Monto</th>
+                  <th className="px-4 py-3 font-semibold">Estado</th>
+                  <th className="px-4 py-3 font-semibold">Comprobante</th>
+                  <th className="px-4 py-3"></th>
+                </tr>
+              </thead>
+              <tbody>
+                {pagosConLink.map((pago) => {
+                  const puedeEliminar = !pago.confirmado_acreedor_por && !pago.confirmado_admin_por
+                  const eliminarPagoConId = eliminarPago.bind(null, pago.id)
+                  return (
+                    <tr key={pago.id} className="border-t border-blue-100 hover:bg-blue-50/40">
+                      <td className="px-4 py-3 font-medium text-slate-800">
+                        {pago.monto} {pago.moneda}
+                      </td>
+                      <td className="px-4 py-3 text-slate-600">{pago.estado}</td>
+                      <td className="px-4 py-3">
+                        {!pago.comprobante_path ? (
+                          <span className="inline-flex items-center gap-2 text-amber-700">
+                            <span className="rounded-full bg-amber-50 px-2 py-1 text-xs font-semibold">
+                              ⚠ Falta subir comprobante
+                            </span>
+                            <a
+                              href={`/portal-cliente/pagos/${pago.id}/comprobante`}
+                              className="font-medium text-blue-800 underline-offset-4 hover:text-blue-900 hover:underline"
+                            >
+                              Subir
+                            </a>
                           </span>
+                        ) : pago.comprobanteUrl ? (
                           <a
-                            href={`/portal-cliente/pagos/${pago.id}/comprobante`}
+                            href={pago.comprobanteUrl}
+                            target="_blank"
                             className="font-medium text-blue-800 underline-offset-4 hover:text-blue-900 hover:underline"
                           >
-                            Subir
+                            Ver comprobante
                           </a>
-                        </span>
-                      ) : pago.comprobanteUrl ? (
-                        <a
-                          href={pago.comprobanteUrl}
-                          target="_blank"
-                          className="font-medium text-blue-800 underline-offset-4 hover:text-blue-900 hover:underline"
-                        >
-                          Ver comprobante
-                        </a>
-                      ) : (
-                        <span className="text-slate-500">Comprobante no disponible</span>
-                      )}
-                    </td>
-                    <td className="px-4 py-3 text-right">
-                      {puedeEliminar && <BotonEliminarPago eliminarPagoAction={eliminarPagoConId} />}
-                    </td>
-                  </tr>
-                )
-              })}
-            </tbody>
-          </table>
-        </div>
+                        ) : (
+                          <span className="text-slate-500">Comprobante no disponible</span>
+                        )}
+                      </td>
+                      <td className="px-4 py-3 text-right">
+                        {puedeEliminar && <BotonEliminarPago eliminarPagoAction={eliminarPagoConId} />}
+                      </td>
+                    </tr>
+                  )
+                })}
+              </tbody>
+            </table>
+          </div>
+        </>
       )}
     </div>
   )

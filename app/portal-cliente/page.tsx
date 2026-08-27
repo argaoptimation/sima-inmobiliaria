@@ -64,7 +64,32 @@ export default async function PortalClientePage() {
   return (
     <div className="mx-auto max-w-2xl px-6 py-10">
       <h1 className="mb-6 text-2xl font-extrabold text-blue-900">Tus lotes</h1>
-      <div className="overflow-hidden rounded-xl border border-blue-100 bg-white shadow-sm">
+
+      {/* Mobile: tarjetas -- el identificador del lote suele ser largo
+          ("E2E Multi Lote A 1787807101112") y desborda una tabla de 4
+          columnas en 375px. */}
+      <div className="space-y-3 md:hidden">
+        {lotesConEstado.map((lote) => (
+          <a
+            key={lote.id}
+            href={`/portal-cliente/lotes/${lote.id}`}
+            className="block rounded-xl border border-blue-100 bg-white p-4 shadow-sm transition-colors hover:bg-blue-50/40"
+          >
+            <div className="flex items-start justify-between gap-2">
+              <span className="font-medium text-slate-800">{lote.identificador}</span>
+              <span className={`shrink-0 rounded-full px-2.5 py-1 text-xs ${CLASE_ESTADO[lote.estado]}`}>
+                {ETIQUETA_ESTADO[lote.estado]}
+              </span>
+            </div>
+            <div className="mt-2 flex items-center justify-between text-sm">
+              <span className="text-slate-500">{lote.moneda}</span>
+              <span className="font-medium text-blue-800">Ver detalle →</span>
+            </div>
+          </a>
+        ))}
+      </div>
+
+      <div className="hidden overflow-hidden rounded-xl border border-blue-100 bg-white shadow-sm md:block">
         <table className="w-full text-sm">
           <thead>
             <tr className="bg-blue-50 text-left text-blue-900">

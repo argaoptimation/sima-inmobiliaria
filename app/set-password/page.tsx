@@ -1,4 +1,6 @@
+import Image from 'next/image'
 import { setPassword } from './actions'
+import { CampoPassword } from '@/components/CampoPassword'
 
 export default async function SetPasswordPage({
   searchParams,
@@ -8,25 +10,37 @@ export default async function SetPasswordPage({
   const { error } = await searchParams
 
   return (
-    <main className="mx-auto mt-24 max-w-sm p-6">
-      <h1 className="mb-6 text-xl font-semibold">Elegí tu contraseña</h1>
-      {error && <p className="mb-4 rounded bg-red-100 p-2 text-sm text-red-700">{error}</p>}
-      <p className="mb-3 text-sm text-gray-600">
-        Mínimo 8 caracteres, incluyendo un signo (ej. ! ? . # -)
-      </p>
-      <form action={setPassword} className="flex flex-col gap-3">
-        <input
-          name="password"
-          type="password"
-          placeholder="Nueva contraseña"
-          required
-          minLength={8}
-          className="rounded border px-3 py-2"
-        />
-        <button type="submit" className="rounded bg-black px-3 py-2 text-white">
-          Guardar
-        </button>
-      </form>
+    <main className="flex min-h-full flex-1 items-center justify-center p-6">
+      <div className="w-full max-w-sm rounded-xl border border-blue-100 bg-white p-8 shadow-sm">
+        <div className="mb-6 flex flex-col items-center gap-3 text-center">
+          <Image src="/logo.png" alt="SIMA" width={64} height={64} className="rounded-lg" />
+          <h1 className="text-xl font-extrabold text-blue-900">Elegí tu contraseña</h1>
+        </div>
+
+        {error && (
+          <p className="mb-4 rounded-lg bg-red-50 p-3 text-sm text-red-700">{error}</p>
+        )}
+
+        <p className="mb-3 text-sm text-gray-600">
+          Mínimo 8 caracteres, incluyendo un signo (ej. ! ? . # -)
+        </p>
+
+        <form action={setPassword} className="flex flex-col gap-3">
+          <CampoPassword
+            name="password"
+            placeholder="Nueva contraseña"
+            required
+            minLength={8}
+            autoComplete="new-password"
+          />
+          <button
+            type="submit"
+            className="cursor-pointer rounded-lg bg-blue-800 px-3 py-2 font-semibold text-white transition-colors hover:bg-blue-900"
+          >
+            Guardar
+          </button>
+        </form>
+      </div>
     </main>
   )
 }

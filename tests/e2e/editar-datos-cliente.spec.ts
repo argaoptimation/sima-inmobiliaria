@@ -1,7 +1,17 @@
 // tests/e2e/editar-datos-cliente.spec.ts
-import { test, expect } from '@playwright/test'
+import { test, expect, Page } from '@playwright/test'
 import { ensureTestFixtures, createAdminClient, TestFixtures, TEST_USERS } from './fixtures/test-data'
 import { login } from './utils/login'
+
+// El prefijo de país dejó de ser un <select> nativo (27/08, ver
+// SelectorPrefijoTelefono.tsx) -- un <option> no puede llevar la bandera
+// como ícono real, así que ahora es un combobox propio: abrir, buscar,
+// elegir de la lista.
+async function elegirPrefijo(page: Page, nombrePais: string) {
+  await page.getByLabel('Prefijo de país').click()
+  await page.getByPlaceholder('Buscar país o código...').fill(nombrePais)
+  await page.getByRole('option', { name: new RegExp(nombrePais) }).click()
+}
 
 test.describe('Editar datos del cliente', () => {
   let fixtures: TestFixtures
@@ -21,7 +31,7 @@ test.describe('Editar datos del cliente', () => {
       await page.getByLabel('Nombre completo').fill('E2E Cliente Editado')
       await page.getByLabel('DNI').fill(dni)
       await page.getByLabel('Domicilio').fill('Domicilio Editado 111')
-      await page.getByLabel('Prefijo de país').selectOption('54')
+      await elegirPrefijo(page, 'Argentina')
       await page.getByPlaceholder('9351234567').fill('3515555555')
       await page.getByRole('button', { name: 'Guardar datos' }).click()
 
@@ -85,7 +95,7 @@ test.describe('Editar datos del cliente', () => {
       await page.getByLabel('Nombre completo').fill('E2E Cliente Autoeditado')
       await page.getByLabel('DNI').fill(dni)
       await page.getByLabel('Domicilio').fill('Mi Domicilio 222')
-      await page.getByLabel('Prefijo de país').selectOption('54')
+      await elegirPrefijo(page, 'Argentina')
       await page.getByPlaceholder('9351234567').fill('3516666666')
       await page.getByRole('button', { name: 'Guardar datos' }).click()
 

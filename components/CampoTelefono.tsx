@@ -1,4 +1,5 @@
-import { PREFIJOS_TELEFONO, codigoSelectDesdeGuardado } from '@/lib/telefono/prefijos'
+import { codigoSelectDesdeGuardado } from '@/lib/telefono/prefijos'
+import { SelectorPrefijoTelefono } from './SelectorPrefijoTelefono'
 
 // Select de país + número local, reutilizado en los 3 lugares donde se
 // carga un teléfono (ficha de cliente en admin, autoservicio del cliente,
@@ -21,28 +22,17 @@ export function CampoTelefono({
 }) {
   return (
     <div className="mt-1 flex gap-2">
-      <select
+      <SelectorPrefijoTelefono
         name={nombrePrefijo}
         defaultValue={codigoSelectDesdeGuardado(prefijoGuardado)}
-        className="w-[5.5rem] shrink-0 rounded border px-1.5 py-2 text-sm"
-        aria-label="Prefijo de país"
-        title="Prefijo de país"
-      >
-        {PREFIJOS_TELEFONO.map((prefijo) => (
-          <option key={prefijo.codigo} value={prefijo.codigo}>
-            {prefijo.codigo === 'otro'
-              ? `${prefijo.bandera} Otro`
-              : `${prefijo.bandera} +${prefijo.codigo.replace('-do', '')}`}
-          </option>
-        ))}
-      </select>
+      />
       <input
         name={nombreNumero}
         placeholder="9351234567"
         defaultValue={numeroGuardado ?? ''}
         required={requerido}
         inputMode="numeric"
-        className="flex-1 rounded border px-3 py-2 placeholder:text-gray-400"
+        className="flex-1 rounded-lg border border-blue-100 px-3 py-2 placeholder:text-gray-400 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200"
       />
     </div>
   )

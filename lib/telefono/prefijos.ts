@@ -2,6 +2,11 @@ export interface PrefijoTelefono {
   codigo: string
   nombre: string
   bandera: string
+  // Código ISO 3166-1 alpha-2, para renderizar la bandera como SVG real
+  // (components/PaisFlag.tsx) en vez del emoji -- en Windows, el emoji de
+  // bandera se ve como dos letras sueltas ("AR") en vez del ícono, según el
+  // motor de fuentes. `null` en "otro" (no representa un país puntual).
+  iso: string | null
 }
 
 // Cobertura: Latinoamérica completa + los países de origen más comunes para
@@ -10,33 +15,33 @@ export interface PrefijoTelefono {
 // cargar un país no listado, pero no es la opción por defecto: siempre hay
 // que elegir algo a propósito, nunca queda "sin prefijo" sin querer.
 export const PREFIJOS_TELEFONO: PrefijoTelefono[] = [
-  { codigo: '54', nombre: 'Argentina', bandera: '🇦🇷' },
-  { codigo: '598', nombre: 'Uruguay', bandera: '🇺🇾' },
-  { codigo: '595', nombre: 'Paraguay', bandera: '🇵🇾' },
-  { codigo: '56', nombre: 'Chile', bandera: '🇨🇱' },
-  { codigo: '591', nombre: 'Bolivia', bandera: '🇧🇴' },
-  { codigo: '55', nombre: 'Brasil', bandera: '🇧🇷' },
-  { codigo: '51', nombre: 'Perú', bandera: '🇵🇪' },
-  { codigo: '57', nombre: 'Colombia', bandera: '🇨🇴' },
-  { codigo: '593', nombre: 'Ecuador', bandera: '🇪🇨' },
-  { codigo: '58', nombre: 'Venezuela', bandera: '🇻🇪' },
-  { codigo: '52', nombre: 'México', bandera: '🇲🇽' },
-  { codigo: '507', nombre: 'Panamá', bandera: '🇵🇦' },
-  { codigo: '506', nombre: 'Costa Rica', bandera: '🇨🇷' },
-  { codigo: '502', nombre: 'Guatemala', bandera: '🇬🇹' },
-  { codigo: '504', nombre: 'Honduras', bandera: '🇭🇳' },
-  { codigo: '503', nombre: 'El Salvador', bandera: '🇸🇻' },
-  { codigo: '505', nombre: 'Nicaragua', bandera: '🇳🇮' },
-  { codigo: '1', nombre: 'Estados Unidos / Canadá', bandera: '🇺🇸' },
-  { codigo: '1-do', nombre: 'República Dominicana', bandera: '🇩🇴' },
-  { codigo: '53', nombre: 'Cuba', bandera: '🇨🇺' },
-  { codigo: '34', nombre: 'España', bandera: '🇪🇸' },
-  { codigo: '39', nombre: 'Italia', bandera: '🇮🇹' },
-  { codigo: '33', nombre: 'Francia', bandera: '🇫🇷' },
-  { codigo: '49', nombre: 'Alemania', bandera: '🇩🇪' },
-  { codigo: '44', nombre: 'Reino Unido', bandera: '🇬🇧' },
-  { codigo: '351', nombre: 'Portugal', bandera: '🇵🇹' },
-  { codigo: 'otro', nombre: 'Otro país (escribir el número completo)', bandera: '🌐' },
+  { codigo: '54', nombre: 'Argentina', bandera: '🇦🇷', iso: 'AR' },
+  { codigo: '598', nombre: 'Uruguay', bandera: '🇺🇾', iso: 'UY' },
+  { codigo: '595', nombre: 'Paraguay', bandera: '🇵🇾', iso: 'PY' },
+  { codigo: '56', nombre: 'Chile', bandera: '🇨🇱', iso: 'CL' },
+  { codigo: '591', nombre: 'Bolivia', bandera: '🇧🇴', iso: 'BO' },
+  { codigo: '55', nombre: 'Brasil', bandera: '🇧🇷', iso: 'BR' },
+  { codigo: '51', nombre: 'Perú', bandera: '🇵🇪', iso: 'PE' },
+  { codigo: '57', nombre: 'Colombia', bandera: '🇨🇴', iso: 'CO' },
+  { codigo: '593', nombre: 'Ecuador', bandera: '🇪🇨', iso: 'EC' },
+  { codigo: '58', nombre: 'Venezuela', bandera: '🇻🇪', iso: 'VE' },
+  { codigo: '52', nombre: 'México', bandera: '🇲🇽', iso: 'MX' },
+  { codigo: '507', nombre: 'Panamá', bandera: '🇵🇦', iso: 'PA' },
+  { codigo: '506', nombre: 'Costa Rica', bandera: '🇨🇷', iso: 'CR' },
+  { codigo: '502', nombre: 'Guatemala', bandera: '🇬🇹', iso: 'GT' },
+  { codigo: '504', nombre: 'Honduras', bandera: '🇭🇳', iso: 'HN' },
+  { codigo: '503', nombre: 'El Salvador', bandera: '🇸🇻', iso: 'SV' },
+  { codigo: '505', nombre: 'Nicaragua', bandera: '🇳🇮', iso: 'NI' },
+  { codigo: '1', nombre: 'Estados Unidos / Canadá', bandera: '🇺🇸', iso: 'US' },
+  { codigo: '1-do', nombre: 'República Dominicana', bandera: '🇩🇴', iso: 'DO' },
+  { codigo: '53', nombre: 'Cuba', bandera: '🇨🇺', iso: 'CU' },
+  { codigo: '34', nombre: 'España', bandera: '🇪🇸', iso: 'ES' },
+  { codigo: '39', nombre: 'Italia', bandera: '🇮🇹', iso: 'IT' },
+  { codigo: '33', nombre: 'Francia', bandera: '🇫🇷', iso: 'FR' },
+  { codigo: '49', nombre: 'Alemania', bandera: '🇩🇪', iso: 'DE' },
+  { codigo: '44', nombre: 'Reino Unido', bandera: '🇬🇧', iso: 'GB' },
+  { codigo: '351', nombre: 'Portugal', bandera: '🇵🇹', iso: 'PT' },
+  { codigo: 'otro', nombre: 'Otro país (escribir el número completo)', bandera: '🌐', iso: null },
 ]
 
 // "1-do" (Rep. Dominicana comparte +1 con EEUU/Canadá) y "otro" (número ya

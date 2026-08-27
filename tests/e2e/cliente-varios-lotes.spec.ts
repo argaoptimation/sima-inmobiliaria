@@ -253,8 +253,13 @@ test.describe('Cliente con varios lotes', () => {
     await login(page, cliente!.email!, 'Sima123!')
     await page.goto('/portal-cliente')
 
-    await expect(page.getByText(identificadorLoteA!.identificador)).toBeVisible()
-    await expect(page.getByText(identificadorLoteB!.identificador)).toBeVisible()
+    // .locator('main table') -- desde el 27/08 el listado también renderiza
+    // una versión en tarjetas para mobile (mismo identificador, oculta por
+    // CSS pero presente en el DOM), así que un getByText suelto queda
+    // ambiguo entre las dos. Se acota a la tabla de escritorio, la que
+    // corre visible en el viewport default de los tests.
+    await expect(page.locator('main table').getByText(identificadorLoteA!.identificador)).toBeVisible()
+    await expect(page.locator('main table').getByText(identificadorLoteB!.identificador)).toBeVisible()
   })
 
   test('pagar una cuota de un lote no toca las cuotas del otro lote del mismo cliente', async ({
