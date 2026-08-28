@@ -5,6 +5,19 @@ import { cargarValorIndice, corregirValorIndice, eliminarValorIndice } from './a
 import { BotonEliminarIndice } from './BotonEliminarIndice'
 import { FormularioCargarIndice } from './FormularioCargarIndice'
 import { FormularioCorregirIndice } from './FormularioCorregirIndice'
+import { EnlaceBoton } from '@/components/EnlaceBoton'
+import {
+  ENLACE,
+  TITULO_H1,
+  TITULO_H2,
+  BANNER_ERROR,
+  BANNER_OK,
+  TABLA_CONTENEDOR,
+  TABLA_HEADER_FILA,
+  TABLA_HEADER_CELDA,
+  TABLA_FILA,
+  TABLA_CELDA,
+} from '@/lib/ui/clases'
 
 const NOMBRES_MES = [
   'Enero',
@@ -97,19 +110,19 @@ export default async function IndicesPage({
 
   return (
     <main>
-      <h1 className="mb-2 text-xl font-semibold">Índices</h1>
-      <p className="mb-6 text-sm text-gray-600">
+      <h1 className={`mb-2 ${TITULO_H1}`}>Índices</h1>
+      <p className="mb-6 text-sm text-slate-600">
         Valores mensuales de índices (IPC, ICC, u otros) para lotes cobrados en pesos. Apenas se
         carga el valor de un mes, se aplica solo a las cuotas que vencen el mes siguiente de los
         lotes atados a ese índice — sin ningún botón adicional. Un mes sin valor cargado
         simplemente no ajusta nada.
       </p>
 
-      {error && <p className="mb-4 rounded bg-red-100 p-2 text-sm text-red-700">{error}</p>}
-      {ok && <p className="mb-4 rounded bg-green-100 p-2 text-sm text-green-700">{ok}</p>}
+      {error && <p className={BANNER_ERROR}>{error}</p>}
+      {ok && <p className={BANNER_OK}>{ok}</p>}
 
       {mesesFaltantes.length > 0 && (
-        <div className="mb-6 rounded bg-amber-100 p-3 text-sm text-amber-800">
+        <div className="mb-6 rounded-lg bg-amber-50 p-3 text-sm text-amber-800">
           <p className="mb-1 font-semibold">
             ⚠ Hay lotes con cuotas pendientes cuyo índice del mes anterior todavía no se cargó:
           </p>
@@ -124,19 +137,19 @@ export default async function IndicesPage({
               const esElMasViejo = masViejoDelMismoNombre === faltante || masViejoDelMismoNombre?.periodo === faltante.periodo
               return (
                 <li key={`${faltante.nombre}|${faltante.periodo}`}>
-                  <a
+                  <EnlaceBoton
                     href={`/admin/indices?prellenarNombre=${encodeURIComponent(faltante.nombre)}&prellenarMes=${faltante.periodo.slice(0, 7)}#form-cargar`}
-                    className="font-medium underline"
+                    className={`font-medium ${ENLACE}`}
                   >
                     {faltante.nombre} — {formatearPeriodo(faltante.periodo)} — cargar ahora →
-                  </a>{' '}
+                  </EnlaceBoton>{' '}
                   (lote{faltante.lotes.length > 1 ? 's' : ''}:{' '}
                   {faltante.lotes.map((lote, j) => (
                     <span key={lote.id}>
                       {j > 0 && ', '}
-                      <a href={`/admin/lotes/${lote.id}`} className="underline">
+                      <EnlaceBoton href={`/admin/lotes/${lote.id}`} className={ENLACE}>
                         {lote.identificador}
-                      </a>
+                      </EnlaceBoton>
                     </span>
                   ))}
                   )
@@ -160,7 +173,7 @@ export default async function IndicesPage({
         prellenarMes={prellenarMes}
       />
 
-      <p className="mb-2 text-sm text-gray-600">
+      <p className="mb-2 text-sm text-slate-600">
         Solo se puede corregir el valor MÁS RECIENTE cargado de cada índice (abajo). Un mes viejo
         ya no se puede tocar una vez que se cargó uno más nuevo después. Para cambiar un valor sin
         tocar el índice original (ej. una excepción para un loteo puntual), cargalo con un nombre
@@ -170,24 +183,25 @@ export default async function IndicesPage({
 
       {masRecientePorNombre.size > 0 && (
         <>
-          <h2 className="mb-2 mt-6 text-lg font-semibold">Corregir el último valor cargado</h2>
-          <table className="mb-8 w-full max-w-2xl text-sm">
+          <h2 className={`mb-2 mt-6 ${TITULO_H2}`}>Corregir el último valor cargado</h2>
+          <div className={`mb-8 w-full max-w-2xl ${TABLA_CONTENEDOR}`}>
+          <table className="w-full text-sm">
             <thead>
-              <tr className="border-b text-left">
-                <th className="py-2">Índice</th>
-                <th>Mes</th>
-                <th>Valor actual</th>
-                <th>Corregir a</th>
-                <th></th>
+              <tr className={TABLA_HEADER_FILA}>
+                <th className={TABLA_HEADER_CELDA}>Índice</th>
+                <th className={TABLA_HEADER_CELDA}>Mes</th>
+                <th className={TABLA_HEADER_CELDA}>Valor actual</th>
+                <th className={TABLA_HEADER_CELDA}>Corregir a</th>
+                <th className={TABLA_HEADER_CELDA}></th>
               </tr>
             </thead>
             <tbody>
               {[...masRecientePorNombre.entries()].map(([nombre, info]) => (
-                <tr key={nombre} className="border-b">
-                  <td className="py-2">{nombre}</td>
-                  <td>{formatearPeriodo(info.periodo)}</td>
-                  <td>{info.valor}%</td>
-                  <td>
+                <tr key={nombre} className={TABLA_FILA}>
+                  <td className={TABLA_CELDA}>{nombre}</td>
+                  <td className={TABLA_CELDA}>{formatearPeriodo(info.periodo)}</td>
+                  <td className={TABLA_CELDA}>{info.valor}%</td>
+                  <td className={TABLA_CELDA}>
                     <FormularioCorregirIndice
                       corregirValorIndiceAction={corregirValorIndice}
                       nombre={nombre}
@@ -196,7 +210,7 @@ export default async function IndicesPage({
                       cantidadLotesAfectados={cantidadLotesAfectadosPorNombre.get(nombre) ?? 0}
                     />
                   </td>
-                  <td>
+                  <td className={TABLA_CELDA}>
                     <BotonEliminarIndice
                       eliminarValorIndiceAction={eliminarValorIndice}
                       nombre={nombre}
@@ -208,58 +222,63 @@ export default async function IndicesPage({
               ))}
             </tbody>
           </table>
+          </div>
         </>
       )}
 
       {periodosExistentes.length === 0 ? (
-        <p className="mb-8 text-sm text-gray-600">Todavía no se cargó ningún valor.</p>
+        <p className="mb-8 text-sm text-slate-600">Todavía no se cargó ningún valor.</p>
       ) : (
-        <table className="mb-8 w-full text-sm">
+        <div className={`mb-8 ${TABLA_CONTENEDOR}`}>
+        <table className="w-full text-sm">
           <thead>
-            <tr className="border-b text-left">
-              <th className="py-2">Mes</th>
+            <tr className={TABLA_HEADER_FILA}>
+              <th className={TABLA_HEADER_CELDA}>Mes</th>
               {nombresExistentes.map((nombre) => (
-                <th key={nombre}>{nombre}</th>
+                <th key={nombre} className={TABLA_HEADER_CELDA}>{nombre}</th>
               ))}
             </tr>
           </thead>
           <tbody>
             {periodosExistentes.map((periodo) => (
-              <tr key={periodo} className="border-b">
-                <td className="py-2">{formatearPeriodo(periodo)}</td>
+              <tr key={periodo} className={TABLA_FILA}>
+                <td className={TABLA_CELDA}>{formatearPeriodo(periodo)}</td>
                 {nombresExistentes.map((nombre) => {
                   const valor = valorPorNombreYPeriodo.get(`${nombre}|${periodo}`)
-                  return <td key={nombre}>{valor === undefined ? '—' : `${valor}%`}</td>
+                  return <td key={nombre} className={TABLA_CELDA}>{valor === undefined ? '—' : `${valor}%`}</td>
                 })}
               </tr>
             ))}
           </tbody>
         </table>
+        </div>
       )}
 
-      <h2 className="mb-2 text-lg font-semibold">Detalle completo</h2>
+      <h2 className={`mb-2 ${TITULO_H2}`}>Detalle completo</h2>
+      <div className={TABLA_CONTENEDOR}>
       <table className="w-full text-sm">
         <thead>
-          <tr className="border-b text-left">
-            <th className="py-2">Índice</th>
-            <th>Mes</th>
-            <th>Valor</th>
-            <th>Cargado por</th>
-            <th>Cuándo</th>
+          <tr className={TABLA_HEADER_FILA}>
+            <th className={TABLA_HEADER_CELDA}>Índice</th>
+            <th className={TABLA_HEADER_CELDA}>Mes</th>
+            <th className={TABLA_HEADER_CELDA}>Valor</th>
+            <th className={TABLA_HEADER_CELDA}>Cargado por</th>
+            <th className={TABLA_HEADER_CELDA}>Cuándo</th>
           </tr>
         </thead>
         <tbody>
           {(valores ?? []).map((v) => (
-            <tr key={v.id} className="border-b">
-              <td className="py-2">{v.nombre}</td>
-              <td>{formatearPeriodo(v.periodo)}</td>
-              <td>{v.valor}%</td>
-              <td>{nombreCargadorPorId.get(v.cargado_por) ?? '—'}</td>
-              <td>{new Date(v.created_at).toLocaleDateString('es-AR')}</td>
+            <tr key={v.id} className={TABLA_FILA}>
+              <td className={TABLA_CELDA}>{v.nombre}</td>
+              <td className={TABLA_CELDA}>{formatearPeriodo(v.periodo)}</td>
+              <td className={TABLA_CELDA}>{v.valor}%</td>
+              <td className={TABLA_CELDA}>{nombreCargadorPorId.get(v.cargado_por) ?? '—'}</td>
+              <td className={TABLA_CELDA}>{new Date(v.created_at).toLocaleDateString('es-AR')}</td>
             </tr>
           ))}
         </tbody>
       </table>
+      </div>
     </main>
   )
 }

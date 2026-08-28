@@ -1,5 +1,8 @@
 'use client'
 
+import { BotonEnvio } from '@/components/BotonEnvio'
+import { ENTRADA, BOTON_SECUNDARIO } from '@/lib/ui/clases'
+
 const VALOR_SOSPECHOSO = 50
 
 export function FormularioCorregirIndice({
@@ -43,11 +46,9 @@ export function FormularioCorregirIndice({
         step="0.01"
         defaultValue={valorActual}
         required
-        className="w-24 rounded border px-2 py-1"
+        className={`w-24 ${ENTRADA}`}
       />
-      <button type="submit" className="rounded border px-2 py-1">
-        Corregir
-      </button>
+      <BotonEnvio className={`cursor-pointer ${BOTON_SECUNDARIO}`}>Corregir</BotonEnvio>
     </form>
   )
 }

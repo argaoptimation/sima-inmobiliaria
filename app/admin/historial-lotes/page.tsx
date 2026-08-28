@@ -2,6 +2,19 @@ import { createClient } from '@/lib/supabase/server'
 import { requireAdminOCobrador } from '@/lib/auth/require-admin'
 import { FiltroEnVivo } from '@/components/FiltroEnVivo'
 import { EVENTO_HISTORIAL_ETIQUETA } from '@/lib/lotes/eventos-historial'
+import { EnlaceBoton } from '@/components/EnlaceBoton'
+import {
+  ENTRADA,
+  BOTON_SECUNDARIO,
+  ENLACE,
+  ENLACE_TABLA,
+  TITULO_H1,
+  TABLA_CONTENEDOR,
+  TABLA_HEADER_FILA,
+  TABLA_HEADER_CELDA,
+  TABLA_FILA,
+  TABLA_CELDA,
+} from '@/lib/ui/clases'
 
 export default async function HistorialLotesPage({
   searchParams,
@@ -74,22 +87,22 @@ export default async function HistorialLotesPage({
 
   return (
     <main>
-      <a href="/admin/lotes" className="mb-4 inline-block text-sm underline">
+      <EnlaceBoton href="/admin/lotes" className={`mb-4 inline-block ${ENLACE}`}>
         ← Volver a Lotes
-      </a>
-      <h1 className="mb-2 text-xl font-semibold">Historial de lotes</h1>
-      <p className="mb-6 text-sm text-gray-600">
+      </EnlaceBoton>
+      <h1 className={`mb-2 ${TITULO_H1}`}>Historial de lotes</h1>
+      <p className="mb-6 text-sm text-slate-600">
         Todos los movimientos de todos los lotes en un solo lugar (alta, reserva, venta,
         rescisión, refinanciación, etc.), en orden cronológico.
       </p>
 
       <FiltroEnVivo className="mb-4 flex flex-wrap items-end gap-3">
-        <label className="text-sm">
+        <label className="text-sm text-slate-600">
           Movimiento
           <select
             name="evento"
             defaultValue={filtroEvento ?? ''}
-            className="mt-1 block rounded border px-3 py-2"
+            className={ENTRADA}
           >
             <option value="">Todos</option>
             {eventosDisponibles.map((evento) => (
@@ -99,12 +112,12 @@ export default async function HistorialLotesPage({
             ))}
           </select>
         </label>
-        <label className="text-sm">
+        <label className="text-sm text-slate-600">
           Pasó a estado
           <select
             name="estado"
             defaultValue={filtroEstado ?? ''}
-            className="mt-1 block rounded border px-3 py-2"
+            className={ENTRADA}
           >
             <option value="">Todos</option>
             {estadosDisponibles.map((estado) => (
@@ -114,68 +127,70 @@ export default async function HistorialLotesPage({
             ))}
           </select>
         </label>
-        <label className="text-sm">
+        <label className="text-sm text-slate-600">
           Desde
           <input
             type="date"
             name="desde"
             defaultValue={filtroDesde ?? ''}
-            className="mt-1 block rounded border px-3 py-2"
+            className={ENTRADA}
           />
         </label>
-        <label className="text-sm">
+        <label className="text-sm text-slate-600">
           Hasta
           <input
             type="date"
             name="hasta"
             defaultValue={filtroHasta ?? ''}
-            className="mt-1 block rounded border px-3 py-2"
+            className={ENTRADA}
           />
         </label>
-        <button type="submit" className="rounded border px-3 py-2 text-sm">
+        <button type="submit" className={`cursor-pointer ${BOTON_SECUNDARIO}`}>
           Filtrar
         </button>
         {hayFiltrosActivos && (
-          <a href="/admin/historial-lotes" className="text-sm underline">
+          <EnlaceBoton href="/admin/historial-lotes" className={`text-sm ${ENLACE}`}>
             Limpiar filtros
-          </a>
+          </EnlaceBoton>
         )}
       </FiltroEnVivo>
 
       {historial.length === 0 ? (
-        <p className="text-sm text-gray-600">
+        <p className="text-sm text-slate-600">
           {hayFiltrosActivos ? 'Ningún movimiento coincide con los filtros.' : 'Todavía no hubo ningún movimiento.'}
         </p>
       ) : (
+        <div className={TABLA_CONTENEDOR}>
         <table className="w-full text-sm">
           <thead>
-            <tr className="border-b text-left">
-              <th className="py-2">Lote</th>
-              <th>Cambio</th>
-              <th>Por quién</th>
-              <th>Cuándo</th>
+            <tr className={TABLA_HEADER_FILA}>
+              <th className={TABLA_HEADER_CELDA}>Lote</th>
+              <th className={TABLA_HEADER_CELDA}>Cambio</th>
+              <th className={TABLA_HEADER_CELDA}>Por quién</th>
+              <th className={TABLA_HEADER_CELDA}>Cuándo</th>
             </tr>
           </thead>
           <tbody>
             {historial.map((cambio) => (
-              <tr key={cambio.id} className="border-b">
-                <td className="py-2">
-                  <a href={`/admin/lotes/${cambio.lote_id}`} className="underline">
+              <tr key={cambio.id} className={TABLA_FILA}>
+                <td className={TABLA_CELDA}>
+                  <EnlaceBoton href={`/admin/lotes/${cambio.lote_id}`} className={ENLACE_TABLA}>
                     {cambio.lotes?.identificador ?? '—'}
-                  </a>
+                  </EnlaceBoton>
                 </td>
-                <td>
+                <td className={TABLA_CELDA}>
                   {cambio.estado_anterior && cambio.estado_nuevo
                     ? `${cambio.estado_anterior} → ${cambio.estado_nuevo}`
                     : (EVENTO_HISTORIAL_ETIQUETA[cambio.evento] ?? cambio.evento)}
-                  {cambio.detalle && <span className="block text-xs text-gray-500">{cambio.detalle}</span>}
+                  {cambio.detalle && <span className="block text-xs text-slate-500">{cambio.detalle}</span>}
                 </td>
-                <td>{nombreCambiadorPorId.get(cambio.cambiado_por) ?? '—'}</td>
-                <td>{new Date(cambio.created_at).toLocaleString('es-AR')}</td>
+                <td className={TABLA_CELDA}>{nombreCambiadorPorId.get(cambio.cambiado_por) ?? '—'}</td>
+                <td className={TABLA_CELDA}>{new Date(cambio.created_at).toLocaleString('es-AR')}</td>
               </tr>
             ))}
           </tbody>
         </table>
+        </div>
       )}
     </main>
   )

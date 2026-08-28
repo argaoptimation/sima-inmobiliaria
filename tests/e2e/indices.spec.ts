@@ -194,7 +194,7 @@ test.describe('Índices — carga manual y aplicación automática a mes vencido
     await page.getByRole('button', { name: 'Cargar' }).click()
     await page.waitForURL('**/admin/indices')
 
-    const filaDetalle = page.locator('h2:has-text("Detalle completo") ~ table tbody tr', {
+    const filaDetalle = page.locator('h2:has-text("Detalle completo") ~ div table tbody tr', {
       hasText: nombreIndice,
     })
     await expect(filaDetalle).toBeVisible()
@@ -259,7 +259,7 @@ test.describe('Índices — carga manual y aplicación automática a mes vencido
     // resolver antes de que la navegación real termine (mismo patrón de
     // carrera que otros tests de este archivo), así que se espera la fila
     // nueva en la UI antes de confiar en el estado de la base.
-    const filaDetalle = page.locator('h2:has-text("Detalle completo") ~ table tbody tr', {
+    const filaDetalle = page.locator('h2:has-text("Detalle completo") ~ div table tbody tr', {
       hasText: nombreIndice,
     })
     await expect(filaDetalle).toBeVisible()
@@ -298,6 +298,12 @@ test.describe('Índices — carga manual y aplicación automática a mes vencido
     await page.getByPlaceholder('Ej: 3').fill('2')
     await page.getByRole('button', { name: 'Cargar' }).click()
     await page.waitForURL('**/admin/indices')
+    // Espera a que el botón vuelva a "Cargar" (no "Cargando…") antes de
+    // tipear el segundo envío -- el mismo <form> se reusa, y React lo
+    // resetea automáticamente cuando la revalidación del submit anterior
+    // llega. Si se empieza a tipear antes, ese reset tardío borra lo recién
+    // tipeado (mismo caso que documentos-lote.spec.ts).
+    await expect(page.getByRole('button', { name: 'Cargar' })).toBeVisible()
 
     await page.getByPlaceholder('Ej: IPC').fill(nombreIndice)
     await page.getByRole('textbox', { name: 'Mes' }).fill('2027-03')

@@ -1,5 +1,8 @@
 'use client'
 
+import { BotonEnvio } from '@/components/BotonEnvio'
+import { ENTRADA, BOTON_PRIMARIO, TARJETA } from '@/lib/ui/clases'
+
 const VALOR_SOSPECHOSO = 50
 
 export function FormularioCargarIndice({
@@ -17,7 +20,7 @@ export function FormularioCargarIndice({
     <form
       id="form-cargar"
       action={cargarValorIndiceAction}
-      className="mb-8 flex flex-wrap items-end gap-3 rounded border p-3"
+      className={`mb-8 flex flex-wrap items-end gap-3 ${TARJETA}`}
       onSubmit={(evento) => {
         const formulario = evento.currentTarget
         const valor = Number(new FormData(formulario).get('valor'))
@@ -32,12 +35,12 @@ export function FormularioCargarIndice({
         }
       }}
     >
-      <label className="text-sm">
+      <label className="text-sm text-slate-600">
         Índice existente
         <select
           name="nombreExistente"
           defaultValue={prellenarNombre && nombresExistentes.includes(prellenarNombre) ? prellenarNombre : ''}
-          className="mt-1 block rounded border px-3 py-2"
+          className={ENTRADA}
         >
           <option value="">— elegir —</option>
           {nombresExistentes.map((nombre) => (
@@ -47,27 +50,27 @@ export function FormularioCargarIndice({
           ))}
         </select>
       </label>
-      <label className="text-sm">
+      <label className="text-sm text-slate-600">
         O un índice nuevo
         <input
           name="nombreNuevo"
           type="text"
           placeholder="Ej: IPC"
           defaultValue={prellenarNombre && !nombresExistentes.includes(prellenarNombre) ? prellenarNombre : ''}
-          className="mt-1 block rounded border px-3 py-2"
+          className={ENTRADA}
         />
       </label>
-      <label className="text-sm">
+      <label className="text-sm text-slate-600">
         Mes
         <input
           name="periodo"
           type="month"
           required
           defaultValue={prellenarMes ?? ''}
-          className="mt-1 block rounded border px-3 py-2"
+          className={ENTRADA}
         />
       </label>
-      <label className="text-sm">
+      <label className="text-sm text-slate-600">
         Valor (%)
         <input
           name="valor"
@@ -75,12 +78,10 @@ export function FormularioCargarIndice({
           step="0.01"
           placeholder="Ej: 3"
           required
-          className="mt-1 block rounded border px-3 py-2"
+          className={ENTRADA}
         />
       </label>
-      <button type="submit" className="rounded bg-black px-3 py-2 text-sm text-white">
-        Cargar
-      </button>
+      <BotonEnvio className={`cursor-pointer ${BOTON_PRIMARIO}`}>Cargar</BotonEnvio>
     </form>
   )
 }
