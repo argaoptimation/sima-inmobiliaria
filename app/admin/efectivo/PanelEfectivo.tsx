@@ -3,6 +3,8 @@
 import { useMemo, useState } from 'react'
 import { BuscadorLoteAmplio, type LoteBuscable } from './BuscadorLoteAmplio'
 import { calcularInteresMoratorio } from '@/lib/cobranza/interes-moratorio'
+import { BotonEnvio } from '@/components/BotonEnvio'
+import { ENTRADA, BOTON_PRIMARIO } from '@/lib/ui/clases'
 
 export interface LoteConDeuda extends LoteBuscable {
   moneda: string
@@ -60,57 +62,51 @@ export function PanelEfectivo({
   return (
     <div className="grid gap-6 lg:grid-cols-[minmax(0,26rem)_20rem]">
       <form action={accion} className="flex flex-col gap-3">
-        <label className="text-sm">
+        <label className="text-sm text-slate-600">
           Lote
           <BuscadorLoteAmplio lotes={lotes} onSeleccionar={elegirLote} />
         </label>
-        <label className="text-sm">
+        <label className="text-sm text-slate-600">
           Monto
-          <input
-            name="monto"
-            type="number"
-            step="0.01"
-            min="0.01"
-            required
-            className="mt-1 block w-full rounded border px-3 py-2"
-          />
+          <input name="monto" type="number" step="0.01" min="0.01" required className={`${ENTRADA} w-full`} />
         </label>
-        <label className="text-sm">
+        <label className="text-sm text-slate-600">
           Moneda
-          <select name="moneda" defaultValue="USD" className="mt-1 block w-full rounded border px-3 py-2">
+          <select name="moneda" defaultValue="USD" className={`${ENTRADA} w-full`}>
             <option value="USD">USD</option>
             <option value="ARS">ARS</option>
           </select>
         </label>
-        <button type="submit" className="self-start rounded bg-black px-3 py-2 text-sm text-white">
-          Registrar
-        </button>
+        <BotonEnvio className={`cursor-pointer self-start ${BOTON_PRIMARIO}`}>Registrar</BotonEnvio>
       </form>
 
-      <aside className="rounded border p-4 text-sm" data-testid="panel-cuotas-lote">
+      <aside
+        className="rounded-lg border border-blue-100 bg-blue-50/30 p-4 text-sm"
+        data-testid="panel-cuotas-lote"
+      >
         {!loteSeleccionado ? (
-          <p className="text-gray-500">Elegí un lote para ver sus cuotas pendientes y su mora.</p>
+          <p className="text-slate-500">Elegí un lote para ver sus cuotas pendientes y su mora.</p>
         ) : cuotasConMora.length === 0 ? (
           <>
-            <p className="mb-1 font-medium">{loteSeleccionado.clienteNombre}</p>
-            <p className="text-gray-500">No tiene cuotas pendientes.</p>
+            <p className="mb-1 font-semibold text-blue-900">{loteSeleccionado.clienteNombre}</p>
+            <p className="text-slate-500">No tiene cuotas pendientes.</p>
           </>
         ) : (
           <>
-            <p className="mb-1 font-medium">{loteSeleccionado.clienteNombre}</p>
+            <p className="mb-1 font-semibold text-blue-900">{loteSeleccionado.clienteNombre}</p>
             {loteSeleccionado.clienteDni && (
-              <p className="mb-3 text-xs text-gray-500">DNI {loteSeleccionado.clienteDni}</p>
+              <p className="mb-3 text-xs text-slate-500">DNI {loteSeleccionado.clienteDni}</p>
             )}
             <ul className="mb-3 flex flex-col gap-2">
               {cuotasConMora.map((cuota) => (
-                <li key={cuota.id} className="border-b pb-2 last:border-b-0">
-                  <div className="flex justify-between">
+                <li key={cuota.id} className="border-b border-blue-100 pb-2 last:border-b-0">
+                  <div className="flex justify-between text-slate-700">
                     <span>Cuota {cuota.numero}</span>
                     <span>
                       {cuota.saldoPendiente} {loteSeleccionado.moneda}
                     </span>
                   </div>
-                  <div className="flex justify-between text-xs text-gray-500">
+                  <div className="flex justify-between text-xs text-slate-500">
                     <span>Vence {cuota.fechaVencimiento}</span>
                     {cuota.mora > 0 && (
                       <span className="font-medium text-red-700">
@@ -121,14 +117,14 @@ export function PanelEfectivo({
                 </li>
               ))}
             </ul>
-            <div className="flex justify-between border-t pt-2 font-medium">
+            <div className="flex justify-between border-t border-blue-100 pt-2 font-semibold text-blue-900">
               <span>Total adeudado</span>
               <span>
                 {Math.round((totalSaldo + totalMora) * 100) / 100} {loteSeleccionado.moneda}
               </span>
             </div>
             {totalMora > 0 && (
-              <p className="mt-1 text-xs text-gray-500">
+              <p className="mt-1 text-xs text-slate-500">
                 (incluye {Math.round(totalMora * 100) / 100} {loteSeleccionado.moneda} de mora)
               </p>
             )}

@@ -1,6 +1,20 @@
 import { createClient } from '@/lib/supabase/server'
 import { requireAdministrador } from '@/lib/auth/require-admin'
 import { FiltroEnVivo } from '@/components/FiltroEnVivo'
+import { EnlaceBoton } from '@/components/EnlaceBoton'
+import {
+  TARJETA,
+  ENTRADA,
+  ENLACE,
+  ENLACE_TABLA,
+  TITULO_H1,
+  BOTON_SECUNDARIO,
+  TABLA_CONTENEDOR,
+  TABLA_HEADER_FILA,
+  TABLA_HEADER_CELDA,
+  TABLA_FILA,
+  TABLA_CELDA,
+} from '@/lib/ui/clases'
 
 // Historial de auditoría de confirmaciones de pago (pedido de Gabriel 28/08):
 // a diferencia de /admin/pagos (que solo muestra "Sí/No" confirmado), esto
@@ -99,127 +113,119 @@ export default async function AuditoriaPagosPage({
   return (
     <main>
       <p className="mb-2 text-sm">
-        <a href="/admin/pagos" className="underline">
+        <EnlaceBoton href="/admin/pagos" className={ENLACE}>
           ← Volver a Pagos
-        </a>
+        </EnlaceBoton>
       </p>
-      <h1 className="mb-2 text-xl font-semibold">Auditoría de confirmaciones de pago</h1>
-      <p className="mb-6 text-sm text-gray-600">
+      <h1 className={`mb-2 ${TITULO_H1}`}>Auditoría de confirmaciones de pago</h1>
+      <p className="mb-6 text-sm text-slate-600">
         Quién confirmó cada pago y cuándo — últimos 300 registros que coincidan con el filtro.
       </p>
 
-      <FiltroEnVivo className="mb-4 flex flex-wrap items-end gap-3">
-        <label className="text-sm">
+      <FiltroEnVivo className={`mb-4 flex flex-wrap items-end gap-3 ${TARJETA}`}>
+        <label className="text-sm text-slate-600">
           Buscar
           <input
             type="text"
             name="q"
             placeholder="Cliente o lote"
             defaultValue={filtroTexto ?? ''}
-            className="mt-1 block rounded border px-3 py-2"
+            className={ENTRADA}
           />
         </label>
-        <label className="text-sm">
+        <label className="text-sm text-slate-600">
           Estado
-          <select name="estado" defaultValue={filtroEstado ?? ''} className="mt-1 block rounded border px-3 py-2">
+          <select name="estado" defaultValue={filtroEstado ?? ''} className={ENTRADA}>
             <option value="">Todos</option>
             <option value="confirmado">Confirmado</option>
             <option value="pendiente">Pendiente</option>
           </select>
         </label>
-        <label className="text-sm">
+        <label className="text-sm text-slate-600">
           Medio
-          <select name="medio" defaultValue={filtroMedio ?? ''} className="mt-1 block rounded border px-3 py-2">
+          <select name="medio" defaultValue={filtroMedio ?? ''} className={ENTRADA}>
             <option value="">Todos</option>
             <option value="efectivo">Efectivo</option>
             <option value="transferencia">Transferencia</option>
           </select>
         </label>
-        <label className="text-sm">
+        <label className="text-sm text-slate-600">
           Desde
-          <input
-            type="date"
-            name="desde"
-            defaultValue={desde ?? ''}
-            className="mt-1 block rounded border px-3 py-2"
-          />
+          <input type="date" name="desde" defaultValue={desde ?? ''} className={ENTRADA} />
         </label>
-        <label className="text-sm">
+        <label className="text-sm text-slate-600">
           Hasta
-          <input
-            type="date"
-            name="hasta"
-            defaultValue={hasta ?? ''}
-            className="mt-1 block rounded border px-3 py-2"
-          />
+          <input type="date" name="hasta" defaultValue={hasta ?? ''} className={ENTRADA} />
         </label>
-        <button type="submit" className="rounded border px-3 py-2 text-sm">
+        <button type="submit" className={`cursor-pointer ${BOTON_SECUNDARIO}`}>
           Filtrar
         </button>
         {hayFiltros && (
-          <a href="/admin/pagos/auditoria" className="text-sm underline">
+          <EnlaceBoton href="/admin/pagos/auditoria" className={ENLACE}>
             Limpiar filtros
-          </a>
+          </EnlaceBoton>
         )}
       </FiltroEnVivo>
 
       {pagos.length === 0 ? (
-        <p className="text-sm text-gray-600">Ningún pago coincide con el filtro.</p>
+        <p className="text-sm text-slate-600">Ningún pago coincide con el filtro.</p>
       ) : (
-        <table className="w-full text-sm">
-          <thead>
-            <tr className="border-b text-left">
-              <th className="py-2">Creado</th>
-              <th>Lote</th>
-              <th>Cliente</th>
-              <th>Medio</th>
-              <th>Monto</th>
-              <th>Estado</th>
-              <th>Confirmado por acreedor</th>
-              <th>Confirmado por admin</th>
-            </tr>
-          </thead>
-          <tbody>
-            {pagos.map((pago) => (
-              <tr key={pago.id} className="border-b align-top">
-                <td className="py-2">{fechaHora(pago.created_at)}</td>
-                <td>
-                  <a href={`/admin/lotes/${pago.lote_id}`} className="underline">
-                    {identificadorPorLoteId.get(pago.lote_id) ?? '—'}
-                  </a>
-                </td>
-                <td>{nombrePorId.get(pago.cliente_id) ?? '—'}</td>
-                <td>{pago.medio_pago === 'efectivo' ? 'Efectivo' : 'Transferencia'}</td>
-                <td>
-                  {pago.monto} {pago.moneda}
-                </td>
-                <td>{pago.estado === 'confirmado' ? 'Confirmado' : 'Pendiente'}</td>
-                <td>
-                  {pago.confirmado_acreedor_por ? (
-                    <>
-                      {nombrePorId.get(pago.confirmado_acreedor_por) ?? '—'}
-                      <br />
-                      <span className="text-gray-500">{fechaHora(pago.confirmado_acreedor_at)}</span>
-                    </>
-                  ) : (
-                    <span className="text-gray-500">—</span>
-                  )}
-                </td>
-                <td>
-                  {pago.confirmado_admin_por ? (
-                    <>
-                      {nombrePorId.get(pago.confirmado_admin_por) ?? '—'}
-                      <br />
-                      <span className="text-gray-500">{fechaHora(pago.confirmado_admin_at)}</span>
-                    </>
-                  ) : (
-                    <span className="text-gray-500">—</span>
-                  )}
-                </td>
+        <div className={TABLA_CONTENEDOR}>
+          <table className="w-full text-sm">
+            <thead>
+              <tr className={TABLA_HEADER_FILA}>
+                <th className={TABLA_HEADER_CELDA}>Creado</th>
+                <th className={TABLA_HEADER_CELDA}>Lote</th>
+                <th className={TABLA_HEADER_CELDA}>Cliente</th>
+                <th className={TABLA_HEADER_CELDA}>Medio</th>
+                <th className={TABLA_HEADER_CELDA}>Monto</th>
+                <th className={TABLA_HEADER_CELDA}>Estado</th>
+                <th className={TABLA_HEADER_CELDA}>Confirmado por acreedor</th>
+                <th className={TABLA_HEADER_CELDA}>Confirmado por admin</th>
               </tr>
-            ))}
-          </tbody>
-        </table>
+            </thead>
+            <tbody>
+              {pagos.map((pago) => (
+                <tr key={pago.id} className={`${TABLA_FILA} align-top`}>
+                  <td className={TABLA_CELDA}>{fechaHora(pago.created_at)}</td>
+                  <td className={TABLA_CELDA}>
+                    <EnlaceBoton href={`/admin/lotes/${pago.lote_id}`} className={ENLACE_TABLA}>
+                      {identificadorPorLoteId.get(pago.lote_id) ?? '—'}
+                    </EnlaceBoton>
+                  </td>
+                  <td className={TABLA_CELDA}>{nombrePorId.get(pago.cliente_id) ?? '—'}</td>
+                  <td className={TABLA_CELDA}>{pago.medio_pago === 'efectivo' ? 'Efectivo' : 'Transferencia'}</td>
+                  <td className={TABLA_CELDA}>
+                    {pago.monto} {pago.moneda}
+                  </td>
+                  <td className={TABLA_CELDA}>{pago.estado === 'confirmado' ? 'Confirmado' : 'Pendiente'}</td>
+                  <td className={TABLA_CELDA}>
+                    {pago.confirmado_acreedor_por ? (
+                      <>
+                        {nombrePorId.get(pago.confirmado_acreedor_por) ?? '—'}
+                        <br />
+                        <span className="text-slate-500">{fechaHora(pago.confirmado_acreedor_at)}</span>
+                      </>
+                    ) : (
+                      <span className="text-slate-500">—</span>
+                    )}
+                  </td>
+                  <td className={TABLA_CELDA}>
+                    {pago.confirmado_admin_por ? (
+                      <>
+                        {nombrePorId.get(pago.confirmado_admin_por) ?? '—'}
+                        <br />
+                        <span className="text-slate-500">{fechaHora(pago.confirmado_admin_at)}</span>
+                      </>
+                    ) : (
+                      <span className="text-slate-500">—</span>
+                    )}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
       )}
     </main>
   )

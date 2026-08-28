@@ -1,6 +1,7 @@
 'use client'
 
 import { useMemo, useState } from 'react'
+import { ENTRADA } from '@/lib/ui/clases'
 
 export interface LoteBuscable {
   id: string
@@ -71,28 +72,28 @@ export function BuscadorLoteAmplio({
         onBlur={() => setTimeout(() => setAbierto(false), 150)}
         autoComplete="off"
         data-testid="buscador-lote-amplio"
-        className="mt-1 block w-full rounded border px-3 py-2"
+        className={`${ENTRADA} w-full`}
       />
       <input type="hidden" name="loteId" value={loteId} />
       {abierto && coincidencias.length > 0 && (
-        <ul className="absolute z-10 mt-1 max-h-64 w-full overflow-y-auto rounded border bg-white text-sm shadow-lg">
+        <ul className="absolute z-10 mt-1 max-h-64 w-full overflow-y-auto rounded-lg border border-blue-100 bg-white text-sm shadow-lg">
           {coincidencias.map((lote) => (
             <li key={lote.id}>
               <button
                 type="button"
                 onMouseDown={(evento) => evento.preventDefault()}
                 onClick={() => seleccionar(lote)}
-                className="block w-full px-3 py-2 text-left hover:bg-gray-100"
+                className="block w-full px-3 py-2 text-left text-slate-700 hover:bg-blue-50"
               >
-                <span className="font-medium">{lote.identificador}</span> — {lote.clienteNombre}
-                {lote.clienteDni && <span className="text-gray-500"> (DNI {lote.clienteDni})</span>}
+                <span className="font-medium text-blue-900">{lote.identificador}</span> — {lote.clienteNombre}
+                {lote.clienteDni && <span className="text-slate-500"> (DNI {lote.clienteDni})</span>}
               </button>
             </li>
           ))}
         </ul>
       )}
       {abierto && texto.trim() && coincidencias.length === 0 && (
-        <div className="absolute z-10 mt-1 w-full rounded border bg-white px-3 py-2 text-sm text-gray-500 shadow-lg">
+        <div className="absolute z-10 mt-1 w-full rounded-lg border border-blue-100 bg-white px-3 py-2 text-sm text-slate-500 shadow-lg">
           Sin coincidencias.
         </div>
       )}

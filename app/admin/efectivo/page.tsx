@@ -4,6 +4,21 @@ import { hoyArgentina } from '@/lib/fecha/hoy-argentina'
 import { registrarPagoEfectivo } from './actions'
 import { confirmarPago } from '../pagos/actions'
 import { PanelEfectivo, type LoteConDeuda, type CuotaPendienteInfo } from './PanelEfectivo'
+import { EnlaceBoton } from '@/components/EnlaceBoton'
+import { BotonEnvio } from '@/components/BotonEnvio'
+import {
+  TARJETA,
+  TITULO_H1,
+  TITULO_H2,
+  BANNER_ERROR,
+  BANNER_OK,
+  ENLACE_TABLA,
+  TABLA_CONTENEDOR,
+  TABLA_HEADER_FILA,
+  TABLA_HEADER_CELDA,
+  TABLA_FILA,
+  TABLA_CELDA,
+} from '@/lib/ui/clases'
 
 export default async function EfectivoPage({
   searchParams,
@@ -114,18 +129,18 @@ export default async function EfectivoPage({
 
   return (
     <main>
-      <h1 className="mb-2 text-xl font-semibold">Pagos en efectivo</h1>
-      <p className="mb-6 text-sm text-gray-600">
+      <h1 className={`mb-2 ${TITULO_H1}`}>Pagos en efectivo</h1>
+      <p className="mb-6 text-sm text-slate-600">
         Registrá acá la plata que se recibió en mano. Queda pendiente hasta que un administrador
         la marque como recibida — recién ahí queda confirmada y se refleja en el saldo del
         cliente.
       </p>
 
-      {error && <p className="mb-4 rounded bg-red-100 p-2 text-sm text-red-700">{error}</p>}
-      {ok && <p className="mb-4 rounded bg-green-100 p-2 text-sm text-green-700">{ok}</p>}
+      {error && <p className={BANNER_ERROR}>{error}</p>}
+      {ok && <p className={BANNER_OK}>{ok}</p>}
 
-      <h2 className="mb-2 text-lg font-semibold">Registrar pago en efectivo</h2>
-      <div className="mb-8">
+      <h2 className={`mb-2 ${TITULO_H2}`}>Registrar pago en efectivo</h2>
+      <div className={`mb-8 ${TARJETA}`}>
         <PanelEfectivo
           lotes={lotesBuscables}
           cuotasPorLoteId={cuotasPorLoteId}
@@ -134,56 +149,66 @@ export default async function EfectivoPage({
         />
       </div>
 
-      <h2 className="mb-2 text-lg font-semibold">Pagos en efectivo</h2>
+      <h2 className={`mb-2 ${TITULO_H2}`}>Pagos en efectivo</h2>
       {pagos.length === 0 ? (
-        <p className="text-sm text-gray-600">Todavía no se registró ningún pago en efectivo.</p>
+        <p className="text-sm text-slate-600">Todavía no se registró ningún pago en efectivo.</p>
       ) : (
-        <table className="w-full text-sm">
-          <thead>
-            <tr className="border-b text-left">
-              <th className="py-2">Fecha</th>
-              <th>Lote</th>
-              <th>Cliente</th>
-              <th>Monto</th>
-              <th>Estado</th>
-              <th></th>
-            </tr>
-          </thead>
-          <tbody>
-            {pagos.map((pago) => {
-              const confirmarEstePago = confirmarPago.bind(null, pago.id)
-              return (
-                <tr key={pago.id} className="border-b">
-                  <td className="py-2">{new Date(pago.created_at).toLocaleDateString('es-AR')}</td>
-                  <td>
-                    <a href={`/admin/lotes/${pago.lote_id}`} className="underline">
-                      {pago.lotes?.identificador ?? '—'}
-                    </a>
-                  </td>
-                  <td>{nombreClientePorId.get(pago.cliente_id) ?? '—'}</td>
-                  <td>
-                    {pago.monto} {pago.moneda}
-                  </td>
-                  <td>{pago.estado === 'confirmado' ? 'Recibido' : 'Pendiente'}</td>
-                  <td>
-                    {pago.estado === 'pendiente' &&
-                      (esAdministrador ? (
-                        <form action={confirmarEstePago}>
-                          <input type="hidden" name="montoVisto" value={pago.monto} />
-                          <input type="hidden" name="monto" value={pago.monto} />
-                          <button type="submit" className="text-sm underline">
-                            Marcar como recibido
-                          </button>
-                        </form>
+        <div className={TABLA_CONTENEDOR}>
+          <table className="w-full text-sm">
+            <thead>
+              <tr className={TABLA_HEADER_FILA}>
+                <th className={TABLA_HEADER_CELDA}>Fecha</th>
+                <th className={TABLA_HEADER_CELDA}>Lote</th>
+                <th className={TABLA_HEADER_CELDA}>Cliente</th>
+                <th className={TABLA_HEADER_CELDA}>Monto</th>
+                <th className={TABLA_HEADER_CELDA}>Estado</th>
+                <th className={TABLA_HEADER_CELDA}></th>
+              </tr>
+            </thead>
+            <tbody>
+              {pagos.map((pago) => {
+                const confirmarEstePago = confirmarPago.bind(null, pago.id)
+                return (
+                  <tr key={pago.id} className={TABLA_FILA}>
+                    <td className={TABLA_CELDA}>{new Date(pago.created_at).toLocaleDateString('es-AR')}</td>
+                    <td className={TABLA_CELDA}>
+                      <EnlaceBoton href={`/admin/lotes/${pago.lote_id}`} className={ENLACE_TABLA}>
+                        {pago.lotes?.identificador ?? '—'}
+                      </EnlaceBoton>
+                    </td>
+                    <td className={TABLA_CELDA}>{nombreClientePorId.get(pago.cliente_id) ?? '—'}</td>
+                    <td className={TABLA_CELDA}>
+                      {pago.monto} {pago.moneda}
+                    </td>
+                    <td className={TABLA_CELDA}>
+                      {pago.estado === 'confirmado' ? (
+                        <span className="rounded-full bg-green-50 px-2.5 py-1 text-xs text-green-700">
+                          Recibido
+                        </span>
                       ) : (
-                        <span className="text-gray-500">Esperando confirmación del admin</span>
-                      ))}
-                  </td>
-                </tr>
-              )
-            })}
-          </tbody>
-        </table>
+                        <span className="rounded-full bg-amber-50 px-2.5 py-1 text-xs text-amber-700">
+                          Pendiente
+                        </span>
+                      )}
+                    </td>
+                    <td className={TABLA_CELDA}>
+                      {pago.estado === 'pendiente' &&
+                        (esAdministrador ? (
+                          <form action={confirmarEstePago}>
+                            <input type="hidden" name="montoVisto" value={pago.monto} />
+                            <input type="hidden" name="monto" value={pago.monto} />
+                            <BotonEnvio className={ENLACE_TABLA}>Marcar como recibido</BotonEnvio>
+                          </form>
+                        ) : (
+                          <span className="text-slate-500">Esperando confirmación del admin</span>
+                        ))}
+                    </td>
+                  </tr>
+                )
+              })}
+            </tbody>
+          </table>
+        </div>
       )}
     </main>
   )
