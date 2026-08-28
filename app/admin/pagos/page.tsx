@@ -454,6 +454,17 @@ export default async function PagosPage({
           })}
         </tbody>
       </table>
+
+      {perfilPropio!.role === 'administrador' && (
+        // A propósito sin link en la navegación principal (pedido de Gabriel
+        // 28/08: "una pestaña que no esté visible pero que se pueda ver sin
+        // ningún problema") -- queda accesible acá, al pie.
+        <p className="mt-6 text-xs text-gray-400">
+          <a href="/admin/pagos/auditoria" className="underline">
+            Ver historial de auditoría de confirmaciones →
+          </a>
+        </p>
+      )}
     </main>
   )
 }

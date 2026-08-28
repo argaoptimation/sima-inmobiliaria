@@ -2,6 +2,7 @@ import { test, expect } from '@playwright/test'
 import ExcelJS from 'exceljs'
 import { ensureTestFixtures, createAdminClient, TestFixtures } from './fixtures/test-data'
 import { login, logout } from './utils/login'
+import { elegirLoteEnBuscadorAmplio } from './utils/buscador-lote'
 import { hoyArgentina } from '../../lib/fecha/hoy-argentina'
 
 // Recibe clienteId/acreedorId como parámetros (en vez de llamar a
@@ -76,7 +77,7 @@ test.describe('Efectivo y cierre de caja (25/08)', () => {
     const admin = createAdminClient()
     const { data: lote } = await admin.from('lotes').select('identificador').eq('id', loteId).single()
 
-    await page.locator('input[list="lista-lotes-cuenta-corriente"]').fill(lote!.identificador)
+    await elegirLoteEnBuscadorAmplio(page, lote!.identificador)
     await page.locator('input[name="monto"]').fill('1000')
     await page.locator('select[name="moneda"]').selectOption('USD')
     await page.getByRole('button', { name: 'Registrar' }).click()

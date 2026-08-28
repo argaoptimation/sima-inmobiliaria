@@ -1,8 +1,9 @@
 import { createClient } from '@/lib/supabase/server'
 import { requireAdminOCobrador } from '@/lib/auth/require-admin'
+import { hoyArgentina } from '@/lib/fecha/hoy-argentina'
 import { registrarPagoEfectivo } from './actions'
 import { confirmarPago } from '../pagos/actions'
-import { BuscadorLote } from '../cuentas-corrientes/BuscadorLote'
+import { PanelEfectivo, type LoteConDeuda, type CuotaPendienteInfo } from './PanelEfectivo'
 
 export default async function EfectivoPage({
   searchParams,
@@ -29,9 +30,60 @@ export default async function EfectivoPage({
 
   const { data: lotesVendidos } = await supabase
     .from('lotes')
-    .select('id, identificador')
+    .select('id, identificador, cliente_id, moneda, interes_moratorio_diario, ciclo_actual')
     .eq('estado', 'vendido')
     .order('identificador')
+
+  const loteIdsVendidos = (lotesVendidos ?? []).map((lote) => lote.id)
+  const clienteIdsVendidos = [
+    ...new Set((lotesVendidos ?? []).map((lote) => lote.cliente_id).filter(Boolean) as string[]),
+  ]
+
+  const { data: clientesVendidos } =
+    clienteIdsVendidos.length > 0
+      ? await supabase.from('profiles').select('id, full_name, dni').in('id', clienteIdsVendidos)
+      : { data: [] }
+  const clientePorId = new Map((clientesVendidos ?? []).map((cliente) => [cliente.id, cliente]))
+
+  // Buscador amplio (por lote, cliente o DNI) + panel de cuotas/mora del
+  // lote elegido (pedido de Gabriel 28/08) -- necesita las cuotas
+  // PENDIENTES de cada lote vendido, acotadas al ciclo de venta vigente
+  // (mismo criterio que confirmarPago/panel-morosos: nunca mostrar deuda de
+  // un ciclo anterior si el lote fue rescindido y revendido).
+  const { data: cuotasSinFiltrar } =
+    loteIdsVendidos.length > 0
+      ? await supabase
+          .from('cuotas')
+          .select('id, lote_id, numero, saldo_pendiente, fecha_vencimiento, ciclo')
+          .in('lote_id', loteIdsVendidos)
+          .gt('saldo_pendiente', 0)
+          .order('numero', { ascending: true })
+      : { data: [] }
+
+  const cicloActualPorLoteId = new Map((lotesVendidos ?? []).map((lote) => [lote.id, lote.ciclo_actual]))
+
+  const cuotasPorLoteId: Record<string, CuotaPendienteInfo[]> = {}
+  for (const cuota of cuotasSinFiltrar ?? []) {
+    if (cuota.ciclo !== cicloActualPorLoteId.get(cuota.lote_id)) continue
+    const lista = cuotasPorLoteId[cuota.lote_id] ?? []
+    lista.push({
+      id: cuota.id,
+      loteId: cuota.lote_id,
+      numero: cuota.numero,
+      fechaVencimiento: cuota.fecha_vencimiento,
+      saldoPendiente: cuota.saldo_pendiente,
+    })
+    cuotasPorLoteId[cuota.lote_id] = lista
+  }
+
+  const lotesBuscables: LoteConDeuda[] = (lotesVendidos ?? []).map((lote) => ({
+    id: lote.id,
+    identificador: lote.identificador,
+    clienteNombre: clientePorId.get(lote.cliente_id as string)?.full_name ?? '—',
+    clienteDni: clientePorId.get(lote.cliente_id as string)?.dni ?? null,
+    moneda: lote.moneda,
+    interesMoratorioDiario: lote.interes_moratorio_diario,
+  }))
 
   const { data: pagosData } = await supabase
     .from('pagos')
@@ -73,33 +125,14 @@ export default async function EfectivoPage({
       {ok && <p className="mb-4 rounded bg-green-100 p-2 text-sm text-green-700">{ok}</p>}
 
       <h2 className="mb-2 text-lg font-semibold">Registrar pago en efectivo</h2>
-      <form action={registrarPagoEfectivo} className="mb-8 flex max-w-sm flex-col gap-3">
-        <label className="text-sm">
-          Lote
-          <BuscadorLote lotes={lotesVendidos ?? []} />
-        </label>
-        <label className="text-sm">
-          Monto
-          <input
-            name="monto"
-            type="number"
-            step="0.01"
-            min="0.01"
-            required
-            className="mt-1 block w-full rounded border px-3 py-2"
-          />
-        </label>
-        <label className="text-sm">
-          Moneda
-          <select name="moneda" defaultValue="USD" className="mt-1 block w-full rounded border px-3 py-2">
-            <option value="USD">USD</option>
-            <option value="ARS">ARS</option>
-          </select>
-        </label>
-        <button type="submit" className="self-start rounded bg-black px-3 py-2 text-sm text-white">
-          Registrar
-        </button>
-      </form>
+      <div className="mb-8">
+        <PanelEfectivo
+          lotes={lotesBuscables}
+          cuotasPorLoteId={cuotasPorLoteId}
+          hoy={hoyArgentina()}
+          accion={registrarPagoEfectivo}
+        />
+      </div>
 
       <h2 className="mb-2 text-lg font-semibold">Pagos en efectivo</h2>
       {pagos.length === 0 ? (

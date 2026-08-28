@@ -3,6 +3,7 @@ import { readFileSync } from 'node:fs'
 import path from 'node:path'
 import { ensureTestFixtures, createAdminClient, TestFixtures } from './fixtures/test-data'
 import { login, logout } from './utils/login'
+import { elegirLoteEnBuscadorAmplio } from './utils/buscador-lote'
 import { hoyArgentina } from '../../lib/fecha/hoy-argentina'
 import { sumarDias } from '../../lib/fecha/sumar-dias'
 
@@ -221,12 +222,7 @@ test.describe('Interés moratorio diario por lote', () => {
     // dejar solo 50 de capital -- saldo_pendiente pasa de 1000 a 950, no 850.
     await login(page, fixtures.cobrador.email, fixtures.password)
     await page.goto('/admin/efectivo')
-    await page.locator('input[list="lista-lotes-cuenta-corriente"]').fill(lote.identificador)
-    // El input visible no viaja en el form -- el que importa es el hidden
-    // resuelto por el onChange de BuscadorLote. Esperar a que deje de estar
-    // vacío evita una carrera contra la hidratación de React (el fill()
-    // puede llegar antes de que el listener esté conectado).
-    await expect(page.locator('input[name="loteId"]')).not.toHaveValue('')
+    await elegirLoteEnBuscadorAmplio(page, lote.identificador)
     await page.locator('input[name="monto"]').fill('150')
     await page.locator('select[name="moneda"]').selectOption('USD')
     await page.getByRole('button', { name: 'Registrar' }).click()
@@ -262,7 +258,7 @@ test.describe('Interés moratorio diario por lote', () => {
     await logout(page)
     await login(page, fixtures.cobrador.email, fixtures.password)
     await page.goto('/admin/efectivo')
-    await page.locator('input[list="lista-lotes-cuenta-corriente"]').fill(lote.identificador)
+    await elegirLoteEnBuscadorAmplio(page, lote.identificador)
     await page.locator('input[name="monto"]').fill('50')
     await page.locator('select[name="moneda"]').selectOption('USD')
     await page.getByRole('button', { name: 'Registrar' }).click()
