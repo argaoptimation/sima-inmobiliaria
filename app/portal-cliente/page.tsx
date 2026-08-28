@@ -53,14 +53,16 @@ export default async function PortalClientePage() {
 
   const ETIQUETA_ESTADO: Record<string, string> = {
     normal: 'Al día',
+    atrasado: 'Atrasado',
     moroso: 'Moroso',
     prejudicial: 'Posible prejudicial',
   }
 
   const CLASE_ESTADO: Record<string, string> = {
     normal: 'bg-green-50 text-green-700',
+    atrasado: 'bg-amber-50 text-amber-700 font-semibold',
     moroso: 'bg-red-50 text-red-600 font-semibold',
-    prejudicial: 'bg-amber-50 text-amber-700 font-semibold',
+    prejudicial: 'bg-orange-50 text-orange-700 font-semibold',
   }
 
   return (

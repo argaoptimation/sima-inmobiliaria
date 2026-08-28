@@ -21,7 +21,7 @@ test.describe('Filtros de Cliente, Loteo y Cobranza en /admin/lotes', () => {
     await expect(page.getByRole('row', { name: /^Lote1/ })).toHaveCount(0)
   })
 
-  test('filtrar por cobranza "Al día" excluye un lote moroso', async ({ page }) => {
+  test('filtrar por cobranza "Al día" excluye un lote atrasado', async ({ page }) => {
     const admin = createAdminClient()
     await admin.from('cuotas').update({ fecha_vencimiento: '2020-01-01' }).eq('id', fixtures.cuotaIds[0])
 
@@ -30,7 +30,7 @@ test.describe('Filtros de Cliente, Loteo y Cobranza en /admin/lotes', () => {
 
     await expect(page.getByRole('row', { name: /E2E Test Lote/ })).toHaveCount(0)
 
-    await page.goto('/admin/lotes?cobranza=moroso')
+    await page.goto('/admin/lotes?cobranza=atrasado')
     await expect(page.getByRole('row', { name: /E2E Test Lote/ })).toBeVisible()
   })
 

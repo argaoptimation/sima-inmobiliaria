@@ -5,7 +5,8 @@ import { BotonCancelarReserva } from './BotonCancelarReserva'
 import { eliminarLote } from './[id]/actions'
 import { BotonEliminarLote } from './[id]/BotonEliminarLote'
 import { guardarCotizacionDolar } from './cotizacion-dolar-actions'
-import { calcularEstadoCobranza } from '@/lib/cobranza/estado-cliente'
+import { calcularEstadoCobranza, cuotasVencidas } from '@/lib/cobranza/estado-cliente'
+import { calcularInteresMoratorio } from '@/lib/cobranza/interes-moratorio'
 import { armarLinkWhatsApp, armarMensajeWhatsApp } from '@/lib/cobranza/plantillas-whatsapp'
 import { telefonoParaWhatsApp } from '@/lib/telefono/prefijos'
 import { FiltroEnVivo } from '@/components/FiltroEnVivo'
@@ -117,7 +118,7 @@ export default async function LotesPage({
   let queryLotes = supabase
     .from('lotes')
     .select(
-      'id, identificador, moneda, estado, cantidad_cuotas, ubicacion, precio_total, acreedor_id, loteo_id, cliente_id, ciclo_actual, marcado_prejudicial'
+      'id, identificador, moneda, estado, cantidad_cuotas, ubicacion, precio_total, acreedor_id, loteo_id, cliente_id, ciclo_actual, marcado_prejudicial, numero_lote, manzana, interes_moratorio_diario'
     )
     .order(columnaOrden, { ascending: ordenAscendente })
 
@@ -229,14 +230,38 @@ export default async function LotesPage({
       )
       const proximaCuotaPendiente = cuotasDelLote.find((cuota) => cuota.saldo_pendiente > 0)
       const cliente = clientePorId.get(lote.cliente_id as string)
+      // moroso/prejudicial: el monto que se manda por WhatsApp incluye el
+      // interés moratorio acumulado de cada cuota vencida (pedido explícito
+      // de Nicolás en las plantillas del 28/08) -- normal/atrasado siguen
+      // usando el saldo de capital nomás, todavía no acumularon mora real.
+      const vencidas = cuotasVencidas(
+        cuotasDelLote.map((cuota) => ({
+          saldoPendiente: cuota.saldo_pendiente,
+          fechaVencimiento: cuota.fecha_vencimiento,
+        })),
+        hoy
+      )
+      const montoConMora =
+        estadoCobranza === 'moroso' || estadoCobranza === 'prejudicial'
+          ? saldoPendiente +
+            vencidas.reduce(
+              (acum, cuota) =>
+                acum + calcularInteresMoratorio(cuota, lote.interes_moratorio_diario, hoy),
+              0
+            )
+          : saldoPendiente
       const mensajeWhatsApp =
         saldoPendiente > 0 && proximaCuotaPendiente && cliente
           ? armarMensajeWhatsApp(estadoCobranza, {
               nombre: cliente.full_name,
               lote: lote.identificador,
-              monto: saldoPendiente,
+              numeroLote: lote.numero_lote,
+              manzana: lote.manzana,
+              nombreLoteo: lote.loteo_id ? (nombreLoteoPorId.get(lote.loteo_id) ?? null) : null,
+              monto: montoConMora,
               moneda: lote.moneda,
               fechaVencimiento: proximaCuotaPendiente.fecha_vencimiento,
+              fechasVencidas: vencidas.map((cuota) => cuota.fechaVencimiento),
             })
           : null
 
@@ -273,9 +298,11 @@ export default async function LotesPage({
             ? 'prejudicial'
             : cobranza.estadoCobranza === 'normal'
               ? 'al_dia'
-              : cobranza.estadoCobranza === 'moroso'
-                ? 'moroso'
-                : 'posible_prejudicial'
+              : cobranza.estadoCobranza === 'atrasado'
+                ? 'atrasado'
+                : cobranza.estadoCobranza === 'moroso'
+                  ? 'moroso'
+                  : 'posible_prejudicial'
       if (etiquetaCobranza !== filtroCobranza) return false
     }
     return true
@@ -322,14 +349,16 @@ export default async function LotesPage({
     if (cobranza.saldoPendiente === 0) return `${BADGE_BASE} ${BADGE_GRIS}`
     if (cobranza.marcadoPrejudicial) return `${BADGE_BASE} ${BADGE_ROJO} font-bold`
     if (cobranza.estadoCobranza === 'normal') return `${BADGE_BASE} ${BADGE_VERDE}`
+    if (cobranza.estadoCobranza === 'atrasado') return `${BADGE_BASE} ${BADGE_AMARILLO}`
     if (cobranza.estadoCobranza === 'moroso') return `${BADGE_BASE} ${BADGE_ROJO}`
-    return `${BADGE_BASE} ${BADGE_AMARILLO}`
+    return `${BADGE_BASE} ${BADGE_ROJO} font-bold`
   }
 
   function etiquetaCobranza(cobranza: { saldoPendiente: number; marcadoPrejudicial: boolean; estadoCobranza: string }) {
     if (cobranza.saldoPendiente === 0) return 'Pagado'
     if (cobranza.marcadoPrejudicial) return 'Prejudicial'
     if (cobranza.estadoCobranza === 'normal') return 'Al día'
+    if (cobranza.estadoCobranza === 'atrasado') return 'Atrasado'
     if (cobranza.estadoCobranza === 'moroso') return 'Moroso'
     return 'Posible prejudicial'
   }
@@ -521,6 +550,7 @@ export default async function LotesPage({
               <option value="">Todas</option>
               <option value="pagado">Pagado</option>
               <option value="al_dia">Al día</option>
+              <option value="atrasado">Atrasado</option>
               <option value="moroso">Moroso</option>
               <option value="posible_prejudicial">Posible prejudicial</option>
               <option value="prejudicial">Prejudicial</option>

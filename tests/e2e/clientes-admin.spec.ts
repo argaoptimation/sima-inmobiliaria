@@ -118,13 +118,12 @@ test.describe('Vista de clientes desde Admin', () => {
 
     const href = await link.getAttribute('href')
     expect(href).toContain('https://wa.me/3511234567')
-    expect(href).toContain(encodeURIComponent('Te escribo de SIMA Inmobiliaria'))
-    expect(href).toContain(encodeURIComponent('todavía no la registramos como pagada'))
+    expect(href).toContain(encodeURIComponent('Te recordamos que tu cuota del mes de'))
     expect(href).toContain(encodeURIComponent('3000 USD'))
     await expect(link).toHaveAttribute('target', '_blank')
   })
 
-  test('botón de WhatsApp: estado moroso (cuota vencida) usa la plantilla más firme', async ({
+  test('botón de WhatsApp: estado moroso (2 cuotas vencidas) usa la plantilla más firme', async ({
     page,
   }) => {
     const admin = createAdminClient()
@@ -135,15 +134,15 @@ test.describe('Vista de clientes desde Admin', () => {
     await admin
       .from('cuotas')
       .update({ fecha_vencimiento: '2020-01-01' })
-      .eq('id', fixtures.cuotaIds[0])
+      .in('id', [fixtures.cuotaIds[0], fixtures.cuotaIds[1]])
 
     await login(page, fixtures.admin.email, fixtures.password)
     await page.goto(`/admin/clientes/${fixtures.cliente.id}`)
 
     const fila = page.getByRole('row', { name: /E2E Test Lote/ })
     const href = await fila.getByRole('link', { name: 'WhatsApp' }).getAttribute('href')
-    expect(href).toContain(encodeURIComponent('Tenés cuotas vencidas'))
-    expect(href).toContain(encodeURIComponent('ya están corriendo intereses por mora'))
+    expect(href).toContain(encodeURIComponent('estás adeudando la cuota de'))
+    expect(href).toContain(encodeURIComponent('se sigan acumulando los intereses'))
   })
 
   test('botón de WhatsApp: sin teléfono cargado, no aparece', async ({ page }) => {

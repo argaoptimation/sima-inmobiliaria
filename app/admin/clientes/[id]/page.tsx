@@ -1,6 +1,7 @@
 import { createClient } from '@/lib/supabase/server'
 import { requireAdministrador } from '@/lib/auth/require-admin'
-import { calcularEstadoCobranza } from '@/lib/cobranza/estado-cliente'
+import { calcularEstadoCobranza, cuotasVencidas } from '@/lib/cobranza/estado-cliente'
+import { calcularInteresMoratorio } from '@/lib/cobranza/interes-moratorio'
 import { armarLinkWhatsApp, armarMensajeWhatsApp } from '@/lib/cobranza/plantillas-whatsapp'
 import { telefonoParaWhatsApp } from '@/lib/telefono/prefijos'
 import { hoyArgentina } from '@/lib/fecha/hoy-argentina'
@@ -54,9 +55,16 @@ export default async function ClienteDetallePage({
 
   const { data: lotes } = await supabase
     .from('lotes')
-    .select('id, identificador, moneda, estado, marcado_prejudicial')
+    .select('id, identificador, moneda, estado, marcado_prejudicial, numero_lote, manzana, loteo_id, interes_moratorio_diario')
     .eq('cliente_id', id)
     .order('identificador')
+
+  const loteoIds = [...new Set((lotes ?? []).map((lote) => lote.loteo_id).filter(Boolean))]
+  const { data: loteosDeClientes } =
+    loteoIds.length > 0
+      ? await supabase.from('loteos').select('id, nombre').in('id', loteoIds)
+      : { data: [] }
+  const nombreLoteoPorId = new Map((loteosDeClientes ?? []).map((loteo) => [loteo.id, loteo.nombre]))
 
   const hoy = hoyArgentina()
 
@@ -73,18 +81,29 @@ export default async function ClienteDetallePage({
         0
       )
 
-      const estadoCobranza = calcularEstadoCobranza(
-        (cuotas ?? []).map((cuota) => ({
-          saldoPendiente: cuota.saldo_pendiente,
-          fechaVencimiento: cuota.fecha_vencimiento,
-        })),
-        hoy
-      )
+      const cuotasNormalizadas = (cuotas ?? []).map((cuota) => ({
+        saldoPendiente: cuota.saldo_pendiente,
+        fechaVencimiento: cuota.fecha_vencimiento,
+      }))
+
+      const estadoCobranza = calcularEstadoCobranza(cuotasNormalizadas, hoy)
+      const vencidas = cuotasVencidas(cuotasNormalizadas, hoy)
+      // moroso/prejudicial: sumamos el interés moratorio acumulado de cada
+      // cuota vencida al monto del mensaje (ver lib/cobranza/plantillas-whatsapp.ts).
+      const montoConMora =
+        estadoCobranza === 'moroso' || estadoCobranza === 'prejudicial'
+          ? saldoPendiente +
+            vencidas.reduce(
+              (acum, cuota) =>
+                acum + calcularInteresMoratorio(cuota, lote.interes_moratorio_diario, hoy),
+              0
+            )
+          : saldoPendiente
 
       // Botón de WhatsApp: se habilita solo si el lote tiene saldo pendiente
-      // y ya existe una plantilla para su estado de cobranza actual (por
-      // ahora, "normal" y "moroso" -- "prejudicial" queda sin botón hasta
-      // que Nicolás defina esa plantilla, sin tocar nada de este código).
+      // y ya existe una plantilla para su estado de cobranza actual (las 4
+      // plantillas -- normal/atrasado/moroso/prejudicial -- las escribió
+      // Nicolás el 28/08, ver lib/cobranza/plantillas-whatsapp.ts).
       const proximaCuotaPendiente = (cuotas ?? []).find((cuota) => cuota.saldo_pendiente > 0)
       const telefonoWhatsApp = telefonoParaWhatsApp(cliente!.telefono_prefijo, cliente!.telefono_numero)
       const mensajeWhatsApp =
@@ -92,9 +111,13 @@ export default async function ClienteDetallePage({
           ? armarMensajeWhatsApp(estadoCobranza, {
               nombre: cliente!.full_name,
               lote: lote.identificador,
-              monto: saldoPendiente,
+              numeroLote: lote.numero_lote,
+              manzana: lote.manzana,
+              nombreLoteo: lote.loteo_id ? (nombreLoteoPorId.get(lote.loteo_id) ?? null) : null,
+              monto: montoConMora,
               moneda: lote.moneda,
               fechaVencimiento: proximaCuotaPendiente.fecha_vencimiento,
+              fechasVencidas: vencidas.map((cuota) => cuota.fechaVencimiento),
             })
           : null
 
@@ -146,9 +169,11 @@ export default async function ClienteDetallePage({
                       ? 'Prejudicial'
                       : lote.estadoCobranza === 'normal'
                         ? 'Al día'
-                        : lote.estadoCobranza === 'moroso'
-                          ? 'Moroso'
-                          : 'Posible prejudicial'}
+                        : lote.estadoCobranza === 'atrasado'
+                          ? 'Atrasado'
+                          : lote.estadoCobranza === 'moroso'
+                            ? 'Moroso'
+                            : 'Posible prejudicial'}
                 </td>
                 <td className={TABLA_CELDA}>
                   {lote.saldoPendiente} {lote.moneda}

@@ -32,13 +32,31 @@ test.describe('Estado de cobranza en /admin/lotes', () => {
     expect(href).toContain('https://wa.me/5493511234567')
   })
 
-  test('lote vendido con cuota vencida muestra "Moroso" en rojo', async ({ page }) => {
+  test('lote vendido con 1 cuota vencida muestra "Atrasado"', async ({ page }) => {
     const admin = createAdminClient()
     await admin
       .from('profiles')
       .update({ telefono_prefijo: '54', telefono_numero: '93511234567' })
       .eq('id', fixtures.cliente.id)
     await admin.from('cuotas').update({ fecha_vencimiento: '2020-01-01' }).eq('id', fixtures.cuotaIds[0])
+
+    await login(page, fixtures.admin.email, fixtures.password)
+    await page.goto('/admin/lotes')
+
+    const fila = page.getByRole('row', { name: /E2E Test Lote/ })
+    await expect(fila.getByText('Atrasado')).toBeVisible()
+  })
+
+  test('lote vendido con 2 cuotas vencidas muestra "Moroso" en rojo', async ({ page }) => {
+    const admin = createAdminClient()
+    await admin
+      .from('profiles')
+      .update({ telefono_prefijo: '54', telefono_numero: '93511234567' })
+      .eq('id', fixtures.cliente.id)
+    await admin
+      .from('cuotas')
+      .update({ fecha_vencimiento: '2020-01-01' })
+      .in('id', [fixtures.cuotaIds[0], fixtures.cuotaIds[1]])
 
     await login(page, fixtures.admin.email, fixtures.password)
     await page.goto('/admin/lotes')

@@ -18,23 +18,52 @@ describe('armarMensajeWhatsApp', () => {
     expect(mensaje).toContain('15 de agosto de 2026')
   })
 
-  it('moroso: incluye nombre, lote, monto y moneda', () => {
-    const mensaje = armarMensajeWhatsApp('moroso', DATOS)
+  it('normal: usa Lote/mza/loteo cuando esos datos están cargados', () => {
+    const mensaje = armarMensajeWhatsApp('normal', {
+      ...DATOS,
+      numeroLote: '12',
+      manzana: '3',
+      nombreLoteo: 'Loteo San Martín',
+    })
+    expect(mensaje).toContain('Lote 12, mza 3, de Loteo San Martín')
+  })
+
+  it('atrasado: avisa que la cuota ya venció', () => {
+    const mensaje = armarMensajeWhatsApp('atrasado', DATOS)
     expect(mensaje).toContain('Juan Pérez')
-    expect(mensaje).toContain('Lote 5')
-    expect(mensaje).toContain('1000 USD')
+    expect(mensaje).toContain('YA VENCIÓ')
+    expect(mensaje).toContain('15 de agosto de 2026')
   })
 
-  it('normal y moroso tienen textos distintos', () => {
-    expect(armarMensajeWhatsApp('normal', DATOS)).not.toBe(armarMensajeWhatsApp('moroso', DATOS))
+  it('moroso: lista los meses de las cuotas vencidas', () => {
+    const mensaje = armarMensajeWhatsApp('moroso', {
+      ...DATOS,
+      monto: 2000,
+      fechasVencidas: ['2026-07-01', '2026-08-01'],
+    })
+    expect(mensaje).toContain('julio y agosto')
+    expect(mensaje).toContain('2000 USD')
   })
 
-  it('prejudicial todavía no tiene plantilla -- devuelve null', () => {
-    expect(armarMensajeWhatsApp('prejudicial', DATOS)).toBeNull()
+  it('prejudicial: menciona el área legal y lista los meses vencidos', () => {
+    const mensaje = armarMensajeWhatsApp('prejudicial', {
+      ...DATOS,
+      monto: 3000,
+      fechasVencidas: ['2026-06-01', '2026-07-01', '2026-08-01'],
+    })
+    expect(mensaje).toContain('área legal')
+    expect(mensaje).toContain('junio, julio y agosto')
   })
 
-  it('ultimo_aviso todavía no tiene plantilla -- devuelve null', () => {
-    expect(armarMensajeWhatsApp('ultimo_aviso', DATOS)).toBeNull()
+  it('normal, atrasado, moroso y prejudicial tienen textos distintos', () => {
+    const datosConVencidas = { ...DATOS, fechasVencidas: [DATOS.fechaVencimiento] }
+    const textos = new Set([
+      armarMensajeWhatsApp('normal', DATOS),
+      armarMensajeWhatsApp('atrasado', DATOS),
+      armarMensajeWhatsApp('moroso', datosConVencidas),
+      armarMensajeWhatsApp('prejudicial', datosConVencidas),
+    ])
+    expect(textos.size).toBe(4)
   })
 })
 

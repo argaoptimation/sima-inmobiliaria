@@ -537,18 +537,22 @@ export default async function LoteDetallePage({
                 ? 'font-semibold text-red-800'
                 : estado === 'normal'
                   ? 'text-green-700'
-                  : estado === 'moroso'
+                  : estado === 'atrasado'
                     ? 'text-amber-700'
-                    : 'text-orange-700'
+                    : estado === 'moroso'
+                      ? 'text-red-700'
+                      : 'text-orange-700'
             }
           >
             {lote!.marcado_prejudicial
               ? 'Prejudicial'
               : estado === 'normal'
                 ? 'Normal'
-                : estado === 'moroso'
-                  ? 'Moroso'
-                  : 'Posible prejudicial'}
+                : estado === 'atrasado'
+                  ? 'Atrasado'
+                  : estado === 'moroso'
+                    ? 'Moroso'
+                    : 'Posible prejudicial'}
           </span>
         </p>
       )}

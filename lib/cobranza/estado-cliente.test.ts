@@ -10,7 +10,15 @@ describe('calcularEstadoCobranza', () => {
     expect(estado).toBe('normal')
   })
 
-  it('moroso con 1 o 2 cuotas vencidas', () => {
+  it('atrasado con exactamente 1 cuota vencida', () => {
+    const estado = calcularEstadoCobranza(
+      [{ saldoPendiente: 60000, fechaVencimiento: '2026-07-01' }],
+      '2026-08-01'
+    )
+    expect(estado).toBe('atrasado')
+  })
+
+  it('moroso con exactamente 2 cuotas vencidas', () => {
     const estado = calcularEstadoCobranza(
       [
         { saldoPendiente: 60000, fechaVencimiento: '2026-06-01' },
@@ -46,7 +54,7 @@ describe('calcularEstadoCobranza', () => {
       [{ saldoPendiente: 60000, fechaVencimiento: '2026-07-31' }],
       '2026-08-01'
     )
-    expect(estado).toBe('moroso')
+    expect(estado).toBe('atrasado')
   })
 
   it('una cuota pagada no cuenta como vencida aunque la fecha haya pasado', () => {
