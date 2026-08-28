@@ -3,7 +3,7 @@ import { EnlaceBoton } from './EnlaceBoton'
 import { BotonEnvio } from './BotonEnvio'
 
 const ENLACE_CLASE =
-  'whitespace-nowrap rounded-lg px-2.5 py-1.5 text-sm font-medium text-blue-900/70 transition-colors hover:bg-blue-50 hover:text-blue-900'
+  'whitespace-nowrap rounded-lg px-2.5 py-1.5 text-sm font-medium text-blue-100/80 transition-all duration-150 hover:-translate-y-px hover:bg-white/10 hover:text-white'
 
 export function NavAdmin({
   role,
@@ -29,7 +29,7 @@ export function NavAdmin({
   const puedeVerEfectivoYCaja = role === 'administrador' || role === 'cobrador'
 
   return (
-    <nav className="border-b border-blue-100 bg-white shadow-sm">
+    <nav className="bg-gradient-to-r from-blue-950 via-blue-900 to-blue-950 shadow-lg shadow-blue-900/30">
       <div className="flex items-center justify-between gap-4 px-6 py-3">
         <div className="flex flex-wrap items-center gap-1">
           <EnlaceBoton href="/admin/lotes" className={ENLACE_CLASE}>
@@ -44,7 +44,7 @@ export function NavAdmin({
             <EnlaceBoton href="/admin/pagos" className={ENLACE_CLASE}>
               Pagos
               {pagosPendientes > 0 && (
-                <span className="ml-1.5 rounded-full bg-amber-100 px-1.5 py-0.5 text-xs font-bold text-amber-800">
+                <span className="ml-1.5 rounded-full bg-amber-400 px-1.5 py-0.5 text-xs font-bold text-amber-950 shadow-sm">
                   {pagosPendientes}
                 </span>
               )}
@@ -106,7 +106,7 @@ export function NavAdmin({
         </div>
         <form action={logout} className="shrink-0">
           <BotonEnvio
-            className="cursor-pointer whitespace-nowrap rounded-lg px-2.5 py-1.5 text-sm font-medium text-blue-900/70 transition-colors hover:bg-blue-50 hover:text-blue-900"
+            className="cursor-pointer whitespace-nowrap rounded-lg px-2.5 py-1.5 text-sm font-medium text-blue-100/80 transition-all duration-150 hover:-translate-y-px hover:bg-white/10 hover:text-white"
             cargandoTexto="Cerrando sesión…"
           >
             Cerrar sesión

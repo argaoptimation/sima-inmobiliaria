@@ -13,6 +13,28 @@ import { hoyArgentina } from '@/lib/fecha/hoy-argentina'
 import { formatearFechaCorta } from '@/lib/fecha/formatear-fecha-corta'
 import { EnlaceBoton } from '@/components/EnlaceBoton'
 import { BotonEnvio } from '@/components/BotonEnvio'
+import {
+  TARJETA,
+  ENTRADA,
+  BOTON_PRIMARIO,
+  BOTON_SECUNDARIO,
+  ENLACE,
+  ENLACE_TABLA,
+  TITULO_H1,
+  TITULO_H2,
+  BANNER_ERROR,
+  TABLA_CONTENEDOR,
+  TABLA_HEADER_FILA,
+  TABLA_HEADER_CELDA,
+  TABLA_FILA,
+  TABLA_CELDA,
+  TABLA_CELDA_PRINCIPAL,
+  BADGE_BASE,
+  BADGE_VERDE,
+  BADGE_AMARILLO,
+  BADGE_ROJO,
+  BADGE_GRIS,
+} from '@/lib/ui/clases'
 
 const COLUMNAS_ORDENABLES = ['identificador', 'ubicacion', 'precio_total', 'moneda', 'estado'] as const
 type ColumnaOrdenable = (typeof COLUMNAS_ORDENABLES)[number]
@@ -24,9 +46,6 @@ const ETIQUETAS_COLUMNA: Record<ColumnaOrdenable, string> = {
   moneda: 'Moneda',
   estado: 'Estado',
 }
-
-const INPUT_CLASE =
-  'mt-1 block rounded-lg border border-blue-100 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200'
 
 export default async function LotesPage({
   searchParams,
@@ -300,11 +319,11 @@ export default async function LotesPage({
   }
 
   function claseCobranza(cobranza: { saldoPendiente: number; marcadoPrejudicial: boolean; estadoCobranza: string }) {
-    if (cobranza.saldoPendiente === 0) return 'bg-slate-100 text-slate-600'
-    if (cobranza.marcadoPrejudicial) return 'bg-red-100 text-red-800 font-bold'
-    if (cobranza.estadoCobranza === 'normal') return 'bg-green-50 text-green-700'
-    if (cobranza.estadoCobranza === 'moroso') return 'bg-red-50 text-red-600 font-semibold'
-    return 'bg-amber-50 text-amber-700 font-semibold'
+    if (cobranza.saldoPendiente === 0) return `${BADGE_BASE} ${BADGE_GRIS}`
+    if (cobranza.marcadoPrejudicial) return `${BADGE_BASE} ${BADGE_ROJO} font-bold`
+    if (cobranza.estadoCobranza === 'normal') return `${BADGE_BASE} ${BADGE_VERDE}`
+    if (cobranza.estadoCobranza === 'moroso') return `${BADGE_BASE} ${BADGE_ROJO}`
+    return `${BADGE_BASE} ${BADGE_AMARILLO}`
   }
 
   function etiquetaCobranza(cobranza: { saldoPendiente: number; marcadoPrejudicial: boolean; estadoCobranza: string }) {
@@ -317,9 +336,9 @@ export default async function LotesPage({
 
   return (
     <main>
-      {error && <p className="mb-4 rounded-lg bg-red-50 p-3 text-sm text-red-700">{error}</p>}
+      {error && <p className={BANNER_ERROR}>{error}</p>}
 
-      <div className="mb-6 rounded-xl border border-blue-100 bg-white p-4 shadow-sm">
+      <div className={`mb-6 ${TARJETA}`}>
         {cotizacionHoy ? (
           <p className="mb-3 text-sm text-green-700">
             ✓ Cotización de hoy ({formatearFechaCorta(hoy)}) ya cargada:{' '}
@@ -347,35 +366,26 @@ export default async function LotesPage({
               placeholder="Ej: 1500"
               defaultValue={cotizacionHoy?.valor ?? ''}
               required
-              className={INPUT_CLASE}
+              className={ENTRADA}
             />
           </label>
-          <BotonEnvio className="cursor-pointer rounded-lg bg-blue-800 px-3 py-2 text-sm font-semibold text-white transition-colors hover:bg-blue-900">
+          <BotonEnvio className={`cursor-pointer ${BOTON_PRIMARIO}`}>
             {cotizacionHoy ? 'Corregir' : 'Cargar'}
           </BotonEnvio>
         </form>
-        <EnlaceBoton
-          href="/admin/cotizacion-dolar"
-          className="mt-2 inline-block text-sm font-medium text-blue-800 underline-offset-4 hover:text-blue-900 hover:underline"
-        >
+        <EnlaceBoton href="/admin/cotizacion-dolar" className={`mt-2 inline-block ${ENLACE}`}>
           Ver historial completo →
         </EnlaceBoton>
       </div>
 
       <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
-        <h1 className="text-xl font-extrabold text-blue-900">Lotes</h1>
+        <h1 className={TITULO_H1}>Lotes</h1>
         {!esVendedorOCobrador && (
           <div className="flex gap-3">
-            <EnlaceBoton
-              href="/admin/lotes/importar"
-              className="rounded-lg border border-blue-800 px-3 py-2 text-sm font-semibold text-blue-800 transition-colors hover:bg-blue-50"
-            >
+            <EnlaceBoton href="/admin/lotes/importar" className={`cursor-pointer ${BOTON_SECUNDARIO}`}>
               Importar varios
             </EnlaceBoton>
-            <EnlaceBoton
-              href="/admin/lotes/nuevo"
-              className="rounded-lg bg-blue-800 px-3 py-2 text-sm font-semibold text-white transition-colors hover:bg-blue-900"
-            >
+            <EnlaceBoton href="/admin/lotes/nuevo" className={`cursor-pointer ${BOTON_PRIMARIO}`}>
               + Nuevo lote
             </EnlaceBoton>
           </div>
@@ -384,40 +394,37 @@ export default async function LotesPage({
 
       {esVendedorOCobrador && (
         <>
-          <h2 className="mb-2 text-lg font-bold text-blue-900">Lotes que reservaste</h2>
+          <h2 className={`mb-2 ${TITULO_H2}`}>Lotes que reservaste</h2>
           {(misLotesReservados ?? []).length === 0 ? (
             <p className="mb-8 text-sm text-slate-600">Todavía no reservaste ningún lote.</p>
           ) : (
-            <div className="mb-8 overflow-x-auto rounded-xl border border-blue-100 bg-white shadow-sm">
+            <div className={`mb-8 ${TABLA_CONTENEDOR}`}>
               <table className="w-full text-sm">
                 <thead>
-                  <tr className="bg-blue-50 text-left text-blue-900">
-                    <th className="px-4 py-3 font-semibold">Identificador</th>
-                    <th className="px-4 py-3 font-semibold">Ubicación</th>
-                    <th className="px-4 py-3 font-semibold">Precio total</th>
-                    <th className="px-4 py-3 font-semibold">Moneda</th>
-                    <th className="px-4 py-3 font-semibold">Estado</th>
-                    <th className="px-4 py-3"></th>
+                  <tr className={TABLA_HEADER_FILA}>
+                    <th className={TABLA_HEADER_CELDA}>Identificador</th>
+                    <th className={TABLA_HEADER_CELDA}>Ubicación</th>
+                    <th className={TABLA_HEADER_CELDA}>Precio total</th>
+                    <th className={TABLA_HEADER_CELDA}>Moneda</th>
+                    <th className={TABLA_HEADER_CELDA}>Estado</th>
+                    <th className={TABLA_HEADER_CELDA}></th>
                   </tr>
                 </thead>
                 <tbody>
                   {misLotesReservados!.map((lote) => {
                     const cancelarReservaConId = cancelarReserva.bind(null, lote.id)
                     return (
-                      <tr key={lote.id} className="border-t border-blue-100 hover:bg-blue-50/40">
-                        <td className="px-4 py-3 font-medium text-slate-800">{lote.identificador}</td>
-                        <td className="px-4 py-3 text-slate-600">{lote.ubicacion ?? '—'}</td>
-                        <td className="px-4 py-3 text-slate-600">
+                      <tr key={lote.id} className={TABLA_FILA}>
+                        <td className={TABLA_CELDA_PRINCIPAL}>{lote.identificador}</td>
+                        <td className={TABLA_CELDA}>{lote.ubicacion ?? '—'}</td>
+                        <td className={TABLA_CELDA}>
                           {lote.precio_total ? `${lote.precio_total} ${lote.moneda}` : '—'}
                         </td>
-                        <td className="px-4 py-3 text-slate-600">{lote.moneda}</td>
-                        <td className="px-4 py-3 text-slate-600">{lote.estado}</td>
-                        <td className="px-4 py-3">
+                        <td className={TABLA_CELDA}>{lote.moneda}</td>
+                        <td className={TABLA_CELDA}>{lote.estado}</td>
+                        <td className={TABLA_CELDA}>
                           <div className="flex flex-wrap items-center gap-3">
-                            <EnlaceBoton
-                              href={`/admin/lotes/${lote.id}/info`}
-                              className="text-sm font-medium text-blue-800 underline-offset-4 hover:text-blue-900 hover:underline"
-                            >
+                            <EnlaceBoton href={`/admin/lotes/${lote.id}/info`} className={ENLACE}>
                               Ver información del lote →
                             </EnlaceBoton>
                             {lote.estado === 'reservado' && (
@@ -432,11 +439,11 @@ export default async function LotesPage({
               </table>
             </div>
           )}
-          <h2 className="mb-2 text-lg font-bold text-blue-900">Lotes disponibles y reservados</h2>
+          <h2 className={`mb-2 ${TITULO_H2}`}>Lotes disponibles y reservados</h2>
         </>
       )}
 
-      <FiltroEnVivo className="mb-4 flex flex-wrap items-end gap-3 rounded-xl border border-blue-100 bg-white p-4 shadow-sm">
+      <FiltroEnVivo className={`mb-4 flex flex-wrap items-end gap-3 ${TARJETA}`}>
         <input type="hidden" name="sort" value={columnaOrden} />
         <input type="hidden" name="dir" value={ordenAscendente ? 'asc' : 'desc'} />
         <label className="text-sm text-slate-600">
@@ -446,12 +453,12 @@ export default async function LotesPage({
             name="q"
             placeholder="Buscar identificador"
             defaultValue={filtroTexto ?? ''}
-            className={INPUT_CLASE}
+            className={ENTRADA}
           />
         </label>
         <label className="text-sm text-slate-600">
           Moneda
-          <select name="moneda" defaultValue={filtroMoneda ?? ''} className={INPUT_CLASE}>
+          <select name="moneda" defaultValue={filtroMoneda ?? ''} className={ENTRADA}>
             <option value="">Todas</option>
             <option value="USD">USD</option>
             <option value="ARS">ARS</option>
@@ -460,7 +467,7 @@ export default async function LotesPage({
         {perfilPropio!.role !== 'acreedor' && (
           <label className="text-sm text-slate-600">
             Acreedor
-            <select name="acreedor" defaultValue={filtroAcreedorId ?? ''} className={INPUT_CLASE}>
+            <select name="acreedor" defaultValue={filtroAcreedorId ?? ''} className={ENTRADA}>
               <option value="">Todos</option>
               {(todosLosAcreedores ?? []).map((persona) => (
                 <option key={persona.id} value={persona.id}>
@@ -473,7 +480,7 @@ export default async function LotesPage({
         {!esVendedorOCobrador && (
           <label className="text-sm text-slate-600">
             Loteo
-            <select name="loteo" defaultValue={filtroLoteoId ?? ''} className={INPUT_CLASE}>
+            <select name="loteo" defaultValue={filtroLoteoId ?? ''} className={ENTRADA}>
               <option value="">Todos</option>
               {(todosLosLoteos ?? []).map((loteo) => (
                 <option key={loteo.id} value={loteo.id}>
@@ -491,14 +498,14 @@ export default async function LotesPage({
               name="cliente"
               placeholder="Nombre del cliente"
               defaultValue={filtroCliente ?? ''}
-              className={INPUT_CLASE}
+              className={ENTRADA}
             />
           </label>
         )}
         {!esVendedorOCobrador && (
           <label className="text-sm text-slate-600">
             Estado
-            <select name="estado" defaultValue={filtroEstado ?? ''} className={INPUT_CLASE}>
+            <select name="estado" defaultValue={filtroEstado ?? ''} className={ENTRADA}>
               <option value="">Todos</option>
               <option value="disponible">Disponible</option>
               <option value="reservado">Reservado</option>
@@ -510,7 +517,7 @@ export default async function LotesPage({
         {!esVendedorOCobrador && (
           <label className="text-sm text-slate-600">
             Cobranza
-            <select name="cobranza" defaultValue={filtroCobranza ?? ''} className={INPUT_CLASE}>
+            <select name="cobranza" defaultValue={filtroCobranza ?? ''} className={ENTRADA}>
               <option value="">Todas</option>
               <option value="pagado">Pagado</option>
               <option value="al_dia">Al día</option>
@@ -520,10 +527,7 @@ export default async function LotesPage({
             </select>
           </label>
         )}
-        <button
-          type="submit"
-          className="cursor-pointer rounded-lg border border-blue-800 px-3 py-2 text-sm font-semibold text-blue-800 transition-colors hover:bg-blue-50"
-        >
+        <button type="submit" className={`cursor-pointer ${BOTON_SECUNDARIO}`}>
           Filtrar
         </button>
         {(filtroMoneda ||
@@ -535,10 +539,7 @@ export default async function LotesPage({
           filtroTexto ||
           sort ||
           dir) && (
-          <EnlaceBoton
-            href="/admin/lotes"
-            className="text-sm font-medium text-blue-800 underline-offset-4 hover:text-blue-900 hover:underline"
-          >
+          <EnlaceBoton href="/admin/lotes" className={ENLACE}>
             Limpiar filtros y orden
           </EnlaceBoton>
         )}
@@ -547,27 +548,24 @@ export default async function LotesPage({
       {lotesFiltrados.length === 0 && (filtroCliente || filtroCobranza || filtroEstado) ? (
         <p className="text-sm text-slate-600">Ningún lote coincide con los filtros.</p>
       ) : (
-        <div className="overflow-x-auto rounded-xl border border-blue-100 bg-white shadow-sm">
+        <div className={TABLA_CONTENEDOR}>
           <table className="w-full text-sm">
             <thead>
-              <tr className="bg-blue-50 text-left text-blue-900">
-                {!esVendedorOCobrador && <th className="px-4 py-3 font-semibold">Loteo</th>}
+              <tr className={TABLA_HEADER_FILA}>
+                {!esVendedorOCobrador && <th className={TABLA_HEADER_CELDA}>Loteo</th>}
                 {COLUMNAS_ORDENABLES.map((columna) => (
-                  <th key={columna} className="px-4 py-3 font-semibold">
-                    <EnlaceBoton
-                      href={urlOrden(columna)}
-                      className="text-blue-900 underline-offset-4 hover:underline"
-                    >
+                  <th key={columna} className={TABLA_HEADER_CELDA}>
+                    <EnlaceBoton href={urlOrden(columna)} className="text-white underline-offset-4 hover:underline">
                       {ETIQUETAS_COLUMNA[columna]}
                       {columnaOrden === columna ? (ordenAscendente ? ' ▲' : ' ▼') : ''}
                     </EnlaceBoton>
                   </th>
                 ))}
-                {!esVendedorOCobrador && <th className="px-4 py-3 font-semibold">Acreedor</th>}
-                {!esVendedorOCobrador && <th className="px-4 py-3 font-semibold">Cuotas</th>}
-                {esAdministrador && <th className="px-4 py-3 font-semibold">Cliente</th>}
-                {!esVendedorOCobrador && <th className="px-4 py-3 font-semibold">Cobranza</th>}
-                <th className="px-4 py-3"></th>
+                {!esVendedorOCobrador && <th className={TABLA_HEADER_CELDA}>Acreedor</th>}
+                {!esVendedorOCobrador && <th className={TABLA_HEADER_CELDA}>Cuotas</th>}
+                {esAdministrador && <th className={TABLA_HEADER_CELDA}>Cliente</th>}
+                {!esVendedorOCobrador && <th className={TABLA_HEADER_CELDA}>Cobranza</th>}
+                <th className={TABLA_HEADER_CELDA}></th>
               </tr>
             </thead>
             <tbody>
@@ -575,27 +573,24 @@ export default async function LotesPage({
                 const eliminarLoteConId = eliminarLote.bind(null, lote.id)
                 const cobranza = cobranzaPorLote.get(lote.id)
                 return (
-                  <tr key={lote.id} className="border-t border-blue-100 hover:bg-blue-50/40">
+                  <tr key={lote.id} className={TABLA_FILA}>
                     {!esVendedorOCobrador && (
-                      <td className="px-4 py-3 text-slate-600">
+                      <td className={TABLA_CELDA}>
                         {lote.loteo_id ? nombreLoteoPorId.get(lote.loteo_id) ?? '—' : '— sin asignar —'}
                       </td>
                     )}
-                    <td className="px-4 py-3 font-medium text-slate-800">{lote.identificador}</td>
-                    <td className="px-4 py-3 text-slate-600">{lote.ubicacion ?? '—'}</td>
-                    <td className="px-4 py-3 text-slate-600">
+                    <td className={TABLA_CELDA_PRINCIPAL}>{lote.identificador}</td>
+                    <td className={TABLA_CELDA}>{lote.ubicacion ?? '—'}</td>
+                    <td className={TABLA_CELDA}>
                       {lote.precio_total ? `${lote.precio_total} ${lote.moneda}` : '—'}
                     </td>
-                    <td className="px-4 py-3 text-slate-600">{lote.moneda}</td>
-                    <td className="px-4 py-3 text-slate-600">{lote.estado}</td>
+                    <td className={TABLA_CELDA}>{lote.moneda}</td>
+                    <td className={TABLA_CELDA}>{lote.estado}</td>
                     {!esVendedorOCobrador && (
-                      <td className="px-4 py-3">
+                      <td className={TABLA_CELDA}>
                         {lote.acreedor_id ? (
                           esAdministrador ? (
-                            <EnlaceBoton
-                              href={`/admin/usuarios?editar=${lote.acreedor_id}`}
-                              className="text-blue-800 underline-offset-4 hover:underline"
-                            >
+                            <EnlaceBoton href={`/admin/usuarios?editar=${lote.acreedor_id}`} className={ENLACE_TABLA}>
                               {nombreAcreedorPorId.get(lote.acreedor_id) ?? '—'}
                             </EnlaceBoton>
                           ) : (
@@ -606,14 +601,11 @@ export default async function LotesPage({
                         )}
                       </td>
                     )}
-                    {!esVendedorOCobrador && <td className="px-4 py-3 text-slate-600">{lote.cantidad_cuotas}</td>}
+                    {!esVendedorOCobrador && <td className={TABLA_CELDA}>{lote.cantidad_cuotas}</td>}
                     {esAdministrador && (
-                      <td className="px-4 py-3">
+                      <td className={TABLA_CELDA}>
                         {lote.estado === 'vendido' && lote.cliente_id ? (
-                          <EnlaceBoton
-                            href={`/admin/clientes/${lote.cliente_id}`}
-                            className="text-blue-800 underline-offset-4 hover:underline"
-                          >
+                          <EnlaceBoton href={`/admin/clientes/${lote.cliente_id}`} className={ENLACE_TABLA}>
                             {clientePorId.get(lote.cliente_id)?.full_name ?? '—'}
                           </EnlaceBoton>
                         ) : (
@@ -622,18 +614,16 @@ export default async function LotesPage({
                       </td>
                     )}
                     {!esVendedorOCobrador && (
-                      <td className="px-4 py-3">
+                      <td className={TABLA_CELDA}>
                         {cobranza ? (
                           <div className="flex items-center gap-2">
-                            <span className={`rounded-full px-2.5 py-1 text-xs ${claseCobranza(cobranza)}`}>
-                              {etiquetaCobranza(cobranza)}
-                            </span>
+                            <span className={claseCobranza(cobranza)}>{etiquetaCobranza(cobranza)}</span>
                             {cobranza.mensajeWhatsApp && cobranza.telefono && (
                               <a
                                 href={armarLinkWhatsApp(cobranza.telefono, cobranza.mensajeWhatsApp)}
                                 target="_blank"
                                 rel="noopener noreferrer"
-                                className="text-sm font-medium text-blue-800 underline-offset-4 hover:text-blue-900 hover:underline"
+                                className={ENLACE}
                               >
                                 WhatsApp
                               </a>
@@ -644,51 +634,33 @@ export default async function LotesPage({
                         )}
                       </td>
                     )}
-                    <td className="px-4 py-3">
+                    <td className={TABLA_CELDA}>
                       {esVendedorOCobrador ? (
                         <div className="flex flex-wrap items-center gap-3">
-                          <EnlaceBoton
-                            href={`/admin/lotes/${lote.id}/info`}
-                            className="text-sm font-medium text-blue-800 underline-offset-4 hover:text-blue-900 hover:underline"
-                          >
+                          <EnlaceBoton href={`/admin/lotes/${lote.id}/info`} className={ENLACE}>
                             Ver información del lote →
                           </EnlaceBoton>
                           {lote.estado === 'disponible' && (
-                            <EnlaceBoton
-                              href={`/admin/lotes/${lote.id}/reservar`}
-                              className="text-sm font-medium text-blue-800 underline-offset-4 hover:text-blue-900 hover:underline"
-                            >
+                            <EnlaceBoton href={`/admin/lotes/${lote.id}/reservar`} className={ENLACE}>
                               Reservar
                             </EnlaceBoton>
                           )}
                         </div>
                       ) : (
                         <div className="flex flex-wrap items-center gap-3">
-                          <EnlaceBoton
-                            href={`/admin/lotes/${lote.id}/info`}
-                            className="text-sm font-medium text-blue-800 underline-offset-4 hover:text-blue-900 hover:underline"
-                          >
+                          <EnlaceBoton href={`/admin/lotes/${lote.id}/info`} className={ENLACE}>
                             Ver información del lote →
                           </EnlaceBoton>
-                          <EnlaceBoton
-                            href={`/admin/lotes/${lote.id}`}
-                            className="text-sm font-medium text-blue-800 underline-offset-4 hover:text-blue-900 hover:underline"
-                          >
+                          <EnlaceBoton href={`/admin/lotes/${lote.id}`} className={ENLACE}>
                             Ver detalle
                           </EnlaceBoton>
                           {lote.estado === 'disponible' && (
-                            <EnlaceBoton
-                              href={`/admin/lotes/${lote.id}/reservar`}
-                              className="text-sm font-medium text-blue-800 underline-offset-4 hover:text-blue-900 hover:underline"
-                            >
+                            <EnlaceBoton href={`/admin/lotes/${lote.id}/reservar`} className={ENLACE}>
                               Reservar
                             </EnlaceBoton>
                           )}
                           {perfilPropio!.role === 'administrador' && lote.estado === 'reservado' && (
-                            <EnlaceBoton
-                              href={`/admin/lotes/${lote.id}/vender`}
-                              className="text-sm font-medium text-blue-800 underline-offset-4 hover:text-blue-900 hover:underline"
-                            >
+                            <EnlaceBoton href={`/admin/lotes/${lote.id}/vender`} className={ENLACE}>
                               Vender / asignar cliente
                             </EnlaceBoton>
                           )}
