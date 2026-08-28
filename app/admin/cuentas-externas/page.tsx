@@ -2,6 +2,21 @@ import { createClient } from '@/lib/supabase/server'
 import { requireAdministrador } from '@/lib/auth/require-admin'
 import { calcularSaldoPorMoneda } from '@/lib/cuentas-externas/calcular-saldo'
 import { FiltroEnVivo } from '@/components/FiltroEnVivo'
+import { EnlaceBoton } from '@/components/EnlaceBoton'
+import {
+  ENTRADA,
+  BOTON_PRIMARIO,
+  BOTON_SECUNDARIO,
+  ENLACE,
+  ENLACE_TABLA,
+  TITULO_H1,
+  TABLA_CONTENEDOR,
+  TABLA_HEADER_FILA,
+  TABLA_HEADER_CELDA,
+  TABLA_FILA,
+  TABLA_CELDA,
+  TABLA_CELDA_PRINCIPAL,
+} from '@/lib/ui/clases'
 
 export default async function CuentasExternasPage({
   searchParams,
@@ -47,60 +62,56 @@ export default async function CuentasExternasPage({
   return (
     <main className="max-w-2xl">
       <div className="mb-6 flex items-center justify-between">
-        <h1 className="text-xl font-semibold">Cuentas externas</h1>
-        <a href="/admin/cuentas-externas/nuevo" className="rounded bg-black px-3 py-2 text-sm text-white">
+        <h1 className={TITULO_H1}>Cuentas externas</h1>
+        <EnlaceBoton href="/admin/cuentas-externas/nuevo" className={`cursor-pointer ${BOTON_PRIMARIO}`}>
           + Nueva cuenta externa
-        </a>
+        </EnlaceBoton>
       </div>
 
       <FiltroEnVivo className="mb-4 flex items-end gap-3">
-        <label className="text-sm">
+        <label className="text-sm text-slate-600">
           Buscar
-          <input
-            type="text"
-            name="q"
-            placeholder="Nombre"
-            defaultValue={filtroTexto ?? ''}
-            className="mt-1 block rounded border px-3 py-2"
-          />
+          <input type="text" name="q" placeholder="Nombre" defaultValue={filtroTexto ?? ''} className={ENTRADA} />
         </label>
-        <button type="submit" className="rounded border px-3 py-2 text-sm">
+        <button type="submit" className={`cursor-pointer ${BOTON_SECUNDARIO}`}>
           Filtrar
         </button>
         {filtroTexto && (
-          <a href="/admin/cuentas-externas" className="text-sm underline">
+          <EnlaceBoton href="/admin/cuentas-externas" className={ENLACE}>
             Limpiar
-          </a>
+          </EnlaceBoton>
         )}
       </FiltroEnVivo>
 
       {(cuentasExternas ?? []).length === 0 ? (
-        <p className="text-sm text-gray-600">
+        <p className="text-sm text-slate-600">
           {filtroTexto ? 'Ninguna cuenta externa coincide con la búsqueda.' : 'Todavía no hay ninguna cuenta externa cargada.'}
         </p>
       ) : (
-        <table className="w-full text-sm">
-          <thead>
-            <tr className="border-b text-left">
-              <th className="py-2">Nombre</th>
-              <th>Saldo</th>
-              <th></th>
-            </tr>
-          </thead>
-          <tbody>
-            {cuentasExternas!.map((cuentaExterna) => (
-              <tr key={cuentaExterna.id} className="border-b">
-                <td className="py-2">{cuentaExterna.nombre}</td>
-                <td>{formatearSaldo(cuentaExterna.id)}</td>
-                <td>
-                  <a href={`/admin/cuentas-externas/${cuentaExterna.id}`} className="underline">
-                    Ver detalle
-                  </a>
-                </td>
+        <div className={TABLA_CONTENEDOR}>
+          <table className="w-full text-sm">
+            <thead>
+              <tr className={TABLA_HEADER_FILA}>
+                <th className={TABLA_HEADER_CELDA}>Nombre</th>
+                <th className={TABLA_HEADER_CELDA}>Saldo</th>
+                <th className={TABLA_HEADER_CELDA}></th>
               </tr>
-            ))}
-          </tbody>
-        </table>
+            </thead>
+            <tbody>
+              {cuentasExternas!.map((cuentaExterna) => (
+                <tr key={cuentaExterna.id} className={TABLA_FILA}>
+                  <td className={TABLA_CELDA_PRINCIPAL}>{cuentaExterna.nombre}</td>
+                  <td className={TABLA_CELDA}>{formatearSaldo(cuentaExterna.id)}</td>
+                  <td className={TABLA_CELDA}>
+                    <EnlaceBoton href={`/admin/cuentas-externas/${cuentaExterna.id}`} className={ENLACE_TABLA}>
+                      Ver detalle
+                    </EnlaceBoton>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
       )}
     </main>
   )

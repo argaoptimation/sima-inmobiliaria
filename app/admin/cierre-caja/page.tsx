@@ -2,6 +2,21 @@ import { createClient } from '@/lib/supabase/server'
 import { requireAdminOCobrador } from '@/lib/auth/require-admin'
 import { FiltroEnVivo } from '@/components/FiltroEnVivo'
 import { hoyArgentina as hoyISO, fechaEnArgentina } from '@/lib/fecha/hoy-argentina'
+import { EnlaceBoton } from '@/components/EnlaceBoton'
+import {
+  ENTRADA,
+  ENLACE,
+  ENLACE_TABLA,
+  TITULO_H1,
+  TITULO_H2,
+  TARJETA,
+  TABLA_CONTENEDOR,
+  TABLA_HEADER_FILA,
+  TABLA_HEADER_CELDA,
+  TABLA_FILA,
+  TABLA_CELDA,
+  TABLA_CELDA_PRINCIPAL,
+} from '@/lib/ui/clases'
 
 export default async function CierreCajaPage({
   searchParams,
@@ -81,36 +96,30 @@ export default async function CierreCajaPage({
 
   return (
     <main>
-      <h1 className="mb-2 text-xl font-semibold">Cierre de caja</h1>
-      <p className="mb-6 text-sm text-gray-600">
+      <h1 className={`mb-2 ${TITULO_H1}`}>Cierre de caja</h1>
+      <p className="mb-6 text-sm text-slate-600">
         Resumen de lo recibido en el día — efectivo y transferencias por separado, una caja única
         para toda la operación.
       </p>
 
       <FiltroEnVivo className="mb-6 flex items-end gap-3">
-        <label className="text-sm">
+        <label className="text-sm text-slate-600">
           Fecha
-          <input
-            type="date"
-            name="fecha"
-            defaultValue={fecha}
-            max={hoyISO()}
-            className="mt-1 block rounded border px-3 py-2"
-          />
+          <input type="date" name="fecha" defaultValue={fecha} max={hoyISO()} className={ENTRADA} />
         </label>
       </FiltroEnVivo>
 
       <div className="mb-6 grid gap-4 sm:grid-cols-2">
-        <div className="rounded border border-gray-200 bg-gray-50 p-4">
-          <h2 className="mb-2 text-base font-semibold">Efectivo</h2>
+        <div className={TARJETA}>
+          <h2 className="mb-2 text-base font-semibold text-blue-900">Efectivo</h2>
           {totalesEfectivo.length === 0 ? (
-            <p className="text-sm text-gray-600">Sin efectivo recibido este día.</p>
+            <p className="text-sm text-slate-600">Sin efectivo recibido este día.</p>
           ) : (
             <ul className="text-sm">
               {totalesEfectivo.map(([clave, total]) => {
                 const moneda = clave.split('|')[1]
                 return (
-                  <li key={clave} className="font-semibold">
+                  <li key={clave} className="font-semibold text-slate-800">
                     {total} {moneda}
                   </li>
                 )
@@ -118,16 +127,16 @@ export default async function CierreCajaPage({
             </ul>
           )}
         </div>
-        <div className="rounded border border-gray-200 bg-gray-50 p-4">
-          <h2 className="mb-2 text-base font-semibold">Transferencias</h2>
+        <div className={TARJETA}>
+          <h2 className="mb-2 text-base font-semibold text-blue-900">Transferencias</h2>
           {totalesTransferencia.length === 0 ? (
-            <p className="text-sm text-gray-600">Sin transferencias recibidas este día.</p>
+            <p className="text-sm text-slate-600">Sin transferencias recibidas este día.</p>
           ) : (
             <ul className="text-sm">
               {totalesTransferencia.map(([clave, total]) => {
                 const moneda = clave.split('|')[1]
                 return (
-                  <li key={clave} className="font-semibold">
+                  <li key={clave} className="font-semibold text-slate-800">
                     {total} {moneda}
                   </li>
                 )
@@ -138,42 +147,44 @@ export default async function CierreCajaPage({
       </div>
 
       <div className="mb-2 flex items-center justify-between">
-        <h2 className="text-lg font-semibold">Detalle del día</h2>
-        <a href={`/admin/cierre-caja/export?fecha=${fecha}`} className="text-sm underline">
+        <h2 className={TITULO_H2}>Detalle del día</h2>
+        <a href={`/admin/cierre-caja/export?fecha=${fecha}`} className={ENLACE}>
           Descargar Excel →
         </a>
       </div>
       {pagosDelDia.length === 0 ? (
-        <p className="text-sm text-gray-600">Ningún pago confirmado este día.</p>
+        <p className="text-sm text-slate-600">Ningún pago confirmado este día.</p>
       ) : (
-        <table className="w-full text-sm">
-          <thead>
-            <tr className="border-b text-left">
-              <th className="py-2">Lote</th>
-              <th>Cliente</th>
-              <th>Medio</th>
-              <th>Motivo</th>
-              <th>Monto</th>
-            </tr>
-          </thead>
-          <tbody>
-            {pagosDelDia.map((pago) => (
-              <tr key={pago.id} className="border-b">
-                <td className="py-2">
-                  <a href={`/admin/lotes/${pago.lote_id}`} className="underline">
-                    {pago.lotes?.identificador ?? '—'}
-                  </a>
-                </td>
-                <td>{nombreClientePorId.get(pago.cliente_id) ?? '—'}</td>
-                <td>{pago.medio_pago === 'efectivo' ? 'Efectivo' : 'Transferencia'}</td>
-                <td>{MOTIVO_ETIQUETA[pago.motivo] ?? pago.motivo}</td>
-                <td>
-                  {pago.monto} {pago.moneda}
-                </td>
+        <div className={TABLA_CONTENEDOR}>
+          <table className="w-full text-sm">
+            <thead>
+              <tr className={TABLA_HEADER_FILA}>
+                <th className={TABLA_HEADER_CELDA}>Lote</th>
+                <th className={TABLA_HEADER_CELDA}>Cliente</th>
+                <th className={TABLA_HEADER_CELDA}>Medio</th>
+                <th className={TABLA_HEADER_CELDA}>Motivo</th>
+                <th className={TABLA_HEADER_CELDA}>Monto</th>
               </tr>
-            ))}
-          </tbody>
-        </table>
+            </thead>
+            <tbody>
+              {pagosDelDia.map((pago) => (
+                <tr key={pago.id} className={TABLA_FILA}>
+                  <td className={TABLA_CELDA_PRINCIPAL}>
+                    <EnlaceBoton href={`/admin/lotes/${pago.lote_id}`} className={ENLACE_TABLA}>
+                      {pago.lotes?.identificador ?? '—'}
+                    </EnlaceBoton>
+                  </td>
+                  <td className={TABLA_CELDA}>{nombreClientePorId.get(pago.cliente_id) ?? '—'}</td>
+                  <td className={TABLA_CELDA}>{pago.medio_pago === 'efectivo' ? 'Efectivo' : 'Transferencia'}</td>
+                  <td className={TABLA_CELDA}>{MOTIVO_ETIQUETA[pago.motivo] ?? pago.motivo}</td>
+                  <td className={TABLA_CELDA}>
+                    {pago.monto} {pago.moneda}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
       )}
     </main>
   )

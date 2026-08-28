@@ -1,5 +1,8 @@
 import { requireAdministrador } from '@/lib/auth/require-admin'
 import { crearCuentaExterna } from '../actions'
+import { EnlaceBoton } from '@/components/EnlaceBoton'
+import { BotonEnvio } from '@/components/BotonEnvio'
+import { ENTRADA, BOTON_PRIMARIO, ENLACE, TITULO_H1, BANNER_ERROR } from '@/lib/ui/clases'
 
 export default async function NuevaCuentaExternaPage({
   searchParams,
@@ -11,72 +14,60 @@ export default async function NuevaCuentaExternaPage({
 
   return (
     <main className="max-w-md">
-      <a href="/admin/cuentas-externas" className="mb-4 inline-block text-sm underline">
+      <EnlaceBoton href="/admin/cuentas-externas" className={`mb-4 inline-block ${ENLACE}`}>
         ← Volver a Cuentas externas
-      </a>
-      <h1 className="mb-6 text-xl font-semibold">Nueva cuenta externa</h1>
-      {error && <p className="mb-4 rounded bg-red-100 p-2 text-sm text-red-700">{error}</p>}
+      </EnlaceBoton>
+      <h1 className={`mb-6 ${TITULO_H1}`}>Nueva cuenta externa</h1>
+      {error && <p className={BANNER_ERROR}>{error}</p>}
       <form action={crearCuentaExterna} className="flex flex-col gap-3">
-        <label className="text-sm">
+        <label className="text-sm text-slate-600">
           Nombre del destinatario
-          <input name="nombre" required className="mt-1 block w-full rounded border px-3 py-2" />
+          <input name="nombre" required className={`w-full ${ENTRADA}`} />
         </label>
-        <label className="text-sm">
+        <label className="text-sm text-slate-600">
           Titular de la cuenta
-          <input name="titular" className="mt-1 block w-full rounded border px-3 py-2" />
+          <input name="titular" className={`w-full ${ENTRADA}`} />
         </label>
-        <label className="text-sm">
+        <label className="text-sm text-slate-600">
           Alias
-          <input name="alias" className="mt-1 block w-full rounded border px-3 py-2" />
+          <input name="alias" className={`w-full ${ENTRADA}`} />
         </label>
-        <label className="text-sm">
+        <label className="text-sm text-slate-600">
           Banco
-          <input name="banco" className="mt-1 block w-full rounded border px-3 py-2" />
+          <input name="banco" className={`w-full ${ENTRADA}`} />
         </label>
-        <label className="text-sm">
+        <label className="text-sm text-slate-600">
           CBU (opcional)
-          <input name="cbu" className="mt-1 block w-full rounded border px-3 py-2" />
+          <input name="cbu" className={`w-full ${ENTRADA}`} />
         </label>
-        <h2 className="mt-4 text-sm font-semibold">Movimiento inicial (opcional)</h2>
-        <label className="text-sm">
+        <h2 className="mt-4 text-sm font-semibold text-slate-700">Movimiento inicial (opcional)</h2>
+        <label className="text-sm text-slate-600">
           Tipo
-          <select
-            name="deudaInicialTipo"
-            defaultValue="debito"
-            className="mt-1 block w-full rounded border px-3 py-2"
-          >
+          <select name="deudaInicialTipo" defaultValue="debito" className={`w-full ${ENTRADA}`}>
             <option value="debito">Débito — le debemos nosotros a esta cuenta</option>
             <option value="credito">Crédito — esta cuenta nos debe a nosotros</option>
           </select>
         </label>
-        <label className="text-sm">
+        <label className="text-sm text-slate-600">
           Monto
-          <input
-            name="deudaInicialMonto"
-            type="number"
-            step="0.01"
-            min="0"
-            className="mt-1 block w-full rounded border px-3 py-2"
-          />
+          <input name="deudaInicialMonto" type="number" step="0.01" min="0" className={`w-full ${ENTRADA}`} />
         </label>
-        <label className="text-sm">
+        <label className="text-sm text-slate-600">
           Moneda
-          <select name="deudaInicialMoneda" defaultValue="USD" className="mt-1 block w-full rounded border px-3 py-2">
+          <select name="deudaInicialMoneda" defaultValue="USD" className={`w-full ${ENTRADA}`}>
             <option value="USD">USD</option>
             <option value="ARS">ARS</option>
           </select>
         </label>
-        <label className="text-sm">
+        <label className="text-sm text-slate-600">
           Concepto
           <input
             name="deudaInicialConcepto"
             placeholder="Ej: Materiales de construcción"
-            className="mt-1 block w-full rounded border px-3 py-2"
+            className={`w-full ${ENTRADA}`}
           />
         </label>
-        <button type="submit" className="self-start rounded bg-black px-3 py-2 text-sm text-white">
-          Crear cuenta externa
-        </button>
+        <BotonEnvio className={`cursor-pointer self-start ${BOTON_PRIMARIO}`}>Crear cuenta externa</BotonEnvio>
       </form>
     </main>
   )

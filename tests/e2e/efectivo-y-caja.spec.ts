@@ -122,7 +122,7 @@ test.describe('Efectivo y cierre de caja (25/08)', () => {
     // Scoped a la tabla de "Historial de pagos" en particular -- la de
     // Cuotas también tiene una columna con "1000 USD" (monto base).
     const filaHistorialPago = page
-      .locator('h2:has-text("Historial de pagos") ~ table tbody tr')
+      .locator('h2:has-text("Historial de pagos") ~ div table tbody tr')
       .filter({ hasText: '1000 USD' })
     await expect(filaHistorialPago).toBeVisible()
     await expect(filaHistorialPago.getByText('Efectivo', { exact: true })).toBeVisible()

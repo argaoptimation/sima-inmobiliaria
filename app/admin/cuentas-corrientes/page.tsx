@@ -3,6 +3,20 @@ import { requireAdministrador } from '@/lib/auth/require-admin'
 import { calcularSaldoCuentaCorrientePorMoneda } from '@/lib/cuenta-corriente/calcular-saldo'
 import { obtenerCuotasSinDistribucion } from '@/lib/cuenta-corriente/cuotas-sin-distribucion'
 import { FiltroEnVivo } from '@/components/FiltroEnVivo'
+import { EnlaceBoton } from '@/components/EnlaceBoton'
+import {
+  ENTRADA,
+  BOTON_SECUNDARIO,
+  ENLACE,
+  ENLACE_TABLA,
+  TITULO_H1,
+  TABLA_CONTENEDOR,
+  TABLA_HEADER_FILA,
+  TABLA_HEADER_CELDA,
+  TABLA_FILA,
+  TABLA_CELDA,
+  TABLA_CELDA_PRINCIPAL,
+} from '@/lib/ui/clases'
 
 export default async function CuentasCorrientesPage({
   searchParams,
@@ -42,10 +56,10 @@ export default async function CuentasCorrientesPage({
 
   return (
     <main className="max-w-3xl">
-      <h1 className="mb-6 text-xl font-semibold">Cuentas corrientes</h1>
+      <h1 className={`mb-6 ${TITULO_H1}`}>Cuentas corrientes</h1>
 
       {cuotasSinDistribucion.length > 0 && (
-        <div className="mb-6 rounded bg-amber-100 p-3 text-sm text-amber-800">
+        <div className="mb-6 rounded-lg bg-amber-50 p-3 text-sm text-amber-800">
           <p className="mb-1 font-semibold">
             {cuotasSinDistribucion.length} cuota{cuotasSinDistribucion.length > 1 ? 's' : ''} cobrada
             {cuotasSinDistribucion.length > 1 ? 's' : ''} sin distribución cargada:
@@ -53,9 +67,9 @@ export default async function CuentasCorrientesPage({
           <ul className="list-inside list-disc">
             {cuotasSinDistribucion.map((cuota) => (
               <li key={cuota.cuotaId}>
-                <a href={`/admin/lotes/${cuota.loteId}/distribucion`} className="underline">
+                <EnlaceBoton href={`/admin/lotes/${cuota.loteId}/distribucion`} className={ENLACE}>
                   {cuota.loteIdentificador} — cuota {cuota.numero}
-                </a>
+                </EnlaceBoton>
               </li>
             ))}
           </ul>
@@ -63,60 +77,56 @@ export default async function CuentasCorrientesPage({
       )}
 
       <FiltroEnVivo className="mb-4 flex items-end gap-3">
-        <label className="text-sm">
+        <label className="text-sm text-slate-600">
           Buscar
-          <input
-            type="text"
-            name="q"
-            placeholder="Nombre"
-            defaultValue={filtroTexto ?? ''}
-            className="mt-1 block rounded border px-3 py-2"
-          />
+          <input type="text" name="q" placeholder="Nombre" defaultValue={filtroTexto ?? ''} className={ENTRADA} />
         </label>
-        <button type="submit" className="rounded border px-3 py-2 text-sm">
+        <button type="submit" className={`cursor-pointer ${BOTON_SECUNDARIO}`}>
           Filtrar
         </button>
         {filtroTexto && (
-          <a href="/admin/cuentas-corrientes" className="text-sm underline">
+          <EnlaceBoton href="/admin/cuentas-corrientes" className={ENLACE}>
             Limpiar
-          </a>
+          </EnlaceBoton>
         )}
       </FiltroEnVivo>
 
       {(personas ?? []).length === 0 && filtroTexto ? (
-        <p className="text-sm text-gray-600">Nadie coincide con la búsqueda.</p>
+        <p className="text-sm text-slate-600">Nadie coincide con la búsqueda.</p>
       ) : (
-      <table className="w-full text-sm">
-        <thead>
-          <tr className="border-b text-left">
-            <th className="py-2">Nombre</th>
-            <th>Rol</th>
-            <th>Saldo</th>
-          </tr>
-        </thead>
-        <tbody>
-          {(personas ?? []).map((persona) => {
-            const saldos = calcularSaldoCuentaCorrientePorMoneda(movimientosPorPersona.get(persona.id) ?? [])
-            const entradasSaldo = Object.entries(saldos).filter(([, monto]) => monto !== 0)
-
-            return (
-              <tr key={persona.id} className="border-b">
-                <td className="py-2">
-                  <a href={`/admin/cuentas-corrientes/${persona.id}`} className="underline">
-                    {persona.full_name}
-                  </a>
-                </td>
-                <td>{persona.role}</td>
-                <td>
-                  {entradasSaldo.length === 0
-                    ? 'Sin movimientos'
-                    : entradasSaldo.map(([moneda, monto]) => `${monto} ${moneda}`).join(' / ')}
-                </td>
+        <div className={TABLA_CONTENEDOR}>
+          <table className="w-full text-sm">
+            <thead>
+              <tr className={TABLA_HEADER_FILA}>
+                <th className={TABLA_HEADER_CELDA}>Nombre</th>
+                <th className={TABLA_HEADER_CELDA}>Rol</th>
+                <th className={TABLA_HEADER_CELDA}>Saldo</th>
               </tr>
-            )
-          })}
-        </tbody>
-      </table>
+            </thead>
+            <tbody>
+              {(personas ?? []).map((persona) => {
+                const saldos = calcularSaldoCuentaCorrientePorMoneda(movimientosPorPersona.get(persona.id) ?? [])
+                const entradasSaldo = Object.entries(saldos).filter(([, monto]) => monto !== 0)
+
+                return (
+                  <tr key={persona.id} className={TABLA_FILA}>
+                    <td className={TABLA_CELDA_PRINCIPAL}>
+                      <EnlaceBoton href={`/admin/cuentas-corrientes/${persona.id}`} className={ENLACE_TABLA}>
+                        {persona.full_name}
+                      </EnlaceBoton>
+                    </td>
+                    <td className={TABLA_CELDA}>{persona.role}</td>
+                    <td className={TABLA_CELDA}>
+                      {entradasSaldo.length === 0
+                        ? 'Sin movimientos'
+                        : entradasSaldo.map(([moneda, monto]) => `${monto} ${moneda}`).join(' / ')}
+                    </td>
+                  </tr>
+                )
+              })}
+            </tbody>
+          </table>
+        </div>
       )}
     </main>
   )

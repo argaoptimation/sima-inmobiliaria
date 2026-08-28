@@ -1,6 +1,7 @@
 'use client'
 
 import { useState } from 'react'
+import { ENTRADA } from '@/lib/ui/clases'
 
 // Mismo patrón que el buscador de participante de "Distribución de cuotas":
 // input de texto con datalist nativo para no tener que scrollear un
@@ -22,7 +23,7 @@ export function BuscadorLote({ lotes }: { lotes: { id: string; identificador: st
           const encontrado = lotes.find((lote) => lote.identificador === nuevoTexto)
           setLoteId(encontrado ? encontrado.id : '')
         }}
-        className="mt-1 block w-full rounded border px-3 py-2"
+        className={`w-full ${ENTRADA}`}
       />
       <datalist id="lista-lotes-cuenta-corriente">
         {lotes.map((lote) => (
