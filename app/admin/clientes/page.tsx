@@ -1,6 +1,19 @@
 import { createClient } from '@/lib/supabase/server'
 import { requireAdministrador } from '@/lib/auth/require-admin'
 import { FiltroEnVivo } from '@/components/FiltroEnVivo'
+import { EnlaceBoton } from '@/components/EnlaceBoton'
+import {
+  ENTRADA,
+  BOTON_SECUNDARIO,
+  ENLACE,
+  ENLACE_TABLA,
+  TITULO_H1,
+  TABLA_CONTENEDOR,
+  TABLA_HEADER_FILA,
+  TABLA_HEADER_CELDA,
+  TABLA_FILA,
+  TABLA_CELDA,
+} from '@/lib/ui/clases'
 
 export default async function ClientesPage({
   searchParams,
@@ -44,58 +57,60 @@ export default async function ClientesPage({
 
   return (
     <main className="max-w-2xl">
-      <h1 className="mb-6 text-xl font-semibold">Clientes</h1>
+      <h1 className={`mb-6 ${TITULO_H1}`}>Clientes</h1>
 
       <FiltroEnVivo className="mb-4 flex items-end gap-3">
-        <label className="text-sm">
+        <label className="text-sm text-slate-600">
           Buscar
           <input
             type="text"
             name="q"
             placeholder="Nombre o email"
             defaultValue={filtroTexto ?? ''}
-            className="mt-1 block rounded border px-3 py-2"
+            className={ENTRADA}
           />
         </label>
-        <button type="submit" className="rounded border px-3 py-2 text-sm">
+        <button type="submit" className={`cursor-pointer ${BOTON_SECUNDARIO}`}>
           Filtrar
         </button>
         {filtroTexto && (
-          <a href="/admin/clientes" className="text-sm underline">
+          <EnlaceBoton href="/admin/clientes" className={`text-sm ${ENLACE}`}>
             Limpiar
-          </a>
+          </EnlaceBoton>
         )}
       </FiltroEnVivo>
 
       {(clientes ?? []).length === 0 ? (
-        <p className="text-sm text-gray-600">
+        <p className="text-sm text-slate-600">
           {filtroTexto ? 'Ningún cliente coincide con la búsqueda.' : 'Todavía no hay ningún cliente cargado.'}
         </p>
       ) : (
+        <div className={TABLA_CONTENEDOR}>
         <table className="w-full text-sm">
           <thead>
-            <tr className="border-b text-left">
-              <th className="py-2">Nombre</th>
-              <th>Email</th>
-              <th>Cantidad de lotes</th>
-              <th></th>
+            <tr className={TABLA_HEADER_FILA}>
+              <th className={TABLA_HEADER_CELDA}>Nombre</th>
+              <th className={TABLA_HEADER_CELDA}>Email</th>
+              <th className={TABLA_HEADER_CELDA}>Cantidad de lotes</th>
+              <th className={TABLA_HEADER_CELDA}></th>
             </tr>
           </thead>
           <tbody>
             {clientes!.map((cliente) => (
-              <tr key={cliente.id} className="border-b">
-                <td className="py-2">{cliente.full_name}</td>
-                <td>{cliente.email ?? '—'}</td>
-                <td>{cantidadLotesPorCliente.get(cliente.id) ?? 0}</td>
-                <td>
-                  <a href={`/admin/clientes/${cliente.id}`} className="underline">
+              <tr key={cliente.id} className={TABLA_FILA}>
+                <td className={TABLA_CELDA}>{cliente.full_name}</td>
+                <td className={TABLA_CELDA}>{cliente.email ?? '—'}</td>
+                <td className={TABLA_CELDA}>{cantidadLotesPorCliente.get(cliente.id) ?? 0}</td>
+                <td className={TABLA_CELDA}>
+                  <EnlaceBoton href={`/admin/clientes/${cliente.id}`} className={ENLACE_TABLA}>
                     Ver detalle
-                  </a>
+                  </EnlaceBoton>
                 </td>
               </tr>
             ))}
           </tbody>
         </table>
+        </div>
       )}
     </main>
   )

@@ -8,6 +8,23 @@ import { CampoTelefono, AyudaTelefono } from '@/components/CampoTelefono'
 import { notFound } from 'next/navigation'
 import { resetearContrasenaCliente, eliminarCliente, actualizarDatosCliente } from '../actions'
 import { BotonEliminarUsuario } from '@/app/admin/usuarios/BotonEliminarUsuario'
+import { EnlaceBoton } from '@/components/EnlaceBoton'
+import { BotonEnvio } from '@/components/BotonEnvio'
+import {
+  ENTRADA,
+  BOTON_PRIMARIO,
+  ENLACE,
+  ENLACE_TABLA,
+  TITULO_H1,
+  TITULO_H2,
+  BANNER_ERROR,
+  BANNER_OK,
+  TABLA_CONTENEDOR,
+  TABLA_HEADER_FILA,
+  TABLA_HEADER_CELDA,
+  TABLA_FILA,
+  TABLA_CELDA,
+} from '@/lib/ui/clases'
 
 export default async function ClienteDetallePage({
   params,
@@ -87,41 +104,42 @@ export default async function ClienteDetallePage({
 
   return (
     <main className="max-w-2xl">
-      <a href="/admin/clientes" className="mb-4 inline-block text-sm underline">
+      <EnlaceBoton href="/admin/clientes" className={`mb-4 inline-block ${ENLACE}`}>
         ← Volver a Clientes
-      </a>
+      </EnlaceBoton>
       <div className="mb-6">
-        <h1 className="mb-1 text-xl font-semibold">{cliente!.full_name}</h1>
-        <p className="text-sm text-gray-600">{cliente!.email}</p>
-        {cliente!.dni && <p className="text-sm text-gray-600">DNI: {cliente!.dni}</p>}
-        {cliente!.domicilio && <p className="text-sm text-gray-600">Domicilio: {cliente!.domicilio}</p>}
+        <h1 className={`mb-1 ${TITULO_H1}`}>{cliente!.full_name}</h1>
+        <p className="text-sm text-slate-600">{cliente!.email}</p>
+        {cliente!.dni && <p className="text-sm text-slate-600">DNI: {cliente!.dni}</p>}
+        {cliente!.domicilio && <p className="text-sm text-slate-600">Domicilio: {cliente!.domicilio}</p>}
         {telefonoWhatsAppCliente && (
-          <p className="text-sm text-gray-600">Teléfono: +{telefonoWhatsAppCliente}</p>
+          <p className="text-sm text-slate-600">Teléfono: +{telefonoWhatsAppCliente}</p>
         )}
       </div>
 
-      {error && <p className="mb-4 rounded bg-red-100 p-2 text-sm text-red-700">{error}</p>}
-      {ok && <p className="mb-4 rounded bg-green-100 p-2 text-sm text-green-700">{ok}</p>}
+      {error && <p className={BANNER_ERROR}>{error}</p>}
+      {ok && <p className={BANNER_OK}>{ok}</p>}
 
-      <h2 className="mb-2 text-lg font-semibold">Lotes</h2>
+      <h2 className={`mb-2 ${TITULO_H2}`}>Lotes</h2>
       {lotesConSaldo.length === 0 ? (
-        <p className="mb-6 text-sm text-gray-600">Este cliente todavía no tiene ningún lote.</p>
+        <p className="mb-6 text-sm text-slate-600">Este cliente todavía no tiene ningún lote.</p>
       ) : (
-        <table className="mb-6 w-full text-sm">
+        <div className={`mb-6 ${TABLA_CONTENEDOR}`}>
+        <table className="w-full text-sm">
           <thead>
-            <tr className="border-b text-left">
-              <th className="py-2">Identificador</th>
-              <th>Estado</th>
-              <th>Saldo pendiente</th>
-              <th></th>
-              <th></th>
+            <tr className={TABLA_HEADER_FILA}>
+              <th className={TABLA_HEADER_CELDA}>Identificador</th>
+              <th className={TABLA_HEADER_CELDA}>Estado</th>
+              <th className={TABLA_HEADER_CELDA}>Saldo pendiente</th>
+              <th className={TABLA_HEADER_CELDA}></th>
+              <th className={TABLA_HEADER_CELDA}></th>
             </tr>
           </thead>
           <tbody>
             {lotesConSaldo.map((lote) => (
-              <tr key={lote.id} className="border-b">
-                <td className="py-2">{lote.identificador}</td>
-                <td>
+              <tr key={lote.id} className={TABLA_FILA}>
+                <td className={TABLA_CELDA}>{lote.identificador}</td>
+                <td className={TABLA_CELDA}>
                   {lote.estado !== 'vendido'
                     ? lote.estado
                     : lote.marcado_prejudicial
@@ -132,21 +150,21 @@ export default async function ClienteDetallePage({
                           ? 'Moroso'
                           : 'Posible prejudicial'}
                 </td>
-                <td>
+                <td className={TABLA_CELDA}>
                   {lote.saldoPendiente} {lote.moneda}
                 </td>
-                <td>
-                  <a href={`/admin/lotes/${lote.id}`} className="underline">
+                <td className={TABLA_CELDA}>
+                  <EnlaceBoton href={`/admin/lotes/${lote.id}`} className={ENLACE_TABLA}>
                     Ver lote
-                  </a>
+                  </EnlaceBoton>
                 </td>
-                <td>
+                <td className={TABLA_CELDA}>
                   {lote.mensajeWhatsApp && lote.telefonoWhatsApp && (
                     <a
                       href={armarLinkWhatsApp(lote.telefonoWhatsApp, lote.mensajeWhatsApp)}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="underline"
+                      className={ENLACE_TABLA}
                     >
                       WhatsApp
                     </a>
@@ -156,39 +174,40 @@ export default async function ClienteDetallePage({
             ))}
           </tbody>
         </table>
+        </div>
       )}
 
-      <h2 className="mb-2 text-lg font-semibold">Editar datos</h2>
+      <h2 className={`mb-2 ${TITULO_H2}`}>Editar datos</h2>
       <form
         action={actualizarDatosCliente.bind(null, cliente!.id)}
         className="mb-8 flex max-w-sm flex-col gap-3"
       >
-        <label className="text-sm">
+        <label className="text-sm text-slate-600">
           Nombre completo
           <input
             name="fullName"
             defaultValue={cliente!.full_name}
             required
-            className="mt-1 block w-full rounded border px-3 py-2"
+            className={`${ENTRADA} w-full`}
           />
         </label>
-        <label className="text-sm">
+        <label className="text-sm text-slate-600">
           DNI
           <input
             name="dni"
             defaultValue={cliente!.dni ?? ''}
-            className="mt-1 block w-full rounded border px-3 py-2"
+            className={`${ENTRADA} w-full`}
           />
         </label>
-        <label className="text-sm">
+        <label className="text-sm text-slate-600">
           Domicilio
           <input
             name="domicilio"
             defaultValue={cliente!.domicilio ?? ''}
-            className="mt-1 block w-full rounded border px-3 py-2"
+            className={`${ENTRADA} w-full`}
           />
         </label>
-        <label className="text-sm">
+        <label className="text-sm text-slate-600">
           Teléfono (para WhatsApp)
           <CampoTelefono
             prefijoGuardado={cliente!.telefono_prefijo}
@@ -196,13 +215,11 @@ export default async function ClienteDetallePage({
           />
           <AyudaTelefono />
         </label>
-        <button type="submit" className="self-start rounded bg-black px-3 py-2 text-sm text-white">
-          Guardar datos
-        </button>
+        <BotonEnvio className={`cursor-pointer self-start ${BOTON_PRIMARIO}`}>Guardar datos</BotonEnvio>
       </form>
 
-      <h2 className="mb-2 text-lg font-semibold">Resetear contraseña</h2>
-      <p className="mb-2 text-sm text-gray-600">
+      <h2 className={`mb-2 ${TITULO_H2}`}>Resetear contraseña</h2>
+      <p className="mb-2 text-sm text-slate-600">
         Mínimo 8 caracteres, incluyendo un signo (ej. ! ? . # -)
       </p>
       <form
@@ -215,14 +232,12 @@ export default async function ClienteDetallePage({
           placeholder="Nueva contraseña"
           minLength={8}
           required
-          className="flex-1 rounded border px-3 py-2"
+          className={`flex-1 ${ENTRADA}`}
         />
-        <button type="submit" className="rounded bg-black px-3 py-2 text-sm text-white">
-          Guardar
-        </button>
+        <BotonEnvio className={`cursor-pointer ${BOTON_PRIMARIO}`}>Guardar</BotonEnvio>
       </form>
 
-      <h2 className="mb-2 mt-8 text-lg font-semibold">Eliminar cuenta</h2>
+      <h2 className={`mb-2 mt-8 ${TITULO_H2}`}>Eliminar cuenta</h2>
       <BotonEliminarUsuario eliminarUsuarioAction={eliminarCliente.bind(null, cliente!.id)} />
     </main>
   )

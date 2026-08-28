@@ -3,6 +3,21 @@ import { createAdminClient } from '@/lib/supabase/admin'
 import { requireAdminOAcreedor } from '@/lib/auth/require-admin'
 import { confirmarPago, editarMontoPago } from './actions'
 import { FiltroEnVivo } from '@/components/FiltroEnVivo'
+import { EnlaceBoton } from '@/components/EnlaceBoton'
+import { BotonEnvio } from '@/components/BotonEnvio'
+import {
+  TARJETA,
+  ENTRADA,
+  BOTON_SECUNDARIO,
+  ENLACE,
+  TITULO_H1,
+  BANNER_ERROR,
+  TABLA_CONTENEDOR,
+  TABLA_HEADER_FILA,
+  TABLA_HEADER_CELDA,
+  TABLA_FILA,
+  TABLA_CELDA,
+} from '@/lib/ui/clases'
 
 type Pago = {
   id: string
@@ -244,25 +259,25 @@ export default async function PagosPage({
 
   return (
     <main>
-      <h1 className="mb-6 text-xl font-semibold">Pagos</h1>
-      {error && <p className="mb-4 rounded bg-red-100 p-2 text-sm text-red-700">{error}</p>}
-      <FiltroEnVivo className="mb-4 flex flex-wrap items-end gap-3">
-        <label className="text-sm">
+      <h1 className={`mb-6 ${TITULO_H1}`}>Pagos</h1>
+      {error && <p className={BANNER_ERROR}>{error}</p>}
+      <FiltroEnVivo className={`mb-4 flex flex-wrap items-end gap-3 ${TARJETA}`}>
+        <label className="text-sm text-slate-600">
           Buscar
           <input
             type="text"
             name="q"
             placeholder="Buscar cliente o lote"
             defaultValue={filtroTexto ?? ''}
-            className="mt-1 block rounded border px-3 py-2"
+            className={ENTRADA}
           />
         </label>
-        <label className="text-sm">
+        <label className="text-sm text-slate-600">
           Estado
           <select
             name="estado"
             defaultValue={filtroEstado ?? ''}
-            className="mt-1 block rounded border px-3 py-2"
+            className={ENTRADA}
           >
             <option value="">Todos</option>
             <option value="confirmado">Confirmado</option>
@@ -270,12 +285,12 @@ export default async function PagosPage({
           </select>
         </label>
         {perfilPropio!.role !== 'acreedor' && (
-          <label className="text-sm">
+          <label className="text-sm text-slate-600">
             Acreedor
             <select
               name="acreedor"
               defaultValue={filtroAcreedorId ?? ''}
-              className="mt-1 block rounded border px-3 py-2"
+              className={ENTRADA}
             >
               <option value="">Todos</option>
               {(todosLosAcreedores ?? []).map((acreedor) => (
@@ -286,30 +301,31 @@ export default async function PagosPage({
             </select>
           </label>
         )}
-        <button type="submit" className="rounded border px-3 py-2 text-sm">
+        <button type="submit" className={`cursor-pointer ${BOTON_SECUNDARIO}`}>
           Filtrar
         </button>
         {(filtroTexto || filtroEstado || filtroAcreedorId) && (
-          <a href="/admin/pagos" className="text-sm underline">
+          <EnlaceBoton href="/admin/pagos" className={`text-sm ${ENLACE}`}>
             Limpiar filtros
-          </a>
+          </EnlaceBoton>
         )}
       </FiltroEnVivo>
+      <div className={TABLA_CONTENEDOR}>
       <table className="w-full text-sm">
         <thead>
-          <tr className="border-b text-left">
-            <th className="py-2">Fecha</th>
-            <th>Lote</th>
-            <th>Cliente</th>
-            <th>Acreedor</th>
-            <th>Motivo</th>
-            <th>Medio</th>
-            <th>Monto</th>
-            <th>Comprobante</th>
-            <th>Estado</th>
-            <th>Confirmado acreedor</th>
-            <th>Confirmado admin</th>
-            <th></th>
+          <tr className={TABLA_HEADER_FILA}>
+            <th className={TABLA_HEADER_CELDA}>Fecha</th>
+            <th className={TABLA_HEADER_CELDA}>Lote</th>
+            <th className={TABLA_HEADER_CELDA}>Cliente</th>
+            <th className={TABLA_HEADER_CELDA}>Acreedor</th>
+            <th className={TABLA_HEADER_CELDA}>Motivo</th>
+            <th className={TABLA_HEADER_CELDA}>Medio</th>
+            <th className={TABLA_HEADER_CELDA}>Monto</th>
+            <th className={TABLA_HEADER_CELDA}>Comprobante</th>
+            <th className={TABLA_HEADER_CELDA}>Estado</th>
+            <th className={TABLA_HEADER_CELDA}>Confirmado acreedor</th>
+            <th className={TABLA_HEADER_CELDA}>Confirmado admin</th>
+            <th className={TABLA_HEADER_CELDA}></th>
           </tr>
         </thead>
         <tbody>
@@ -318,12 +334,12 @@ export default async function PagosPage({
             const editarMontoEstePago = editarMontoPago.bind(null, pago.id)
 
             return (
-              <tr key={pago.id} className="border-b">
-                <td className="py-2">{new Date(pago.created_at).toLocaleDateString('es-AR')}</td>
-                <td>{pago.identificadorLote}</td>
-                <td>{pago.nombreCliente}</td>
-                <td>{pago.nombreAcreedor}</td>
-                <td>
+              <tr key={pago.id} className={TABLA_FILA}>
+                <td className={TABLA_CELDA}>{new Date(pago.created_at).toLocaleDateString('es-AR')}</td>
+                <td className={TABLA_CELDA}>{pago.identificadorLote}</td>
+                <td className={TABLA_CELDA}>{pago.nombreCliente}</td>
+                <td className={TABLA_CELDA}>{pago.nombreAcreedor}</td>
+                <td className={TABLA_CELDA}>
                   {pago.motivo === 'sena'
                     ? 'Seña'
                     : pago.motivo === 'ajuste'
@@ -332,31 +348,31 @@ export default async function PagosPage({
                         ? 'Entrega'
                         : 'Cuota'}
                 </td>
-                <td>{pago.medio_pago === 'efectivo' ? 'Efectivo' : 'Transferencia'}</td>
-                <td>
+                <td className={TABLA_CELDA}>{pago.medio_pago === 'efectivo' ? 'Efectivo' : 'Transferencia'}</td>
+                <td className={TABLA_CELDA}>
                   {pago.monto} {pago.moneda}
                 </td>
-                <td>
+                <td className={TABLA_CELDA}>
                   {pago.comprobante_path ? (
                     pago.comprobanteUrl ? (
-                      <a href={pago.comprobanteUrl} target="_blank" className="underline">
+                      <a href={pago.comprobanteUrl} target="_blank" className={ENLACE}>
                         Ver comprobante
                       </a>
                     ) : (
-                      <span className="text-gray-500">Comprobante no disponible</span>
+                      <span className="text-slate-500">Comprobante no disponible</span>
                     )
                   ) : pago.medio_pago === 'efectivo' ? (
-                    <span className="text-gray-500">— (efectivo, no hace falta)</span>
+                    <span className="text-slate-500">— (efectivo, no hace falta)</span>
                   ) : (
-                    <span className="text-gray-500">Sin comprobante</span>
+                    <span className="text-slate-500">Sin comprobante</span>
                   )}
                 </td>
-                <td>{pago.estado}</td>
-                <td>
+                <td className={TABLA_CELDA}>{pago.estado}</td>
+                <td className={TABLA_CELDA}>
                   {pago.medio_pago === 'efectivo' ? (
-                    <span className="text-gray-500">— (efectivo)</span>
+                    <span className="text-slate-500">— (efectivo)</span>
                   ) : pago.cuentaCobroExterna ? (
-                    <span className="text-gray-500">— (cuenta externa)</span>
+                    <span className="text-slate-500">— (cuenta externa)</span>
                   ) : pago.sinAcreedorVinculado ? (
                     <span className="font-semibold text-red-700">⚠ Lote sin acreedor vinculado</span>
                   ) : pago.confirmado_acreedor_por ? (
@@ -365,12 +381,12 @@ export default async function PagosPage({
                     'No'
                   )}
                 </td>
-                <td>{pago.confirmado_admin_por ? 'Sí' : 'No'}</td>
-                <td>
+                <td className={TABLA_CELDA}>{pago.confirmado_admin_por ? 'Sí' : 'No'}</td>
+                <td className={TABLA_CELDA}>
                   {pago.estado === 'pendiente' &&
                   pago.medio_pago === 'efectivo' &&
                   perfilPropio!.role !== 'administrador' ? (
-                    <span className="text-gray-500">Pendiente de confirmación del admin</span>
+                    <span className="text-slate-500">Pendiente de confirmación del admin</span>
                   ) : (
                     pago.estado === 'pendiente' &&
                     (pago.comprobante_path || pago.medio_pago === 'efectivo' ? (
@@ -384,7 +400,7 @@ export default async function PagosPage({
                         )}
                         <form action={confirmarEstePago} className="flex flex-col gap-2">
                         <input type="hidden" name="montoVisto" value={pago.monto} />
-                        <label className="text-xs text-gray-500">
+                        <label className="text-xs text-slate-500">
                           Monto a confirmar
                           <input
                             name="monto"
@@ -393,10 +409,10 @@ export default async function PagosPage({
                             min="0"
                             defaultValue={pago.monto}
                             required
-                            className="mt-1 block rounded border px-2 py-1"
+                            className={ENTRADA}
                           />
                         </label>
-                        <label className="text-xs text-gray-500">
+                        <label className="text-xs text-slate-500">
                           Monto recibido (opcional, para cierre de caja)
                           <input
                             name="montoRecibido"
@@ -404,34 +420,34 @@ export default async function PagosPage({
                             step="0.01"
                             min="0"
                             defaultValue={pago.monto_recibido ?? undefined}
-                            className="mt-1 block rounded border px-2 py-1"
+                            className={ENTRADA}
                           />
                         </label>
-                        <label className="text-xs text-gray-500">
+                        <label className="text-xs text-slate-500">
                           Moneda recibida
                           <select
                             name="monedaRecibida"
                             defaultValue={pago.moneda_recibida ?? 'USD'}
-                            className="mt-1 block rounded border px-2 py-1"
+                            className={ENTRADA}
                           >
                             <option value="USD">USD</option>
                             <option value="ARS">ARS</option>
                           </select>
                         </label>
-                        <button type="submit" className="self-start underline">
+                        <BotonEnvio className={`cursor-pointer self-start ${ENLACE}`}>
                           Confirmar mi parte
-                        </button>
+                        </BotonEnvio>
                         </form>
                       </>
                     ) : (
-                      <span className="text-gray-500">Esperando comprobante</span>
+                      <span className="text-slate-500">Esperando comprobante</span>
                     )))}
                   {pago.estado === 'confirmado' &&
                     pago.motivo !== 'ajuste' &&
                     perfilPropio!.role === 'administrador' && (
                       <form action={editarMontoEstePago} className="flex flex-col gap-2">
                         <input type="hidden" name="montoEfectivoVisto" value={pago.montoEfectivo} />
-                        <label className="text-xs text-gray-500">
+                        <label className="text-xs text-slate-500">
                           Corregir monto (actual: {pago.montoEfectivo} {pago.moneda})
                           <input
                             name="montoNuevo"
@@ -440,12 +456,12 @@ export default async function PagosPage({
                             min="0"
                             defaultValue={pago.montoEfectivo}
                             required
-                            className="mt-1 block rounded border px-2 py-1"
+                            className={ENTRADA}
                           />
                         </label>
-                        <button type="submit" className="self-start underline">
+                        <BotonEnvio className={`cursor-pointer self-start ${ENLACE}`}>
                           Editar monto
-                        </button>
+                        </BotonEnvio>
                       </form>
                     )}
                 </td>
@@ -454,15 +470,16 @@ export default async function PagosPage({
           })}
         </tbody>
       </table>
+      </div>
 
       {perfilPropio!.role === 'administrador' && (
         // A propósito sin link en la navegación principal (pedido de Gabriel
         // 28/08: "una pestaña que no esté visible pero que se pueda ver sin
         // ningún problema") -- queda accesible acá, al pie.
-        <p className="mt-6 text-xs text-gray-400">
-          <a href="/admin/pagos/auditoria" className="underline">
+        <p className="mt-6 text-xs text-slate-400">
+          <EnlaceBoton href="/admin/pagos/auditoria" className={ENLACE}>
             Ver historial de auditoría de confirmaciones →
-          </a>
+          </EnlaceBoton>
         </p>
       )}
     </main>
