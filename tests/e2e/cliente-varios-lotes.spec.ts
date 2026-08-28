@@ -43,11 +43,14 @@ async function venderLotePorUI(
   await page.getByPlaceholder('Email del comprador').fill(datos.email)
   await page.getByPlaceholder('Cantidad de cuotas (1 para venta al contado)').fill('1')
   await page.locator('input[name="fechaPrimeraCuota"]').fill('2026-09-01')
-  await page.setInputFiles('input[name="documentoFirmado"]', {
+  await page.setInputFiles('[data-testid="documentoFirmado"]', {
     name: `e2e-documento-${Date.now()}.pdf`,
     mimeType: 'application/pdf',
     buffer: COMPROBANTE_BYTES,
   })
+  // Sube directo a Storage en cuanto se elige -- esperar a que termine o
+  // el submit se bloquea en silencio (campo oculto todavía vacío).
+  await expect(page.locator('[data-testid="documentoFirmado"]')).toBeEnabled()
   await page.getByRole('button', { name: 'Confirmar venta y enviar invitación' }).click()
 
   // Si el email ya es de un cliente existente, el primer submit NO completa
@@ -57,11 +60,14 @@ async function venderLotePorUI(
   await page.waitForURL((url) => url.pathname === '/admin/lotes' || url.searchParams.has('confirmarClienteId'))
 
   if (page.url().includes('confirmarClienteId')) {
-    await page.setInputFiles('input[name="documentoFirmado"]', {
+    await page.setInputFiles('[data-testid="documentoFirmado"]', {
       name: `e2e-documento-${Date.now()}.pdf`,
       mimeType: 'application/pdf',
       buffer: COMPROBANTE_BYTES,
     })
+    // Sube directo a Storage en cuanto se elige -- esperar a que termine o
+    // el submit se bloquea en silencio (campo oculto todavía vacío).
+    await expect(page.locator('[data-testid="documentoFirmado"]')).toBeEnabled()
     await page.getByRole('button', { name: 'Confirmar venta con esta cuenta existente' }).click()
     await page.waitForURL('**/admin/lotes')
   }
@@ -156,11 +162,14 @@ test.describe('Cliente con varios lotes', () => {
     await page.getByPlaceholder('Email del comprador').fill(emailComprador)
     await page.getByPlaceholder('Cantidad de cuotas (1 para venta al contado)').fill('1')
     await page.locator('input[name="fechaPrimeraCuota"]').fill('2026-09-01')
-    await page.setInputFiles('input[name="documentoFirmado"]', {
+    await page.setInputFiles('[data-testid="documentoFirmado"]', {
       name: `e2e-documento-${Date.now()}.pdf`,
       mimeType: 'application/pdf',
       buffer: COMPROBANTE_BYTES,
     })
+    // Sube directo a Storage en cuanto se elige -- esperar a que termine o
+    // el submit se bloquea en silencio (campo oculto todavía vacío).
+    await expect(page.locator('[data-testid="documentoFirmado"]')).toBeEnabled()
     await page.getByRole('button', { name: 'Confirmar venta y enviar invitación' }).click()
     await page.waitForURL((url) => url.searchParams.has('confirmarClienteId'))
 
@@ -178,11 +187,14 @@ test.describe('Cliente con varios lotes', () => {
     expect(loteBAntes?.estado).toBe('reservado')
 
     // Ahora sí confirma -- recién ahí se asocia.
-    await page.setInputFiles('input[name="documentoFirmado"]', {
+    await page.setInputFiles('[data-testid="documentoFirmado"]', {
       name: `e2e-documento-${Date.now()}.pdf`,
       mimeType: 'application/pdf',
       buffer: COMPROBANTE_BYTES,
     })
+    // Sube directo a Storage en cuanto se elige -- esperar a que termine o
+    // el submit se bloquea en silencio (campo oculto todavía vacío).
+    await expect(page.locator('[data-testid="documentoFirmado"]')).toBeEnabled()
     await page.getByRole('button', { name: 'Confirmar venta con esta cuenta existente' }).click()
     await page.waitForURL('**/admin/lotes')
 

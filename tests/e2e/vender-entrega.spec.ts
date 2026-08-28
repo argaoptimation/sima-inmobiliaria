@@ -54,12 +54,15 @@ async function crearReservaConSena(loteId: string, montoSena: number, adminId: s
   }
 }
 
-function adjuntarDocumentoFirmado(page: import('@playwright/test').Page) {
-  return page.setInputFiles('input[name="documentoFirmado"]', {
+async function adjuntarDocumentoFirmado(page: import('@playwright/test').Page) {
+  await page.setInputFiles('[data-testid="documentoFirmado"]', {
     name: `e2e-documento-${Date.now()}.pdf`,
     mimeType: 'application/pdf',
     buffer: COMPROBANTE_BYTES,
   })
+  // Sube directo a Storage en cuanto se elige -- esperar a que termine o
+  // el submit se bloquea en silencio (campo oculto todavía vacío).
+  await expect(page.locator('[data-testid="documentoFirmado"]')).toBeEnabled()
 }
 
 async function venderConEntrega(

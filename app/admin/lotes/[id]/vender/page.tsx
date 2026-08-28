@@ -176,6 +176,7 @@ export default async function VenderLotePage({
             </label>
 
             <CuotasYDocumento
+              loteId={id}
               precioTotal={lote!.precio_total}
               montoSenaRegistrada={reserva?.monto_sena ?? null}
               monedaSena={reserva?.moneda_sena ?? null}

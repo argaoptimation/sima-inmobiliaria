@@ -227,11 +227,14 @@ test.describe('Rescindido de lote (24/08)', () => {
     await page.getByPlaceholder('Email del comprador').fill(email)
     await page.locator('input[name="fechaPrimeraCuota"]').fill('2027-06-01')
     await page.getByPlaceholder('Cantidad de cuotas (1 para venta al contado)').fill('2')
-    await page.setInputFiles('input[name="documentoFirmado"]', {
+    await page.setInputFiles('[data-testid="documentoFirmado"]', {
       name: `e2e-documento-reventa-${Date.now()}.pdf`,
       mimeType: 'application/pdf',
       buffer: COMPROBANTE_BYTES,
     })
+    // Sube directo a Storage en cuanto se elige -- esperar a que termine o
+    // el submit se bloquea en silencio (campo oculto todavía vacío).
+    await expect(page.locator('[data-testid="documentoFirmado"]')).toBeEnabled()
     await page.getByRole('button', { name: 'Confirmar venta y enviar invitación' }).click()
     await page.waitForURL('**/admin/lotes')
 

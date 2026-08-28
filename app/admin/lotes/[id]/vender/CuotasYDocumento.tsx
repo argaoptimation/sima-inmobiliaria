@@ -3,8 +3,10 @@
 import { useState } from 'react'
 import { calcularMontoCuota } from '@/lib/lotes/calcular-monto-cuota'
 import { generarCuotas } from '@/lib/lotes/generar-cuotas'
+import { CampoArchivoDirecto } from '@/components/CampoArchivoDirecto'
 
 interface Props {
+  loteId: string
   precioTotal: number | null
   montoSenaRegistrada: number | null
   monedaSena: string | null
@@ -27,6 +29,7 @@ function calcularMontosAutomaticos(precioTotal: number, cantidadCuotas: number):
 }
 
 export function CuotasYDocumento({
+  loteId,
   precioTotal,
   montoSenaRegistrada,
   monedaSena,
@@ -214,15 +217,15 @@ export function CuotasYDocumento({
         </div>
       )}
 
-      <label className="text-sm">
-        Documento firmado (boleto de compraventa o escritura)
-        <input
-          name="documentoFirmado"
-          type="file"
-          required
-          className="mt-1 block w-full rounded border px-3 py-2"
-        />
-      </label>
+      <CampoArchivoDirecto
+        name="documentoFirmado"
+        bucket="comprobantes"
+        carpeta={`ventas/${loteId}`}
+        tipoArchivo="documento"
+        label="Documento firmado (boleto de compraventa o escritura)"
+        nombreError="El documento firmado"
+        required
+      />
     </>
   )
 }

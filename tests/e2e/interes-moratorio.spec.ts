@@ -54,11 +54,14 @@ async function venderConInteres(
     await inputInteres.evaluate((el) => el.removeAttribute('min'))
     await inputInteres.fill(datos.interesMoratorioDiario)
   }
-  await page.setInputFiles('input[name="documentoFirmado"]', {
+  await page.setInputFiles('[data-testid="documentoFirmado"]', {
     name: `e2e-documento-${Date.now()}.pdf`,
     mimeType: 'application/pdf',
     buffer: COMPROBANTE_BYTES,
   })
+  // Sube directo a Storage en cuanto se elige -- esperar a que termine o
+  // el submit se bloquea en silencio (campo oculto todavía vacío).
+  await expect(page.locator('[data-testid="documentoFirmado"]')).toBeEnabled()
   await page.getByRole('button', { name: 'Confirmar venta y enviar invitación' }).click()
 }
 

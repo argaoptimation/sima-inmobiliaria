@@ -7,7 +7,6 @@ import { requireAdministrador } from '@/lib/auth/require-admin'
 import { calcularMontoCuota } from '@/lib/lotes/calcular-monto-cuota'
 import { generarCuotas, generarCuotasManual, CuotaGenerada } from '@/lib/lotes/generar-cuotas'
 import { imputarPagoFIFO } from '@/lib/pagos/imputar-fifo'
-import { excedeTamanioMaximo, MAX_ARCHIVO_MB } from '@/lib/storage/validar-tamanio-archivo'
 import { mensajeDeError } from '@/lib/errores'
 
 function construirParamsPreservados(formData: FormData): URLSearchParams {
@@ -74,13 +73,6 @@ export async function venderLote(loteId: string, formData: FormData) {
   } = await supabase.auth.getUser()
 
   const admin = createAdminClient()
-
-  async function subirDocumentoFirmado(archivo: File): Promise<{ filePath: string; error: unknown }> {
-    const nombreSeguro = archivo.name.replace(/[^a-zA-Z0-9._-]/g, '_')
-    const filePath = `ventas/${loteId}/documento-${Date.now()}-${nombreSeguro}`
-    const { error } = await admin.storage.from('comprobantes').upload(filePath, archivo)
-    return { filePath, error }
-  }
 
   const { data: loteActual, error: errorLoteActual } = await admin
     .from('lotes')
@@ -209,11 +201,11 @@ export async function venderLote(loteId: string, formData: FormData) {
     }
   }
 
-  // Documento firmado: siempre obligatorio, se sube una sola vez acá --
-  // recién ahora, con todo lo demás ya validado.
-  const documentoFirmado = formData.get('documentoFirmado') as File
+  // Documento firmado: siempre obligatorio -- ya se subió directo del
+  // navegador a Storage (CampoArchivoDirecto), acá solo llega el path.
+  const documentoFirmadoPath = ((formData.get('documentoFirmado') as string) || '').trim()
 
-  if (!documentoFirmado || documentoFirmado.size === 0) {
+  if (!documentoFirmadoPath) {
     redirectVenderConError(
       loteId,
       'Subí el documento firmado (boleto o escritura)',
@@ -221,23 +213,10 @@ export async function venderLote(loteId: string, formData: FormData) {
     )
   }
 
-  if (excedeTamanioMaximo(documentoFirmado)) {
+  if (!documentoFirmadoPath.startsWith(`ventas/${loteId}/`)) {
     redirectVenderConError(
       loteId,
-      `El documento firmado pesa más de ${MAX_ARCHIVO_MB} MB — subí uno más liviano.`,
-      construirParamsPreservados(formData)
-    )
-  }
-
-  const { filePath: documentoFirmadoPath, error: errorSubidaDocumento } = await subirDocumentoFirmado(
-    documentoFirmado
-  )
-
-  if (errorSubidaDocumento) {
-    console.error('Error al subir el documento firmado:', errorSubidaDocumento)
-    redirectVenderConError(
-      loteId,
-      'No se pudo subir el documento firmado. Probá de nuevo.',
+      'El documento firmado no es válido, probá subirlo de nuevo',
       construirParamsPreservados(formData)
     )
   }
