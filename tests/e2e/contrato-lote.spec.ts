@@ -68,6 +68,9 @@ test.describe('Generación de contrato por loteo (25/08)', () => {
       mimeType: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
       buffer: plantillaDocx(),
     })
+    // Sube directo a Storage en cuanto se elige -- esperar a que termine o
+    // el submit se bloquea en silencio (campo oculto todavía vacío).
+    await expect(filaLoteo.locator('input[type="file"]')).toBeEnabled()
     await filaLoteo.getByRole('button', { name: 'Subir' }).click()
     await page.waitForURL(/\/admin\/loteos\?ok=/)
     await expect(page.locator('tr', { hasText: NOMBRE_LOTEO })).toContainText('plantilla-modelo.docx')
@@ -152,6 +155,7 @@ test.describe('Generación de contrato por loteo (25/08)', () => {
       // está en la tabla de placeholders conocidos.
       buffer: docxConTexto('Hola {cliente_nombree}.'),
     })
+    await expect(filaLoteo.locator('input[type="file"]')).toBeEnabled()
     await filaLoteo.getByRole('button', { name: 'Subir' }).click()
     await page.waitForURL(/\/admin\/loteos\?/)
 

@@ -19,11 +19,12 @@ test.describe('Documentos del lote', () => {
     await page.goto(`/admin/lotes/${fixtures.loteId}`)
 
     await page.getByPlaceholder('Ej: Plano del lote').fill('Plano de prueba')
-    await page.setInputFiles('input[name="archivo"]', {
+    await page.setInputFiles('[data-testid="archivo"]', {
       name: 'plano-test.pdf',
       mimeType: 'application/pdf',
       buffer: COMPROBANTE_BYTES,
     })
+    await expect(page.locator('[data-testid="archivo"]')).toBeEnabled()
     await page.getByRole('button', { name: 'Subir documento' }).click()
     await page.waitForURL(new RegExp(`/admin/lotes/${fixtures.loteId}$`))
 
@@ -37,11 +38,12 @@ test.describe('Documentos del lote', () => {
     await page.goto(`/admin/lotes/${fixtures.loteSecundarioId}`)
 
     await page.getByPlaceholder('Ej: Plano del lote').fill('Documento del acreedor')
-    await page.setInputFiles('input[name="archivo"]', {
+    await page.setInputFiles('[data-testid="archivo"]', {
       name: 'doc-acreedor.pdf',
       mimeType: 'application/pdf',
       buffer: COMPROBANTE_BYTES,
     })
+    await expect(page.locator('[data-testid="archivo"]')).toBeEnabled()
     await page.getByRole('button', { name: 'Subir documento' }).click()
     await page.waitForURL(new RegExp(`/admin/lotes/${fixtures.loteSecundarioId}$`))
 
@@ -73,11 +75,12 @@ test.describe('Documentos del lote', () => {
     await page.goto(`/admin/lotes/${fixtures.loteId}`)
 
     await page.getByPlaceholder('Ej: Plano del lote').fill('Intento tardío')
-    await page.setInputFiles('input[name="archivo"]', {
+    await page.setInputFiles('[data-testid="archivo"]', {
       name: 'intento.pdf',
       mimeType: 'application/pdf',
       buffer: COMPROBANTE_BYTES,
     })
+    await expect(page.locator('[data-testid="archivo"]')).toBeEnabled()
 
     try {
       // Maniobra clave: el lote cambia de acreedor DESPUÉS de que el
@@ -111,11 +114,12 @@ test.describe('Documentos del lote', () => {
 
     for (const nombre of ['Doc A', 'Doc B']) {
       await page.getByPlaceholder('Ej: Plano del lote').fill(nombre)
-      await page.setInputFiles('input[name="archivo"]', {
+      await page.setInputFiles('[data-testid="archivo"]', {
         name: `${nombre}.pdf`,
         mimeType: 'application/pdf',
         buffer: COMPROBANTE_BYTES,
       })
+      await expect(page.locator('[data-testid="archivo"]')).toBeEnabled()
       await page.getByRole('button', { name: 'Subir documento' }).click()
       await page.waitForURL(new RegExp(`/admin/lotes/${fixtures.loteId}$`))
     }

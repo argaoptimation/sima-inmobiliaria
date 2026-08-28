@@ -3,6 +3,7 @@ import { createAdminClient } from '@/lib/supabase/admin'
 import { requireAdministrador } from '@/lib/auth/require-admin'
 import { actualizarLoteo, crearLoteo, reasignarLotesEnBloque, subirPlantillaContrato } from './actions'
 import { FiltroEnVivo } from '@/components/FiltroEnVivo'
+import { CampoArchivoDirecto } from '@/components/CampoArchivoDirecto'
 
 export default async function LoteosPage({
   searchParams,
@@ -169,7 +170,18 @@ export default async function LoteosPage({
                     <span className="text-xs text-amber-700">Sin plantilla cargada</span>
                   )}
                   <form action={subirPlantillaContrato.bind(null, loteo.id)} className="flex items-center gap-2">
-                    <input name="plantilla" type="file" accept=".docx" required className="text-xs" />
+                    <CampoArchivoDirecto
+                      name="plantilla"
+                      bucket="comprobantes"
+                      carpeta={`loteos/${loteo.id}`}
+                      tipoArchivo="plantilla-contrato"
+                      label="Plantilla de contrato"
+                      accept=".docx"
+                      nombreError="El archivo"
+                      compacto
+                      incluirNombreOriginal
+                      required
+                    />
                     <button type="submit" className="rounded border px-2 py-1 text-xs">
                       {loteo.plantilla_contrato_path ? 'Reemplazar' : 'Subir'}
                     </button>

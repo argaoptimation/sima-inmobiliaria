@@ -5,7 +5,6 @@ import { createAdminClient } from '@/lib/supabase/admin'
 import { redirect } from 'next/navigation'
 import { requireAdminSobreLote, requireAdministrador } from '@/lib/auth/require-admin'
 import { tieneDatosTransferencia } from '@/lib/lotes/validar-cuenta-cobro'
-import { excedeTamanioMaximo, MAX_ARCHIVO_MB } from '@/lib/storage/validar-tamanio-archivo'
 import { mensajeDeError } from '@/lib/errores'
 import { armarDatosContrato } from '@/lib/contratos/armar-datos-contrato'
 import { generarContrato, ErrorPlantillaContrato } from '@/lib/contratos/generar-contrato'
@@ -530,7 +529,9 @@ export async function subirDocumentoLote(loteId: string, formData: FormData) {
   await requireAdminSobreLote(loteId)
 
   const descripcion = ((formData.get('descripcion') as string) || '').trim()
-  const archivo = formData.get('archivo') as File
+  // El archivo ya se subió directo del navegador a Storage
+  // (CampoArchivoDirecto) -- acá solo llega el path resultante.
+  const path = ((formData.get('archivo') as string) || '').trim()
 
   if (!descripcion) {
     redirect(
@@ -538,34 +539,18 @@ export async function subirDocumentoLote(loteId: string, formData: FormData) {
     )
   }
 
-  if (!archivo || archivo.size === 0) {
+  if (!path) {
     redirect(`/admin/lotes/${loteId}?error=${encodeURIComponent('Elegí un archivo para subir')}`)
   }
 
-  if (excedeTamanioMaximo(archivo)) {
-    redirect(
-      `/admin/lotes/${loteId}?error=${encodeURIComponent(
-        `El archivo pesa más de ${MAX_ARCHIVO_MB} MB — subí uno más liviano.`
-      )}`
-    )
+  if (!path.startsWith(`lotes/${loteId}/`)) {
+    redirect(`/admin/lotes/${loteId}?error=${encodeURIComponent('El archivo no es válido, probá subirlo de nuevo')}`)
   }
 
   const supabase = await createClient()
   const {
     data: { user },
   } = await supabase.auth.getUser()
-
-  const admin = createAdminClient()
-  const nombreSeguro = archivo.name.replace(/[^a-zA-Z0-9._-]/g, '_')
-  const path = `lotes/${loteId}/documento-${Date.now()}-${nombreSeguro}`
-
-  const { error: errorSubida } = await admin.storage.from('comprobantes').upload(path, archivo)
-
-  if (errorSubida) {
-    redirect(
-      `/admin/lotes/${loteId}?error=${encodeURIComponent('No se pudo subir el archivo. Probá de nuevo.')}`
-    )
-  }
 
   const { error: errorInsert } = await supabase.from('lote_documentos').insert({
     lote_id: loteId,

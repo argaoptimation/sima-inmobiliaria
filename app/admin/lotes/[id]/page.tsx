@@ -30,6 +30,7 @@ import { tieneDatosTransferencia } from '@/lib/lotes/validar-cuenta-cobro'
 import { telefonoParaWhatsApp } from '@/lib/telefono/prefijos'
 import { mesDeFecha } from '@/lib/lotes/aplicar-indexacion'
 import { EVENTO_HISTORIAL_ETIQUETA } from '@/lib/lotes/eventos-historial'
+import { CampoArchivoDirecto } from '@/components/CampoArchivoDirecto'
 import { FiltroEnVivo } from '@/components/FiltroEnVivo'
 import { RefinanciarCuotas } from './RefinanciarCuotas'
 
@@ -1029,10 +1030,15 @@ export default async function LoteDetallePage({
             className="mt-1 block w-full rounded border px-3 py-2"
           />
         </label>
-        <label className="text-sm">
-          Archivo
-          <input name="archivo" type="file" required className="mt-1 block w-full rounded border px-3 py-2" />
-        </label>
+        <CampoArchivoDirecto
+          name="archivo"
+          bucket="comprobantes"
+          carpeta={`lotes/${id}`}
+          tipoArchivo="documento"
+          label="Archivo"
+          accept="*/*"
+          required
+        />
         <button type="submit" className="self-start rounded bg-black px-3 py-2 text-sm text-white">
           Subir documento
         </button>

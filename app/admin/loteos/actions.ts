@@ -5,7 +5,6 @@ import { createAdminClient } from '@/lib/supabase/admin'
 import { redirect } from 'next/navigation'
 import { requireAdministrador } from '@/lib/auth/require-admin'
 import { mensajeDeError } from '@/lib/errores'
-import { excedeTamanioMaximo, MAX_ARCHIVO_MB } from '@/lib/storage/validar-tamanio-archivo'
 import { extraerPlaceholders } from '@/lib/contratos/extraer-placeholders'
 import { PLACEHOLDERS_CONOCIDOS } from '@/lib/contratos/armar-datos-contrato'
 
@@ -84,41 +83,47 @@ export async function reasignarLotesEnBloque(formData: FormData) {
 export async function subirPlantillaContrato(loteoId: string, formData: FormData) {
   await requireAdministrador()
 
-  const archivo = formData.get('plantilla') as File
+  // El archivo ya se subió directo del navegador a Storage
+  // (CampoArchivoDirecto) -- acá llega el path y el nombre original por
+  // separado, nunca el archivo en sí.
+  const path = ((formData.get('plantilla') as string) || '').trim()
+  const nombreOriginal = ((formData.get('plantillaNombreOriginal') as string) || '').trim()
 
-  if (!archivo || archivo.size === 0) {
+  if (!path) {
     redirect(`/admin/loteos?error=${encodeURIComponent('Elegí un archivo .docx para subir')}`)
   }
 
-  if (!archivo.name.toLowerCase().endsWith('.docx')) {
+  if (!path.startsWith(`loteos/${loteoId}/`)) {
+    redirect(`/admin/loteos?error=${encodeURIComponent('El archivo no es válido, probá subirlo de nuevo')}`)
+  }
+
+  if (!nombreOriginal.toLowerCase().endsWith('.docx')) {
     redirect(`/admin/loteos?error=${encodeURIComponent('La plantilla tiene que ser un archivo .docx')}`)
   }
 
-  if (excedeTamanioMaximo(archivo)) {
-    redirect(
-      `/admin/loteos?error=${encodeURIComponent(
-        `El archivo pesa más de ${MAX_ARCHIVO_MB} MB — subí uno más liviano.`
-      )}`
-    )
+  const admin = createAdminClient()
+
+  // Para buscar los {placeholder} hay que leer el contenido real del
+  // .docx -- como el archivo ya está en Storage (no llegó por acá), se
+  // vuelve a descargar para poder inspeccionarlo.
+  const { data: archivoDescargado, error: errorDescarga } = await admin.storage
+    .from('comprobantes')
+    .download(path)
+
+  if (errorDescarga || !archivoDescargado) {
+    redirect(`/admin/loteos?error=${encodeURIComponent('No se pudo leer la plantilla recién subida. Probá de nuevo.')}`)
   }
 
   // Aviso (no bloquea la subida) si la plantilla tiene algún {placeholder}
   // que el sistema no sabe completar -- típicamente un typo en el nombre.
   // Gabriel (25/08): que se vea resaltado para que lo complete a mano si
   // hace falta, sin impedir subir la plantilla igual.
-  const placeholdersEncontrados = extraerPlaceholders(Buffer.from(await archivo.arrayBuffer()))
+  const placeholdersEncontrados = extraerPlaceholders(
+    Buffer.from(await archivoDescargado!.arrayBuffer())
+  )
   const placeholdersDesconocidos = placeholdersEncontrados.filter(
     (nombre) => !PLACEHOLDERS_CONOCIDOS.includes(nombre)
   )
-
-  const admin = createAdminClient()
-  const path = `loteos/${loteoId}/plantilla-contrato-${Date.now()}.docx`
-
-  const { error: errorSubida } = await admin.storage.from('comprobantes').upload(path, archivo)
-
-  if (errorSubida) {
-    redirect(`/admin/loteos?error=${encodeURIComponent('No se pudo subir la plantilla. Probá de nuevo.')}`)
-  }
 
   const supabase = await createClient()
 
@@ -133,7 +138,7 @@ export async function subirPlantillaContrato(loteoId: string, formData: FormData
 
   const { error: errorUpdate } = await supabase
     .from('loteos')
-    .update({ plantilla_contrato_path: path, plantilla_contrato_nombre: archivo.name })
+    .update({ plantilla_contrato_path: path, plantilla_contrato_nombre: nombreOriginal })
     .eq('id', loteoId)
 
   if (errorUpdate) {
