@@ -3,6 +3,7 @@ import { notFound } from 'next/navigation'
 import { requireAdministrador } from '@/lib/auth/require-admin'
 import { actualizarReserva } from '../actions'
 import { CampoTelefono, AyudaTelefono } from '@/components/CampoTelefono'
+import { CampoArchivoDirecto } from '@/components/CampoArchivoDirecto'
 
 export default async function EditarReservaPage({
   params,
@@ -61,7 +62,7 @@ export default async function EditarReservaPage({
   const { data: reserva } = await supabase
     .from('reservas')
     .select(
-      'nombre_completo, dni, domicilio, email, telefono_prefijo, telefono_numero, telefono_alternativo, estado_civil, instrumentacion, monto_sena, moneda_sena, recibido_por, recibido_por_otro'
+      'nombre_completo, dni, domicilio, email, telefono_prefijo, telefono_numero, telefono_alternativo, estado_civil, instrumentacion, monto_sena, moneda_sena, recibido_por, recibido_por_otro, comprobante_sena_path, dni_frente_path, dni_dorso_path, dni_conyuge_path, sentencia_divorcio_path'
     )
     .eq('lote_id', id)
     .is('cancelada_at', null)
@@ -219,28 +220,55 @@ export default async function EditarReservaPage({
             mantiene el que ya estaba subido.
           </p>
 
-          <label className="text-sm">
-            Comprobante de la seña (opcional, reemplaza el actual)
-            <input name="comprobante" type="file" className="mt-1 block w-full rounded border px-3 py-2" />
-          </label>
-          <label className="text-sm">
-            DNI - frente (opcional, reemplaza el actual)
-            <input name="dniFrente" type="file" className="mt-1 block w-full rounded border px-3 py-2" />
-          </label>
-          <label className="text-sm">
-            DNI - dorso (opcional, reemplaza el actual)
-            <input name="dniDorso" type="file" className="mt-1 block w-full rounded border px-3 py-2" />
-          </label>
-          <label className="text-sm">
-            DNI del cónyuge (opcional, reemplaza el actual — obligatorio si el estado civil queda en
-            &quot;Casado/a&quot; y todavía no había uno guardado)
-            <input name="dniConyuge" type="file" className="mt-1 block w-full rounded border px-3 py-2" />
-          </label>
-          <label className="text-sm">
-            Sentencia de divorcio (opcional, reemplaza el actual — obligatoria si el estado civil queda en
-            &quot;Divorciado/a&quot; y todavía no había una guardada)
-            <input name="sentenciaDivorcio" type="file" className="mt-1 block w-full rounded border px-3 py-2" />
-          </label>
+          <CampoArchivoDirecto
+            name="comprobante"
+            bucket="comprobantes"
+            carpeta={`reservas/${id}`}
+            tipoArchivo="comprobante"
+            label="Comprobante de la seña (opcional, reemplaza el actual)"
+            nombreError="El comprobante de la seña"
+            valorInicial={reserva.comprobante_sena_path}
+          />
+          <CampoArchivoDirecto
+            name="dniFrente"
+            bucket="comprobantes"
+            carpeta={`reservas/${id}`}
+            tipoArchivo="dni-frente"
+            label="DNI - frente (opcional, reemplaza el actual)"
+            nombreError="La foto del DNI (frente)"
+            valorInicial={reserva.dni_frente_path}
+          />
+          <CampoArchivoDirecto
+            name="dniDorso"
+            bucket="comprobantes"
+            carpeta={`reservas/${id}`}
+            tipoArchivo="dni-dorso"
+            label="DNI - dorso (opcional, reemplaza el actual)"
+            nombreError="La foto del DNI (dorso)"
+            valorInicial={reserva.dni_dorso_path}
+          />
+          <CampoArchivoDirecto
+            name="dniConyuge"
+            bucket="comprobantes"
+            carpeta={`reservas/${id}`}
+            tipoArchivo="dni-conyuge"
+            label={
+              'DNI del cónyuge (opcional, reemplaza el actual — obligatorio si el estado civil queda en "Casado/a" y todavía no había uno guardado)'
+            }
+            nombreError="La foto del DNI del cónyuge"
+            valorInicial={reserva.dni_conyuge_path}
+          />
+          <CampoArchivoDirecto
+            name="sentenciaDivorcio"
+            bucket="comprobantes"
+            carpeta={`reservas/${id}`}
+            tipoArchivo="sentencia-divorcio"
+            label={
+              'Sentencia de divorcio (opcional, reemplaza el actual — obligatoria si el estado civil queda en "Divorciado/a" y todavía no había una guardada)'
+            }
+            nombreError="La sentencia de divorcio"
+            valorInicial={reserva.sentencia_divorcio_path}
+          />
 
           <button type="submit" className="rounded bg-black px-3 py-2 text-white">
             Guardar cambios

@@ -42,7 +42,7 @@ test.describe('Preservar datos tipeados si falta un campo obligatorio al reserva
     await page.getByPlaceholder('9351234567').fill('3511112222')
     await page.selectOption('select[name="estadoCivil"]', 'soltero')
     await page.getByPlaceholder('Monto de la seña').fill('750')
-    await page.setInputFiles('input[name="comprobante"]', {
+    await page.setInputFiles('[data-testid="comprobante"]', {
       name: `e2e-comprobante-${Date.now()}.pdf`,
       mimeType: 'application/pdf',
       buffer: COMPROBANTE_BYTES,
@@ -51,6 +51,7 @@ test.describe('Preservar datos tipeados si falta un campo obligatorio al reserva
     // en el HTML (no se puede expresar "obligatorio salvo..." sin JS), así
     // que el navegador deja enviar el formulario y el error lo tira el
     // servidor -- el escenario real que dispara la preservación.
+    await expect(page.locator('[data-testid="comprobante"]')).toBeEnabled()
 
     await page.getByRole('button', { name: 'Confirmar reserva' }).click()
 
@@ -95,11 +96,12 @@ test.describe('Preservar datos tipeados si falta un campo obligatorio al reserva
     // enviar, y el error lo tira el servidor).
     await page.selectOption('select[name="estadoCivil"]', 'soltero')
     await page.getByPlaceholder('Monto de la seña').fill('300')
-    await page.setInputFiles('input[name="comprobante"]', {
+    await page.setInputFiles('[data-testid="comprobante"]', {
       name: `e2e-comprobante-${Date.now()}.pdf`,
       mimeType: 'application/pdf',
       buffer: COMPROBANTE_BYTES,
     })
+    await expect(page.locator('[data-testid="comprobante"]')).toBeEnabled()
     await page.getByRole('button', { name: 'Confirmar reserva' }).click()
 
     await expect(page.getByText('Subí las fotos del DNI (frente y dorso)')).toBeVisible()

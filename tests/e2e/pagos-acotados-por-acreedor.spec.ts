@@ -27,11 +27,12 @@ async function registrarPagoConComprobante(page: Page, fixtures: TestFixtures, n
   await page.getByRole('button', { name: 'Ya transferí' }).click()
   await page.waitForURL(/\/portal-cliente\/pagos\/.+\/comprobante$/)
 
-  await page.setInputFiles('input[name="comprobante"]', {
+  await page.setInputFiles('[data-testid="comprobante"]', {
     name: nombreArchivo,
     mimeType: 'application/pdf',
     buffer: COMPROBANTE_BYTES,
   })
+  await expect(page.locator('[data-testid="comprobante"]')).toBeEnabled()
   await page.getByRole('button', { name: 'Finalizar' }).click()
   await page.waitForURL(/\/portal-cliente$/)
 }
@@ -74,11 +75,12 @@ test.describe('Confirmación de pagos acotada al acreedor del lote', () => {
       await page.getByRole('button', { name: 'Ya transferí' }).click()
       await page.waitForURL(/\/portal-cliente\/pagos\/.+\/comprobante$/)
 
-      await page.setInputFiles('input[name="comprobante"]', {
+      await page.setInputFiles('[data-testid="comprobante"]', {
         name: NOMBRE_COMPROBANTE,
         mimeType: 'application/pdf',
         buffer: COMPROBANTE_BYTES,
       })
+      await expect(page.locator('[data-testid="comprobante"]')).toBeEnabled()
       await page.getByRole('button', { name: 'Finalizar' }).click()
       await page.waitForURL(/\/portal-cliente$/)
     })

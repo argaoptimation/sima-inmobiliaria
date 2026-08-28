@@ -27,12 +27,16 @@ async function crearLoteDisponible(identificador: string, acreedorId: string) {
   return lote.id as string
 }
 
-function subirArchivo(page: Page, selector: string, nombre: string) {
-  return page.setInputFiles(selector, {
+async function subirArchivo(page: Page, selector: string, nombre: string) {
+  await page.setInputFiles(selector, {
     name: nombre,
     mimeType: 'application/pdf',
     buffer: COMPROBANTE_BYTES,
   })
+  // Sube directo a Storage en cuanto se elige -- esperar a que termine (el
+  // input queda deshabilitado mientras tanto) o el campo oculto con el
+  // path todavía está vacío al hacer submit.
+  await expect(page.locator(selector)).toBeEnabled()
 }
 
 async function completarCamposBasicos(page: Page, estadoCivil: string) {
@@ -43,7 +47,7 @@ async function completarCamposBasicos(page: Page, estadoCivil: string) {
   await page.getByPlaceholder('9351234567').fill('3511234567')
   await page.selectOption('select[name="estadoCivil"]', estadoCivil)
   await page.getByPlaceholder('Monto de la seña').fill('500')
-  await subirArchivo(page, 'input[name="comprobante"]', `e2e-comprobante-${Date.now()}.pdf`)
+  await subirArchivo(page, '[data-testid="comprobante"]', `e2e-comprobante-${Date.now()}.pdf`)
 }
 
 test.describe('Fotos en la reserva', () => {
@@ -62,8 +66,8 @@ test.describe('Fotos en la reserva', () => {
     await login(page, fixtures.admin.email, fixtures.password)
     await page.goto(`/admin/lotes/${loteId}/reservar`)
     await completarCamposBasicos(page, 'soltero')
-    await subirArchivo(page, 'input[name="dniFrente"]', `e2e-dni-frente-${Date.now()}.pdf`)
-    await subirArchivo(page, 'input[name="dniDorso"]', `e2e-dni-dorso-${Date.now()}.pdf`)
+    await subirArchivo(page, '[data-testid="dniFrente"]', `e2e-dni-frente-${Date.now()}.pdf`)
+    await subirArchivo(page, '[data-testid="dniDorso"]', `e2e-dni-dorso-${Date.now()}.pdf`)
 
     await page.getByRole('button', { name: 'Confirmar reserva' }).click()
     await page.waitForURL('**/admin/lotes')
@@ -92,7 +96,7 @@ test.describe('Fotos en la reserva', () => {
     await login(page, fixtures.admin.email, fixtures.password)
     await page.goto(`/admin/lotes/${loteId}/reservar`)
     await completarCamposBasicos(page, 'soltero')
-    await subirArchivo(page, 'input[name="dniDorso"]', `e2e-dni-dorso-${Date.now()}.pdf`)
+    await subirArchivo(page, '[data-testid="dniDorso"]', `e2e-dni-dorso-${Date.now()}.pdf`)
     // dniFrente NO se sube a propósito.
 
     await page.getByRole('button', { name: 'Confirmar reserva' }).click()
@@ -112,8 +116,8 @@ test.describe('Fotos en la reserva', () => {
     await login(page, fixtures.admin.email, fixtures.password)
     await page.goto(`/admin/lotes/${loteId}/reservar`)
     await completarCamposBasicos(page, 'casado')
-    await subirArchivo(page, 'input[name="dniFrente"]', `e2e-dni-frente-${Date.now()}.pdf`)
-    await subirArchivo(page, 'input[name="dniDorso"]', `e2e-dni-dorso-${Date.now()}.pdf`)
+    await subirArchivo(page, '[data-testid="dniFrente"]', `e2e-dni-frente-${Date.now()}.pdf`)
+    await subirArchivo(page, '[data-testid="dniDorso"]', `e2e-dni-dorso-${Date.now()}.pdf`)
     // dniConyuge NO se sube a propósito.
 
     await page.getByRole('button', { name: 'Confirmar reserva' }).click()
@@ -135,8 +139,8 @@ test.describe('Fotos en la reserva', () => {
     await login(page, fixtures.admin.email, fixtures.password)
     await page.goto(`/admin/lotes/${loteId}/reservar`)
     await completarCamposBasicos(page, 'divorciado')
-    await subirArchivo(page, 'input[name="dniFrente"]', `e2e-dni-frente-${Date.now()}.pdf`)
-    await subirArchivo(page, 'input[name="dniDorso"]', `e2e-dni-dorso-${Date.now()}.pdf`)
+    await subirArchivo(page, '[data-testid="dniFrente"]', `e2e-dni-frente-${Date.now()}.pdf`)
+    await subirArchivo(page, '[data-testid="dniDorso"]', `e2e-dni-dorso-${Date.now()}.pdf`)
     // sentenciaDivorcio NO se sube a propósito.
 
     await page.getByRole('button', { name: 'Confirmar reserva' }).click()
@@ -158,9 +162,9 @@ test.describe('Fotos en la reserva', () => {
     await login(page, fixtures.admin.email, fixtures.password)
     await page.goto(`/admin/lotes/${loteId}/reservar`)
     await completarCamposBasicos(page, 'casado')
-    await subirArchivo(page, 'input[name="dniFrente"]', `e2e-dni-frente-${Date.now()}.pdf`)
-    await subirArchivo(page, 'input[name="dniDorso"]', `e2e-dni-dorso-${Date.now()}.pdf`)
-    await subirArchivo(page, 'input[name="dniConyuge"]', `e2e-dni-conyuge-${Date.now()}.pdf`)
+    await subirArchivo(page, '[data-testid="dniFrente"]', `e2e-dni-frente-${Date.now()}.pdf`)
+    await subirArchivo(page, '[data-testid="dniDorso"]', `e2e-dni-dorso-${Date.now()}.pdf`)
+    await subirArchivo(page, '[data-testid="dniConyuge"]', `e2e-dni-conyuge-${Date.now()}.pdf`)
 
     await page.getByRole('button', { name: 'Confirmar reserva' }).click()
     await page.waitForURL('**/admin/lotes')
@@ -184,9 +188,9 @@ test.describe('Fotos en la reserva', () => {
     await login(page, fixtures.admin.email, fixtures.password)
     await page.goto(`/admin/lotes/${loteId}/reservar`)
     await completarCamposBasicos(page, 'casado')
-    await subirArchivo(page, 'input[name="dniFrente"]', `e2e-dni-frente-${Date.now()}.pdf`)
-    await subirArchivo(page, 'input[name="dniDorso"]', `e2e-dni-dorso-${Date.now()}.pdf`)
-    await subirArchivo(page, 'input[name="dniConyuge"]', `e2e-dni-conyuge-${Date.now()}.pdf`)
+    await subirArchivo(page, '[data-testid="dniFrente"]', `e2e-dni-frente-${Date.now()}.pdf`)
+    await subirArchivo(page, '[data-testid="dniDorso"]', `e2e-dni-dorso-${Date.now()}.pdf`)
+    await subirArchivo(page, '[data-testid="dniConyuge"]', `e2e-dni-conyuge-${Date.now()}.pdf`)
     await page.getByRole('button', { name: 'Confirmar reserva' }).click()
     await page.waitForURL('**/admin/lotes')
 

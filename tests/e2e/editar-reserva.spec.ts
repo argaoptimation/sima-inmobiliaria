@@ -78,11 +78,14 @@ test.describe('Editar reserva ya cargada', () => {
     await login(page, fixtures.admin.email, fixtures.password)
     await page.goto(`/admin/lotes/${loteId}/reservar/editar`)
 
-    await page.setInputFiles('input[name="comprobante"]', {
+    await page.setInputFiles('[data-testid="comprobante"]', {
       name: `comprobante-nuevo-${Date.now()}.pdf`,
       mimeType: 'application/pdf',
       buffer: COMPROBANTE_BYTES,
     })
+    // Sube directo a Storage en cuanto se elige -- esperar a que termine o
+    // el campo oculto todavía tiene el path viejo cuando se hace submit.
+    await expect(page.locator('[data-testid="comprobante"]')).toBeEnabled()
     await page.getByRole('button', { name: 'Guardar cambios' }).click()
     await page.waitForURL(`**/admin/lotes/${loteId}`)
 

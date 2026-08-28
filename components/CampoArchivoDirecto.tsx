@@ -25,6 +25,10 @@ interface CampoArchivoDirectoProps {
   // Path ya existente (al editar algo que ya tenía un archivo cargado) --
   // se preserva si el usuario no elige uno nuevo.
   valorInicial?: string | null
+  // Cómo nombrar el archivo en el mensaje de "pesa más de 15 MB", ej. "El
+  // comprobante de la seña", "La foto del DNI (frente)" -- mismo texto que
+  // ya se usaba cuando esta validación corría del lado del servidor.
+  nombreError?: string
 }
 
 export function CampoArchivoDirecto({
@@ -37,6 +41,7 @@ export function CampoArchivoDirecto({
   required = false,
   accept = 'image/*,.pdf',
   valorInicial = null,
+  nombreError = 'El archivo',
 }: CampoArchivoDirectoProps) {
   const inputId = useId()
   const [path, setPath] = useState<string | null>(valorInicial)
@@ -49,7 +54,7 @@ export function CampoArchivoDirecto({
     if (!archivo) return
 
     if (excedeTamanioMaximo(archivo)) {
-      setError(`Pesa más de ${MAX_ARCHIVO_MB} MB — elegí un archivo más liviano.`)
+      setError(`${nombreError} pesa más de ${MAX_ARCHIVO_MB} MB — subí uno más liviano.`)
       setPath(valorInicial)
       setNombreArchivo(null)
       return

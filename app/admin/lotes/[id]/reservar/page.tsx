@@ -3,6 +3,7 @@ import { notFound } from 'next/navigation'
 import { requireAccesoParaReservar } from '@/lib/auth/require-admin'
 import { reservarLote } from './actions'
 import { CampoTelefono, AyudaTelefono } from '@/components/CampoTelefono'
+import { CampoArchivoDirecto } from '@/components/CampoArchivoDirecto'
 
 export default async function ReservarLotePage({
   params,
@@ -251,48 +252,47 @@ export default async function ReservarLotePage({
             className="rounded border px-3 py-2"
           />
 
-          <label className="text-sm">
-            Comprobante de la seña
-            <input
-              name="comprobante"
-              type="file"
-              required
-              className="mt-1 block w-full rounded border px-3 py-2"
-            />
-          </label>
-
-          <label className="text-sm">
-            DNI - frente
-            <input
-              name="dniFrente"
-              type="file"
-              className="mt-1 block w-full rounded border px-3 py-2"
-            />
-          </label>
-          <label className="text-sm">
-            DNI - dorso
-            <input
-              name="dniDorso"
-              type="file"
-              className="mt-1 block w-full rounded border px-3 py-2"
-            />
-          </label>
-          <label className="text-sm">
-            DNI del cónyuge (solo si elegiste &quot;Casado/a&quot; arriba)
-            <input
-              name="dniConyuge"
-              type="file"
-              className="mt-1 block w-full rounded border px-3 py-2"
-            />
-          </label>
-          <label className="text-sm">
-            Sentencia de divorcio (solo si elegiste &quot;Divorciado/a&quot; arriba)
-            <input
-              name="sentenciaDivorcio"
-              type="file"
-              className="mt-1 block w-full rounded border px-3 py-2"
-            />
-          </label>
+          <CampoArchivoDirecto
+            name="comprobante"
+            bucket="comprobantes"
+            carpeta={`reservas/${id}`}
+            tipoArchivo="comprobante"
+            label="Comprobante de la seña"
+            nombreError="El comprobante de la seña"
+            required
+          />
+          <CampoArchivoDirecto
+            name="dniFrente"
+            bucket="comprobantes"
+            carpeta={`reservas/${id}`}
+            tipoArchivo="dni-frente"
+            label="DNI - frente"
+            nombreError="La foto del DNI (frente)"
+          />
+          <CampoArchivoDirecto
+            name="dniDorso"
+            bucket="comprobantes"
+            carpeta={`reservas/${id}`}
+            tipoArchivo="dni-dorso"
+            label="DNI - dorso"
+            nombreError="La foto del DNI (dorso)"
+          />
+          <CampoArchivoDirecto
+            name="dniConyuge"
+            bucket="comprobantes"
+            carpeta={`reservas/${id}`}
+            tipoArchivo="dni-conyuge"
+            label={'DNI del cónyuge (solo si elegiste "Casado/a" arriba)'}
+            nombreError="La foto del DNI del cónyuge"
+          />
+          <CampoArchivoDirecto
+            name="sentenciaDivorcio"
+            bucket="comprobantes"
+            carpeta={`reservas/${id}`}
+            tipoArchivo="sentencia-divorcio"
+            label={'Sentencia de divorcio (solo si elegiste "Divorciado/a" arriba)'}
+            nombreError="La sentencia de divorcio"
+          />
 
           <button type="submit" className="rounded bg-black px-3 py-2 text-white">
             Confirmar reserva

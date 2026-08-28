@@ -67,26 +67,35 @@ test.describe('Límite de tamaño de archivo en subidas', () => {
     await page.getByPlaceholder('9351234567').fill('3511234567')
     await page.selectOption('select[name="estadoCivil"]', 'soltero')
     await page.getByPlaceholder('Monto de la seña').fill('500')
-    await page.setInputFiles('input[name="comprobante"]', {
+    await page.setInputFiles('[data-testid="comprobante"]', {
       name: 'comprobante-grande.pdf',
       mimeType: 'application/pdf',
       buffer: ARCHIVO_GRANDE,
     })
-    await page.setInputFiles('input[name="dniFrente"]', {
+    // La validación de tamaño ahora corre del lado del cliente (antes de
+    // intentar subir nada) -- el error aparece apenas se elige el archivo,
+    // no recién después de tocar "Confirmar reserva".
+    await expect(
+      page.getByText('El comprobante de la seña pesa más de 15 MB')
+    ).toBeVisible()
+
+    await page.setInputFiles('[data-testid="dniFrente"]', {
       name: 'dni-frente.pdf',
       mimeType: 'application/pdf',
       buffer: ARCHIVO_CHICO,
     })
-    await page.setInputFiles('input[name="dniDorso"]', {
+    await page.setInputFiles('[data-testid="dniDorso"]', {
       name: 'dni-dorso.pdf',
       mimeType: 'application/pdf',
       buffer: ARCHIVO_CHICO,
     })
-    await page.getByRole('button', { name: 'Confirmar reserva' }).click()
+    await expect(page.locator('[data-testid="dniFrente"]')).toBeEnabled()
+    await expect(page.locator('[data-testid="dniDorso"]')).toBeEnabled()
 
-    await expect(
-      page.getByText('El comprobante de la seña pesa más de 15 MB')
-    ).toBeVisible()
+    // El campo oculto del comprobante quedó vacío (required) -- el navegador
+    // bloquea el submit en silencio, nunca llega a pegarle al servidor.
+    await page.getByRole('button', { name: 'Confirmar reserva' }).click()
+    await expect(page).toHaveURL(new RegExp(`/admin/lotes/${loteId}/reservar$`))
 
     const admin = createAdminClient()
     const { data: lote } = await admin.from('lotes').select('estado').eq('id', loteId).single()
@@ -109,14 +118,16 @@ test.describe('Límite de tamaño de archivo en subidas', () => {
       throw new Error(`No se pudo extraer el id del pago de la URL: ${page.url()}`)
     }
 
-    await page.setInputFiles('input[name="comprobante"]', {
+    await page.setInputFiles('[data-testid="comprobante"]', {
       name: 'comprobante-pago-grande.pdf',
       mimeType: 'application/pdf',
       buffer: ARCHIVO_GRANDE,
     })
-    await page.getByRole('button', { name: 'Finalizar' }).click()
-
+    // Rechazado del lado del cliente apenas se elige -- "Finalizar" queda
+    // bloqueado en silencio por el navegador (campo oculto vacío/required).
     await expect(page.getByText('El comprobante pesa más de 15 MB')).toBeVisible()
+    await page.getByRole('button', { name: 'Finalizar' }).click()
+    await expect(page).toHaveURL(new RegExp(`/portal-cliente/pagos/${pagoId}/comprobante$`))
 
     const admin = createAdminClient()
     const { data: pago } = await admin
@@ -142,21 +153,24 @@ test.describe('Límite de tamaño de archivo en subidas', () => {
     await page.getByPlaceholder('9351234567').fill('3511234567')
     await page.selectOption('select[name="estadoCivil"]', 'soltero')
     await page.getByPlaceholder('Monto de la seña').fill('500')
-    await page.setInputFiles('input[name="comprobante"]', {
+    await page.setInputFiles('[data-testid="comprobante"]', {
       name: 'comprobante-valido.pdf',
       mimeType: 'application/pdf',
       buffer: ARCHIVO_VALIDO,
     })
-    await page.setInputFiles('input[name="dniFrente"]', {
+    await page.setInputFiles('[data-testid="dniFrente"]', {
       name: 'dni-frente.pdf',
       mimeType: 'application/pdf',
       buffer: ARCHIVO_CHICO,
     })
-    await page.setInputFiles('input[name="dniDorso"]', {
+    await page.setInputFiles('[data-testid="dniDorso"]', {
       name: 'dni-dorso.pdf',
       mimeType: 'application/pdf',
       buffer: ARCHIVO_CHICO,
     })
+    await expect(page.locator('[data-testid="comprobante"]')).toBeEnabled()
+    await expect(page.locator('[data-testid="dniFrente"]')).toBeEnabled()
+    await expect(page.locator('[data-testid="dniDorso"]')).toBeEnabled()
     await page.getByRole('button', { name: 'Confirmar reserva' }).click()
     await page.waitForURL('**/admin/lotes')
 

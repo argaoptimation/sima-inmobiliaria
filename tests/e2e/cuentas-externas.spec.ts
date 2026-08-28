@@ -351,11 +351,12 @@ test.describe('Cuentas externas', () => {
       await page.getByRole('button', { name: 'Ya transferí' }).click()
       await page.waitForURL(/\/portal-cliente\/pagos\/.+\/comprobante$/)
 
-      await page.setInputFiles('input[name="comprobante"]', {
+      await page.setInputFiles('[data-testid="comprobante"]', {
         name: nombreComprobante,
         mimeType: 'application/pdf',
         buffer: COMPROBANTE_BYTES,
       })
+      await expect(page.locator('[data-testid="comprobante"]')).toBeEnabled()
       await page.getByRole('button', { name: 'Finalizar' }).click()
       await page.waitForURL(/\/portal-cliente$/)
 

@@ -81,6 +81,7 @@ export default async function ComprobantePagoPage({
                 tipoArchivo="comprobante"
                 label="Elegí una foto o PDF del comprobante"
                 ayuda="Tocá acá para buscar el archivo en tu celular o PC"
+                nombreError="El comprobante"
                 required
               />
               <BotonEnvio className="rounded-lg bg-blue-800 px-4 py-2.5 font-semibold text-white transition-colors hover:bg-blue-900 cursor-pointer">

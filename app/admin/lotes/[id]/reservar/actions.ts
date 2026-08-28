@@ -6,7 +6,6 @@ import { redirect } from 'next/navigation'
 import { requireAccesoParaReservar, requireAdministrador } from '@/lib/auth/require-admin'
 import { tieneRecibidoPorValido } from '@/lib/reservas/validar-recibido-por'
 import { vendedorIdAlReservar } from '@/lib/lotes/asignar-vendedor-al-reservar'
-import { excedeTamanioMaximo, MAX_ARCHIVO_MB } from '@/lib/storage/validar-tamanio-archivo'
 import { telefonoParaGuardar, errorLongitudTelefono } from '@/lib/telefono/prefijos'
 
 const ESTADOS_CIVILES_VALIDOS = ['soltero', 'casado', 'divorciado', 'viudo']
@@ -57,6 +56,16 @@ function redirectEditarConError(
   redirect(`/admin/lotes/${loteId}/reservar/editar?${params.toString()}`)
 }
 
+// Los archivos ya se subieron directo del navegador a Supabase Storage
+// (CampoArchivoDirecto) antes de llegar acá -- esta función solo confirma
+// que el path recibido cae dentro de la carpeta esperada del lote. Es la
+// misma verificación que ya exige la policy RLS de storage.objects (ver
+// migración 0048), repetida acá para no confiar ciegamente en un string
+// que llega del formulario.
+function pathValido(path: string, loteId: string): boolean {
+  return path.startsWith(`reservas/${loteId}/`)
+}
+
 export async function reservarLote(loteId: string, formData: FormData) {
   await requireAccesoParaReservar(loteId)
 
@@ -85,11 +94,13 @@ export async function reservarLote(loteId: string, formData: FormData) {
   const monedaSena = ((formData.get('monedaSena') as string) || '').trim()
   const recibidoPor = ((formData.get('recibidoPor') as string) || '').trim() || null
   const recibidoPorOtro = ((formData.get('recibidoPorOtro') as string) || '').trim() || null
-  const comprobante = formData.get('comprobante') as File
-  const dniFrente = formData.get('dniFrente') as File
-  const dniDorso = formData.get('dniDorso') as File
-  const dniConyuge = formData.get('dniConyuge') as File | null
-  const sentenciaDivorcio = formData.get('sentenciaDivorcio') as File | null
+  // Ya no llegan archivos acá -- CampoArchivoDirecto los sube directo del
+  // navegador a Storage antes del submit, y manda el path resultante.
+  const comprobantePath = ((formData.get('comprobante') as string) || '').trim()
+  const dniFrentePath = ((formData.get('dniFrente') as string) || '').trim()
+  const dniDorsoPath = ((formData.get('dniDorso') as string) || '').trim()
+  const dniConyugePathForm = ((formData.get('dniConyuge') as string) || '').trim()
+  const sentenciaDivorcioPathForm = ((formData.get('sentenciaDivorcio') as string) || '').trim()
 
   if (!tieneRecibidoPorValido({ recibidoPor, recibidoPorOtro })) {
     redirectConError(loteId, formData, 'Indicá quién recibió la seña, de la lista o escribiendo el nombre')
@@ -100,36 +111,18 @@ export async function reservarLote(loteId: string, formData: FormData) {
     redirectConError(loteId, formData, errorTelefono)
   }
 
-  if (!comprobante || comprobante.size === 0) {
+  if (!comprobantePath) {
     redirectConError(loteId, formData, 'Subí el comprobante de la seña')
   }
 
-  if (excedeTamanioMaximo(comprobante)) {
-    redirectConError(
-      loteId,
-      formData,
-      `El comprobante de la seña pesa más de ${MAX_ARCHIVO_MB} MB — subí uno más liviano.`
-    )
-  }
-
-  if (!dniFrente || dniFrente.size === 0 || !dniDorso || dniDorso.size === 0) {
+  if (!dniFrentePath || !dniDorsoPath) {
     redirectConError(loteId, formData, 'Subí las fotos del DNI (frente y dorso)')
   }
 
-  if (excedeTamanioMaximo(dniFrente)) {
-    redirectConError(
-      loteId,
-      formData,
-      `La foto del DNI (frente) pesa más de ${MAX_ARCHIVO_MB} MB — subí una más liviana.`
-    )
-  }
-
-  if (excedeTamanioMaximo(dniDorso)) {
-    redirectConError(
-      loteId,
-      formData,
-      `La foto del DNI (dorso) pesa más de ${MAX_ARCHIVO_MB} MB — subí una más liviana.`
-    )
+  for (const path of [comprobantePath, dniFrentePath, dniDorsoPath, dniConyugePathForm, sentenciaDivorcioPathForm]) {
+    if (path && !pathValido(path, loteId)) {
+      redirectConError(loteId, formData, 'Uno de los archivos no es válido, probá subirlo de nuevo')
+    }
   }
 
   const camposObligatoriosCompletos =
@@ -153,28 +146,12 @@ export async function reservarLote(loteId: string, formData: FormData) {
     redirectConError(loteId, formData, 'Estado civil inválido')
   }
 
-  if (estadoCivil === 'casado' && (!dniConyuge || dniConyuge.size === 0)) {
+  if (estadoCivil === 'casado' && !dniConyugePathForm) {
     redirectConError(loteId, formData, 'Subí el DNI del cónyuge (elegiste "Casado/a")')
   }
 
-  if (dniConyuge && dniConyuge.size > 0 && excedeTamanioMaximo(dniConyuge)) {
-    redirectConError(
-      loteId,
-      formData,
-      `La foto del DNI del cónyuge pesa más de ${MAX_ARCHIVO_MB} MB — subí una más liviana.`
-    )
-  }
-
-  if (estadoCivil === 'divorciado' && (!sentenciaDivorcio || sentenciaDivorcio.size === 0)) {
+  if (estadoCivil === 'divorciado' && !sentenciaDivorcioPathForm) {
     redirectConError(loteId, formData, 'Subí la sentencia de divorcio (elegiste "Divorciado/a")')
-  }
-
-  if (sentenciaDivorcio && sentenciaDivorcio.size > 0 && excedeTamanioMaximo(sentenciaDivorcio)) {
-    redirectConError(
-      loteId,
-      formData,
-      `La sentencia de divorcio pesa más de ${MAX_ARCHIVO_MB} MB — subí una más liviana.`
-    )
   }
 
   if (!MONEDAS_VALIDAS.includes(monedaSena)) {
@@ -243,75 +220,10 @@ export async function reservarLote(loteId: string, formData: FormData) {
     }
   }
 
-  const nombreArchivoSeguro = comprobante.name.replace(/[^a-zA-Z0-9._-]/g, '_')
-  const comprobantePath = `reservas/${loteId}/${Date.now()}-${nombreArchivoSeguro}`
-
-  const { error: errorUpload } = await admin.storage
-    .from('comprobantes')
-    .upload(comprobantePath, comprobante)
-
-  if (errorUpload) {
-    console.error('Error al subir el comprobante de la seña:', errorUpload)
-    redirect(
-      `/admin/lotes/${loteId}/reservar?error=${encodeURIComponent('No se pudo subir el comprobante. Probá de nuevo.')}`
-    )
-  }
-
-  async function subirArchivoReserva(archivo: File, tipo: string) {
-    const nombreSeguro = archivo.name.replace(/[^a-zA-Z0-9._-]/g, '_')
-    const filePath = `reservas/${loteId}/${tipo}-${Date.now()}-${nombreSeguro}`
-    const { error } = await admin.storage.from('comprobantes').upload(filePath, archivo)
-    return { filePath, error }
-  }
-
-  const { filePath: dniFrentePath, error: errorDniFrente } = await subirArchivoReserva(
-    dniFrente,
-    'dni-frente'
-  )
-  if (errorDniFrente) {
-    console.error('Error al subir el DNI frente:', errorDniFrente)
-    redirect(
-      `/admin/lotes/${loteId}/reservar?error=${encodeURIComponent('No se pudo subir el DNI (frente). Probá de nuevo.')}`
-    )
-  }
-
-  const { filePath: dniDorsoPath, error: errorDniDorso } = await subirArchivoReserva(
-    dniDorso,
-    'dni-dorso'
-  )
-  if (errorDniDorso) {
-    console.error('Error al subir el DNI dorso:', errorDniDorso)
-    redirect(
-      `/admin/lotes/${loteId}/reservar?error=${encodeURIComponent('No se pudo subir el DNI (dorso). Probá de nuevo.')}`
-    )
-  }
-
-  let dniConyugePath: string | null = null
-  if (dniConyuge && dniConyuge.size > 0) {
-    const { filePath, error: errorDniConyuge } = await subirArchivoReserva(dniConyuge, 'dni-conyuge')
-    if (errorDniConyuge) {
-      console.error('Error al subir el DNI del cónyuge:', errorDniConyuge)
-      redirect(
-        `/admin/lotes/${loteId}/reservar?error=${encodeURIComponent('No se pudo subir el DNI del cónyuge. Probá de nuevo.')}`
-      )
-    }
-    dniConyugePath = filePath
-  }
-
-  let sentenciaDivorcioPath: string | null = null
-  if (sentenciaDivorcio && sentenciaDivorcio.size > 0) {
-    const { filePath, error: errorSentencia } = await subirArchivoReserva(
-      sentenciaDivorcio,
-      'sentencia-divorcio'
-    )
-    if (errorSentencia) {
-      console.error('Error al subir la sentencia de divorcio:', errorSentencia)
-      redirect(
-        `/admin/lotes/${loteId}/reservar?error=${encodeURIComponent('No se pudo subir la sentencia de divorcio. Probá de nuevo.')}`
-      )
-    }
-    sentenciaDivorcioPath = filePath
-  }
+  // Los 5 archivos ya están subidos a Storage (CampoArchivoDirecto) -- acá
+  // solo quedan los paths, ya validados arriba.
+  const dniConyugePath = dniConyugePathForm || null
+  const sentenciaDivorcioPath = sentenciaDivorcioPathForm || null
 
   const { prefijo: telefonoPrefijo, numero: telefonoNumeroGuardar } = telefonoParaGuardar(
     prefijo,
@@ -439,58 +351,29 @@ export async function actualizarReserva(loteId: string, formData: FormData) {
     redirectEditarConError(loteId, formData, 'Instrumentación inválida')
   }
 
-  async function subirArchivoSiCorresponde(
-    campo: string,
-    tipo: string,
-    pathActual: string | null
-  ): Promise<string | null> {
-    const archivo = formData.get(campo) as File | null
+  // CampoArchivoDirecto ya subió el archivo nuevo (si eligieron uno) y
+  // manda su path -- o, si no tocaron el campo, el campo oculto sigue
+  // teniendo el path que ya tenía (se lo pasamos como valorInicial), así
+  // que no hace falta un fallback a mano acá como antes. El chequeo de
+  // prefijo solo aplica a un path REALMENTE nuevo -- uno ya guardado puede
+  // no matchear el patrón actual (reservas viejas, datos de prueba, etc.)
+  // y no hay que romperlo con una regla que no existía cuando se guardó.
+  function pathDelCampo(campo: string, pathActual: string | null): string | null {
+    const valor = ((formData.get(campo) as string) || '').trim()
+    if (!valor) return null
 
-    if (!archivo || archivo.size === 0) {
-      return pathActual
+    if (valor !== pathActual && !pathValido(valor, loteId)) {
+      redirectEditarConError(loteId, formData, `El archivo de "${campo}" no es válido, probá subirlo de nuevo`)
     }
 
-    if (excedeTamanioMaximo(archivo)) {
-      redirectEditarConError(
-        loteId,
-        formData,
-        `El archivo de "${tipo}" pesa más de ${MAX_ARCHIVO_MB} MB — subí uno más liviano.`
-      )
-    }
-
-    const nombreSeguro = archivo.name.replace(/[^a-zA-Z0-9._-]/g, '_')
-    const filePath = `reservas/${loteId}/${tipo}-${Date.now()}-${nombreSeguro}`
-    const { error } = await admin.storage.from('comprobantes').upload(filePath, archivo)
-
-    if (error) {
-      console.error(`Error al subir "${tipo}" al editar la reserva:`, error)
-      redirectEditarConError(loteId, formData, `No se pudo subir el archivo de "${tipo}". Probá de nuevo.`)
-    }
-
-    return filePath
+    return valor
   }
 
-  const comprobantePath = await subirArchivoSiCorresponde(
-    'comprobante',
-    'comprobante',
-    reservaActual!.comprobante_sena_path
-  )
-  const dniFrentePath = await subirArchivoSiCorresponde(
-    'dniFrente',
-    'dni-frente',
-    reservaActual!.dni_frente_path
-  )
-  const dniDorsoPath = await subirArchivoSiCorresponde('dniDorso', 'dni-dorso', reservaActual!.dni_dorso_path)
-  const dniConyugePath = await subirArchivoSiCorresponde(
-    'dniConyuge',
-    'dni-conyuge',
-    reservaActual!.dni_conyuge_path
-  )
-  const sentenciaDivorcioPath = await subirArchivoSiCorresponde(
-    'sentenciaDivorcio',
-    'sentencia-divorcio',
-    reservaActual!.sentencia_divorcio_path
-  )
+  const comprobantePath = pathDelCampo('comprobante', reservaActual!.comprobante_sena_path)
+  const dniFrentePath = pathDelCampo('dniFrente', reservaActual!.dni_frente_path)
+  const dniDorsoPath = pathDelCampo('dniDorso', reservaActual!.dni_dorso_path)
+  const dniConyugePath = pathDelCampo('dniConyuge', reservaActual!.dni_conyuge_path)
+  const sentenciaDivorcioPath = pathDelCampo('sentenciaDivorcio', reservaActual!.sentencia_divorcio_path)
 
   if (estadoCivil === 'casado' && !dniConyugePath) {
     redirectEditarConError(loteId, formData, 'Subí el DNI del cónyuge (elegiste "Casado/a")')

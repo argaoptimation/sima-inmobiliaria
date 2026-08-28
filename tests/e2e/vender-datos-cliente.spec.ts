@@ -49,21 +49,27 @@ async function reservarLotePorUI(
   await page.selectOption('select[name="estadoCivil"]', 'soltero')
   await page.getByPlaceholder('Monto de la seña').fill(datos.montoSena)
   await page.selectOption('select[name="monedaSena"]', 'USD')
-  await page.setInputFiles('input[name="comprobante"]', {
+  await page.setInputFiles('[data-testid="comprobante"]', {
     name: `e2e-comprobante-${Date.now()}.pdf`,
     mimeType: 'application/pdf',
     buffer: COMPROBANTE_BYTES,
   })
-  await page.setInputFiles('input[name="dniFrente"]', {
+  await page.setInputFiles('[data-testid="dniFrente"]', {
     name: `e2e-dni-frente-${Date.now()}.pdf`,
     mimeType: 'application/pdf',
     buffer: COMPROBANTE_BYTES,
   })
-  await page.setInputFiles('input[name="dniDorso"]', {
+  await page.setInputFiles('[data-testid="dniDorso"]', {
     name: `e2e-dni-dorso-${Date.now()}.pdf`,
     mimeType: 'application/pdf',
     buffer: COMPROBANTE_BYTES,
   })
+  // Los 3 archivos suben directo a Storage en cuanto se eligen -- hay que
+  // esperar a que terminen o el submit se bloquea en silencio (campo
+  // oculto requerido todavía vacío).
+  await expect(page.locator('[data-testid="comprobante"]')).toBeEnabled()
+  await expect(page.locator('[data-testid="dniFrente"]')).toBeEnabled()
+  await expect(page.locator('[data-testid="dniDorso"]')).toBeEnabled()
   await page.getByRole('button', { name: 'Confirmar reserva' }).click()
   await page.waitForURL('**/admin/lotes')
 }

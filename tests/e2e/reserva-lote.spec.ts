@@ -37,21 +37,27 @@ async function completarDatosBasicosDeReserva(page: Page) {
   await page.getByPlaceholder('9351234567').fill('3511234567')
   await page.selectOption('select[name="estadoCivil"]', 'soltero')
   await page.getByPlaceholder('Monto de la seña').fill('500')
-  await page.setInputFiles('input[name="comprobante"]', {
+  await page.setInputFiles('[data-testid="comprobante"]', {
     name: `e2e-reserva-${Date.now()}.pdf`,
     mimeType: 'application/pdf',
     buffer: COMPROBANTE_BYTES,
   })
-  await page.setInputFiles('input[name="dniFrente"]', {
+  await page.setInputFiles('[data-testid="dniFrente"]', {
     name: `e2e-dni-frente-${Date.now()}.pdf`,
     mimeType: 'application/pdf',
     buffer: COMPROBANTE_BYTES,
   })
-  await page.setInputFiles('input[name="dniDorso"]', {
+  await page.setInputFiles('[data-testid="dniDorso"]', {
     name: `e2e-dni-dorso-${Date.now()}.pdf`,
     mimeType: 'application/pdf',
     buffer: COMPROBANTE_BYTES,
   })
+  // Los 3 archivos suben directo a Storage en cuanto se eligen (no esperan
+  // al submit) -- hay que dejar que terminen o el campo oculto con el path
+  // sigue vacío y el submit se bloquea en silencio por el required.
+  await expect(page.locator('[data-testid="comprobante"]')).toBeEnabled()
+  await expect(page.locator('[data-testid="dniFrente"]')).toBeEnabled()
+  await expect(page.locator('[data-testid="dniDorso"]')).toBeEnabled()
 }
 
 test.describe('Reserva de lote (fase 1: texto + comprobante de seña)', () => {
