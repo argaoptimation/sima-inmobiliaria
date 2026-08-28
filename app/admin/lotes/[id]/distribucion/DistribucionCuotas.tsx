@@ -1,6 +1,17 @@
 'use client'
 
 import { useState } from 'react'
+import { BotonEnvio } from '@/components/BotonEnvio'
+import {
+  ENTRADA,
+  BOTON_PRIMARIO,
+  TITULO_H2,
+  TABLA_CONTENEDOR,
+  TABLA_HEADER_FILA,
+  TABLA_HEADER_CELDA,
+  TABLA_FILA,
+  TABLA_CELDA,
+} from '@/lib/ui/clases'
 
 interface Fila {
   id: string
@@ -73,7 +84,7 @@ function SelectorParticipante({
           const encontrado = opciones.find((participante) => participante.nombre === nuevoTexto)
           onChange(encontrado ? encontrado.key : '')
         }}
-        className="w-56 rounded border px-2 py-1 text-sm"
+        className={`w-56 ${ENTRADA}`}
       />
       <input type="hidden" name={name} value={valor} />
     </>
@@ -172,8 +183,8 @@ export function DistribucionCuotas({
         ))}
       </datalist>
 
-      <h2 className="mb-2 mt-6 text-lg font-semibold">Objetivos (opcional)</h2>
-      <p className="mb-3 text-sm text-gray-600">
+      <h2 className={`mb-2 mt-6 ${TITULO_H2}`}>Objetivos (opcional)</h2>
+      <p className="mb-3 text-sm text-slate-600">
         Cuánto le corresponde en total a cada participante de este lote. Sin objetivo cargado, el
         resumen de abajo solo muestra lo acumulado, sin comparar contra nada.
       </p>
@@ -194,23 +205,31 @@ export function DistribucionCuotas({
               value={fila.monto}
               onChange={(evento) => modificarObjetivo(indice, 'monto', evento.target.value)}
               name="objetivoMonto"
-              className="w-40 rounded border px-2 py-1 text-sm"
+              className={`w-40 ${ENTRADA}`}
             />
-            <button type="button" onClick={() => quitarObjetivo(indice)} className="text-sm text-red-700 underline">
+            <button
+              type="button"
+              onClick={() => quitarObjetivo(indice)}
+              className="cursor-pointer text-sm text-red-700 underline-offset-2 hover:underline"
+            >
               Quitar
             </button>
           </div>
         ))}
-        <button type="button" onClick={agregarObjetivo} className="self-start text-sm underline">
+        <button
+          type="button"
+          onClick={agregarObjetivo}
+          className="cursor-pointer self-start text-sm font-medium text-blue-800 underline-offset-4 hover:text-blue-900 hover:underline"
+        >
           + Agregar objetivo
         </button>
       </div>
 
-      <h2 className="mb-2 text-lg font-semibold">Cuotas — distribución</h2>
+      <h2 className={`mb-2 ${TITULO_H2}`}>Cuotas — distribución</h2>
       <div className="mb-6 flex flex-col gap-4">
         {cuotas.map((cuota) => (
-          <div key={cuota.numero} className="rounded border p-3">
-            <p className="mb-2 text-sm font-medium">
+          <div key={cuota.numero} className="rounded-lg border border-blue-100 p-3">
+            <p className="mb-2 text-sm font-semibold text-blue-900">
               Cuota {cuota.numero} — {cuota.montoBase} {moneda}
             </p>
             <div className="flex flex-col gap-2">
@@ -232,12 +251,12 @@ export function DistribucionCuotas({
                       modificarFilaCuota(cuota.numero, indice, 'monto', evento.target.value)
                     }
                     name={`cuota${cuota.numero}Monto`}
-                    className="w-40 rounded border px-2 py-1 text-sm"
+                    className={`w-40 ${ENTRADA}`}
                   />
                   <button
                     type="button"
                     onClick={() => quitarFilaCuota(cuota.numero, indice)}
-                    className="text-sm text-red-700 underline"
+                    className="cursor-pointer text-sm text-red-700 underline-offset-2 hover:underline"
                   >
                     Quitar
                   </button>
@@ -246,7 +265,7 @@ export function DistribucionCuotas({
               <button
                 type="button"
                 onClick={() => agregarFilaCuota(cuota.numero)}
-                className="self-start text-sm underline"
+                className="cursor-pointer self-start text-sm font-medium text-blue-800 underline-offset-4 hover:text-blue-900 hover:underline"
               >
                 + Agregar participante a esta cuota
               </button>
@@ -255,26 +274,27 @@ export function DistribucionCuotas({
         ))}
       </div>
 
-      <h2 className="mb-2 text-lg font-semibold">Resumen del lote</h2>
+      <h2 className={`mb-2 ${TITULO_H2}`}>Resumen del lote</h2>
       {resumen.length === 0 ? (
-        <p className="mb-6 text-sm text-gray-600">Sin distribución cargada todavía.</p>
+        <p className="mb-6 text-sm text-slate-600">Sin distribución cargada todavía.</p>
       ) : (
-        <table className="mb-6 w-full text-sm">
+        <div className={`mb-6 ${TABLA_CONTENEDOR}`}>
+        <table className="w-full text-sm">
           <thead>
-            <tr className="border-b text-left">
-              <th className="py-2">Participante</th>
-              <th>Acumulado</th>
-              <th>Estado</th>
+            <tr className={TABLA_HEADER_FILA}>
+              <th className={TABLA_HEADER_CELDA}>Participante</th>
+              <th className={TABLA_HEADER_CELDA}>Acumulado</th>
+              <th className={TABLA_HEADER_CELDA}>Estado</th>
             </tr>
           </thead>
           <tbody>
             {resumen.map((fila) => (
-              <tr key={fila.clave} className="border-b">
-                <td className="py-2">{fila.nombre}</td>
-                <td>
+              <tr key={fila.clave} className={TABLA_FILA}>
+                <td className={TABLA_CELDA}>{fila.nombre}</td>
+                <td className={TABLA_CELDA}>
                   {fila.acumulado} {moneda}
                 </td>
-                <td>
+                <td className={TABLA_CELDA}>
                   {fila.objetivo === null
                     ? '—'
                     : fila.acumulado >= fila.objetivo
@@ -287,11 +307,10 @@ export function DistribucionCuotas({
             ))}
           </tbody>
         </table>
+        </div>
       )}
 
-      <button type="submit" className="rounded bg-black px-3 py-2 text-sm text-white">
-        Guardar distribución
-      </button>
+      <BotonEnvio className={`cursor-pointer ${BOTON_PRIMARIO}`}>Guardar distribución</BotonEnvio>
     </>
   )
 }

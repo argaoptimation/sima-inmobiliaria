@@ -11,11 +11,12 @@ export function BotonEnvio({
   children,
   className,
   cargandoTexto = 'Cargando…',
+  ...props
 }: {
   children: React.ReactNode
   className: string
   cargandoTexto?: string
-}) {
+} & Omit<React.ButtonHTMLAttributes<HTMLButtonElement>, 'type' | 'disabled' | 'className' | 'children'>) {
   const { pending } = useFormStatus()
 
   return (
@@ -23,6 +24,7 @@ export function BotonEnvio({
       type="submit"
       disabled={pending}
       className={`${className} ${pending ? 'cursor-wait opacity-70' : ''}`}
+      {...props}
     >
       <span className="inline-flex items-center justify-center gap-2">
         {pending && <Spinner />}

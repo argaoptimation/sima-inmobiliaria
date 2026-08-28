@@ -1,5 +1,8 @@
 import { requireAdminOAcreedor } from '@/lib/auth/require-admin'
 import { importarLotes } from './actions'
+import { EnlaceBoton } from '@/components/EnlaceBoton'
+import { BotonEnvio } from '@/components/BotonEnvio'
+import { ENTRADA, BOTON_PRIMARIO, ENLACE, TITULO_H1 } from '@/lib/ui/clases'
 
 export default async function ImportarLotesPage({
   searchParams,
@@ -12,11 +15,11 @@ export default async function ImportarLotesPage({
 
   return (
     <main className="max-w-2xl">
-      <a href="/admin/lotes" className="mb-4 inline-block text-sm underline">
+      <EnlaceBoton href="/admin/lotes" className={`mb-4 inline-block ${ENLACE}`}>
         ← Volver a Lotes
-      </a>
-      <h1 className="mb-4 text-xl font-semibold">Importar varios lotes</h1>
-      <p className="mb-4 text-sm text-gray-600">
+      </EnlaceBoton>
+      <h1 className={`mb-4 ${TITULO_H1}`}>Importar varios lotes</h1>
+      <p className="mb-4 text-sm text-slate-600">
         Pegá una fila por lote, tal cual se copia de una planilla de Excel (las columnas
         separadas por tabulación, no por comas). El orden de las columnas tiene que ser:
         Identificador, Ubicación, Precio total, Moneda (USD o ARS), Email del acreedor. El email
@@ -26,7 +29,7 @@ export default async function ImportarLotesPage({
         corrijas todas — así evitamos cargas parciales o con datos mal tipeados.
       </p>
       {error && (
-        <p className="mb-4 whitespace-pre-wrap rounded bg-red-100 p-2 text-sm text-red-700">
+        <p className="mb-4 whitespace-pre-wrap rounded-lg bg-red-50 p-3 text-sm text-red-700">
           {error}
         </p>
       )}
@@ -38,11 +41,9 @@ export default async function ImportarLotesPage({
           placeholder={
             'Loteo San Martín - Lote 1\tRuta 9 km 12\t15000\tUSD\tacreedor@ejemplo.com\nLoteo San Martín - Lote 2\tRuta 9 km 12\t16000\tUSD\tacreedor@ejemplo.com'
           }
-          className="rounded border px-3 py-2 font-mono text-sm"
+          className={`${ENTRADA} font-mono`}
         />
-        <button type="submit" className="self-start rounded bg-black px-3 py-2 text-sm text-white">
-          Importar
-        </button>
+        <BotonEnvio className={`cursor-pointer self-start ${BOTON_PRIMARIO}`}>Importar</BotonEnvio>
       </form>
     </main>
   )

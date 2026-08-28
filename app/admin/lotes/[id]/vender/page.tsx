@@ -4,6 +4,9 @@ import { requireAdministrador } from '@/lib/auth/require-admin'
 import { venderLote } from './actions'
 import { CuotasYDocumento } from './CuotasYDocumento'
 import { telefonoParaWhatsApp } from '@/lib/telefono/prefijos'
+import { EnlaceBoton } from '@/components/EnlaceBoton'
+import { BotonEnvio } from '@/components/BotonEnvio'
+import { ENTRADA, BOTON_PRIMARIO, ENLACE, TITULO_H1, BANNER_ERROR } from '@/lib/ui/clases'
 
 export default async function VenderLotePage({
   params,
@@ -83,27 +86,27 @@ export default async function VenderLotePage({
   return (
     <main className="max-w-md">
       <div className="mb-4 flex gap-4">
-        <a href="/admin/lotes" className="text-sm underline">
+        <EnlaceBoton href="/admin/lotes" className={`text-sm ${ENLACE}`}>
           ← Volver a Lotes
-        </a>
-        <a href={`/admin/lotes/${id}`} className="text-sm underline">
+        </EnlaceBoton>
+        <EnlaceBoton href={`/admin/lotes/${id}`} className={`text-sm ${ENLACE}`}>
           ← Volver al lote
-        </a>
+        </EnlaceBoton>
       </div>
-      <h1 className="mb-6 text-xl font-semibold">Vender lote y dar de alta al cliente</h1>
+      <h1 className={`mb-6 ${TITULO_H1}`}>Vender lote y dar de alta al cliente</h1>
 
-      {error && <p className="mb-4 rounded bg-red-100 p-2 text-sm text-red-700">{error}</p>}
+      {error && <p className={BANNER_ERROR}>{error}</p>}
 
       {lote!.estado !== 'reservado' ? (
-        <p className="mb-4 rounded bg-amber-100 p-2 text-sm text-amber-800">
+        <p className="mb-4 rounded-lg bg-amber-50 p-3 text-sm text-amber-800">
           Este lote no está en estado reservado (estado actual: {lote!.estado}), no se puede
           vender. Primero hay que reservarlo.
         </p>
       ) : (
         <>
           {reserva && (
-            <div className="mb-4 rounded border border-gray-200 bg-gray-50 p-3 text-sm">
-              <p className="mb-1 font-medium">Datos de la reserva</p>
+            <div className="mb-4 rounded-lg border border-blue-100 bg-blue-50/40 p-3 text-sm">
+              <p className="mb-1 font-semibold text-blue-900">Datos de la reserva</p>
               <p>Persona que reservó: {reserva.nombre_completo}</p>
               <p>DNI: {reserva.dni}</p>
               <p>Domicilio: {reserva.domicilio}</p>
@@ -113,7 +116,7 @@ export default async function VenderLotePage({
               <p>
                 Seña: {reserva.monto_sena} {reserva.moneda_sena}
               </p>
-              <p className="mt-2 text-gray-600">
+              <p className="mt-2 text-slate-600">
                 Los campos de comprador de abajo ya vienen completados con estos datos. Si el
                 comprador final es otra persona (por ejemplo, alguien reservó en representación
                 de otra persona), simplemente sobrescribilos: el usuario que se crea abajo es
@@ -123,7 +126,7 @@ export default async function VenderLotePage({
           )}
 
           {confirmarClienteId && (
-            <div className="mb-4 rounded border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900">
+            <div className="mb-4 rounded-lg border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900">
               <p className="font-medium">Ya existe una cuenta de cliente con ese email</p>
               <p className="mt-1">
                 Nombre en esa cuenta: <span className="font-medium">{nombreEncontrado}</span>
@@ -154,7 +157,7 @@ export default async function VenderLotePage({
               placeholder="Nombre completo del comprador"
               defaultValue={fullNamePreservado ?? reserva?.nombre_completo ?? ''}
               required
-              className="rounded border px-3 py-2"
+              className={ENTRADA}
             />
             <input
               name="email"
@@ -162,16 +165,16 @@ export default async function VenderLotePage({
               placeholder="Email del comprador"
               defaultValue={emailPreservado ?? reserva?.email ?? ''}
               required
-              className="rounded border px-3 py-2"
+              className={ENTRADA}
             />
-            <label className="text-sm">
+            <label className="text-sm text-slate-600">
               Fecha de la primera cuota
               <input
                 name="fechaPrimeraCuota"
                 type="date"
                 defaultValue={fechaPrimeraCuotaPreservada ?? ''}
                 required
-                className="mt-1 block w-full rounded border px-3 py-2"
+                className={`${ENTRADA} w-full`}
               />
             </label>
 
@@ -187,11 +190,11 @@ export default async function VenderLotePage({
               interesMoratorioDiarioInicial={interesMoratorioDiarioPreservado ?? ''}
             />
 
-            <button type="submit" className="rounded bg-black px-3 py-2 text-white">
+            <BotonEnvio className={`cursor-pointer ${BOTON_PRIMARIO}`}>
               {confirmarClienteId
                 ? 'Confirmar venta con esta cuenta existente'
                 : 'Confirmar venta y enviar invitación'}
-            </button>
+            </BotonEnvio>
           </form>
         </>
       )}

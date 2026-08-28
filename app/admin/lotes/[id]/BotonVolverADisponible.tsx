@@ -1,5 +1,8 @@
 'use client'
 
+import { BotonEnvio } from '@/components/BotonEnvio'
+import { BOTON_PRIMARIO } from '@/lib/ui/clases'
+
 export function BotonVolverADisponible({
   volverADisponibleAction,
 }: {
@@ -18,9 +21,7 @@ export function BotonVolverADisponible({
         }
       }}
     >
-      <button type="submit" className="rounded bg-black px-3 py-2 text-sm text-white">
-        Volver a disponible
-      </button>
+      <BotonEnvio className={`cursor-pointer ${BOTON_PRIMARIO}`}>Volver a disponible</BotonEnvio>
     </form>
   )
 }

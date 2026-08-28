@@ -4,6 +4,9 @@ import { requireAdministrador } from '@/lib/auth/require-admin'
 import { actualizarReserva } from '../actions'
 import { CampoTelefono, AyudaTelefono } from '@/components/CampoTelefono'
 import { CampoArchivoDirecto } from '@/components/CampoArchivoDirecto'
+import { EnlaceBoton } from '@/components/EnlaceBoton'
+import { BotonEnvio } from '@/components/BotonEnvio'
+import { ENTRADA, BOTON_PRIMARIO, ENLACE, TITULO_H1, BANNER_ERROR } from '@/lib/ui/clases'
 
 export default async function EditarReservaPage({
   params,
@@ -84,43 +87,43 @@ export default async function EditarReservaPage({
   return (
     <main className="max-w-md">
       <div className="mb-4 flex gap-4">
-        <a href="/admin/lotes" className="text-sm underline">
+        <EnlaceBoton href="/admin/lotes" className={`text-sm ${ENLACE}`}>
           ← Volver a Lotes
-        </a>
-        <a href={`/admin/lotes/${id}`} className="text-sm underline">
+        </EnlaceBoton>
+        <EnlaceBoton href={`/admin/lotes/${id}`} className={`text-sm ${ENLACE}`}>
           ← Volver al lote
-        </a>
+        </EnlaceBoton>
       </div>
-      <h1 className="mb-6 text-xl font-semibold">Editar reserva — {lote!.identificador}</h1>
+      <h1 className={`mb-6 ${TITULO_H1}`}>Editar reserva — {lote!.identificador}</h1>
 
       {lote!.estado !== 'reservado' || !reserva ? (
-        <p className="mb-4 rounded bg-amber-100 p-2 text-sm text-amber-800">
+        <p className="mb-4 rounded-lg bg-amber-50 p-3 text-sm text-amber-800">
           Este lote no está reservado, no se puede editar la reserva (estado actual: {lote!.estado}).
         </p>
       ) : (
         <form action={actualizarReservaConId} className="flex flex-col gap-3">
-          {error && <p className="rounded bg-red-100 p-2 text-sm text-red-700">{error}</p>}
+          {error && <p className={BANNER_ERROR}>{error}</p>}
 
           <input
             name="nombreCompleto"
             placeholder="Nombre completo"
             defaultValue={nombreCompletoPreservado ?? reserva.nombre_completo}
             required
-            className="rounded border px-3 py-2"
+            className={ENTRADA}
           />
           <input
             name="dni"
             placeholder="DNI"
             defaultValue={dniPreservado ?? reserva.dni}
             required
-            className="rounded border px-3 py-2"
+            className={ENTRADA}
           />
           <input
             name="domicilio"
             placeholder="Domicilio"
             defaultValue={domicilioPreservado ?? reserva.domicilio}
             required
-            className="rounded border px-3 py-2"
+            className={ENTRADA}
           />
           <input
             name="email"
@@ -128,9 +131,9 @@ export default async function EditarReservaPage({
             placeholder="Email"
             defaultValue={emailPreservado ?? reserva.email}
             required
-            className="rounded border px-3 py-2"
+            className={ENTRADA}
           />
-          <label className="text-sm">
+          <label className="text-sm text-slate-600">
             Teléfono
             <CampoTelefono prefijoGuardado={prefijoForm} numeroGuardado={numeroForm} requerido />
             <AyudaTelefono />
@@ -139,16 +142,16 @@ export default async function EditarReservaPage({
             name="telefonoAlternativo"
             placeholder="Teléfono alternativo (opcional)"
             defaultValue={telefonoAlternativoPreservado ?? reserva.telefono_alternativo ?? ''}
-            className="rounded border px-3 py-2"
+            className={ENTRADA}
           />
 
-          <label className="text-sm">
+          <label className="text-sm text-slate-600">
             Estado civil
             <select
               name="estadoCivil"
               required
               defaultValue={estadoCivilPreservado ?? reserva.estado_civil}
-              className="mt-1 block w-full rounded border px-3 py-2"
+              className={`${ENTRADA} w-full`}
             >
               <option value="soltero">Soltero/a</option>
               <option value="casado">Casado/a</option>
@@ -157,12 +160,12 @@ export default async function EditarReservaPage({
             </select>
           </label>
 
-          <label className="text-sm">
+          <label className="text-sm text-slate-600">
             Instrumentación prevista (opcional)
             <select
               name="instrumentacion"
               defaultValue={instrumentacionPreservado ?? reserva.instrumentacion ?? ''}
-              className="mt-1 block w-full rounded border px-3 py-2"
+              className={`${ENTRADA} w-full`}
             >
               <option value="">— sin definir —</option>
               <option value="boleto">Boleto de compraventa</option>
@@ -178,27 +181,27 @@ export default async function EditarReservaPage({
             placeholder="Monto de la seña"
             defaultValue={montoSenaPreservado ?? reserva.monto_sena}
             required
-            className="rounded border px-3 py-2"
+            className={ENTRADA}
           />
-          <label className="text-sm">
+          <label className="text-sm text-slate-600">
             Moneda de la seña
             <select
               name="monedaSena"
               required
               defaultValue={monedaSenaPreservado ?? reserva.moneda_sena}
-              className="mt-1 block w-full rounded border px-3 py-2"
+              className={`${ENTRADA} w-full`}
             >
               <option value="USD">USD</option>
               <option value="ARS">ARS</option>
             </select>
           </label>
 
-          <label className="text-sm">
+          <label className="text-sm text-slate-600">
             Quién recibió la seña
             <select
               name="recibidoPor"
               defaultValue={recibidoPorPreservado ?? reserva.recibido_por ?? ''}
-              className="mt-1 block w-full rounded border px-3 py-2"
+              className={`${ENTRADA} w-full`}
             >
               <option value="">— no está en la lista, especificar abajo —</option>
               {staff?.map((persona) => (
@@ -212,10 +215,10 @@ export default async function EditarReservaPage({
             name="recibidoPorOtro"
             placeholder="Si no está en la lista: nombre de quien la recibió"
             defaultValue={recibidoPorOtroPreservado ?? reserva.recibido_por_otro ?? ''}
-            className="rounded border px-3 py-2"
+            className={ENTRADA}
           />
 
-          <p className="text-sm text-gray-600">
+          <p className="text-sm text-slate-600">
             Los siguientes archivos solo se reemplazan si elegís uno nuevo — si dejás el campo vacío, se
             mantiene el que ya estaba subido.
           </p>
@@ -270,9 +273,7 @@ export default async function EditarReservaPage({
             valorInicial={reserva.sentencia_divorcio_path}
           />
 
-          <button type="submit" className="rounded bg-black px-3 py-2 text-white">
-            Guardar cambios
-          </button>
+          <BotonEnvio className={`cursor-pointer ${BOTON_PRIMARIO}`}>Guardar cambios</BotonEnvio>
         </form>
       )}
     </main>

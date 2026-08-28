@@ -264,7 +264,12 @@ test.describe('Rescindido de lote (24/08)', () => {
     // El detalle del lote solo muestra las cuotas del ciclo VIGENTE (2),
     // no mezcla la deuda vieja del ciclo 1 en la tabla activa.
     await page.goto(`/admin/lotes/${lote.id}`)
-    const tablaCuotas = page.locator('h2', { hasText: 'Cuotas' }).locator('xpath=following-sibling::table[1]')
+    // La tabla de cuotas vive dentro del div contenedor (TABLA_CONTENEDOR,
+    // rediseño 28/08) que sigue al <h2>, no como <table> directo hermano.
+    const tablaCuotas = page
+      .locator('h2', { hasText: 'Cuotas' })
+      .locator('xpath=following-sibling::div[1]')
+      .locator('table')
     await expect(tablaCuotas.locator('tbody tr')).toHaveCount(2)
 
     // Regresión 26/08 (bug real encontrado revisando refinanciación): el

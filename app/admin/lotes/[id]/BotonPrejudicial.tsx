@@ -1,5 +1,7 @@
 'use client'
 
+import { BotonEnvio } from '@/components/BotonEnvio'
+
 export function BotonMarcarPrejudicial({
   marcarPrejudicialAction,
 }: {
@@ -18,9 +20,9 @@ export function BotonMarcarPrejudicial({
         }
       }}
     >
-      <button type="submit" className="rounded border border-red-700 px-3 py-2 text-sm text-red-800">
+      <BotonEnvio className="cursor-pointer rounded-lg border border-red-700 px-3 py-2 text-sm font-semibold text-red-800 transition-colors hover:bg-red-50">
         Marcar Prejudicial
-      </button>
+      </BotonEnvio>
     </form>
   )
 }
@@ -32,9 +34,9 @@ export function BotonDesmarcarPrejudicial({
 }) {
   return (
     <form action={desmarcarPrejudicialAction}>
-      <button type="submit" className="rounded border px-3 py-2 text-sm underline">
+      <BotonEnvio className="cursor-pointer rounded-lg border border-blue-100 px-3 py-2 text-sm font-medium text-blue-800 transition-colors hover:bg-blue-50">
         Sacar de Prejudicial
-      </button>
+      </BotonEnvio>
     </form>
   )
 }

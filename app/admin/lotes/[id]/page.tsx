@@ -33,6 +33,22 @@ import { EVENTO_HISTORIAL_ETIQUETA } from '@/lib/lotes/eventos-historial'
 import { CampoArchivoDirecto } from '@/components/CampoArchivoDirecto'
 import { FiltroEnVivo } from '@/components/FiltroEnVivo'
 import { RefinanciarCuotas } from './RefinanciarCuotas'
+import { EnlaceBoton } from '@/components/EnlaceBoton'
+import { BotonEnvio } from '@/components/BotonEnvio'
+import {
+  ENTRADA,
+  BOTON_PRIMARIO,
+  ENLACE,
+  TITULO_H1,
+  TITULO_H2,
+  BANNER_ERROR,
+  BANNER_OK,
+  TABLA_CONTENEDOR,
+  TABLA_HEADER_FILA,
+  TABLA_HEADER_CELDA,
+  TABLA_FILA,
+  TABLA_CELDA,
+} from '@/lib/ui/clases'
 
 const MESES_ABREVIADOS = [
   'Ene',
@@ -464,20 +480,20 @@ export default async function LoteDetallePage({
 
   return (
     <main className="max-w-2xl">
-      <a href="/admin/lotes" className="mb-4 inline-block text-sm underline">
+      <EnlaceBoton href="/admin/lotes" className={`mb-4 inline-block ${ENLACE}`}>
         ← Volver a Lotes
-      </a>
+      </EnlaceBoton>
       <div className="mb-6 flex items-center justify-between">
-        <h1 className="text-xl font-semibold">{lote!.identificador}</h1>
+        <h1 className={TITULO_H1}>{lote!.identificador}</h1>
         <div className="flex gap-2">
           {perfilPropio!.role === 'administrador' && lote!.estado === 'reservado' && (
             <>
-              <a
+              <EnlaceBoton
                 href={`/admin/lotes/${id}/reservar/editar`}
-                className="rounded border px-3 py-2 text-sm underline"
+                className="rounded-lg border border-blue-100 px-3 py-2 text-sm font-medium text-blue-800 transition-colors hover:bg-blue-50"
               >
                 Editar reserva →
-              </a>
+              </EnlaceBoton>
               <BotonCancelarReserva cancelarReservaAction={cancelarReservaConId} />
             </>
           )}
@@ -500,8 +516,8 @@ export default async function LoteDetallePage({
         </div>
       </div>
 
-      {error && <p className="mb-4 rounded bg-red-100 p-2 text-sm text-red-700">{error}</p>}
-      {ok && <p className="mb-4 rounded bg-green-100 p-2 text-sm text-green-800">{ok}</p>}
+      {error && <p className={BANNER_ERROR}>{error}</p>}
+      {ok && <p className={BANNER_OK}>{ok}</p>}
 
       <p className="mb-1 text-sm">Moneda: {lote!.moneda}</p>
       <p className="mb-1 text-sm">Estado: {lote!.estado}</p>
@@ -541,13 +557,13 @@ export default async function LoteDetallePage({
           confirmó 25/08 que el cobrador puede ver todo lo de si el cliente
           pagó o no, pero NO el reparto entre acreedores. */}
       {destinosOrdenados.length > 0 && perfilPropio!.role !== 'cobrador' && (
-        <div className="mb-6 rounded border border-gray-200 bg-gray-50 p-3 text-sm">
-          <h2 className="mb-2 text-base font-semibold">Destinos (a quién se distribuyó)</h2>
-          <p className="mb-2 text-gray-600">
+        <div className="mb-6 rounded border border-blue-100 bg-blue-50/40 p-3 text-sm">
+          <h2 className="mb-2 text-base font-bold text-blue-900">Destinos (a quién se distribuyó)</h2>
+          <p className="mb-2 text-slate-600">
             Según la distribución configurada por cuota (
-            <a href={`/admin/lotes/${id}/distribucion`} className="underline">
+            <EnlaceBoton href={`/admin/lotes/${id}/distribucion`} className={ENLACE}>
               ver / editar el detalle por cuota →
-            </a>
+            </EnlaceBoton>
             ).
           </p>
           <ul className="list-inside list-disc">
@@ -562,7 +578,7 @@ export default async function LoteDetallePage({
 
       {reserva && (
         <>
-          <h2 className="mb-2 mt-6 text-lg font-semibold">Reserva</h2>
+          <h2 className={`mb-2 mt-6 ${TITULO_H2}`}>Reserva</h2>
           <p className="mb-1 text-sm">Comprador: {reserva.nombre_completo}</p>
           <p className="mb-1 text-sm">DNI: {reserva.dni}</p>
           <p className="mb-1 text-sm">Domicilio: {reserva.domicilio}</p>
@@ -583,50 +599,50 @@ export default async function LoteDetallePage({
           </p>
           <p className="mb-4 text-sm">
             {reservaComprobanteUrl ? (
-              <a href={reservaComprobanteUrl} target="_blank" className="underline">
+              <a href={reservaComprobanteUrl} target="_blank" className={ENLACE}>
                 Ver comprobante de la seña
               </a>
             ) : (
-              <span className="text-gray-500">Comprobante no disponible</span>
+              <span className="text-slate-500">Comprobante no disponible</span>
             )}
           </p>
           <p className="mb-1 text-sm">
             {reservaDniFrenteUrl ? (
-              <a href={reservaDniFrenteUrl} target="_blank" className="underline">
+              <a href={reservaDniFrenteUrl} target="_blank" className={ENLACE}>
                 Ver DNI (frente)
               </a>
             ) : (
-              <span className="text-gray-500">DNI (frente) no disponible</span>
+              <span className="text-slate-500">DNI (frente) no disponible</span>
             )}
           </p>
           <p className="mb-1 text-sm">
             {reservaDniDorsoUrl ? (
-              <a href={reservaDniDorsoUrl} target="_blank" className="underline">
+              <a href={reservaDniDorsoUrl} target="_blank" className={ENLACE}>
                 Ver DNI (dorso)
               </a>
             ) : (
-              <span className="text-gray-500">DNI (dorso) no disponible</span>
+              <span className="text-slate-500">DNI (dorso) no disponible</span>
             )}
           </p>
           {reserva.dni_conyuge_path && (
             <p className="mb-1 text-sm">
               {reservaDniConyugeUrl ? (
-                <a href={reservaDniConyugeUrl} target="_blank" className="underline">
+                <a href={reservaDniConyugeUrl} target="_blank" className={ENLACE}>
                   Ver DNI del cónyuge
                 </a>
               ) : (
-                <span className="text-gray-500">DNI del cónyuge no disponible</span>
+                <span className="text-slate-500">DNI del cónyuge no disponible</span>
               )}
             </p>
           )}
           {reserva.sentencia_divorcio_path && (
             <p className="mb-4 text-sm">
               {reservaSentenciaDivorcioUrl ? (
-                <a href={reservaSentenciaDivorcioUrl} target="_blank" className="underline">
+                <a href={reservaSentenciaDivorcioUrl} target="_blank" className={ENLACE}>
                   Ver sentencia de divorcio
                 </a>
               ) : (
-                <span className="text-gray-500">Sentencia de divorcio no disponible</span>
+                <span className="text-slate-500">Sentencia de divorcio no disponible</span>
               )}
             </p>
           )}
@@ -636,21 +652,21 @@ export default async function LoteDetallePage({
       {lote!.estado === 'vendido' && (
         <p className="mb-4 text-sm">
           {documentoFirmadoUrl ? (
-            <a href={documentoFirmadoUrl} target="_blank" className="underline">
+            <a href={documentoFirmadoUrl} target="_blank" className={ENLACE}>
               Ver documento firmado
             </a>
           ) : (
-            <span className="text-gray-500">Documento firmado no disponible</span>
+            <span className="text-slate-500">Documento firmado no disponible</span>
           )}
         </p>
       )}
 
-      <h2 className="mb-2 mt-6 text-lg font-semibold">Cuotas</h2>
+      <h2 className={`mb-2 mt-6 ${TITULO_H2}`}>Cuotas</h2>
       {perfilPropio!.role === 'administrador' && lote!.estado === 'vendido' && (
         <p className="mb-2 text-sm">
-          <a href={`/admin/lotes/${id}/distribucion`} className="underline">
+          <EnlaceBoton href={`/admin/lotes/${id}/distribucion`} className={ENLACE}>
             Ver / editar distribución de cuotas →
-          </a>
+          </EnlaceBoton>
         </p>
       )}
       {lote!.estado !== 'vendido' && (
@@ -660,16 +676,17 @@ export default async function LoteDetallePage({
           ninguna cuota puede estar &quot;vencida&quot; hasta que el lote pase a vendido.
         </p>
       )}
+      <div className={TABLA_CONTENEDOR}>
       <table className="w-full text-sm">
         <thead>
-          <tr className="border-b text-left">
-            <th className="py-2">Cuota</th>
-            <th>Vencimiento</th>
-            <th>Monto base</th>
-            <th>Ajuste por índice</th>
-            <th>Saldo pendiente</th>
-            <th>Interés moratorio</th>
-            <th></th>
+          <tr className={TABLA_HEADER_FILA}>
+            <th className={TABLA_HEADER_CELDA}>Cuota</th>
+            <th className={TABLA_HEADER_CELDA}>Vencimiento</th>
+            <th className={TABLA_HEADER_CELDA}>Monto base</th>
+            <th className={TABLA_HEADER_CELDA}>Ajuste por índice</th>
+            <th className={TABLA_HEADER_CELDA}>Saldo pendiente</th>
+            <th className={TABLA_HEADER_CELDA}>Interés moratorio</th>
+            <th className={TABLA_HEADER_CELDA}></th>
           </tr>
         </thead>
         <tbody>
@@ -685,59 +702,60 @@ export default async function LoteDetallePage({
               : 0
             const ajusteDeEstaCuota = ajustePorMesCuota.get(mesDeFecha(cuota.fecha_vencimiento))
             return (
-              <tr key={cuota.id} className="border-b">
-                <td className="py-2">{cuota.numero}</td>
-                <td>{formatearFechaCorta(cuota.fecha_vencimiento)}</td>
-                <td>
+              <tr key={cuota.id} className={TABLA_FILA}>
+                <td className={TABLA_CELDA}>{cuota.numero}</td>
+                <td className={TABLA_CELDA}>{formatearFechaCorta(cuota.fecha_vencimiento)}</td>
+                <td className={TABLA_CELDA}>
                   {cuota.monto_base} {lote!.moneda}
                 </td>
-                <td>
+                <td className={TABLA_CELDA}>
                   {ajusteDeEstaCuota ? (
                     <span className="text-blue-700">
                       {ajusteDeEstaCuota.indice_nombre ?? '—'} {ajusteDeEstaCuota.porcentaje}%
                       {ajusteDeEstaCuota.indice_periodo && (
-                        <span className="text-gray-500">
+                        <span className="text-slate-500">
                           {' '}
                           (índice {formatearPeriodoIndice(ajusteDeEstaCuota.indice_periodo)})
                         </span>
                       )}
                       <br />
-                      <span className="text-gray-600">→ {cuota.monto_ajustado} {lote!.moneda}</span>
+                      <span className="text-slate-600">→ {cuota.monto_ajustado} {lote!.moneda}</span>
                     </span>
                   ) : cuota.monto_ajustado !== cuota.monto_base ? (
-                    <span className="text-gray-500">→ {cuota.monto_ajustado} {lote!.moneda}</span>
+                    <span className="text-slate-500">→ {cuota.monto_ajustado} {lote!.moneda}</span>
                   ) : (
                     '—'
                   )}
                 </td>
-                <td>
+                <td className={TABLA_CELDA}>
                   {cuota.refinanciada ? (
-                    <span className="italic text-gray-500">Refinanció</span>
+                    <span className="italic text-slate-500">Refinanció</span>
                   ) : (
                     <>
                       {cuota.saldo_pendiente} {lote!.moneda}
                     </>
                   )}
                 </td>
-                <td>
+                <td className={TABLA_CELDA}>
                   {interesMoratorio > 0 && (
                     <span className="text-red-700">
                       +{interesMoratorio} {lote!.moneda}
                     </span>
                   )}
                 </td>
-                <td>{vencida && <span className="text-red-700">Vencida</span>}</td>
+                <td className={TABLA_CELDA}>{vencida && <span className="text-red-700">Vencida</span>}</td>
               </tr>
             )
           })}
         </tbody>
       </table>
+      </div>
 
       {perfilPropio!.role === 'administrador' && lote!.estado === 'vendido' && cuotasRefinanciables.length > 0 && (
-        <details className="mb-6 rounded border border-gray-200 text-sm">
+        <details className="mb-6 rounded border border-blue-100 text-sm">
           <summary className="cursor-pointer select-none p-3 font-medium">Refinanciar cuotas</summary>
-          <form action={refinanciarConId} className="flex flex-col gap-3 border-t border-gray-200 p-3">
-            <p className="text-gray-600">
+          <form action={refinanciarConId} className="flex flex-col gap-3 border-t border-blue-100 p-3">
+            <p className="text-slate-600">
               Se refinancia toda la deuda de una vez: las {cuotasRefinanciables.length} cuota(s) con
               saldo pendiente (vencidas impagas + futuras, cuotas{' '}
               {cuotasRefinanciables.map((cuota) => cuota.numero).join(', ')}) suman{' '}
@@ -753,77 +771,81 @@ export default async function LoteDetallePage({
                 type="date"
                 name="fechaPrimeraCuotaNueva"
                 required
-                className="mt-1 block w-full rounded border px-3 py-2"
+                className={`${ENTRADA} w-full`}
               />
             </label>
             <RefinanciarCuotas totalDeuda={totalDeudaRefinanciable} moneda={lote!.moneda} />
-            <button type="submit" className="self-start rounded bg-black px-3 py-2 text-sm text-white">
+            <BotonEnvio className={`cursor-pointer self-start ${BOTON_PRIMARIO}`}>
               Refinanciar
-            </button>
+            </BotonEnvio>
           </form>
         </details>
       )}
 
       {(pagosDelLote ?? []).length > 0 && (
         <>
-          <h2 className="mb-2 mt-6 text-lg font-semibold">Historial de pagos</h2>
-          <table className="mb-2 w-full text-sm">
+          <h2 className={`mb-2 mt-6 ${TITULO_H2}`}>Historial de pagos</h2>
+          <div className={`mb-2 ${TABLA_CONTENEDOR}`}>
+          <table className="w-full text-sm">
             <thead>
-              <tr className="border-b text-left">
-                <th className="py-2">Fecha</th>
-                <th>Motivo</th>
-                <th>Medio</th>
-                <th>Monto</th>
-                <th>Estado</th>
+              <tr className={TABLA_HEADER_FILA}>
+                <th className={TABLA_HEADER_CELDA}>Fecha</th>
+                <th className={TABLA_HEADER_CELDA}>Motivo</th>
+                <th className={TABLA_HEADER_CELDA}>Medio</th>
+                <th className={TABLA_HEADER_CELDA}>Monto</th>
+                <th className={TABLA_HEADER_CELDA}>Estado</th>
               </tr>
             </thead>
             <tbody>
               {(pagosDelLote ?? []).map((pago) => (
-                <tr key={pago.id} className="border-b">
-                  <td className="py-2">{new Date(pago.created_at).toLocaleDateString('es-AR')}</td>
-                  <td>{MOTIVO_PAGO_ETIQUETA[pago.motivo] ?? pago.motivo}</td>
-                  <td>{pago.medio_pago === 'efectivo' ? 'Efectivo' : 'Transferencia'}</td>
-                  <td>
+                <tr key={pago.id} className={TABLA_FILA}>
+                  <td className={TABLA_CELDA}>{new Date(pago.created_at).toLocaleDateString('es-AR')}</td>
+                  <td className={TABLA_CELDA}>{MOTIVO_PAGO_ETIQUETA[pago.motivo] ?? pago.motivo}</td>
+                  <td className={TABLA_CELDA}>{pago.medio_pago === 'efectivo' ? 'Efectivo' : 'Transferencia'}</td>
+                  <td className={TABLA_CELDA}>
                     {pago.monto} {pago.moneda}
                   </td>
-                  <td>{pago.estado === 'confirmado' ? 'Confirmado' : 'Pendiente'}</td>
+                  <td className={TABLA_CELDA}>{pago.estado === 'confirmado' ? 'Confirmado' : 'Pendiente'}</td>
                 </tr>
               ))}
             </tbody>
           </table>
+          </div>
         </>
       )}
 
       {(ajustesIndexacion ?? []).length > 0 && (
         <>
-          <h2 className="mb-2 mt-6 text-lg font-semibold">Historial de índice</h2>
-          <table className="mb-2 w-full text-sm">
+          <h2 className={`mb-2 mt-6 ${TITULO_H2}`}>Historial de índice</h2>
+          <div className={`mb-2 ${TABLA_CONTENEDOR}`}>
+          <table className="w-full text-sm">
             <thead>
-              <tr className="border-b text-left">
-                <th className="py-2">Cuota (mes)</th>
-                <th>Índice usado</th>
-                <th>% aplicado</th>
-                <th>Aplicado por</th>
-                <th>Cuándo</th>
+              <tr className={TABLA_HEADER_FILA}>
+                <th className={TABLA_HEADER_CELDA}>Cuota (mes)</th>
+                <th className={TABLA_HEADER_CELDA}>Índice usado</th>
+                <th className={TABLA_HEADER_CELDA}>% aplicado</th>
+                <th className={TABLA_HEADER_CELDA}>Aplicado por</th>
+                <th className={TABLA_HEADER_CELDA}>Cuándo</th>
               </tr>
             </thead>
             <tbody>
               {(ajustesIndexacion ?? []).map((ajuste, i) => (
-                <tr key={i} className="border-b">
-                  <td className="py-2">{formatearPeriodoIndice(ajuste.fecha_desde)}</td>
-                  <td>
+                <tr key={i} className={TABLA_FILA}>
+                  <td className={TABLA_CELDA}>{formatearPeriodoIndice(ajuste.fecha_desde)}</td>
+                  <td className={TABLA_CELDA}>
                     {ajuste.indice_nombre ?? '—'}
                     {ajuste.indice_periodo && (
-                      <span className="text-gray-500"> ({formatearPeriodoIndice(ajuste.indice_periodo)})</span>
+                      <span className="text-slate-500"> ({formatearPeriodoIndice(ajuste.indice_periodo)})</span>
                     )}
                   </td>
-                  <td>{ajuste.porcentaje}%</td>
-                  <td>{nombreAplicadorIndexacionPorId.get(ajuste.aplicado_por) ?? '—'}</td>
-                  <td>{new Date(ajuste.created_at).toLocaleDateString('es-AR')}</td>
+                  <td className={TABLA_CELDA}>{ajuste.porcentaje}%</td>
+                  <td className={TABLA_CELDA}>{nombreAplicadorIndexacionPorId.get(ajuste.aplicado_por) ?? '—'}</td>
+                  <td className={TABLA_CELDA}>{new Date(ajuste.created_at).toLocaleDateString('es-AR')}</td>
                 </tr>
               ))}
             </tbody>
           </table>
+          </div>
         </>
       )}
 
@@ -835,7 +857,7 @@ export default async function LoteDetallePage({
           parte de lo que Nicolás confirmó. */}
       {perfilPropio!.role !== 'cobrador' && (
         <>
-          <h2 className="mb-2 mt-8 text-lg font-semibold">Datos generales</h2>
+          <h2 className={`mb-2 mt-8 ${TITULO_H2}`}>Datos generales</h2>
           <form action={actualizarDatosGeneralesConId} className="mb-8 flex flex-col gap-3">
             <label className="text-sm">
               Identificador
@@ -843,7 +865,7 @@ export default async function LoteDetallePage({
                 name="identificador"
                 defaultValue={lote!.identificador}
                 required
-                className="mt-1 block w-full rounded border px-3 py-2"
+                className={`${ENTRADA} w-full`}
               />
             </label>
             <label className="text-sm">
@@ -852,7 +874,7 @@ export default async function LoteDetallePage({
                 name="ubicacion"
                 defaultValue={lote!.ubicacion ?? ''}
                 placeholder="Ej: Loteo San Martín, Manzana 3"
-                className="mt-1 block w-full rounded border px-3 py-2"
+                className={`${ENTRADA} w-full`}
               />
             </label>
             <label className="text-sm">
@@ -863,7 +885,7 @@ export default async function LoteDetallePage({
                 step="0.01"
                 min="0"
                 defaultValue={lote!.precio_total ?? ''}
-                className="mt-1 block w-full rounded border px-3 py-2"
+                className={`${ENTRADA} w-full`}
               />
             </label>
             {lote!.moneda === 'ARS' && (
@@ -872,7 +894,7 @@ export default async function LoteDetallePage({
                 <select
                   name="indiceTipo"
                   defaultValue={lote!.indice_tipo ?? ''}
-                  className="mt-1 block w-full rounded border px-3 py-2"
+                  className={`${ENTRADA} w-full`}
                 >
                   <option value="">— sin índice —</option>
                   {nombresIndicesDisponibles.map((nombre) => (
@@ -881,18 +903,18 @@ export default async function LoteDetallePage({
                     </option>
                   ))}
                 </select>
-                <span className="mt-1 block text-xs text-gray-500">
+                <span className="mt-1 block text-xs text-slate-500">
                   Si elegís un índice, las cuotas de este lote se ajustan solas cada mes con el
                   valor que se cargue en{' '}
-                  <a href="/admin/indices" className="underline">
+                  <EnlaceBoton href="/admin/indices" className={ENLACE}>
                     Índices
-                  </a>
+                  </EnlaceBoton>
                   . Los índices disponibles acá son los que ya se cargaron al menos una vez ahí.
                 </span>
               </label>
             )}
 
-            <p className="mt-2 text-sm font-medium text-gray-700">
+            <p className="mt-2 text-sm font-medium text-slate-700">
               Datos legales del lote (opcionales -- solo hacen falta para generar el contrato)
             </p>
             <div className="grid grid-cols-2 gap-3">
@@ -901,7 +923,7 @@ export default async function LoteDetallePage({
                 <input
                   name="numeroLote"
                   defaultValue={lote!.numero_lote ?? ''}
-                  className="mt-1 block w-full rounded border px-3 py-2"
+                  className={`${ENTRADA} w-full`}
                 />
               </label>
               <label className="text-sm">
@@ -909,7 +931,7 @@ export default async function LoteDetallePage({
                 <input
                   name="manzana"
                   defaultValue={lote!.manzana ?? ''}
-                  className="mt-1 block w-full rounded border px-3 py-2"
+                  className={`${ENTRADA} w-full`}
                 />
               </label>
               <label className="text-sm">
@@ -920,7 +942,7 @@ export default async function LoteDetallePage({
                   step="0.01"
                   min="0"
                   defaultValue={lote!.superficie_m2 ?? ''}
-                  className="mt-1 block w-full rounded border px-3 py-2"
+                  className={`${ENTRADA} w-full`}
                 />
               </label>
               <label className="text-sm">
@@ -928,7 +950,7 @@ export default async function LoteDetallePage({
                 <input
                   name="cuentaRentas"
                   defaultValue={lote!.cuenta_rentas ?? ''}
-                  className="mt-1 block w-full rounded border px-3 py-2"
+                  className={`${ENTRADA} w-full`}
                 />
               </label>
               <label className="text-sm">
@@ -936,7 +958,7 @@ export default async function LoteDetallePage({
                 <input
                   name="nomenclaturaCatastral"
                   defaultValue={lote!.nomenclatura_catastral ?? ''}
-                  className="mt-1 block w-full rounded border px-3 py-2"
+                  className={`${ENTRADA} w-full`}
                 />
               </label>
               <label className="text-sm">
@@ -944,21 +966,21 @@ export default async function LoteDetallePage({
                 <input
                   name="matricula"
                   defaultValue={lote!.matricula ?? ''}
-                  className="mt-1 block w-full rounded border px-3 py-2"
+                  className={`${ENTRADA} w-full`}
                 />
               </label>
             </div>
 
-            <button type="submit" className="self-start rounded bg-black px-3 py-2 text-sm text-white">
+            <BotonEnvio className={`cursor-pointer self-start ${BOTON_PRIMARIO}`}>
               Guardar
-            </button>
+            </BotonEnvio>
           </form>
         </>
       )}
 
       {perfilPropio!.role !== 'cobrador' && lote!.estado === 'vendido' && (
         <>
-          <h2 className="mb-2 mt-8 text-lg font-semibold">Contrato</h2>
+          <h2 className={`mb-2 mt-8 ${TITULO_H2}`}>Contrato</h2>
           {loteoDelLote?.plantilla_contrato_path ? (
             <form action={generarContratoConId} className="mb-8 flex flex-wrap items-end gap-3">
               <label className="text-sm">
@@ -968,31 +990,31 @@ export default async function LoteDetallePage({
                   type="date"
                   required
                   defaultValue={hoy}
-                  className="mt-1 block rounded border px-3 py-2"
+                  className={ENTRADA}
                 />
               </label>
-              <button type="submit" className="rounded bg-black px-3 py-2 text-sm text-white">
+              <BotonEnvio className={`cursor-pointer ${BOTON_PRIMARIO}`}>
                 Generar contrato
-              </button>
-              <span className="text-xs text-gray-500">
+              </BotonEnvio>
+              <span className="text-xs text-slate-500">
                 Se guarda como un documento más de este lote, con los datos cargados hasta ahora.
               </span>
             </form>
           ) : (
             <p className="mb-8 text-sm text-amber-700">
               El loteo de este lote todavía no tiene una plantilla de contrato cargada --{' '}
-              <a href="/admin/loteos" className="underline">
+              <EnlaceBoton href="/admin/loteos" className={ENLACE}>
                 subí una acá
-              </a>{' '}
+              </EnlaceBoton>{' '}
               para poder generarlo.
             </p>
           )}
         </>
       )}
 
-      <h2 className="mb-2 mt-8 text-lg font-semibold">Documentos</h2>
+      <h2 className={`mb-2 mt-8 ${TITULO_H2}`}>Documentos</h2>
       {documentosConUrl.length === 0 ? (
-        <p className="mb-3 text-sm text-gray-600">Todavía no se subió ningún documento.</p>
+        <p className="mb-3 text-sm text-slate-600">Todavía no se subió ningún documento.</p>
       ) : (
         <ul className="mb-3 flex flex-col gap-2">
           {documentosConUrl.map((documento) => {
@@ -1000,18 +1022,18 @@ export default async function LoteDetallePage({
             return (
               <li key={documento.id} className="flex items-center gap-3 text-sm">
                 {documento.url ? (
-                  <a href={documento.url} target="_blank" className="underline">
+                  <a href={documento.url} target="_blank" className={ENLACE}>
                     {documento.descripcion}
                   </a>
                 ) : (
                   <span>{documento.descripcion} (link no disponible)</span>
                 )}
-                <span className="text-gray-500">— subido por {documento.nombreSubidoPor}</span>
+                <span className="text-slate-500">— subido por {documento.nombreSubidoPor}</span>
                 {perfilPropio!.role !== 'cobrador' && (
                   <form action={eliminarDocumentoConId}>
-                    <button type="submit" className="text-sm text-red-700 underline">
+                    <BotonEnvio className="cursor-pointer text-sm text-red-700 underline-offset-2 hover:underline">
                       Eliminar
-                    </button>
+                    </BotonEnvio>
                   </form>
                 )}
               </li>
@@ -1027,7 +1049,7 @@ export default async function LoteDetallePage({
             name="descripcion"
             placeholder="Ej: Plano del lote"
             required
-            className="mt-1 block w-full rounded border px-3 py-2"
+            className={`${ENTRADA} w-full`}
           />
         </label>
         <CampoArchivoDirecto
@@ -1039,16 +1061,16 @@ export default async function LoteDetallePage({
           accept="*/*"
           required
         />
-        <button type="submit" className="self-start rounded bg-black px-3 py-2 text-sm text-white">
+        <BotonEnvio className={`cursor-pointer self-start ${BOTON_PRIMARIO}`}>
           Subir documento
-        </button>
+        </BotonEnvio>
       </form>
       )}
 
       {perfilPropio!.role === 'administrador' && (
         <>
-          <h2 className="mb-2 text-lg font-semibold">Cobro</h2>
-          <p className="mb-3 text-sm text-gray-600">
+          <h2 className={`mb-2 ${TITULO_H2}`}>Cobro</h2>
+          <p className="mb-3 text-sm text-slate-600">
             Asigná quiénes son el admin, el acreedor y el vendedor de este lote, y cuál de ellos
             recibe las transferencias actualmente. Solo se puede elegir como cuenta de cobro a
             alguien que ya tenga datos de transferencia cargados
@@ -1056,9 +1078,9 @@ export default async function LoteDetallePage({
               <>
                 {' '}
                 —{' '}
-                <a href={`/admin/usuarios?editar=${editarUsuario}`} className="underline">
+                <EnlaceBoton href={`/admin/usuarios?editar=${editarUsuario}`} className={ENLACE}>
                   cargarlos ahora
-                </a>
+                </EnlaceBoton>
               </>
             )}
             .
@@ -1069,7 +1091,7 @@ export default async function LoteDetallePage({
           <select
             name="adminId"
             defaultValue={lote!.admin_id ?? ''}
-            className="mt-1 block w-full rounded border px-3 py-2"
+            className={`${ENTRADA} w-full`}
           >
             <option value="">— sin asignar —</option>
             {administradores.map((persona) => (
@@ -1086,7 +1108,7 @@ export default async function LoteDetallePage({
           <select
             name="acreedorId"
             defaultValue={lote!.acreedor_id ?? ''}
-            className="mt-1 block w-full rounded border px-3 py-2"
+            className={`${ENTRADA} w-full`}
           >
             <option value="">— sin asignar —</option>
             {acreedores.map((persona) => (
@@ -1103,7 +1125,7 @@ export default async function LoteDetallePage({
           <select
             name="vendedorId"
             defaultValue={lote!.vendedor_id ?? ''}
-            className="mt-1 block w-full rounded border px-3 py-2"
+            className={`${ENTRADA} w-full`}
           >
             <option value="">— sin asignar —</option>
             {vendedores.map((persona) => (
@@ -1124,7 +1146,7 @@ export default async function LoteDetallePage({
                 ? `externa:${lote!.cuenta_cobro_externa_id}`
                 : (lote!.cuenta_cobro_id ?? '')
             }
-            className="mt-1 block w-full rounded border px-3 py-2"
+            className={`${ENTRADA} w-full`}
           >
             <option value="">— sin asignar —</option>
             {conDatos.map((persona) => (
@@ -1141,27 +1163,27 @@ export default async function LoteDetallePage({
             ))}
           </select>
         </label>
-        <button type="submit" className="self-start rounded bg-black px-3 py-2 text-sm text-white">
+        <BotonEnvio className={`cursor-pointer self-start ${BOTON_PRIMARIO}`}>
           Guardar cobro
-        </button>
+        </BotonEnvio>
           </form>
 
-          <h2 className="mb-2 mt-8 text-lg font-semibold">Participantes adicionales</h2>
-          <p className="mb-3 text-sm text-gray-600">
+          <h2 className={`mb-2 mt-8 ${TITULO_H2}`}>Participantes adicionales</h2>
+          <p className="mb-3 text-sm text-slate-600">
             Gente que comparte la comisión de este lote sin ser el admin, el acreedor ni el vendedor
             principal (ej. un segundo vendedor). Los montos que cobra cada uno se cargan cuota por
             cuota en{' '}
             {lote!.estado === 'vendido' ? (
-              <a href={`/admin/lotes/${id}/distribucion`} className="underline">
+              <EnlaceBoton href={`/admin/lotes/${id}/distribucion`} className={ENLACE}>
                 la distribución de cuotas
-              </a>
+              </EnlaceBoton>
             ) : (
               'la distribución de cuotas'
             )}
             .
           </p>
           {(participantes ?? []).length === 0 ? (
-            <p className="mb-4 text-sm text-gray-600">Sin participantes adicionales todavía.</p>
+            <p className="mb-4 text-sm text-slate-600">Sin participantes adicionales todavía.</p>
           ) : (
             <ul className="mb-4 flex flex-col gap-2">
               {participantes!.map((participante) => (
@@ -1171,9 +1193,9 @@ export default async function LoteDetallePage({
                     {participante.etiqueta && ` — ${participante.etiqueta}`}
                   </span>
                   <form action={quitarParticipante.bind(null, id, participante.id)}>
-                    <button type="submit" className="text-red-700 underline">
+                    <BotonEnvio className="cursor-pointer text-red-700 underline-offset-2 hover:underline">
                       Quitar
-                    </button>
+                    </BotonEnvio>
                   </form>
                 </li>
               ))}
@@ -1182,7 +1204,7 @@ export default async function LoteDetallePage({
           <form action={agregarParticipanteConId} className="flex max-w-sm flex-col gap-3">
             <label className="text-sm">
               Agregar participante
-              <select name="participanteId" className="mt-1 block w-full rounded border px-3 py-2">
+              <select name="participanteId" className={`${ENTRADA} w-full`}>
                 <option value="">— elegir —</option>
                 {participantesElegibles.map((persona) => (
                   <option key={persona.id} value={persona.id}>
@@ -1201,22 +1223,22 @@ export default async function LoteDetallePage({
               <input
                 name="etiqueta"
                 placeholder="Ej: Vendedor 2"
-                className="mt-1 block w-full rounded border px-3 py-2"
+                className={`${ENTRADA} w-full`}
               />
             </label>
-            <button type="submit" className="self-start rounded bg-black px-3 py-2 text-sm text-white">
+            <BotonEnvio className={`cursor-pointer self-start ${BOTON_PRIMARIO}`}>
               Agregar participante
-            </button>
+            </BotonEnvio>
           </form>
         </>
       )}
 
       {(historialEstados ?? []).length > 0 && (
-        <details className="mt-10 rounded border border-gray-200 text-sm text-gray-600" open={hayFiltroHistorial || undefined}>
+        <details className="mt-10 rounded border border-blue-100 text-sm text-slate-600" open={hayFiltroHistorial || undefined}>
           <summary className="cursor-pointer select-none p-3 font-medium">
             Historial de estados del lote ({(historialEstados ?? []).length})
           </summary>
-          <div className="border-t border-gray-200 p-3">
+          <div className="border-t border-blue-100 p-3">
             {totalCobradoHistorico !== null && (
               <p className="mb-2">
                 Total cobrado mientras estuvo vendido:{' '}
@@ -1232,7 +1254,7 @@ export default async function LoteDetallePage({
                   type="date"
                   name="historialDesde"
                   defaultValue={historialDesde ?? ''}
-                  className="mt-1 block rounded border px-2 py-1"
+                  className={ENTRADA}
                 />
               </label>
               <label className="text-sm">
@@ -1241,17 +1263,17 @@ export default async function LoteDetallePage({
                   type="date"
                   name="historialHasta"
                   defaultValue={historialHasta ?? ''}
-                  className="mt-1 block rounded border px-2 py-1"
+                  className={ENTRADA}
                 />
               </label>
               {hayFiltroHistorial && (
-                <a href={`/admin/lotes/${id}`} className="text-sm underline">
+                <EnlaceBoton href={`/admin/lotes/${id}`} className={`text-sm ${ENLACE}`}>
                   Limpiar filtro
-                </a>
+                </EnlaceBoton>
               )}
             </FiltroEnVivo>
             {historialFiltrado.length === 0 ? (
-              <p className="mb-2 text-gray-600">Ningún movimiento coincide con el filtro.</p>
+              <p className="mb-2 text-slate-600">Ningún movimiento coincide con el filtro.</p>
             ) : (
             <ul className="mb-2 list-inside list-disc">
               {historialFiltrado.map((cambio, i) => (
@@ -1261,15 +1283,15 @@ export default async function LoteDetallePage({
                     : (EVENTO_HISTORIAL_ETIQUETA[cambio.evento] ?? cambio.evento)}{' '}
                   — {nombreCambiadorPorId.get(cambio.cambiado_por) ?? '—'} —{' '}
                   {new Date(cambio.created_at).toLocaleDateString('es-AR')}
-                  {cambio.detalle && <span className="text-gray-500"> — {cambio.detalle}</span>}
+                  {cambio.detalle && <span className="text-slate-500"> — {cambio.detalle}</span>}
                 </li>
               ))}
             </ul>
             )}
             {(perfilPropio!.role === 'administrador' || perfilPropio!.role === 'cobrador') && (
-              <a href="/admin/historial-lotes" className="underline">
+              <EnlaceBoton href="/admin/historial-lotes" className={ENLACE}>
                 Ver historial de todos los lotes →
-              </a>
+              </EnlaceBoton>
             )}
           </div>
         </details>

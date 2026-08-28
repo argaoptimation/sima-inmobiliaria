@@ -4,6 +4,8 @@ import { requireAdministrador } from '@/lib/auth/require-admin'
 import { obtenerCuotasSinDistribucion } from '@/lib/cuenta-corriente/cuotas-sin-distribucion'
 import { guardarDistribucionLote } from './actions'
 import { DistribucionCuotas } from './DistribucionCuotas'
+import { EnlaceBoton } from '@/components/EnlaceBoton'
+import { ENLACE, TITULO_H1, BANNER_ERROR, BANNER_OK } from '@/lib/ui/clases'
 
 export default async function DistribucionLotePage({
   params,
@@ -127,15 +129,15 @@ export default async function DistribucionLotePage({
   return (
     <main className="max-w-4xl">
       <div className="mb-4 flex gap-4">
-        <a href="/admin/lotes" className="text-sm underline">
+        <EnlaceBoton href="/admin/lotes" className={`text-sm ${ENLACE}`}>
           ← Volver a Lotes
-        </a>
-        <a href={`/admin/lotes/${id}`} className="text-sm underline">
+        </EnlaceBoton>
+        <EnlaceBoton href={`/admin/lotes/${id}`} className={`text-sm ${ENLACE}`}>
           ← Volver al lote
-        </a>
+        </EnlaceBoton>
       </div>
-      <h1 className="mb-2 text-xl font-semibold">Distribución de cuotas — {lote!.identificador}</h1>
-      <p className="mb-6 text-sm text-gray-600">
+      <h1 className={`mb-2 ${TITULO_H1}`}>Distribución de cuotas — {lote!.identificador}</h1>
+      <p className="mb-6 text-sm text-slate-600">
         Precio total del lote: <span className="font-medium">{lote!.precio_total}</span> {lote!.moneda}
         {(cuotas ?? []).length > 0 && (
           <>
@@ -149,11 +151,11 @@ export default async function DistribucionLotePage({
         )}
       </p>
 
-      {error && <p className="mb-4 rounded bg-red-100 p-2 text-sm text-red-700">{error}</p>}
-      {ok && <p className="mb-4 rounded bg-green-100 p-2 text-sm text-green-700">Distribución guardada.</p>}
+      {error && <p className={BANNER_ERROR}>{error}</p>}
+      {ok && <p className={BANNER_OK}>Distribución guardada.</p>}
 
       {cuotasSinDistribucion.length > 0 && (
-        <p className="mb-4 rounded bg-amber-100 p-2 text-sm text-amber-800">
+        <p className="mb-4 rounded-lg bg-amber-50 p-3 text-sm text-amber-800">
           Ojo: la cuota {cuotasSinDistribucion.map((cuota) => cuota.numero).join(', ')} ya se cobró (al
           menos en parte) pero todavía no tiene distribución cargada, así que no se generó ningún Debe en
           la cuenta corriente de nadie por esa cuota.
@@ -161,7 +163,7 @@ export default async function DistribucionLotePage({
       )}
 
       {lote!.estado !== 'vendido' ? (
-        <p className="mb-4 rounded bg-amber-100 p-2 text-sm text-amber-800">
+        <p className="mb-4 rounded-lg bg-amber-50 p-3 text-sm text-amber-800">
           Este lote no está vendido (estado actual: {lote!.estado}), todavía no tiene cuotas para
           distribuir.
         </p>

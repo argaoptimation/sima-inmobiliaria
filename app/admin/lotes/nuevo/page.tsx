@@ -1,6 +1,9 @@
 import { createClient } from '@/lib/supabase/server'
 import { requireAdminOAcreedor } from '@/lib/auth/require-admin'
 import { crearLote } from '../actions'
+import { EnlaceBoton } from '@/components/EnlaceBoton'
+import { BotonEnvio } from '@/components/BotonEnvio'
+import { ENTRADA, BOTON_PRIMARIO, ENLACE, TITULO_H1, BANNER_ERROR } from '@/lib/ui/clases'
 
 export default async function NuevoLotePage({
   searchParams,
@@ -20,24 +23,19 @@ export default async function NuevoLotePage({
 
   return (
     <main className="max-w-md">
-      <a href="/admin/lotes" className="mb-4 inline-block text-sm underline">
+      <EnlaceBoton href="/admin/lotes" className={`mb-4 inline-block ${ENLACE}`}>
         ← Volver a Lotes
-      </a>
-      <h1 className="mb-6 text-xl font-semibold">Nuevo lote</h1>
-      {error && <p className="mb-4 rounded bg-red-100 p-2 text-sm text-red-700">{error}</p>}
+      </EnlaceBoton>
+      <h1 className={`mb-6 ${TITULO_H1}`}>Nuevo lote</h1>
+      {error && <p className={BANNER_ERROR}>{error}</p>}
       <form action={crearLote} className="flex flex-col gap-3">
         <input
           name="identificador"
           placeholder="Identificador (ej: Loteo San Martín - Manzana 3 - Lote 12)"
           required
-          className="rounded border px-3 py-2"
+          className={ENTRADA}
         />
-        <input
-          name="ubicacion"
-          placeholder="Ubicación"
-          required
-          className="rounded border px-3 py-2"
-        />
+        <input name="ubicacion" placeholder="Ubicación" required className={ENTRADA} />
         <input
           name="precioTotal"
           type="number"
@@ -45,21 +43,16 @@ export default async function NuevoLotePage({
           min="0"
           placeholder="Precio total del lote"
           required
-          className="rounded border px-3 py-2"
+          className={ENTRADA}
         />
-        <select name="moneda" required className="rounded border px-3 py-2">
+        <select name="moneda" required className={ENTRADA}>
           <option value="USD">USD</option>
           <option value="ARS">ARS</option>
         </select>
 
-        <label className="text-sm">
+        <label className="text-sm text-slate-600">
           Acreedor
-          <select
-            name="acreedorId"
-            required
-            defaultValue=""
-            className="mt-1 block w-full rounded border px-3 py-2"
-          >
+          <select name="acreedorId" required defaultValue="" className={`${ENTRADA} w-full`}>
             <option value="" disabled>
               — Elegí un acreedor —
             </option>
@@ -74,18 +67,16 @@ export default async function NuevoLotePage({
         <input
           name="acreedorNombreNuevo"
           placeholder="Si elegiste 'Crear nuevo acreedor': nombre completo"
-          className="rounded border px-3 py-2"
+          className={ENTRADA}
         />
         <input
           name="acreedorEmailNuevo"
           type="email"
           placeholder="Si elegiste 'Crear nuevo acreedor': email"
-          className="rounded border px-3 py-2"
+          className={ENTRADA}
         />
 
-        <button type="submit" className="rounded bg-black px-3 py-2 text-white">
-          Crear lote
-        </button>
+        <BotonEnvio className={`cursor-pointer ${BOTON_PRIMARIO}`}>Crear lote</BotonEnvio>
       </form>
     </main>
   )

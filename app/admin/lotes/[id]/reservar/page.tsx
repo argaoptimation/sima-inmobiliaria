@@ -4,6 +4,17 @@ import { requireAccesoParaReservar } from '@/lib/auth/require-admin'
 import { reservarLote } from './actions'
 import { CampoTelefono, AyudaTelefono } from '@/components/CampoTelefono'
 import { CampoArchivoDirecto } from '@/components/CampoArchivoDirecto'
+import { EnlaceBoton } from '@/components/EnlaceBoton'
+import { BotonEnvio } from '@/components/BotonEnvio'
+import {
+  ENTRADA,
+  BOTON_PRIMARIO,
+  BOTON_SECUNDARIO,
+  ENLACE,
+  TITULO_H1,
+  BANNER_ERROR,
+  BANNER_OK,
+} from '@/lib/ui/clases'
 
 export default async function ReservarLotePage({
   params,
@@ -100,13 +111,13 @@ export default async function ReservarLotePage({
 
   return (
     <main className="max-w-md">
-      <a href="/admin/lotes" className="mb-4 inline-block text-sm underline">
+      <EnlaceBoton href="/admin/lotes" className={`mb-4 inline-block ${ENLACE}`}>
         ← Volver a Lotes
-      </a>
-      <h1 className="mb-6 text-xl font-semibold">Reservar {lote!.identificador}</h1>
+      </EnlaceBoton>
+      <h1 className={`mb-6 ${TITULO_H1}`}>Reservar {lote!.identificador}</h1>
 
       {lote!.estado !== 'disponible' ? (
-        <p className="mb-4 rounded bg-amber-100 p-2 text-sm text-amber-800">
+        <p className="mb-4 rounded-lg bg-amber-50 p-3 text-sm text-amber-800">
           Este lote ya no está disponible para reservar (estado actual: {lote!.estado}).
         </p>
       ) : (
@@ -116,48 +127,48 @@ export default async function ReservarLotePage({
             name="dni"
             placeholder="Buscar cliente por DNI"
             defaultValue={dniBuscado ?? ''}
-            className="flex-1 rounded border px-3 py-2 text-sm"
+            className={`flex-1 ${ENTRADA}`}
           />
-          <button type="submit" className="rounded border px-3 py-2 text-sm">
+          <button type="submit" className={`cursor-pointer ${BOTON_SECUNDARIO}`}>
             Buscar
           </button>
         </form>
 
         {dniBuscado &&
           (clienteEncontrado ? (
-            <p className="mb-4 rounded bg-green-100 p-2 text-sm text-green-800">
+            <p className={BANNER_OK}>
               Encontramos a {clienteEncontrado.full_name} con este DNI. Sus datos se precargaron abajo
               — revisalos antes de confirmar.
             </p>
           ) : (
-            <p className="mb-4 rounded bg-gray-100 p-2 text-sm text-gray-700">
+            <p className="mb-4 rounded-lg bg-slate-100 p-3 text-sm text-slate-700">
               No encontramos ningún cliente con ese DNI — completá los datos manualmente.
             </p>
           ))}
 
         <form action={reservarLoteConId} className="flex flex-col gap-3">
-          {error && <p className="rounded bg-red-100 p-2 text-sm text-red-700">{error}</p>}
+          {error && <p className={BANNER_ERROR}>{error}</p>}
 
           <input
             name="nombreCompleto"
             placeholder="Nombre completo"
             defaultValue={nombreCompletoPreservado ?? clienteEncontrado?.full_name ?? ''}
             required
-            className="rounded border px-3 py-2"
+            className={ENTRADA}
           />
           <input
             name="dni"
             placeholder="DNI"
             defaultValue={dniPreservado ?? clienteEncontrado?.dni ?? dniBuscado ?? ''}
             required
-            className="rounded border px-3 py-2"
+            className={ENTRADA}
           />
           <input
             name="domicilio"
             placeholder="Domicilio"
             defaultValue={domicilioPreservado ?? clienteEncontrado?.domicilio ?? ''}
             required
-            className="rounded border px-3 py-2"
+            className={ENTRADA}
           />
           <input
             name="email"
@@ -165,9 +176,9 @@ export default async function ReservarLotePage({
             placeholder="Email"
             defaultValue={emailPreservado ?? clienteEncontrado?.email ?? ''}
             required
-            className="rounded border px-3 py-2"
+            className={ENTRADA}
           />
-          <label className="text-sm">
+          <label className="text-sm text-slate-600">
             Teléfono
             <CampoTelefono prefijoGuardado={prefijoForm} numeroGuardado={numeroForm} requerido />
             <AyudaTelefono />
@@ -176,16 +187,16 @@ export default async function ReservarLotePage({
             name="telefonoAlternativo"
             placeholder="Teléfono alternativo (opcional)"
             defaultValue={telefonoAlternativoPreservado ?? ''}
-            className="rounded border px-3 py-2"
+            className={ENTRADA}
           />
 
-          <label className="text-sm">
+          <label className="text-sm text-slate-600">
             Estado civil
             <select
               name="estadoCivil"
               required
               defaultValue={estadoCivilPreservado}
-              className="mt-1 block w-full rounded border px-3 py-2"
+              className={`${ENTRADA} w-full`}
             >
               <option value="soltero">Soltero/a</option>
               <option value="casado">Casado/a</option>
@@ -194,12 +205,12 @@ export default async function ReservarLotePage({
             </select>
           </label>
 
-          <label className="text-sm">
+          <label className="text-sm text-slate-600">
             Instrumentación prevista (opcional)
             <select
               name="instrumentacion"
               defaultValue={instrumentacionPreservado ?? ''}
-              className="mt-1 block w-full rounded border px-3 py-2"
+              className={`${ENTRADA} w-full`}
             >
               <option value="">— sin definir —</option>
               <option value="boleto">Boleto de compraventa</option>
@@ -215,27 +226,27 @@ export default async function ReservarLotePage({
             placeholder="Monto de la seña"
             defaultValue={montoSenaPreservado ?? ''}
             required
-            className="rounded border px-3 py-2"
+            className={ENTRADA}
           />
-          <label className="text-sm">
+          <label className="text-sm text-slate-600">
             Moneda de la seña
             <select
               name="monedaSena"
               required
               defaultValue={monedaSenaPreservado ?? 'USD'}
-              className="mt-1 block w-full rounded border px-3 py-2"
+              className={`${ENTRADA} w-full`}
             >
               <option value="USD">USD</option>
               <option value="ARS">ARS</option>
             </select>
           </label>
 
-          <label className="text-sm">
+          <label className="text-sm text-slate-600">
             Quién recibió la seña
             <select
               name="recibidoPor"
               defaultValue={recibidoPorPreservado ?? user!.id}
-              className="mt-1 block w-full rounded border px-3 py-2"
+              className={`${ENTRADA} w-full`}
             >
               <option value="">— no está en la lista, especificar abajo —</option>
               {staff?.map((persona) => (
@@ -249,7 +260,7 @@ export default async function ReservarLotePage({
             name="recibidoPorOtro"
             placeholder="Si no está en la lista: nombre de quien la recibió"
             defaultValue={recibidoPorOtroPreservado ?? ''}
-            className="rounded border px-3 py-2"
+            className={ENTRADA}
           />
 
           <CampoArchivoDirecto
@@ -294,9 +305,7 @@ export default async function ReservarLotePage({
             nombreError="La sentencia de divorcio"
           />
 
-          <button type="submit" className="rounded bg-black px-3 py-2 text-white">
-            Confirmar reserva
-          </button>
+          <BotonEnvio className={`cursor-pointer ${BOTON_PRIMARIO}`}>Confirmar reserva</BotonEnvio>
         </form>
         </>
       )}

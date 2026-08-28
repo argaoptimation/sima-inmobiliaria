@@ -2,6 +2,8 @@ import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { notFound } from 'next/navigation'
 import { requireAccesoParaReservar } from '@/lib/auth/require-admin'
+import { EnlaceBoton } from '@/components/EnlaceBoton'
+import { ENLACE, TITULO_H1, TITULO_H2 } from '@/lib/ui/clases'
 
 export default async function InfoLotePage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params
@@ -42,33 +44,35 @@ export default async function InfoLotePage({ params }: { params: Promise<{ id: s
 
   return (
     <main className="max-w-md">
-      <a href="/admin/lotes" className="mb-4 inline-block text-sm underline">
+      <EnlaceBoton href="/admin/lotes" className={`mb-4 inline-block ${ENLACE}`}>
         ← Volver a Lotes
-      </a>
-      <h1 className="mb-6 text-xl font-semibold">{lote!.identificador}</h1>
+      </EnlaceBoton>
+      <h1 className={`mb-6 ${TITULO_H1}`}>{lote!.identificador}</h1>
 
-      {lote!.ubicacion && <p className="mb-1 text-sm">Ubicación: {lote!.ubicacion}</p>}
-      <p className="mb-1 text-sm">Estado: {lote!.estado}</p>
+      {lote!.ubicacion && <p className="mb-1 text-sm text-slate-700">Ubicación: {lote!.ubicacion}</p>}
+      <p className="mb-1 text-sm text-slate-700">Estado: {lote!.estado}</p>
       {lote!.precio_total && (
-        <p className="mb-1 text-sm">
+        <p className="mb-1 text-sm text-slate-700">
           Precio total: {lote!.precio_total} {lote!.moneda}
         </p>
       )}
-      <p className="mb-4 text-sm">Acreedor: {acreedor ? acreedor.full_name : '— sin asignar —'}</p>
+      <p className="mb-4 text-sm text-slate-700">
+        Acreedor: {acreedor ? acreedor.full_name : '— sin asignar —'}
+      </p>
 
-      <h2 className="mb-2 text-lg font-semibold">Documentos</h2>
+      <h2 className={`mb-2 ${TITULO_H2}`}>Documentos</h2>
       {documentosConUrl.length === 0 ? (
-        <p className="text-sm text-gray-600">Todavía no se subió ningún documento.</p>
+        <p className="text-sm text-slate-600">Todavía no se subió ningún documento.</p>
       ) : (
         <ul className="flex flex-col gap-2">
           {documentosConUrl.map((documento) => (
             <li key={documento.id} className="text-sm">
               {documento.url ? (
-                <a href={documento.url} target="_blank" className="underline">
+                <a href={documento.url} target="_blank" className={ENLACE}>
                   {documento.descripcion}
                 </a>
               ) : (
-                <span>{documento.descripcion} (link no disponible)</span>
+                <span className="text-slate-700">{documento.descripcion} (link no disponible)</span>
               )}
             </li>
           ))}

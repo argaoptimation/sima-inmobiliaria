@@ -1,5 +1,7 @@
 'use client'
 
+import { BotonEnvio } from '@/components/BotonEnvio'
+
 export function BotonCancelarReserva({
   cancelarReservaAction,
 }: {
@@ -18,9 +20,9 @@ export function BotonCancelarReserva({
         }
       }}
     >
-      <button type="submit" className="rounded border border-red-600 px-3 py-2 text-sm text-red-700">
+      <BotonEnvio className="cursor-pointer rounded-lg border border-red-600 px-3 py-2 text-sm font-semibold text-red-700 transition-colors hover:bg-red-50">
         Cancelar reserva
-      </button>
+      </BotonEnvio>
     </form>
   )
 }

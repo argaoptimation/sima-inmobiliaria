@@ -4,6 +4,7 @@ import { useState } from 'react'
 import { calcularMontoCuota } from '@/lib/lotes/calcular-monto-cuota'
 import { generarCuotas } from '@/lib/lotes/generar-cuotas'
 import { CampoArchivoDirecto } from '@/components/CampoArchivoDirecto'
+import { ENTRADA } from '@/lib/ui/clases'
 
 interface Props {
   loteId: string
@@ -100,12 +101,12 @@ export function CuotasYDocumento({
         value={cantidadCuotasTexto}
         onChange={(evento) => manejarCambioCantidadCuotas(evento.target.value)}
         required
-        className="rounded border px-3 py-2"
+        className={ENTRADA}
       />
 
-      <fieldset className="rounded border px-3 py-2">
-        <legend className="text-sm font-medium">Cómo cargar las cuotas</legend>
-        <label className="mr-4 text-sm">
+      <fieldset className="rounded-lg border border-blue-100 px-3 py-2">
+        <legend className="text-sm font-medium text-blue-900">Cómo cargar las cuotas</legend>
+        <label className="mr-4 text-sm text-slate-700">
           <input
             type="radio"
             name="modo"
@@ -116,7 +117,7 @@ export function CuotasYDocumento({
           />
           Automático
         </label>
-        <label className="text-sm">
+        <label className="text-sm text-slate-700">
           <input
             type="radio"
             name="modo"
@@ -129,7 +130,7 @@ export function CuotasYDocumento({
         </label>
       </fieldset>
 
-      <label className="text-sm">
+      <label className="text-sm text-slate-600">
         Entrega (opcional — monto entregado al firmar el boleto, además de la seña)
         <input
           name="entregaMonto"
@@ -139,11 +140,11 @@ export function CuotasYDocumento({
           placeholder="Entrega"
           value={entregaTexto}
           onChange={(evento) => setEntregaTexto(evento.target.value)}
-          className="mt-1 block w-full rounded border px-3 py-2"
+          className={`${ENTRADA} w-full`}
         />
       </label>
 
-      <label className="text-sm">
+      <label className="text-sm text-slate-600">
         Interés moratorio diario (%) — opcional, se aplica sobre el saldo impago de una cuota
         vencida a partir del día siguiente a su vencimiento
         <input
@@ -155,7 +156,7 @@ export function CuotasYDocumento({
           placeholder="Interés moratorio diario"
           value={interesMoratorioDiarioTexto}
           onChange={(evento) => setInteresMoratorioDiarioTexto(evento.target.value)}
-          className="mt-1 block w-full rounded border px-3 py-2"
+          className={`${ENTRADA} w-full`}
         />
       </label>
 
@@ -172,13 +173,13 @@ export function CuotasYDocumento({
             value={montos[indice] ?? ''}
             onChange={(evento) => manejarCambioMonto(indice, evento.target.value)}
             required
-            className="rounded border px-3 py-2"
+            className={ENTRADA}
           />
         ))}
 
       {cantidadCuotas > 0 && precioTotal !== null && (
-        <div className="rounded border border-blue-300 bg-blue-50 p-3 text-sm text-blue-900">
-          <p className="font-medium">Balance</p>
+        <div className="rounded-lg border border-blue-100 bg-blue-50/40 p-3 text-sm text-blue-900">
+          <p className="font-semibold">Balance</p>
           <p className="mt-1">Precio de lista del lote: {precioTotal}</p>
           {modo === 'automatico' ? (
             <p>

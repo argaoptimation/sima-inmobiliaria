@@ -113,6 +113,14 @@ test.describe('Documentos del lote', () => {
     await page.goto(`/admin/lotes/${fixtures.loteId}`)
 
     for (const nombre of ['Doc A', 'Doc B']) {
+      // Espera a que el botón esté disponible (no "Cargando…") ANTES de
+      // llenar el próximo documento -- esta página hace ~15 queries
+      // secuenciales, así que la revalidación tras el submit anterior puede
+      // tardar. React resetea el <form> automáticamente cuando esa
+      // revalidación llega (form action exitosa) -- si se llena el próximo
+      // documento mientras el botón todavía dice "Cargando…", ese reset
+      // tardío borra lo recién tipeado y el submit siguiente sale vacío.
+      await expect(page.getByRole('button', { name: 'Subir documento' })).toBeVisible()
       await page.getByPlaceholder('Ej: Plano del lote').fill(nombre)
       await page.setInputFiles('[data-testid="archivo"]', {
         name: `${nombre}.pdf`,
@@ -123,6 +131,9 @@ test.describe('Documentos del lote', () => {
       await page.getByRole('button', { name: 'Subir documento' }).click()
       await page.waitForURL(new RegExp(`/admin/lotes/${fixtures.loteId}$`))
     }
+    // Confirma que el último submit realmente terminó (botón de vuelta a su
+    // texto normal) antes de pasar a borrar -- mismo motivo que arriba.
+    await expect(page.getByRole('button', { name: 'Subir documento' })).toBeVisible()
 
     const filaA = page.locator('li', { hasText: 'Doc A' })
     await filaA.getByRole('button', { name: 'Eliminar' }).click()

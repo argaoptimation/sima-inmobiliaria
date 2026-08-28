@@ -112,7 +112,12 @@ test.describe('Refinanciar cuotas (26/08)', () => {
 
     await page.reload()
 
-    const tablaCuotas = page.locator('h2', { hasText: 'Cuotas' }).locator('xpath=following-sibling::table[1]')
+    // La tabla de cuotas vive dentro del div contenedor (TABLA_CONTENEDOR,
+    // rediseño 28/08) que sigue al <h2>, no como <table> directo hermano.
+    const tablaCuotas = page
+      .locator('h2', { hasText: 'Cuotas' })
+      .locator('xpath=following-sibling::div[1]')
+      .locator('table')
     const filaCuota2 = tablaCuotas.locator('tbody tr').nth(1)
     await expect(filaCuota2.getByText('Refinanció')).toBeVisible()
     const filaCuota4 = tablaCuotas.locator('tbody tr').nth(3)
