@@ -49,7 +49,7 @@ async function crearLoteYPagoDeCliente(
   return lote.id as string
 }
 
-async function crearClienteDescartable(nombre: string) {
+async function crearClienteDescartable(nombre: string, dni?: string) {
   const admin = createAdminClient()
   const email = `${nombre.toLowerCase().replace(/\s+/g, '.')}.${Date.now()}@sima-e2e.invalid`
 
@@ -62,7 +62,7 @@ async function crearClienteDescartable(nombre: string) {
 
   const { error: errorProfile } = await admin
     .from('profiles')
-    .insert({ id: data.user.id, role: 'cliente', full_name: nombre, email })
+    .insert({ id: data.user.id, role: 'cliente', full_name: nombre, email, dni: dni ?? null })
   if (errorProfile) throw new Error(`No se pudo crear el profile: ${errorProfile.message}`)
 
   return { id: data.user.id, email }
@@ -112,7 +112,7 @@ test.describe('Nombre de cliente y búsqueda en /admin/pagos', () => {
 
     await login(page, fixtures.admin.email, fixtures.password)
     await page.goto('/admin/pagos')
-    await page.getByPlaceholder('Buscar cliente o lote').fill(nombreCliente)
+    await page.getByPlaceholder('Cliente, DNI o lote').fill(nombreCliente)
     await page.getByRole('button', { name: 'Filtrar' }).click()
 
     await expect(page.locator(`a[href*="${nombreArchivo}"]`)).toBeVisible()
@@ -131,16 +131,41 @@ test.describe('Nombre de cliente y búsqueda en /admin/pagos', () => {
 
     await login(page, fixtures.admin.email, fixtures.password)
     await page.goto('/admin/pagos')
-    await page.getByPlaceholder('Buscar cliente o lote').fill(identificadorLote)
+    await page.getByPlaceholder('Cliente, DNI o lote').fill(identificadorLote)
     await page.getByRole('button', { name: 'Filtrar' }).click()
 
     await expect(page.locator(`a[href*="${nombreArchivo}"]`)).toBeVisible()
   })
 
+  test('buscar por DNI de cliente encuentra su pago, y el DNI se muestra en la columna Cliente (28/08, pedido de Nico)', async ({
+    page,
+  }) => {
+    const nombreArchivo = `e2e-buscar-dni-${Date.now()}.pdf`
+    const dniCliente = `${Date.now()}`.slice(-8)
+    const cliente = await crearClienteDescartable(`E2E Cliente Buscar DNI ${Date.now()}`, dniCliente)
+    await crearLoteYPagoDeCliente(
+      `E2E Lote Buscar DNI ${Date.now()}`,
+      fixtures.acreedorConDatos.id,
+      cliente.id,
+      nombreArchivo
+    )
+
+    await login(page, fixtures.admin.email, fixtures.password)
+    await page.goto('/admin/pagos')
+    await page.getByPlaceholder('Cliente, DNI o lote').fill(dniCliente)
+    await page.getByRole('button', { name: 'Filtrar' }).click()
+
+    const fila = page
+      .locator('main table tbody tr')
+      .filter({ has: page.locator(`a[href*="${nombreArchivo}"]`) })
+    await expect(fila).toBeVisible()
+    await expect(fila.getByText(`DNI ${dniCliente}`)).toBeVisible()
+  })
+
   test('buscar algo que no matchea nada da lista vacía sin error', async ({ page }) => {
     await login(page, fixtures.admin.email, fixtures.password)
     await page.goto('/admin/pagos')
-    await page.getByPlaceholder('Buscar cliente o lote').fill(`Texto Que No Existe ${Date.now()}`)
+    await page.getByPlaceholder('Cliente, DNI o lote').fill(`Texto Que No Existe ${Date.now()}`)
     await page.getByRole('button', { name: 'Filtrar' }).click()
 
     await expect(page.locator('main table tbody tr')).toHaveCount(0)
@@ -160,7 +185,7 @@ test.describe('Nombre de cliente y búsqueda en /admin/pagos', () => {
 
     await login(page, fixtures.acreedorConDatos.email, fixtures.password)
     await page.goto('/admin/pagos')
-    await page.getByPlaceholder('Buscar cliente o lote').fill(nombreCliente)
+    await page.getByPlaceholder('Cliente, DNI o lote').fill(nombreCliente)
     await page.getByRole('button', { name: 'Filtrar' }).click()
 
     await expect(page.locator(`a[href*="${nombreArchivo}"]`)).toHaveCount(0)

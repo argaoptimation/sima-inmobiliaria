@@ -4,6 +4,9 @@ import { actualizarNombre, actualizarDatosTransferencia } from './actions'
 import { NavAdmin } from '@/components/NavAdmin'
 import { contarPagosPendientes } from '@/lib/pagos-pendientes'
 import { calcularSaldoCuentaCorrientePorMoneda } from '@/lib/cuenta-corriente/calcular-saldo'
+import { EnlaceBoton } from '@/components/EnlaceBoton'
+import { BotonEnvio } from '@/components/BotonEnvio'
+import { ENTRADA, BOTON_PRIMARIO, ENLACE, TITULO_H1, TITULO_H2, BANNER_ERROR, BANNER_OK, TARJETA } from '@/lib/ui/clases'
 
 export default async function MiPerfilPage({
   searchParams,
@@ -59,86 +62,58 @@ export default async function MiPerfilPage({
         <NavAdmin role={perfil!.role} pagosPendientes={pagosPendientes} userId={user!.id} />
       )}
       <main className="mx-auto mt-12 max-w-md p-6">
-      <h1 className="mb-6 text-xl font-semibold">Mi perfil</h1>
-      {error && <p className="mb-4 rounded bg-red-100 p-2 text-sm text-red-700">{error}</p>}
-      {ok && <p className="mb-4 rounded bg-green-100 p-2 text-sm text-green-700">Guardado.</p>}
+        <h1 className={`mb-6 ${TITULO_H1}`}>Mi perfil</h1>
+        {error && <p className={BANNER_ERROR}>{error}</p>}
+        {ok && <p className={BANNER_OK}>Guardado.</p>}
 
-      <div className="mb-8">
-        <h2 className="mb-2 text-lg font-semibold">Mi cuenta corriente</h2>
-        <p className="mb-1 text-sm">
-          {entradasSaldoCuentaCorriente.length === 0
-            ? 'Sin movimientos todavía.'
-            : entradasSaldoCuentaCorriente.map(([moneda, monto]) => `${monto} ${moneda}`).join(' / ')}
+        <div className={`mb-8 ${TARJETA}`}>
+          <h2 className="mb-2 text-lg font-bold text-blue-900">Mi cuenta corriente</h2>
+          <p className="mb-1 text-sm text-slate-800">
+            {entradasSaldoCuentaCorriente.length === 0
+              ? 'Sin movimientos todavía.'
+              : entradasSaldoCuentaCorriente.map(([moneda, monto]) => `${monto} ${moneda}`).join(' / ')}
+          </p>
+          <p className="mb-2 text-xs text-slate-600">
+            Positivo: la empresa todavía te debe. Negativo: cobraste de más y le debés a la empresa.
+          </p>
+          {['acreedor', 'vendedor', 'cobrador'].includes(perfil!.role) && (
+            <EnlaceBoton href={`/admin/cuentas-corrientes/${user!.id}`} className={`inline-block ${ENLACE}`}>
+              Ver detalle de movimientos →
+            </EnlaceBoton>
+          )}
+        </div>
+
+        <h2 className={`mb-2 ${TITULO_H2}`}>Nombre completo</h2>
+        <form action={actualizarNombre} className="mb-8 flex gap-3">
+          <input name="fullName" defaultValue={perfil!.full_name} required className={`flex-1 ${ENTRADA}`} />
+          <BotonEnvio className={`cursor-pointer ${BOTON_PRIMARIO}`}>Guardar</BotonEnvio>
+        </form>
+
+        <h2 className={`mb-2 ${TITULO_H2}`}>Datos de transferencia</h2>
+        <p className="mb-3 text-sm text-slate-600">
+          Así los va a ver el cliente para corroborar antes de transferir. El titular tiene que ser
+          el nombre tal cual figura en la cuenta bancaria de destino (puede no coincidir con tu
+          nombre de arriba).
         </p>
-        <p className="mb-2 text-xs text-gray-600">
-          Positivo: la empresa todavía te debe. Negativo: cobraste de más y le debés a la empresa.
-        </p>
-        {['acreedor', 'vendedor', 'cobrador'].includes(perfil!.role) && (
-          <a href={`/admin/cuentas-corrientes/${user!.id}`} className="inline-block text-sm underline">
-            Ver detalle de movimientos →
-          </a>
-        )}
-      </div>
-
-      <h2 className="mb-2 text-lg font-semibold">Nombre completo</h2>
-      <form action={actualizarNombre} className="mb-8 flex gap-3">
-        <input
-          name="fullName"
-          defaultValue={perfil!.full_name}
-          required
-          className="flex-1 rounded border px-3 py-2"
-        />
-        <button type="submit" className="rounded bg-black px-3 py-2 text-sm text-white">
-          Guardar
-        </button>
-      </form>
-
-      <h2 className="mb-2 text-lg font-semibold">Datos de transferencia</h2>
-      <p className="mb-3 text-sm text-gray-600">
-        Así los va a ver el cliente para corroborar antes de transferir. El titular tiene que ser
-        el nombre tal cual figura en la cuenta bancaria de destino (puede no coincidir con tu
-        nombre de arriba).
-      </p>
-      <form action={actualizarDatosTransferencia} className="flex flex-col gap-3">
-        <label className="text-sm">
-          Titular de la cuenta
-          <input
-            name="titular"
-            defaultValue={perfil!.titular ?? ''}
-            required
-            className="mt-1 block w-full rounded border px-3 py-2"
-          />
-        </label>
-        <label className="text-sm">
-          Alias
-          <input
-            name="alias"
-            defaultValue={perfil!.alias ?? ''}
-            required
-            className="mt-1 block w-full rounded border px-3 py-2"
-          />
-        </label>
-        <label className="text-sm">
-          Banco
-          <input
-            name="banco"
-            defaultValue={perfil!.banco ?? ''}
-            required
-            className="mt-1 block w-full rounded border px-3 py-2"
-          />
-        </label>
-        <label className="text-sm">
-          CBU (opcional)
-          <input
-            name="cbu"
-            defaultValue={perfil!.cbu ?? ''}
-            className="mt-1 block w-full rounded border px-3 py-2"
-          />
-        </label>
-        <button type="submit" className="self-start rounded bg-black px-3 py-2 text-sm text-white">
-          Guardar
-        </button>
-      </form>
+        <form action={actualizarDatosTransferencia} className="flex flex-col gap-3">
+          <label className="text-sm text-slate-600">
+            Titular de la cuenta
+            <input name="titular" defaultValue={perfil!.titular ?? ''} required className={`w-full ${ENTRADA}`} />
+          </label>
+          <label className="text-sm text-slate-600">
+            Alias
+            <input name="alias" defaultValue={perfil!.alias ?? ''} required className={`w-full ${ENTRADA}`} />
+          </label>
+          <label className="text-sm text-slate-600">
+            Banco
+            <input name="banco" defaultValue={perfil!.banco ?? ''} required className={`w-full ${ENTRADA}`} />
+          </label>
+          <label className="text-sm text-slate-600">
+            CBU (opcional)
+            <input name="cbu" defaultValue={perfil!.cbu ?? ''} className={`w-full ${ENTRADA}`} />
+          </label>
+          <BotonEnvio className={`cursor-pointer self-start ${BOTON_PRIMARIO}`}>Guardar</BotonEnvio>
+        </form>
       </main>
     </>
   )

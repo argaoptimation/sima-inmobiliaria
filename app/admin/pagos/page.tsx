@@ -80,13 +80,16 @@ export default async function PagosPage({
       .select('id')
       .ilike('identificador', `%${filtroTexto}%`)
 
-    const { data: clientesPorNombre } = await supabase
+    // Busca tanto por nombre como por DNI (pedido de Nico 28/08: el DNI se
+    // usa mucho más que el nombre para encontrar a un cliente puntual).
+    const textoSaneado = filtroTexto.replace(/[,()]/g, '')
+    const { data: clientesPorNombreODni } = await supabase
       .from('profiles')
       .select('id')
       .eq('role', 'cliente')
-      .ilike('full_name', `%${filtroTexto}%`)
+      .or(`full_name.ilike.%${textoSaneado}%,dni.ilike.%${textoSaneado}%`)
 
-    const clienteIds = (clientesPorNombre ?? []).map((cliente) => cliente.id)
+    const clienteIds = (clientesPorNombreODni ?? []).map((cliente) => cliente.id)
 
     const { data: lotesPorCliente } =
       clienteIds.length > 0
@@ -194,12 +197,13 @@ export default async function PagosPage({
 
   const { data: clientesConPago } =
     clienteIdsConPago.length > 0
-      ? await supabase.from('profiles').select('id, full_name').in('id', clienteIdsConPago)
+      ? await supabase.from('profiles').select('id, full_name, dni').in('id', clienteIdsConPago)
       : { data: [] }
 
   const nombreClientePorId = new Map(
     (clientesConPago ?? []).map((cliente) => [cliente.id, cliente.full_name])
   )
+  const dniClientePorId = new Map((clientesConPago ?? []).map((cliente) => [cliente.id, cliente.dni]))
 
   const acreedorIdsConPago = [
     ...new Set((lotesConPago ?? []).map((lote) => lote.acreedor_id).filter(Boolean) as string[]),
@@ -225,6 +229,7 @@ export default async function PagosPage({
       const sinAcreedorVinculado = !lote?.acreedor_id
       const identificadorLote = lote?.identificador ?? '—'
       const nombreCliente = nombreClientePorId.get(pago.cliente_id) ?? '—'
+      const dniCliente = dniClientePorId.get(pago.cliente_id) ?? null
       const nombreAcreedor = lote?.acreedor_id ? nombreAcreedorPorId.get(lote.acreedor_id) ?? '—' : '—'
 
       if (!pago.comprobante_path) {
@@ -234,6 +239,7 @@ export default async function PagosPage({
           sinAcreedorVinculado,
           identificadorLote,
           nombreCliente,
+          dniCliente,
           nombreAcreedor,
           cuentaCobroExterna: Boolean(lote?.cuenta_cobro_externa_id),
           montoEfectivo: montoEfectivoPorId.get(pago.id) ?? pago.monto,
@@ -251,6 +257,7 @@ export default async function PagosPage({
         nombreAcreedor,
         identificadorLote,
         nombreCliente,
+        dniCliente,
         cuentaCobroExterna: Boolean(lote?.cuenta_cobro_externa_id),
         montoEfectivo: montoEfectivoPorId.get(pago.id) ?? pago.monto,
       }
@@ -267,7 +274,7 @@ export default async function PagosPage({
           <input
             type="text"
             name="q"
-            placeholder="Buscar cliente o lote"
+            placeholder="Cliente, DNI o lote"
             defaultValue={filtroTexto ?? ''}
             className={ENTRADA}
           />
@@ -337,7 +344,10 @@ export default async function PagosPage({
               <tr key={pago.id} className={TABLA_FILA}>
                 <td className={TABLA_CELDA}>{new Date(pago.created_at).toLocaleDateString('es-AR')}</td>
                 <td className={TABLA_CELDA}>{pago.identificadorLote}</td>
-                <td className={TABLA_CELDA}>{pago.nombreCliente}</td>
+                <td className={TABLA_CELDA}>
+                  {pago.nombreCliente}
+                  {pago.dniCliente && <div className="text-xs text-slate-400">DNI {pago.dniCliente}</div>}
+                </td>
                 <td className={TABLA_CELDA}>{pago.nombreAcreedor}</td>
                 <td className={TABLA_CELDA}>
                   {pago.motivo === 'sena'

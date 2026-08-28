@@ -40,9 +40,9 @@ export function CampoTelefono({
 
 export function AyudaTelefono() {
   return (
-    <p className="mt-1 text-xs text-gray-500">
+    <p className="mt-1 text-xs text-slate-500">
       Elegí el país y escribí el número con el{' '}
-      <strong className="font-semibold text-gray-700">9 adelante si es celular</strong>, sin el 0
+      <strong className="font-semibold text-slate-700">9 adelante si es celular</strong>, sin el 0
       del código de área.
     </p>
   )

@@ -104,7 +104,7 @@ export function SelectorPrefijoTelefono({
           />
           <ul className="max-h-56 overflow-y-auto py-1">
             {filtrados.length === 0 && (
-              <li className="px-3 py-2 text-sm text-gray-500">Sin resultados</li>
+              <li className="px-3 py-2 text-sm text-slate-500">Sin resultados</li>
             )}
             {filtrados.map((prefijo) => (
               <li key={prefijo.codigo}>
@@ -120,7 +120,7 @@ export function SelectorPrefijoTelefono({
                   <PaisFlag iso={prefijo.iso} />
                   <span className="flex-1 truncate">{prefijo.nombre}</span>
                   {prefijo.codigo !== 'otro' && (
-                    <span className="text-gray-500">+{prefijo.codigo.replace('-do', '')}</span>
+                    <span className="text-slate-500">+{prefijo.codigo.replace('-do', '')}</span>
                   )}
                 </button>
               </li>

@@ -2,6 +2,7 @@
 
 import { useState } from 'react'
 import { convertirUsdAPesos } from '@/lib/cobranza/cotizacion-dolar'
+import { ENTRADA } from '@/lib/ui/clases'
 
 interface Props {
   saldoPendiente: number
@@ -57,31 +58,31 @@ export function MontoYMoneda({
 
   return (
     <>
-      <p className="rounded bg-gray-100 p-3 text-sm">
+      <p className="rounded-lg bg-blue-50/40 p-3 text-sm">
         Monto de cuota adeudada:{' '}
         <span className="font-medium">
           {saldoPendiente} {monedaLote}
         </span>
         {monedaLote === 'USD' && cotizacion && (
-          <span className="text-gray-600"> (≈ {convertirUsdAPesos(saldoPendiente, cotizacion)} ARS)</span>
+          <span className="text-slate-600"> (≈ {convertirUsdAPesos(saldoPendiente, cotizacion)} ARS)</span>
         )}
       </p>
 
-      <label className="text-sm">
+      <label className="text-sm text-slate-600">
         Elegí en qué moneda vas a transferir
         <select
           name="moneda"
           required
           value={moneda}
           onChange={(evento) => elegirMoneda(evento.target.value)}
-          className="mt-1 block rounded border px-3 py-2"
+          className={ENTRADA}
         >
           <option value="USD">USD</option>
           <option value="ARS">ARS</option>
         </select>
       </label>
 
-      <label className="text-sm">
+      <label className="text-sm text-slate-600">
         Monto transferido ({moneda})
         <input
           name="monto"
@@ -92,7 +93,7 @@ export function MontoYMoneda({
           value={montoTexto}
           onChange={(evento) => setMontoTexto(evento.target.value)}
           required
-          className="mt-1 block w-full rounded border px-3 py-2"
+          className={`w-full ${ENTRADA}`}
         />
       </label>
 

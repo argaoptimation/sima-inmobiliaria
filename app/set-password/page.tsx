@@ -22,7 +22,7 @@ export default async function SetPasswordPage({
           <p className="mb-4 rounded-lg bg-red-50 p-3 text-sm text-red-700">{error}</p>
         )}
 
-        <p className="mb-3 text-sm text-gray-600">
+        <p className="mb-3 text-sm text-slate-600">
           Mínimo 8 caracteres, incluyendo un signo (ej. ! ? . # -)
         </p>
 
