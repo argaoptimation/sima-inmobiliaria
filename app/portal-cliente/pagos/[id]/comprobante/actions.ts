@@ -3,8 +3,6 @@
 import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { redirect } from 'next/navigation'
-import { excedeTamanioMaximo, MAX_ARCHIVO_MB } from '@/lib/storage/validar-tamanio-archivo'
-import { mensajeDeError } from '@/lib/errores'
 
 export async function subirComprobante(pagoId: string, formData: FormData) {
   const supabase = await createClient()
@@ -34,35 +32,28 @@ export async function subirComprobante(pagoId: string, formData: FormData) {
     redirect(`/portal-cliente/pagos/${pagoId}/comprobante`)
   }
 
-  const comprobante = formData.get('comprobante') as File
+  // El archivo ya se subió directo del navegador a Supabase Storage
+  // (CampoArchivoDirecto) -- acá solo llega el path resultante, nunca el
+  // archivo en sí. Evita el tope duro de 4.5 MB por request de Vercel.
+  const comprobantePath = ((formData.get('comprobante') as string) || '').trim()
 
-  if (!comprobante || comprobante.size === 0) {
+  if (!comprobantePath) {
     redirect(
       `/portal-cliente/pagos/${pagoId}/comprobante?error=${encodeURIComponent('Seleccioná un archivo')}`
     )
   }
 
-  if (excedeTamanioMaximo(comprobante)) {
+  // Sanity check server-side: el path tiene que caer dentro de la propia
+  // carpeta del usuario -- lo mismo que ya exige la policy RLS de Storage,
+  // pero repetido acá para no confiar ciegamente en un string que llega
+  // del cliente (podría no coincidir si alguien lo edita a mano).
+  if (!comprobantePath.startsWith(`${user!.id}/`)) {
     redirect(
-      `/portal-cliente/pagos/${pagoId}/comprobante?error=${encodeURIComponent(
-        `El comprobante pesa más de ${MAX_ARCHIVO_MB} MB — subí uno más liviano.`
-      )}`
+      `/portal-cliente/pagos/${pagoId}/comprobante?error=${encodeURIComponent('Archivo inválido, probá subirlo de nuevo')}`
     )
   }
-
-  const comprobantePath = `${user!.id}/${Date.now()}-${comprobante.name}`
 
   const admin = createAdminClient()
-
-  const { error: errorUpload } = await admin.storage
-    .from('comprobantes')
-    .upload(comprobantePath, comprobante)
-
-  if (errorUpload) {
-    redirect(
-      `/portal-cliente/pagos/${pagoId}/comprobante?error=${encodeURIComponent(mensajeDeError(errorUpload))}`
-    )
-  }
 
   // Claim atomico: si durante el upload alguien confirmo el pago, este update
   // ya no matchea ninguna fila y no pisamos comprobante_path de un pago

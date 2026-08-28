@@ -81,11 +81,17 @@ test.describe('Flujo completo de pago con confirmación cruzada', () => {
     // 3. Subir el comprobante (fixture local, no hace falta que sea un PDF
     // "real" - solo bytes válidos en disco para setInputFiles).
     await test.step('cliente sube el comprobante', async () => {
-      await page.setInputFiles('input[name="comprobante"]', {
+      await page.setInputFiles('[data-testid="comprobante"]', {
         name: NOMBRE_COMPROBANTE,
         mimeType: 'application/pdf',
         buffer: COMPROBANTE_BYTES,
       })
+      // La subida directa a Storage ocurre en cuanto se elige el archivo
+      // (CampoArchivoDirecto), antes de tocar "Finalizar" -- hay que
+      // esperar a que termine (el input queda deshabilitado mientras sube)
+      // o el submit se bloquea en silencio por el campo oculto requerido
+      // que todavía está vacío.
+      await expect(page.locator('[data-testid="comprobante"]')).toBeEnabled()
       await page.getByRole('button', { name: 'Finalizar' }).click()
       await page.waitForURL(/\/portal-cliente$/)
     })
