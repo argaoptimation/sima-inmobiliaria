@@ -1,5 +1,7 @@
 'use client'
 
+import { BotonEnvio } from '@/components/BotonEnvio'
+
 export function BotonEliminarUsuario({
   eliminarUsuarioAction,
 }: {
@@ -18,14 +20,14 @@ export function BotonEliminarUsuario({
         }
       }}
     >
-      <button
-        type="submit"
+      <BotonEnvio
         title="Eliminar usuario"
         aria-label="Eliminar usuario"
-        className="rounded border border-red-600 px-2 py-1 text-sm text-red-700"
+        className="cursor-pointer rounded-lg border border-red-600 px-2 py-1 text-sm text-red-700 transition-colors hover:bg-red-50"
+        cargandoTexto="…"
       >
         🗑️
-      </button>
+      </BotonEnvio>
     </form>
   )
 }

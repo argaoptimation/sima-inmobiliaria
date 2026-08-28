@@ -9,6 +9,23 @@ import {
 import { BotonEliminarUsuario } from './BotonEliminarUsuario'
 import { tieneDatosTransferencia } from '@/lib/lotes/validar-cuenta-cobro'
 import { FiltroEnVivo } from '@/components/FiltroEnVivo'
+import { EnlaceBoton } from '@/components/EnlaceBoton'
+import { BotonEnvio } from '@/components/BotonEnvio'
+import {
+  ENTRADA,
+  BOTON_PRIMARIO,
+  BOTON_SECUNDARIO,
+  ENLACE,
+  ENLACE_TABLA,
+  TITULO_H1,
+  TITULO_H2,
+  BANNER_ERROR,
+  TABLA_CONTENEDOR,
+  TABLA_HEADER_FILA,
+  TABLA_HEADER_CELDA,
+  TABLA_FILA,
+  TABLA_CELDA,
+} from '@/lib/ui/clases'
 
 export default async function UsuariosPage({
   searchParams,
@@ -55,27 +72,28 @@ export default async function UsuariosPage({
 
     return (
       <main className="max-w-2xl">
-        <h1 className="mb-6 text-xl font-semibold">Usuarios de staff</h1>
-        {error && <p className="mb-4 rounded bg-red-100 p-2 text-sm text-red-700">{error}</p>}
+        <h1 className={`mb-6 ${TITULO_H1}`}>Usuarios de staff</h1>
+        {error && <p className={BANNER_ERROR}>{error}</p>}
 
-        <h2 className="mb-2 text-lg font-semibold">Vendedores de tus lotes</h2>
+        <h2 className={`mb-2 ${TITULO_H2}`}>Vendedores de tus lotes</h2>
         {(vendedores ?? []).length === 0 ? (
-          <p className="text-sm text-gray-600">
+          <p className="text-sm text-slate-600">
             Todavía no tenés ningún vendedor asociado a tus lotes.
           </p>
         ) : (
+          <div className={TABLA_CONTENEDOR}>
           <table className="w-full text-sm">
             <thead>
-              <tr className="border-b text-left">
-                <th className="py-2">Nombre</th>
-                <th>Datos de transferencia</th>
+              <tr className={TABLA_HEADER_FILA}>
+                <th className={TABLA_HEADER_CELDA}>Nombre</th>
+                <th className={TABLA_HEADER_CELDA}>Datos de transferencia</th>
               </tr>
             </thead>
             <tbody>
               {vendedores!.map((persona) => (
-                <tr key={persona.id} className="border-b">
-                  <td className="py-2">{persona.full_name}</td>
-                  <td>
+                <tr key={persona.id} className={TABLA_FILA}>
+                  <td className={TABLA_CELDA}>{persona.full_name}</td>
+                  <td className={TABLA_CELDA}>
                     {tieneDatosTransferencia({
                       alias: persona.alias,
                       banco: persona.banco,
@@ -90,6 +108,7 @@ export default async function UsuariosPage({
               ))}
             </tbody>
           </table>
+          </div>
         )}
       </main>
     )
@@ -110,64 +129,63 @@ export default async function UsuariosPage({
 
   return (
     <main className="max-w-2xl">
-      <h1 className="mb-6 text-xl font-semibold">Usuarios de staff</h1>
-      {error && <p className="mb-4 rounded bg-red-100 p-2 text-sm text-red-700">{error}</p>}
+      <h1 className={`mb-6 ${TITULO_H1}`}>Usuarios de staff</h1>
+      {error && <p className={BANNER_ERROR}>{error}</p>}
 
       <form action={crearUsuarioStaff} className="mb-8 flex flex-col gap-3">
         <input
           name="fullName"
           placeholder="Nombre completo"
           required
-          className="rounded border px-3 py-2"
+          className={ENTRADA}
         />
         <input
           name="email"
           type="email"
           placeholder="Email"
           required
-          className="rounded border px-3 py-2"
+          className={ENTRADA}
         />
-        <select name="role" required className="rounded border px-3 py-2">
+        <select name="role" required className={ENTRADA}>
           <option value="acreedor">Acreedor</option>
           <option value="vendedor">Vendedor</option>
           <option value="cobrador">Cobrador</option>
         </select>
-        <button type="submit" className="rounded bg-black px-3 py-2 text-white">
-          Invitar
-        </button>
+        <BotonEnvio className={`cursor-pointer ${BOTON_PRIMARIO}`}>Invitar</BotonEnvio>
       </form>
 
       <FiltroEnVivo className="mb-4 flex items-end gap-3">
-        <label className="text-sm">
+        <label className="text-sm text-slate-600">
           Buscar
           <input
             type="text"
             name="q"
             placeholder="Nombre o email"
             defaultValue={filtroTexto ?? ''}
-            className="mt-1 block rounded border px-3 py-2"
+            className={ENTRADA}
           />
         </label>
-        <button type="submit" className="rounded border px-3 py-2 text-sm">
+        <button type="submit" className={`cursor-pointer ${BOTON_SECUNDARIO}`}>
           Filtrar
         </button>
         {filtroTexto && (
-          <a href="/admin/usuarios" className="text-sm underline">
+          <EnlaceBoton href="/admin/usuarios" className={`text-sm ${ENLACE}`}>
             Limpiar
-          </a>
+          </EnlaceBoton>
         )}
       </FiltroEnVivo>
       {(staff ?? []).length === 0 && filtroTexto ? (
-        <p className="text-sm text-gray-600">Ningún usuario coincide con la búsqueda.</p>
+        <p className="text-sm text-slate-600">Ningún usuario coincide con la búsqueda.</p>
       ) : (
+      <div className={TABLA_CONTENEDOR}>
       <table className="w-full text-sm">
         <thead>
-          <tr className="border-b text-left">
-            <th className="py-2">Nombre</th>
-            <th>Rol</th>
-            <th>Email</th>
-            <th>Datos de transferencia</th>
-            <th></th>
+          <tr className={TABLA_HEADER_FILA}>
+            <th className={TABLA_HEADER_CELDA}>Nombre</th>
+            <th className={TABLA_HEADER_CELDA}>Rol</th>
+            <th className={TABLA_HEADER_CELDA}>Email</th>
+            <th className={TABLA_HEADER_CELDA}>Datos de transferencia</th>
+            <th className={TABLA_HEADER_CELDA}></th>
           </tr>
         </thead>
         <tbody>
@@ -183,34 +201,31 @@ export default async function UsuariosPage({
 
             if (editar === persona.id) {
               return (
-                <tr key={persona.id} className="border-b">
-                  <td colSpan={5} className="py-3">
+                <tr key={persona.id} className={TABLA_FILA}>
+                  <td colSpan={5} className={`${TABLA_CELDA} py-3`}>
                     <form action={actualizarNombreConId} className="mb-3 flex flex-wrap gap-2">
                       <input
                         name="fullName"
                         defaultValue={persona.full_name}
                         placeholder="Nombre completo"
                         required
-                        className="flex-1 rounded border px-3 py-2"
+                        className={`flex-1 ${ENTRADA}`}
                       />
                       <input
                         name="dni"
                         defaultValue={persona.dni ?? ''}
                         placeholder="DNI (opcional)"
-                        className="rounded border px-3 py-2"
+                        className={ENTRADA}
                       />
                       <input
                         name="domicilio"
                         defaultValue={persona.domicilio ?? ''}
                         placeholder="Domicilio (opcional)"
-                        className="rounded border px-3 py-2"
+                        className={ENTRADA}
                       />
-                      <button
-                        type="submit"
-                        className="rounded bg-black px-3 py-2 text-sm text-white"
-                      >
+                      <BotonEnvio className={`cursor-pointer ${BOTON_PRIMARIO}`}>
                         Guardar datos personales
-                      </button>
+                      </BotonEnvio>
                     </form>
                     <form action={actualizarDatosConId} className="flex flex-col gap-2">
                       <input
@@ -218,34 +233,31 @@ export default async function UsuariosPage({
                         defaultValue={persona.titular ?? ''}
                         placeholder="Titular de la cuenta"
                         required
-                        className="rounded border px-3 py-2"
+                        className={ENTRADA}
                       />
                       <input
                         name="alias"
                         defaultValue={persona.alias ?? ''}
                         placeholder="Alias"
                         required
-                        className="rounded border px-3 py-2"
+                        className={ENTRADA}
                       />
                       <input
                         name="banco"
                         defaultValue={persona.banco ?? ''}
                         placeholder="Banco"
                         required
-                        className="rounded border px-3 py-2"
+                        className={ENTRADA}
                       />
                       <input
                         name="cbu"
                         defaultValue={persona.cbu ?? ''}
                         placeholder="CBU (opcional)"
-                        className="rounded border px-3 py-2"
+                        className={ENTRADA}
                       />
-                      <button
-                        type="submit"
-                        className="self-start rounded bg-black px-3 py-2 text-sm text-white"
-                      >
+                      <BotonEnvio className={`cursor-pointer self-start ${BOTON_PRIMARIO}`}>
                         Guardar datos de transferencia
-                      </button>
+                      </BotonEnvio>
                     </form>
                   </td>
                 </tr>
@@ -253,25 +265,25 @@ export default async function UsuariosPage({
             }
 
             return (
-              <tr key={persona.id} className="border-b">
-                <td className="py-2">{persona.full_name}</td>
-                <td>{persona.role}</td>
-                <td>{persona.email ?? '—'}</td>
-                <td>
+              <tr key={persona.id} className={TABLA_FILA}>
+                <td className={TABLA_CELDA}>{persona.full_name}</td>
+                <td className={TABLA_CELDA}>{persona.role}</td>
+                <td className={TABLA_CELDA}>{persona.email ?? '—'}</td>
+                <td className={TABLA_CELDA}>
                   {tieneDatos ? (
                     `${persona.titular} · ${persona.alias} · ${persona.banco}`
                   ) : (
                     <span className="text-amber-700">Sin datos de transferencia</span>
                   )}
                 </td>
-                <td>
+                <td className={TABLA_CELDA}>
                   <div className="flex items-center gap-3">
-                    <a href={`/admin/usuarios?editar=${persona.id}`} className="underline">
+                    <EnlaceBoton href={`/admin/usuarios?editar=${persona.id}`} className={ENLACE_TABLA}>
                       Editar
-                    </a>
-                    <a href={`/admin/cuentas-corrientes/${persona.id}`} className="underline">
+                    </EnlaceBoton>
+                    <EnlaceBoton href={`/admin/cuentas-corrientes/${persona.id}`} className={ENLACE_TABLA}>
                       Cuenta corriente
-                    </a>
+                    </EnlaceBoton>
                     {persona.id !== user!.id && (
                       <BotonEliminarUsuario eliminarUsuarioAction={eliminarUsuarioConId} />
                     )}
@@ -282,6 +294,7 @@ export default async function UsuariosPage({
           })}
         </tbody>
       </table>
+      </div>
       )}
     </main>
   )
