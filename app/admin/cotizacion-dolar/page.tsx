@@ -3,6 +3,17 @@ import { createClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
 import { FiltroEnVivo } from '@/components/FiltroEnVivo'
 import { formatearFechaCorta } from '@/lib/fecha/formatear-fecha-corta'
+import { EnlaceBoton } from '@/components/EnlaceBoton'
+import {
+  ENTRADA,
+  ENLACE,
+  TITULO_H1,
+  TABLA_CONTENEDOR,
+  TABLA_HEADER_FILA,
+  TABLA_HEADER_CELDA,
+  TABLA_FILA,
+  TABLA_CELDA,
+} from '@/lib/ui/clases'
 
 const ROLES_CON_ACCESO = ['administrador', 'acreedor', 'vendedor', 'cobrador']
 
@@ -79,49 +90,50 @@ export default async function HistorialCotizacionDolarPage({
   return (
     <main>
       <div className="mb-4 flex gap-4">
-        <a href="/admin/lotes" className="text-sm underline">
+        <EnlaceBoton href="/admin/lotes" className={`text-sm ${ENLACE}`}>
           ← Volver a Lotes
-        </a>
+        </EnlaceBoton>
       </div>
-      <h1 className="mb-2 text-xl font-semibold">Historial de cotización del dólar</h1>
-      <p className="mb-6 text-sm text-gray-600">
+      <h1 className={`mb-2 ${TITULO_H1}`}>Historial de cotización del dólar</h1>
+      <p className="mb-6 text-sm text-slate-600">
         Un valor por día. El de hoy se puede corregir desde &quot;Lotes&quot;; los días anteriores
         quedan firmes.
       </p>
 
       <FiltroEnVivo className="mb-6 flex flex-wrap items-end gap-3">
-        <label className="text-sm">
+        <label className="text-sm text-slate-600">
           Desde
           <input
             type="date"
             name="desde"
             defaultValue={desde ?? ''}
-            className="mt-1 block rounded border px-3 py-2"
+            className={ENTRADA}
           />
         </label>
-        <label className="text-sm">
+        <label className="text-sm text-slate-600">
           Hasta
           <input
             type="date"
             name="hasta"
             defaultValue={hasta ?? ''}
-            className="mt-1 block rounded border px-3 py-2"
+            className={ENTRADA}
           />
         </label>
         {(desde || hasta) && (
-          <a href="/admin/cotizacion-dolar" className="text-sm underline">
+          <EnlaceBoton href="/admin/cotizacion-dolar" className={`text-sm ${ENLACE}`}>
             Limpiar filtro
-          </a>
+          </EnlaceBoton>
         )}
       </FiltroEnVivo>
 
+      <div className={TABLA_CONTENEDOR}>
       <table className="w-full text-sm">
         <thead>
-          <tr className="border-b text-left">
-            <th className="py-2">Fecha</th>
-            <th>Valor (ARS por USD)</th>
-            <th>Cargada por</th>
-            <th>Hora</th>
+          <tr className={TABLA_HEADER_FILA}>
+            <th className={TABLA_HEADER_CELDA}>Fecha</th>
+            <th className={TABLA_HEADER_CELDA}>Valor (ARS por USD)</th>
+            <th className={TABLA_HEADER_CELDA}>Cargada por</th>
+            <th className={TABLA_HEADER_CELDA}>Hora</th>
           </tr>
         </thead>
         <tbody>
@@ -129,11 +141,11 @@ export default async function HistorialCotizacionDolarPage({
             const correcciones = historialPorFecha.get(c.fecha) ?? []
             return (
               <Fragment key={c.id}>
-                <tr className="border-b">
-                  <td className="py-2">{formatearFechaCorta(c.fecha)}</td>
-                  <td>{c.valor}</td>
-                  <td>{nombreCargadorPorId.get(c.cargado_por) ?? '—'}</td>
-                  <td>
+                <tr className={TABLA_FILA}>
+                  <td className={TABLA_CELDA}>{formatearFechaCorta(c.fecha)}</td>
+                  <td className={TABLA_CELDA}>{c.valor}</td>
+                  <td className={TABLA_CELDA}>{nombreCargadorPorId.get(c.cargado_por) ?? '—'}</td>
+                  <td className={TABLA_CELDA}>
                     {new Date(c.created_at).toLocaleTimeString('es-AR', {
                       hour: '2-digit',
                       minute: '2-digit',
@@ -142,8 +154,8 @@ export default async function HistorialCotizacionDolarPage({
                   </td>
                 </tr>
                 {correcciones.length > 1 && (
-                  <tr className="border-b bg-gray-50">
-                    <td colSpan={4} className="py-2 pl-4 text-xs text-gray-600">
+                  <tr className={`${TABLA_FILA} bg-blue-50/40`}>
+                    <td colSpan={4} className="py-2 pl-4 text-xs text-slate-600">
                       Se cargó {correcciones.length} veces este día:{' '}
                       {correcciones
                         .map(
@@ -162,8 +174,9 @@ export default async function HistorialCotizacionDolarPage({
           })}
         </tbody>
       </table>
+      </div>
       {(cotizaciones ?? []).length === 0 && (
-        <p className="mt-4 text-sm text-gray-600">
+        <p className="mt-4 text-sm text-slate-600">
           {desde || hasta
             ? 'Ninguna cotización cargada en ese rango de fechas.'
             : 'Todavía no se cargó ninguna cotización.'}

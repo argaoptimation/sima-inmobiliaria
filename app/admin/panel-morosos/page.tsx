@@ -3,6 +3,18 @@ import { requireAdministrador } from '@/lib/auth/require-admin'
 import { hoyArgentina } from '@/lib/fecha/hoy-argentina'
 import { marcarPrejudicial } from '../lotes/[id]/actions'
 import { BotonMarcarPrejudicial } from '../lotes/[id]/BotonPrejudicial'
+import { EnlaceBoton } from '@/components/EnlaceBoton'
+import {
+  ENLACE_TABLA,
+  TITULO_H1,
+  BANNER_ERROR,
+  BANNER_OK,
+  TABLA_CONTENEDOR,
+  TABLA_HEADER_FILA,
+  TABLA_HEADER_CELDA,
+  TABLA_FILA,
+  TABLA_CELDA,
+} from '@/lib/ui/clases'
 
 interface FilaMoroso {
   loteId: string
@@ -99,42 +111,43 @@ export default async function PanelMorososPage({
 
   function tabla(filas: FilaMoroso[], conBotonMarcar: boolean) {
     if (filas.length === 0) {
-      return <p className="mb-8 text-sm text-gray-600">No hay lotes en este grupo.</p>
+      return <p className="mb-8 text-sm text-slate-600">No hay lotes en este grupo.</p>
     }
     return (
-      <table className="mb-8 w-full text-sm">
+      <div className={`mb-8 ${TABLA_CONTENEDOR}`}>
+      <table className="w-full text-sm">
         <thead>
-          <tr className="border-b text-left">
-            <th className="py-2">Cliente</th>
-            <th>Lote</th>
-            <th>Cuotas vencidas</th>
-            <th>Saldo pendiente</th>
-            <th></th>
-            {conBotonMarcar && <th></th>}
+          <tr className={TABLA_HEADER_FILA}>
+            <th className={TABLA_HEADER_CELDA}>Cliente</th>
+            <th className={TABLA_HEADER_CELDA}>Lote</th>
+            <th className={TABLA_HEADER_CELDA}>Cuotas vencidas</th>
+            <th className={TABLA_HEADER_CELDA}>Saldo pendiente</th>
+            <th className={TABLA_HEADER_CELDA}></th>
+            {conBotonMarcar && <th className={TABLA_HEADER_CELDA}></th>}
           </tr>
         </thead>
         <tbody>
           {filas.map((fila) => {
             const marcarPrejudicialConId = marcarPrejudicial.bind(null, fila.loteId, '/admin/panel-morosos')
             return (
-              <tr key={fila.loteId} className="border-b">
-                <td className="py-2">
-                  <a href={`/admin/clientes/${fila.clienteId}`} className="underline">
+              <tr key={fila.loteId} className={TABLA_FILA}>
+                <td className={TABLA_CELDA}>
+                  <EnlaceBoton href={`/admin/clientes/${fila.clienteId}`} className={ENLACE_TABLA}>
                     {fila.clienteNombre}
-                  </a>
+                  </EnlaceBoton>
                 </td>
-                <td>{fila.identificador}</td>
-                <td>{fila.cuotasVencidas}</td>
-                <td>
+                <td className={TABLA_CELDA}>{fila.identificador}</td>
+                <td className={TABLA_CELDA}>{fila.cuotasVencidas}</td>
+                <td className={TABLA_CELDA}>
                   {fila.saldoPendiente} {fila.moneda}
                 </td>
-                <td>
-                  <a href={`/admin/lotes/${fila.loteId}`} className="underline">
+                <td className={TABLA_CELDA}>
+                  <EnlaceBoton href={`/admin/lotes/${fila.loteId}`} className={ENLACE_TABLA}>
                     Ver lote
-                  </a>
+                  </EnlaceBoton>
                 </td>
                 {conBotonMarcar && (
-                  <td>
+                  <td className={TABLA_CELDA}>
                     <BotonMarcarPrejudicial marcarPrejudicialAction={marcarPrejudicialConId} />
                   </td>
                 )}
@@ -143,28 +156,29 @@ export default async function PanelMorososPage({
           })}
         </tbody>
       </table>
+      </div>
     )
   }
 
   return (
     <main>
-      <h1 className="mb-6 text-xl font-semibold">Panel de Morosos</h1>
+      <h1 className={`mb-6 ${TITULO_H1}`}>Panel de Morosos</h1>
 
-      {error && <p className="mb-4 rounded bg-red-100 p-2 text-sm text-red-700">{error}</p>}
-      {ok && <p className="mb-4 rounded bg-green-100 p-2 text-sm text-green-700">{ok}</p>}
+      {error && <p className={BANNER_ERROR}>{error}</p>}
+      {ok && <p className={BANNER_OK}>{ok}</p>}
 
-      <h2 className="mb-2 text-lg font-semibold">Deben 1 cuota ({debe1.length})</h2>
+      <h2 className="mb-2 text-lg font-bold text-blue-900">Deben 1 cuota ({debe1.length})</h2>
       {tabla(debe1, false)}
 
-      <h2 className="mb-2 text-lg font-semibold">Deben 2 cuotas ({debe2.length})</h2>
+      <h2 className="mb-2 text-lg font-bold text-blue-900">Deben 2 cuotas ({debe2.length})</h2>
       {tabla(debe2, false)}
 
-      <h2 className="mb-2 text-lg font-semibold text-orange-700">
+      <h2 className="mb-2 text-lg font-bold text-orange-700">
         Posible prejudicial — 3 o más cuotas ({posiblePrejudicial.length})
       </h2>
       {tabla(posiblePrejudicial, true)}
 
-      <h2 className="mb-2 text-lg font-semibold text-red-800">
+      <h2 className="mb-2 text-lg font-bold text-red-800">
         Prejudicial (ya marcado) ({prejudicialOficial.length})
       </h2>
       {tabla(prejudicialOficial, false)}
