@@ -1,10 +1,11 @@
 'use server'
 
 import { createClient } from '@/lib/supabase/server'
-import { imputarPagoFIFO } from '@/lib/pagos/imputar-fifo'
+import { imputarPagoFIFO, imputarPagoConMora } from '@/lib/pagos/imputar-fifo'
 import { revalidatePath } from 'next/cache'
 import { redirect } from 'next/navigation'
 import { requireAdministrador } from '@/lib/auth/require-admin'
+import { hoyArgentina } from '@/lib/fecha/hoy-argentina'
 import {
   generarDebeAutomaticoSiCorresponde,
   revertirDebeAutomaticoSiCorresponde,
@@ -51,7 +52,7 @@ export async function confirmarPago(pagoId: string, formData: FormData) {
   // redundante.
   const { data: lote } = await supabase
     .from('lotes')
-    .select('id, acreedor_id, identificador, cuenta_cobro_externa_id, ciclo_actual')
+    .select('id, acreedor_id, identificador, cuenta_cobro_externa_id, ciclo_actual, interes_moratorio_diario')
     .eq('id', pago.lote_id)
     .single()
 
@@ -210,37 +211,67 @@ export async function confirmarPago(pagoId: string, formData: FormData) {
   // que imputar contra deuda vieja de un ciclo anterior.
   const { data: cuotas } = await supabase
     .from('cuotas')
-    .select('id, saldo_pendiente')
+    .select('id, saldo_pendiente, fecha_vencimiento, mora_pagada')
     .eq('lote_id', lote.id)
     .eq('ciclo', lote.ciclo_actual)
     .gt('saldo_pendiente', 0)
     .order('numero', { ascending: true })
 
-  const resultado = imputarPagoFIFO(
+  // Cobra mora real, no solo capital (migración 0049 -- antes de esto la
+  // mora era puramente informativa, ver Notas_Decisiones_SIMA.txt). Cada
+  // cuota, en orden FIFO, primero salda su mora devengada pendiente y recien
+  // despues su saldo de capital.
+  const resultado = imputarPagoConMora(
     pagoClaimado.monto,
-    (cuotas ?? []).map((cuota) => ({ id: cuota.id, saldoPendiente: cuota.saldo_pendiente }))
+    (cuotas ?? []).map((cuota) => ({
+      id: cuota.id,
+      saldoPendiente: cuota.saldo_pendiente,
+      fechaVencimiento: cuota.fecha_vencimiento,
+      moraPagada: cuota.mora_pagada,
+    })),
+    lote.interes_moratorio_diario,
+    hoyArgentina()
   )
 
   for (const imputacion of resultado.imputaciones) {
-    const { error: errorImputacion } = await supabase.from('pago_imputaciones').insert({
-      pago_id: pagoClaimado.id,
-      cuota_id: imputacion.cuotaId,
-      monto_imputado: imputacion.montoImputado,
-    })
+    if (imputacion.montoCapital > 0) {
+      const { error: errorImputacion } = await supabase.from('pago_imputaciones').insert({
+        pago_id: pagoClaimado.id,
+        cuota_id: imputacion.cuotaId,
+        monto_imputado: imputacion.montoCapital,
+      })
 
-    if (errorImputacion) {
-      // El pago ya quedo marcado "confirmado" (evita que un reintento vuelva
-      // a correr el FIFO y duplique lo ya imputado). Si una fila puntual
-      // falla aca, queda para revision manual via la tabla de imputaciones
-      // -- no seguimos intentando escribir en un estado inconsistente.
-      revalidatePath('/admin/pagos')
-      return
+      if (errorImputacion) {
+        // El pago ya quedo marcado "confirmado" (evita que un reintento
+        // vuelva a correr el FIFO y duplique lo ya imputado). Si una fila
+        // puntual falla aca, queda para revision manual via la tabla de
+        // imputaciones -- no seguimos intentando escribir en un estado
+        // inconsistente.
+        revalidatePath('/admin/pagos')
+        return
+      }
+    }
+
+    if (imputacion.montoMora > 0) {
+      const { error: errorImputacionMora } = await supabase.from('pago_imputaciones_mora').insert({
+        pago_id: pagoClaimado.id,
+        cuota_id: imputacion.cuotaId,
+        monto_imputado: imputacion.montoMora,
+      })
+
+      if (errorImputacionMora) {
+        revalidatePath('/admin/pagos')
+        return
+      }
     }
 
     const cuota = cuotas!.find((c) => c.id === imputacion.cuotaId)!
     const { error: errorSaldo } = await supabase
       .from('cuotas')
-      .update({ saldo_pendiente: cuota.saldo_pendiente - imputacion.montoImputado })
+      .update({
+        saldo_pendiente: cuota.saldo_pendiente - imputacion.montoCapital,
+        mora_pagada: cuota.mora_pagada + imputacion.montoMora,
+      })
       .eq('id', imputacion.cuotaId)
 
     if (errorSaldo) {
@@ -343,6 +374,15 @@ export async function editarMontoPago(pagoId: string, formData: FormData) {
     // Acotado al ciclo de venta VIGENTE (ver migración 0039) -- mismo
     // motivo que en confirmarPago: nunca imputar contra deuda vieja de un
     // ciclo anterior si este lote fue rescindido y revendido.
+    //
+    // Nota (migración 0049): esta corrección sigue usando imputarPagoFIFO
+    // (solo capital), no imputarPagoConMora -- a diferencia de confirmarPago,
+    // acá no conviene cobrar mora, porque la rama de reversión de abajo
+    // (delta < 0) neteos por pago_imputaciones sin considerar
+    // pago_imputaciones_mora; mezclar ambos ledgers en una corrección
+    // rompería esa reversión. Es una limitación conocida y aceptada: una
+    // corrección de monto sobre un pago ya confirmado no cobra mora
+    // adicional, solo ajusta capital.
     const { data: loteDelPago } = await supabase
       .from('lotes')
       .select('ciclo_actual')

@@ -2,7 +2,7 @@ import { test, expect } from '@playwright/test'
 import { readFileSync } from 'node:fs'
 import path from 'node:path'
 import { ensureTestFixtures, createAdminClient, TestFixtures } from './fixtures/test-data'
-import { login } from './utils/login'
+import { login, logout } from './utils/login'
 import { hoyArgentina } from '../../lib/fecha/hoy-argentina'
 import { sumarDias } from '../../lib/fecha/sumar-dias'
 
@@ -181,5 +181,110 @@ test.describe('Interés moratorio diario por lote', () => {
 
     await page.goto(`/admin/lotes/${loteId}`)
     await expect(page.getByText('+0.8 USD')).toBeVisible()
+  })
+
+  test('un pago en efectivo cobra primero la mora devengada y recién después el capital (migración 0049)', async ({
+    page,
+  }) => {
+    const admin = createAdminClient()
+
+    const { data: lote, error: errorLote } = await admin
+      .from('lotes')
+      .insert({
+        identificador: `E2E Mora Cobrable ${Date.now()}`,
+        moneda: 'USD',
+        estado: 'vendido',
+        cliente_id: fixtures.cliente.id,
+        acreedor_id: fixtures.acreedorConDatos.id,
+        interes_moratorio_diario: 1,
+      })
+      .select('id, identificador')
+      .single()
+    if (errorLote || !lote) throw new Error(`No se pudo crear el lote: ${errorLote?.message}`)
+
+    // Cuota de 1000, vencida hace 10 días -- 1%/día => 100 de mora devengada.
+    const haceDiezDias = sumarDias(hoyArgentina(), -10)
+    const { data: cuota, error: errorCuota } = await admin
+      .from('cuotas')
+      .insert({
+        lote_id: lote.id,
+        numero: 1,
+        monto_base: 1000,
+        saldo_pendiente: 1000,
+        fecha_vencimiento: haceDiezDias,
+      })
+      .select('id')
+      .single()
+    if (errorCuota || !cuota) throw new Error(`No se pudo crear la cuota: ${errorCuota?.message}`)
+
+    // Primer pago: 150. Debería cobrar los 100 de mora devengada primero y
+    // dejar solo 50 de capital -- saldo_pendiente pasa de 1000 a 950, no 850.
+    await login(page, fixtures.cobrador.email, fixtures.password)
+    await page.goto('/admin/efectivo')
+    await page.locator('input[list="lista-lotes-cuenta-corriente"]').fill(lote.identificador)
+    // El input visible no viaja en el form -- el que importa es el hidden
+    // resuelto por el onChange de BuscadorLote. Esperar a que deje de estar
+    // vacío evita una carrera contra la hidratación de React (el fill()
+    // puede llegar antes de que el listener esté conectado).
+    await expect(page.locator('input[name="loteId"]')).not.toHaveValue('')
+    await page.locator('input[name="monto"]').fill('150')
+    await page.locator('select[name="moneda"]').selectOption('USD')
+    await page.getByRole('button', { name: 'Registrar' }).click()
+    await page.waitForURL('**/admin/efectivo**')
+    await expect(page.getByText(/registrado, queda pendiente/)).toBeVisible()
+
+    await logout(page)
+    await login(page, fixtures.admin.email, fixtures.password)
+    await page.goto('/admin/efectivo')
+    const filaPago = page.locator('tbody tr', { hasText: lote.identificador })
+    await filaPago.getByRole('button', { name: 'Marcar como recibido' }).click()
+    await page.waitForURL('**/admin/efectivo**')
+
+    await expect
+      .poll(async () => {
+        const { data } = await admin
+          .from('cuotas')
+          .select('saldo_pendiente, mora_pagada')
+          .eq('id', cuota.id)
+          .single()
+        return data
+      })
+      .toEqual({ saldo_pendiente: 950, mora_pagada: 100 })
+
+    const { data: imputacionesMora } = await admin
+      .from('pago_imputaciones_mora')
+      .select('monto_imputado')
+      .eq('cuota_id', cuota.id)
+    expect(imputacionesMora).toEqual([{ monto_imputado: 100 }])
+
+    // Segundo pago, mismo día: la mora ya cobrada (100) no se vuelve a
+    // cobrar -- los 50 van enteros a capital (950 -> 900).
+    await logout(page)
+    await login(page, fixtures.cobrador.email, fixtures.password)
+    await page.goto('/admin/efectivo')
+    await page.locator('input[list="lista-lotes-cuenta-corriente"]').fill(lote.identificador)
+    await page.locator('input[name="monto"]').fill('50')
+    await page.locator('select[name="moneda"]').selectOption('USD')
+    await page.getByRole('button', { name: 'Registrar' }).click()
+    await page.waitForURL('**/admin/efectivo**')
+    await expect(page.getByText(/registrado, queda pendiente/)).toBeVisible()
+
+    await logout(page)
+    await login(page, fixtures.admin.email, fixtures.password)
+    await page.goto('/admin/efectivo')
+    const filaPago2 = page.locator('tbody tr', { hasText: lote.identificador }).filter({ hasText: 'Pendiente' })
+    await filaPago2.getByRole('button', { name: 'Marcar como recibido' }).click()
+    await page.waitForURL('**/admin/efectivo**')
+
+    await expect
+      .poll(async () => {
+        const { data } = await admin
+          .from('cuotas')
+          .select('saldo_pendiente, mora_pagada')
+          .eq('id', cuota.id)
+          .single()
+        return data
+      })
+      .toEqual({ saldo_pendiente: 900, mora_pagada: 100 })
   })
 })
