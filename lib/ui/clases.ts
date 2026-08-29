@@ -148,14 +148,20 @@ export const DASHBOARD_TARJETA_TITULO = 'text-[14.5px] font-bold text-blue-900'
 //
 // Alto INTRÍNSECO, no fijo (`h-[...]`): con alto fijo + posicionamiento
 // absoluto, el contenido (logo/nav/saludo) podía terminar más alto de lo
-// que el banner medía -- con 3 lotes y el saludo needing más ancho, el
-// texto se corría y la tarjeta de abajo (que se solapa con el borde
-// inferior vía margin-top negativo) terminaba tapando el saludo en vez de
-// solaparse con espacio vacío del degradé (bug real reportado por Gabriel
-// 29/08). Ahora el banner mide lo que su contenido + padding necesiten, en
-// cualquier ancho, y el padding-bottom (34px) es EXACTAMENTE el mismo
-// número que el margin-top negativo de la tarjeta -- así el solape cae
-// siempre sobre el padding vacío, nunca sobre texto.
+// que el banner medía y la tarjeta de abajo terminaba pisando el saludo
+// (bug real reportado por Gabriel 29/08). Ahora el banner mide lo que su
+// contenido + padding necesiten, en cualquier ancho.
+//
+// Sin solape con margin negativo: relectura del mockup (no de la
+// descripción que yo mismo había escrito de él) -- la tarjeta de lotes NO
+// se solapa con la banda, tiene un `margin-top:24px` NORMAL (positivo)
+// sobre un contenedor que arranca recién después de la banda. El primer
+// intento de este PR asumía un solape "tarjeta sube -34px sobre la banda"
+// que no existe en el HTML del mockup -- con alto intrínseco esa cuenta
+// además daba 0px de aire real entre el saludo y la tarjeta (el padding
+// de "aire" se consumía entero en el solape), que es exactamente lo que
+// Gabriel vio pisado. Con margin-top positivo no hay cuenta que pueda
+// fallar: siempre hay aire real entre el saludo y la tarjeta.
 export const PORTAL_BANNER = 'relative overflow-hidden'
 export const PORTAL_BANNER_GRADIENTE =
   'linear-gradient(120deg,#0f3d3a 0%,#1a5c4f 30%,#1e6b6a 55%,#1e4f7a 80%,#16355e 100%)'
@@ -169,7 +175,8 @@ export const PORTAL_BANNER_SOMBRA_GRADIENTE =
 // `relative z-[1]` para quedar por encima de los degradés absolutos.
 // pt/pb asimétricos: 22/26px arriba (como el mockup), 34px abajo siempre
 // (el número del solape, en las 2 resoluciones).
-export const PORTAL_BANNER_CONTENIDO = 'relative z-[1] flex flex-col gap-8 px-4 pt-[22px] pb-[34px] sm:px-12 sm:pt-[26px]'
+export const PORTAL_BANNER_CONTENIDO =
+  'relative z-[1] flex flex-col gap-8 px-4 pt-[22px] pb-[22px] sm:px-12 sm:pt-[26px]'
 export const PORTAL_TOPBAR_FILA = 'flex items-center justify-between'
 
 export const PORTAL_LOGO_WRAP = 'flex items-center rounded-[10px] bg-white px-[14px] py-2'

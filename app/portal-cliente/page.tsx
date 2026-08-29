@@ -236,13 +236,13 @@ export default async function PortalClientePage() {
         </div>
       </div>
 
-      {/* Fuera del banner (que tiene overflow-hidden) -- esto es contenido
-          normal de página, con fondo propio (--background, gris clarito),
-          que se solapa con el borde inferior de la banda vía margin-top
-          negativo (mismo número que el padding-bottom del banner, ver
-          PORTAL_BANNER_CONTENIDO), tal como pide el mockup. */}
+      {/* Fuera del banner -- contenido normal de página, con fondo propio
+          (--background, gris clarito). Sin solape con la banda: es un
+          margin-top NORMAL de 24px (el valor real del mockup), no un
+          margin negativo -- ver el comentario largo en PORTAL_BANNER de
+          lib/ui/clases.ts sobre por qué se sacó el solape. */}
       <div className="relative mx-auto flex w-full max-w-[1100px] flex-1 flex-col gap-[26px] px-4 pb-10 sm:px-12">
-        <div className="relative z-[1] -mt-[34px] flex flex-col gap-4">
+        <div className="flex flex-col gap-4 mt-[24px]">
           {lotesConDatos.length === 0 ? (
             <div className="rounded-[14px] border border-blue-100 bg-white p-6 text-center text-slate-600 shadow-sm">
               Todavía no tenés un lote asignado.
