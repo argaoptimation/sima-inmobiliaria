@@ -22,3 +22,29 @@ body {
   color: var(--foreground);
   font-family: var(--font-jakarta), Arial, Helvetica, sans-serif;
 }
+
+/* Banda del portal del cliente (PR3 del rediseño, ver
+   design-system/rediseno/PLAN.md, MOCKUP 2). El mockup referencia estas dos
+   animaciones en el degradé de fondo pero no las define (@keyframes
+   faltantes) -- Gabriel confirmó 29/08 que sí tienen que existir: el
+   degradé se va desplazando de azul a verde en loop. `background-size`
+   más grande que el elemento + mover `background-position` es lo que da
+   ese efecto de "líquido" moviéndose sin cortes bruscos. */
+@keyframes simaFluido {
+  0%,
+  100% {
+    background-position: 0% 50%;
+  }
+  50% {
+    background-position: 100% 50%;
+  }
+}
+@keyframes simaFluido2 {
+  0%,
+  100% {
+    background-position: 0% 0%;
+  }
+  50% {
+    background-position: 100% 100%;
+  }
+}

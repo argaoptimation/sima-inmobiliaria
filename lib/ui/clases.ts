@@ -137,24 +137,26 @@ export const DASHBOARD_TARJETA_TITULO = 'text-[14.5px] font-bold text-blue-900'
 
 // PR 3 (ver design-system/rediseno/PLAN.md) -- portal del cliente
 // (MOCKUP 2), reemplaza app/portal-cliente/page.tsx. Valores sacados del
-// mockup tal cual. La animación `simaFluido`/`simaFluido2` que el mockup
-// referencia en el degradé NO está definida en ningún lado del propio
-// archivo del mockup (sin @keyframes) -- un navegador real la ignora y
-// muestra el degradé estático, así que es lo que se reproduce acá: no se
-// inventó una animación que el mockup no define.
-// Alto responsive: el mockup es un frame fijo de 1440px que no cubre
-// mobile -- 200px alcanza en desktop (una sola fila de nav + una fila de
-// saludo), pero en mobile el saludo/píldora se apilan (ver
-// PORTAL_SALUDO_WRAP) y necesitan más alto para no cortarse.
+// mockup tal cual.
 //
-// Los 3 degradés (banner/radiales/sombra) van por `style` inline en el call
-// site, NO como clase `bg-[...]` -- probado en vivo: con el degradé de 5
-// stops metido en la misma clase que `h-[280px] sm:h-[200px]`, Tailwind
-// dejaba de generar la regla de alto (quedaba en 0 en mobile, sin ninguna
-// regla "280px" en ninguna hoja de estilos cargada). Separar el degradé a
-// `style` lo resolvió -- son valores igual de fieles al mockup, un
-// `style` inline no es "inventar" nada.
-export const PORTAL_BANNER = 'relative h-[280px] sm:h-[200px] shrink-0 overflow-hidden'
+// La animación `simaFluido`/`simaFluido2` que el mockup referencia en el
+// degradé no traía @keyframes en el propio archivo del mockup -- Gabriel
+// confirmó 29/08 que sí van (el degradé se desplaza de azul a verde en
+// loop), definidas en app/globals.css y aplicadas acá por `style` inline
+// (animation + backgroundSize), junto con los 3 degradés -- ver el
+// comentario largo más abajo sobre por qué van por `style` y no por clase.
+//
+// Alto INTRÍNSECO, no fijo (`h-[...]`): con alto fijo + posicionamiento
+// absoluto, el contenido (logo/nav/saludo) podía terminar más alto de lo
+// que el banner medía -- con 3 lotes y el saludo needing más ancho, el
+// texto se corría y la tarjeta de abajo (que se solapa con el borde
+// inferior vía margin-top negativo) terminaba tapando el saludo en vez de
+// solaparse con espacio vacío del degradé (bug real reportado por Gabriel
+// 29/08). Ahora el banner mide lo que su contenido + padding necesiten, en
+// cualquier ancho, y el padding-bottom (34px) es EXACTAMENTE el mismo
+// número que el margin-top negativo de la tarjeta -- así el solape cae
+// siempre sobre el padding vacío, nunca sobre texto.
+export const PORTAL_BANNER = 'relative overflow-hidden'
 export const PORTAL_BANNER_GRADIENTE =
   'linear-gradient(120deg,#0f3d3a 0%,#1a5c4f 30%,#1e6b6a 55%,#1e4f7a 80%,#16355e 100%)'
 export const PORTAL_BANNER_RADIALES = 'absolute -inset-[20%]'
@@ -163,17 +165,22 @@ export const PORTAL_BANNER_RADIALES_GRADIENTE =
 export const PORTAL_BANNER_SOMBRA = 'absolute inset-0'
 export const PORTAL_BANNER_SOMBRA_GRADIENTE =
   'linear-gradient(200deg, rgba(8,20,24,.25) 0%, rgba(8,20,24,.05) 45%, rgba(8,16,26,.82) 100%)'
+// Envoltorio del contenido real (logo/nav arriba, saludo/píldora abajo) --
+// `relative z-[1]` para quedar por encima de los degradés absolutos.
+// pt/pb asimétricos: 22/26px arriba (como el mockup), 34px abajo siempre
+// (el número del solape, en las 2 resoluciones).
+export const PORTAL_BANNER_CONTENIDO = 'relative z-[1] flex flex-col gap-8 px-4 pt-[22px] pb-[34px] sm:px-12 sm:pt-[26px]'
+export const PORTAL_TOPBAR_FILA = 'flex items-center justify-between'
 
-export const PORTAL_LOGO_WRAP =
-  'absolute top-[26px] left-4 sm:left-12 flex items-center rounded-[10px] bg-white px-[14px] py-2'
-export const PORTAL_NAV = 'absolute top-[26px] right-4 sm:right-12 flex items-center gap-2 sm:gap-[22px]'
+export const PORTAL_LOGO_WRAP = 'flex items-center rounded-[10px] bg-white px-[14px] py-2'
+export const PORTAL_NAV = 'flex items-center gap-2 sm:gap-[22px]'
 export const PORTAL_NAV_LINK_ACTIVO = 'text-xs sm:text-sm font-semibold text-white'
 export const PORTAL_NAV_LINK = 'text-xs sm:text-sm font-medium text-white/75 hover:text-white transition-colors'
 export const PORTAL_AVATAR =
   'flex h-[27px] w-[27px] sm:h-[31px] sm:w-[31px] items-center justify-center rounded-full border border-white/30 bg-white/[0.18] text-[11px] sm:text-xs font-bold text-white'
 
 export const PORTAL_SALUDO_WRAP =
-  'absolute bottom-[22px] left-4 right-4 sm:left-12 sm:right-12 flex flex-col items-start gap-3 sm:flex-row sm:items-end sm:justify-between sm:gap-5'
+  'flex flex-col items-start gap-3 sm:flex-row sm:items-end sm:justify-between sm:gap-5'
 export const PORTAL_SALUDO_TITULO = 'text-xl sm:text-[26px] font-extrabold tracking-[-0.02em] text-white'
 export const PORTAL_SALUDO_SUB = 'text-sm text-white/[0.82]'
 
@@ -205,5 +212,3 @@ export const PORTAL_BOTON_PAGAR =
   'flex items-center gap-[7px] rounded-[9px] bg-blue-800 px-[18px] py-[10px] text-[13.5px] font-semibold text-white shadow-[0_4px_12px_-4px_rgba(30,64,175,0.55)] transition-colors hover:bg-blue-900'
 export const PORTAL_BOTON_REGULARIZAR =
   'flex items-center gap-[7px] rounded-[9px] bg-amber-700 px-[18px] py-[10px] text-[13.5px] font-semibold text-white transition-colors hover:bg-amber-800'
-
-export const PORTAL_DOC_BANNER = 'flex items-center gap-[14px] rounded-xl border border-blue-100 bg-blue-50 px-5 py-4'

@@ -8,7 +8,7 @@ import { redirect } from 'next/navigation'
 import { logout } from '@/app/login/actions'
 import { EnlaceBoton } from '@/components/EnlaceBoton'
 import { BotonEnvio } from '@/components/BotonEnvio'
-import { CircleCheck, TriangleAlert, CreditCard, FileText, ArrowRight, LogOut } from 'lucide-react'
+import { CircleCheck, TriangleAlert, CreditCard, LogOut } from 'lucide-react'
 import {
   PORTAL_BANNER,
   PORTAL_BANNER_GRADIENTE,
@@ -16,6 +16,8 @@ import {
   PORTAL_BANNER_RADIALES_GRADIENTE,
   PORTAL_BANNER_SOMBRA,
   PORTAL_BANNER_SOMBRA_GRADIENTE,
+  PORTAL_BANNER_CONTENIDO,
+  PORTAL_TOPBAR_FILA,
   PORTAL_LOGO_WRAP,
   PORTAL_NAV,
   PORTAL_NAV_LINK_ACTIVO,
@@ -36,7 +38,6 @@ import {
   PORTAL_BOTON_VER_DETALLE,
   PORTAL_BOTON_PAGAR,
   PORTAL_BOTON_REGULARIZAR,
-  PORTAL_DOC_BANNER,
   NUMERO_TABULAR,
 } from '@/lib/ui/clases'
 
@@ -179,55 +180,67 @@ export default async function PortalClientePage() {
 
   const algunoConDeuda = lotesConDatos.some((lote) => lote.estado !== 'normal')
 
-  const nombreDocumentos = lotesConDatos.length === 1 ? `/portal-cliente/lotes/${lotesConDatos[0].id}` : null
-
   return (
     <div className="flex min-h-full flex-col">
-    <div className={PORTAL_BANNER} style={{ background: PORTAL_BANNER_GRADIENTE }}>
-      <div className={PORTAL_BANNER_RADIALES} style={{ background: PORTAL_BANNER_RADIALES_GRADIENTE }} />
-      <div className={PORTAL_BANNER_SOMBRA} style={{ background: PORTAL_BANNER_SOMBRA_GRADIENTE }} />
+      <div
+        className={PORTAL_BANNER}
+        style={{ background: PORTAL_BANNER_GRADIENTE, backgroundSize: '220% 220%', animation: 'simaFluido 16s ease-in-out infinite' }}
+      >
+        <div
+          className={PORTAL_BANNER_RADIALES}
+          style={{ background: PORTAL_BANNER_RADIALES_GRADIENTE, animation: 'simaFluido2 20s ease-in-out infinite' }}
+        />
+        <div className={PORTAL_BANNER_SOMBRA} style={{ background: PORTAL_BANNER_SOMBRA_GRADIENTE }} />
 
-      <div className={PORTAL_LOGO_WRAP}>
-        {/* eslint-disable-next-line @next/next/no-img-element -- logo con proporción propia, ver components/NavAdmin.tsx */}
-        <img src="/logo.png" alt="SIMA" className="block h-[22px] w-auto" />
-      </div>
+        <div className={PORTAL_BANNER_CONTENIDO}>
+          <div className={PORTAL_TOPBAR_FILA}>
+            <div className={PORTAL_LOGO_WRAP}>
+              {/* eslint-disable-next-line @next/next/no-img-element -- logo con proporción propia, ver components/NavAdmin.tsx */}
+              <img src="/logo.png" alt="SIMA" className="block h-[22px] w-auto" />
+            </div>
 
-      <div className={PORTAL_NAV}>
-        <span className={PORTAL_NAV_LINK_ACTIVO}>Mis lotes</span>
-        <EnlaceBoton href="/portal-cliente/mi-perfil" className={PORTAL_NAV_LINK}>
-          Mi perfil
-        </EnlaceBoton>
-        <div className={PORTAL_AVATAR}>{inicialesDeNombre(nombreCompleto)}</div>
-        <form action={logout}>
-          <BotonEnvio className="flex cursor-pointer items-center text-white/75 transition-colors hover:text-white" cargandoTexto="…">
-            <LogOut className="h-[17px] w-[17px]" />
-          </BotonEnvio>
-        </form>
-      </div>
-
-      <div className={PORTAL_SALUDO_WRAP}>
-        <div className="flex flex-col gap-[5px]">
-          <h1 className={PORTAL_SALUDO_TITULO}>Hola, {primerNombre}</h1>
-          <p className={PORTAL_SALUDO_SUB}>
-            Tenés {lotesConDatos.length} {lotesConDatos.length === 1 ? 'lote' : 'lotes'} en curso.
-            {proximaFecha
-              ? ` Tu próximo vencimiento es el ${formatearDiaYMes(proximaFecha)}.`
-              : ' Estás al día con todos tus pagos.'}
-          </p>
-        </div>
-        {lotesConDatos.length > 0 && (
-          <div className={`${PORTAL_PILL} ${algunoConDeuda ? 'text-amber-700' : 'text-green-700'}`}>
-            {algunoConDeuda ? <TriangleAlert className="h-4 w-4" /> : <CircleCheck className="h-4 w-4" />}
-            {algunoConDeuda ? 'Tenés pagos pendientes' : 'Estás al día'}
+            <div className={PORTAL_NAV}>
+              <span className={PORTAL_NAV_LINK_ACTIVO}>Mis lotes</span>
+              <EnlaceBoton href="/portal-cliente/mi-perfil" className={PORTAL_NAV_LINK}>
+                Mi perfil
+              </EnlaceBoton>
+              <div className={PORTAL_AVATAR}>{inicialesDeNombre(nombreCompleto)}</div>
+              <form action={logout}>
+                <BotonEnvio
+                  className="flex cursor-pointer items-center text-white/75 transition-colors hover:text-white"
+                  cargandoTexto="…"
+                >
+                  <LogOut className="h-[17px] w-[17px]" />
+                </BotonEnvio>
+              </form>
+            </div>
           </div>
-        )}
-      </div>
-    </div>
 
-      {/* Fuera del banner (que tiene overflow-hidden y alto fijo de 200px) --
-          esto es contenido normal de página, con fondo propio (--background,
-          gris clarito), que se solapa con el borde inferior de la banda vía
-          margin-top negativo, tal como pide el mockup. */}
+          <div className={PORTAL_SALUDO_WRAP}>
+            <div className="flex flex-col gap-[5px]">
+              <h1 className={PORTAL_SALUDO_TITULO}>Hola, {primerNombre}</h1>
+              <p className={PORTAL_SALUDO_SUB}>
+                Tenés {lotesConDatos.length} {lotesConDatos.length === 1 ? 'lote' : 'lotes'} en curso.
+                {proximaFecha
+                  ? ` Tu próximo vencimiento es el ${formatearDiaYMes(proximaFecha)}.`
+                  : ' Estás al día con todos tus pagos.'}
+              </p>
+            </div>
+            {lotesConDatos.length > 0 && (
+              <div className={`${PORTAL_PILL} ${algunoConDeuda ? 'text-amber-700' : 'text-green-700'}`}>
+                {algunoConDeuda ? <TriangleAlert className="h-4 w-4" /> : <CircleCheck className="h-4 w-4" />}
+                {algunoConDeuda ? 'Tenés pagos pendientes' : 'Estás al día'}
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+
+      {/* Fuera del banner (que tiene overflow-hidden) -- esto es contenido
+          normal de página, con fondo propio (--background, gris clarito),
+          que se solapa con el borde inferior de la banda vía margin-top
+          negativo (mismo número que el padding-bottom del banner, ver
+          PORTAL_BANNER_CONTENIDO), tal como pide el mockup. */}
       <div className="relative mx-auto flex w-full max-w-[1100px] flex-1 flex-col gap-[26px] px-4 pb-10 sm:px-12">
         <div className="relative z-[1] -mt-[34px] flex flex-col gap-4">
           {lotesConDatos.length === 0 ? (
@@ -315,27 +328,6 @@ export default async function PortalClientePage() {
             ))
           )}
         </div>
-
-        {lotesConDatos.length > 0 && (
-          <div className={PORTAL_DOC_BANNER}>
-            <FileText className="h-[19px] w-[19px] shrink-0 text-blue-800" />
-            <div className="flex flex-col gap-0.5">
-              <span className="text-[13.5px] font-semibold text-blue-900">Comprobantes y contratos</span>
-              <span className="text-[12.5px] text-slate-600">
-                Descargá el recibo de cada pago y el contrato firmado de cada lote.
-              </span>
-            </div>
-            {nombreDocumentos && (
-              <EnlaceBoton
-                href={nombreDocumentos}
-                className="ml-auto flex items-center gap-[5px] text-[13.5px] font-semibold whitespace-nowrap text-blue-800"
-              >
-                Ver documentos
-                <ArrowRight className="h-[14px] w-[14px]" />
-              </EnlaceBoton>
-            )}
-          </div>
-        )}
       </div>
     </div>
   )
