@@ -54,5 +54,16 @@ Referencia: MOCKUP 3 y MOCKUP 4 del HTML.
 1. `app/admin/panel-morosos/page.tsx`: mismos 4 tramos y mismo cálculo que ya existen (deben 1, deben 2, posible prejudicial 3+, prejudicial marcado) — NO tocar la lógica de `marcarPrejudicial` ni el cálculo de tramos (ya extraído a `lib/cobranza/tramos-mora.ts` en el PR 2). Agregar arriba 4 tarjetas KPI (total en mora, deben 1-2, posible prejudicial, prejudicial marcado) y reemplazar las 4 tablas separadas por una sola lista con franja de color a la izquierda de cada fila según tramo. El botón "Marcar prejudicial" se mantiene únicamente en las filas de posible prejudicial, como hoy.
 2. `app/admin/pagos/page.tsx`: mismos filtros (buscar, estado, acreedor) y misma doble confirmación (acreedor + admin) que ya existen — no tocar `confirmarPago`/`editarMontoPago`. Reemplazar la tabla de 12 columnas por tarjetas: encabezado con cliente+DNI, lote, motivo, medio de pago, monto, link a comprobante y badge de estado; el formulario de confirmación (monto, monto recibido, moneda recibida) va plegado dentro de la tarjeta, visible solo cuando el pago está pendiente. Los casos ya existentes de alerta ("lote sin acreedor vinculado", pago en efectivo sin comprobante que solo confirma el admin) se muestran como banner dentro de la tarjeta, no como texto en una celda.
 
+## PR 5 — Login
+Referencia: MOCKUP 5 (plano interactivo, sin video/imágenes) y MOCKUP 6 (mismo layout con video de fondo) del HTML. Elegí una de las dos antes de implementar — no las hagas convivir.
+
+1. Split 60/40 en `app/login/page.tsx`: panel izquierdo decorativo (864px), formulario a la derecha (576px) sobre `#f8fafc`.
+   - Opción A (MOCKUP 5): plano de parcelas dibujado con CSS (grid + colores por estado), sin imágenes ni video. Cero peso extra.
+   - Opción B (MOCKUP 6): `<video autoplay muted loop playsinline poster>` con degradado de marca encima. Forzar `muted`/`loop`/`playsInline` por JS además del atributo (algunos navegadores lo ignoran si no está en el DOM al montar). Respetar `prefers-reduced-motion`: mostrar solo el poster.
+   - El logo va en `public/logo.png` dentro de una pastilla blanca (no inventar isotipo).
+   - En mobile (`< md`) el panel izquierdo se oculta, queda solo el formulario centrado.
+2. El formulario mantiene la Server Action `login`, `CampoPassword` y `BotonEnvio` tal cual están — solo cambia el envoltorio visual.
+3. Aplicar el mismo layout a `app/set-password/page.tsx` y `app/login/recuperar-contrasena/page.tsx`.
+
 ## Pendiente / fuera de esta entrega
-Mapa de loteos (2 niveles), login rediseñado, listado de lotes. Se entregan en próximas rondas — no implementar todavía.
+Mapa de loteos (2 niveles), listado de lotes. Se entregan en próximas rondas — no implementar todavía.

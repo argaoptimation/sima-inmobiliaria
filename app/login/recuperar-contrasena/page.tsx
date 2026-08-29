@@ -2,6 +2,7 @@ import Image from 'next/image'
 import { solicitarRecuperacion } from './actions'
 import { EnlaceBoton } from '@/components/EnlaceBoton'
 import { BotonEnvio } from '@/components/BotonEnvio'
+import { ENTRADA, BOTON_PRIMARIO, ENLACE, BANNER_ERROR, BANNER_OK } from '@/lib/ui/clases'
 
 export default async function RecuperarContrasenaPage({
   searchParams,
@@ -11,44 +12,96 @@ export default async function RecuperarContrasenaPage({
   const { error, ok } = await searchParams
 
   return (
-    <main className="flex min-h-full flex-1 items-center justify-center p-6">
-      <div className="w-full max-w-sm rounded-xl border border-blue-100 bg-white p-8 shadow-sm">
-        <div className="mb-6 flex flex-col items-center gap-3 text-center">
-          <Image src="/logo.png" alt="SIMA" width={64} height={64} className="rounded-lg" />
-          <h1 className="text-xl font-extrabold text-blue-900">Recuperar contraseña</h1>
-        </div>
-
-        {error && (
-          <p className="mb-4 rounded-lg bg-red-50 p-3 text-sm text-red-700">{error}</p>
-        )}
-
-        {ok ? (
-          <p className="mb-4 rounded-lg bg-green-50 p-3 text-sm text-green-700">
-            Si ese email tiene una cuenta en SIMA, te va a llegar un mail con un link para elegir
-            una contraseña nueva.
-          </p>
-        ) : (
-          <form action={solicitarRecuperacion} className="flex flex-col gap-3">
-            <input
-              name="email"
-              type="email"
-              placeholder="Email"
-              required
-              autoComplete="email"
-              className="rounded-lg border border-blue-100 px-3 py-2 placeholder:text-gray-400 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200"
-            />
-            <BotonEnvio className="cursor-pointer rounded-lg bg-blue-800 px-3 py-2 font-semibold text-white transition-colors hover:bg-blue-900">
-              Enviar link
-            </BotonEnvio>
-          </form>
-        )}
-
-        <EnlaceBoton
-          href="/login"
-          className="mt-4 block text-center text-sm text-blue-800 underline-offset-2 hover:underline"
+    <main className="flex min-h-[100dvh] w-full">
+      {/* Lado Izquierdo: Video / Banner */}
+      <div className="relative hidden w-1/2 flex-col bg-blue-950 md:flex">
+        <video
+          autoPlay
+          loop
+          muted
+          playsInline
+          className="absolute inset-0 h-full w-full object-cover opacity-60"
         >
-          ← Volver a ingresar
-        </EnlaceBoton>
+          <source src="/video_login.mp4" type="video/mp4" />
+        </video>
+        <div className="absolute inset-0 bg-blue-900/40 mix-blend-multiply" />
+        
+        <div className="relative z-10 flex h-full flex-col justify-between p-12 text-white">
+          <div>
+            <Image src="/logo.png" alt="SIMA" width={120} height={42} className="brightness-0 invert object-contain" priority />
+          </div>
+          <div className="max-w-md">
+            <h2 className="mb-4 text-4xl font-extrabold tracking-tight">Gestión inmobiliaria inteligente.</h2>
+            <p className="text-lg font-medium text-blue-100/70">
+              Administrá tus loteos, hacé seguimiento de cobranzas y controlá el estado de cuenta de tus clientes en un solo lugar.
+            </p>
+          </div>
+        </div>
+      </div>
+
+      {/* Lado Derecho: Formulario */}
+      <div className="flex w-full flex-col items-center justify-center bg-slate-50 p-4 sm:p-6 lg:w-1/2">
+        <div className="w-full max-w-[400px]">
+          <div className="mb-8 flex flex-col gap-1 text-center lg:text-left">
+            <div className="mb-2 flex justify-center lg:hidden">
+              <div className="flex items-center justify-center rounded-xl bg-white p-2.5 shadow-sm border border-slate-100">
+                <Image src="/logo.png" alt="SIMA" width={110} height={38} className="h-9 w-auto object-contain" priority />
+              </div>
+            </div>
+            <h1 className="text-2xl font-extrabold tracking-tight text-blue-950">Recuperar contraseña</h1>
+            <p className="text-sm font-medium text-slate-500">Te enviaremos un link para restablecerla</p>
+          </div>
+
+          {error && <p className={`mb-6 ${BANNER_ERROR}`}>{error}</p>}
+
+          {ok ? (
+            <div className="flex flex-col gap-4">
+              <p className={BANNER_OK}>
+                Si ese email tiene una cuenta en SIMA, te va a llegar un mail con un link para elegir
+                una contraseña nueva.
+              </p>
+              <EnlaceBoton
+                href="/login"
+                className={`block text-center lg:text-left mt-2 ${ENLACE}`}
+              >
+                ← Volver a ingresar
+              </EnlaceBoton>
+            </div>
+          ) : (
+            <form action={solicitarRecuperacion} className="flex flex-col gap-4">
+              <label className="flex flex-col gap-1 text-xs font-semibold text-slate-600">
+                Correo electrónico
+                <input
+                  name="email"
+                  type="email"
+                  placeholder="tu@email.com"
+                  required
+                  autoComplete="email"
+                  className={ENTRADA}
+                />
+              </label>
+
+              <BotonEnvio className={`mt-2 w-full cursor-pointer justify-center !py-3 text-base ${BOTON_PRIMARIO}`}>
+                Enviar link de recuperación
+              </BotonEnvio>
+            </form>
+          )}
+
+          {!ok && (
+            <div className="mt-6 border-t border-slate-200 pt-6 text-center lg:text-left">
+              <EnlaceBoton
+                href="/login"
+                className={ENLACE}
+              >
+                ← Volver a ingresar
+              </EnlaceBoton>
+            </div>
+          )}
+        </div>
+        
+        <p className="mt-12 text-center text-xs font-medium text-slate-400">
+          SIMA Inmobiliaria · Sistema de Gestión
+        </p>
       </div>
     </main>
   )

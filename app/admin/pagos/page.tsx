@@ -7,17 +7,21 @@ import { EnlaceBoton } from '@/components/EnlaceBoton'
 import { BotonEnvio } from '@/components/BotonEnvio'
 import { EncabezadoPagina } from '@/components/EncabezadoPagina'
 import {
-  TARJETA,
   ENTRADA,
   BOTON_SECUNDARIO,
   ENLACE,
   BANNER_ERROR,
-  TABLA_CONTENEDOR,
-  TABLA_HEADER_FILA,
-  TABLA_HEADER_CELDA,
-  TABLA_FILA,
-  TABLA_CELDA,
+  BADGE_BASE,
+  BADGE_VERDE,
+  BADGE_AMARILLO,
+  NUMERO_TABULAR,
+  PAGO_TARJETA,
+  PAGO_TARJETA_ALERTA,
+  PAGO_TARJETA_HEADER,
+  PAGO_FORM_CONFIRMACION,
+  PAGO_BANNER_ALERTA,
 } from '@/lib/ui/clases'
+import { FileImage, Banknote, ExternalLink, TriangleAlert, CheckCircle2, Clock } from 'lucide-react'
 
 type Pago = {
   id: string
@@ -36,9 +40,6 @@ type Pago = {
   created_at: string
 }
 
-// Intersección de varios filtros por lote_id (búsqueda de texto + acreedor)
-// -- si ninguno está activo, no filtra nada (null); si hay más de uno
-// activo, un lote solo pasa si está en TODOS.
 function interseccionDeLoteIds(listas: (string[] | null)[]): string[] | null {
   const activas = listas.filter((lista): lista is string[] => lista !== null)
   if (activas.length === 0) return null
@@ -48,6 +49,23 @@ function interseccionDeLoteIds(listas: (string[] | null)[]): string[] | null {
   })
 }
 
+function obtenerMotivoTexto(motivo: string) {
+  switch (motivo) {
+    case 'sena':
+      return 'Seña'
+    case 'ajuste':
+      return 'Corrección'
+    case 'entrega':
+      return 'Entrega'
+    default:
+      return 'Cuota'
+  }
+}
+
+// Pantalla de Pagos (PR4 del rediseño, MOCKUP 4): bandeja de aprobación en tarjetas
+// en lugar de tabla ancha de 12 columnas. Encabezado con cliente+DNI, lote, motivo,
+// medio de pago, monto, link a comprobante y badge de estado; formulario de
+// confirmación plegado dentro de la tarjeta para pagos pendientes.
 export default async function PagosPage({
   searchParams,
 }: {
@@ -80,8 +98,6 @@ export default async function PagosPage({
       .select('id')
       .ilike('identificador', `%${filtroTexto}%`)
 
-    // Busca tanto por nombre como por DNI (pedido de Nico 28/08: el DNI se
-    // usa mucho más que el nombre para encontrar a un cliente puntual).
     const textoSaneado = filtroTexto.replace(/[,()]/g, '')
     const { data: clientesPorNombreODni } = await supabase
       .from('profiles')
@@ -104,8 +120,6 @@ export default async function PagosPage({
     ]
   }
 
-  // Filtro por acreedor: solo tiene sentido para admin (un acreedor ya ve
-  // nada más que sus propios lotes, filtrarlo por sí mismo no aporta nada).
   let loteIdsFiltroAcreedor: string[] | null = null
   if (filtroAcreedorId && perfilPropio!.role !== 'acreedor') {
     const { data: lotesDelAcreedor } = await supabase
@@ -187,11 +201,22 @@ export default async function PagosPage({
     loteIdsConPago.length > 0
       ? await supabase
           .from('lotes')
-          .select('id, identificador, acreedor_id, cuenta_cobro_externa_id')
+          .select('id, identificador, acreedor_id, cuenta_cobro_externa_id, loteo_id, manzana, numero_lote, loteos(nombre)')
           .in('id', loteIdsConPago)
       : { data: [] }
 
-  const lotePorId = new Map((lotesConPago ?? []).map((lote) => [lote.id, lote]))
+  const lotePorId = new Map(
+    ((lotesConPago ?? []) as unknown as Array<{
+      id: string
+      identificador: string
+      acreedor_id: string | null
+      cuenta_cobro_externa_id: string | null
+      loteo_id: string | null
+      manzana: string | null
+      numero_lote: string | null
+      loteos: { nombre: string } | { nombre: string }[] | null
+    }>).map((lote) => [lote.id, lote])
+  )
 
   const clienteIdsConPago = [...new Set(pagos.map((pago) => pago.cliente_id))]
 
@@ -216,8 +241,6 @@ export default async function PagosPage({
     (acreedoresConPago ?? []).map((acreedor) => [acreedor.id, acreedor.full_name])
   )
 
-  // Lista completa de acreedores para el desplegable del filtro -- solo
-  // tiene sentido para admin (un acreedor no necesita filtrarse a sí mismo).
   const { data: todosLosAcreedores } =
     perfilPropio!.role !== 'acreedor'
       ? await supabase.from('profiles').select('id, full_name').eq('role', 'acreedor').order('full_name')
@@ -227,6 +250,12 @@ export default async function PagosPage({
     pagos.map(async (pago) => {
       const lote = lotePorId.get(pago.lote_id)
       const sinAcreedorVinculado = !lote?.acreedor_id
+      const loteoNombre = Array.isArray(lote?.loteos)
+        ? lote.loteos[0]?.nombre
+        : lote?.loteos?.nombre
+      const ubicacionLote = loteoNombre
+        ? `${loteoNombre}${lote?.manzana ? ` · Mz ${lote.manzana}` : ''}${lote?.numero_lote ? ` Lt ${lote.numero_lote}` : ''}`
+        : lote?.identificador ?? '—'
       const identificadorLote = lote?.identificador ?? '—'
       const nombreCliente = nombreClientePorId.get(pago.cliente_id) ?? '—'
       const dniCliente = dniClientePorId.get(pago.cliente_id) ?? null
@@ -237,6 +266,7 @@ export default async function PagosPage({
           ...pago,
           comprobanteUrl: null,
           sinAcreedorVinculado,
+          ubicacionLote,
           identificadorLote,
           nombreCliente,
           dniCliente,
@@ -254,6 +284,7 @@ export default async function PagosPage({
         ...pago,
         comprobanteUrl: errorSignedUrl ? null : data?.signedUrl ?? null,
         sinAcreedorVinculado,
+        ubicacionLote,
         nombreAcreedor,
         identificadorLote,
         nombreCliente,
@@ -264,229 +295,326 @@ export default async function PagosPage({
     })
   )
 
+  const cantidadPendientes = pagos.filter((p) => p.estado === 'pendiente').length
+
   return (
-    <main>
+    <main className="flex flex-col gap-5">
       <EncabezadoPagina titulo="Pagos" migas={['Pagos']} />
+
       {error && <p className={BANNER_ERROR}>{error}</p>}
-      <FiltroEnVivo className={`mb-4 flex flex-wrap items-end gap-3 ${TARJETA}`}>
-        <label className="text-sm text-slate-600">
-          Buscar
-          <input
-            type="text"
-            name="q"
-            placeholder="Cliente, DNI o lote"
-            defaultValue={filtroTexto ?? ''}
-            className={ENTRADA}
-          />
-        </label>
-        <label className="text-sm text-slate-600">
-          Estado
-          <select
-            name="estado"
-            defaultValue={filtroEstado ?? ''}
-            className={ENTRADA}
-          >
-            <option value="">Todos</option>
-            <option value="confirmado">Confirmado</option>
-            <option value="pendiente">Pendiente</option>
-          </select>
-        </label>
-        {perfilPropio!.role !== 'acreedor' && (
-          <label className="text-sm text-slate-600">
-            Acreedor
+
+      {/* Barra de Filtros */}
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <FiltroEnVivo className="flex flex-wrap items-center gap-3">
+          <div className="relative min-w-[260px]">
+            <input
+              type="text"
+              name="q"
+              placeholder="Cliente, DNI o lote…"
+              defaultValue={filtroTexto ?? ''}
+              className={`${ENTRADA} !mt-0 !py-2 !pl-3 !text-[13.5px]`}
+            />
+          </div>
+
+          {perfilPropio!.role !== 'acreedor' && (
             <select
+              key={filtroAcreedorId ?? 'empty'}
               name="acreedor"
               defaultValue={filtroAcreedorId ?? ''}
-              className={ENTRADA}
+              className={`${ENTRADA} !mt-0 !py-2 !text-[13.5px]`}
             >
-              <option value="">Todos</option>
+              <option value="">Todos los acreedores</option>
               {(todosLosAcreedores ?? []).map((acreedor) => (
                 <option key={acreedor.id} value={acreedor.id}>
                   {acreedor.full_name}
                 </option>
               ))}
             </select>
-          </label>
-        )}
-        <button type="submit" className={`cursor-pointer ${BOTON_SECUNDARIO}`}>
-          Filtrar
-        </button>
-        {(filtroTexto || filtroEstado || filtroAcreedorId) && (
-          <EnlaceBoton href="/admin/pagos" className={`text-sm ${ENLACE}`}>
-            Limpiar filtros
-          </EnlaceBoton>
-        )}
-      </FiltroEnVivo>
-      <div className={TABLA_CONTENEDOR}>
-      <table className="w-full text-sm">
-        <thead>
-          <tr className={TABLA_HEADER_FILA}>
-            <th className={TABLA_HEADER_CELDA}>Fecha</th>
-            <th className={TABLA_HEADER_CELDA}>Lote</th>
-            <th className={TABLA_HEADER_CELDA}>Cliente</th>
-            <th className={TABLA_HEADER_CELDA}>Acreedor</th>
-            <th className={TABLA_HEADER_CELDA}>Motivo</th>
-            <th className={TABLA_HEADER_CELDA}>Medio</th>
-            <th className={TABLA_HEADER_CELDA}>Monto</th>
-            <th className={TABLA_HEADER_CELDA}>Comprobante</th>
-            <th className={TABLA_HEADER_CELDA}>Estado</th>
-            <th className={TABLA_HEADER_CELDA}>Confirmado acreedor</th>
-            <th className={TABLA_HEADER_CELDA}>Confirmado admin</th>
-            <th className={TABLA_HEADER_CELDA}></th>
-          </tr>
-        </thead>
-        <tbody>
-          {pagosConLink.map((pago) => {
+          )}
+
+          {/* Acceso Rápido de Estado (Integrado al Filtro en Vivo) */}
+          <div className="flex items-center gap-1 rounded-xl border border-blue-100 bg-blue-50/80 p-1">
+            <label
+              className={`cursor-pointer rounded-lg px-3 py-1.5 text-xs font-semibold transition-all ${
+                !filtroEstado
+                  ? 'bg-white font-bold text-blue-800 shadow-sm'
+                  : 'text-slate-600 hover:text-blue-900'
+              }`}
+            >
+              <input type="radio" name="estado" value="" defaultChecked={!filtroEstado} className="hidden" />
+              Todos
+            </label>
+            <label
+              className={`flex items-center gap-1 cursor-pointer rounded-lg px-3 py-1.5 text-xs font-semibold transition-all ${
+                filtroEstado === 'pendiente'
+                  ? 'bg-white font-bold text-amber-800 shadow-sm'
+                  : 'text-slate-600 hover:text-amber-800'
+              }`}
+            >
+              <input type="radio" name="estado" value="pendiente" defaultChecked={filtroEstado === 'pendiente'} className="hidden" />
+              Pendientes
+              {cantidadPendientes > 0 && (
+                <span className={`opacity-70 ${NUMERO_TABULAR}`}>({cantidadPendientes})</span>
+              )}
+            </label>
+            <label
+              className={`cursor-pointer rounded-lg px-3 py-1.5 text-xs font-semibold transition-all ${
+                filtroEstado === 'confirmado'
+                  ? 'bg-white font-bold text-green-800 shadow-sm'
+                  : 'text-slate-600 hover:text-green-800'
+              }`}
+            >
+              <input type="radio" name="estado" value="confirmado" defaultChecked={filtroEstado === 'confirmado'} className="hidden" />
+              Confirmados
+            </label>
+          </div>
+
+          {(filtroTexto || filtroEstado || filtroAcreedorId) && (
+            <EnlaceBoton 
+              href="/admin/pagos" 
+              className="ml-auto flex items-center justify-center rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs font-bold text-slate-600 shadow-[0_1px_2px_rgba(15,32,73,0.05)] transition-all hover:bg-slate-50 hover:text-slate-900"
+            >
+              Limpiar filtros
+            </EnlaceBoton>
+          )}
+        </FiltroEnVivo>
+      </div>
+
+      {/* Lista de Tarjetas de Pago */}
+      <div className="flex flex-col gap-3">
+        {pagosConLink.length === 0 ? (
+          <div className="rounded-xl border border-blue-100 bg-white p-8 text-center text-sm text-slate-600 shadow-sm">
+            {filtroTexto || filtroEstado || filtroAcreedorId
+              ? 'No se encontraron pagos con los filtros seleccionados.'
+              : 'No hay pagos registrados todavía.'}
+          </div>
+        ) : (
+          pagosConLink.map((pago) => {
             const confirmarEstePago = confirmarPago.bind(null, pago.id)
             const editarMontoEstePago = editarMontoPago.bind(null, pago.id)
+            const tieneAlerta = pago.sinAcreedorVinculado && pago.medio_pago !== 'efectivo'
+            const fechaFormateada = new Date(pago.created_at).toLocaleDateString('es-AR', {
+              timeZone: 'America/Argentina/Cordoba',
+            })
+            const motivoTexto = obtenerMotivoTexto(pago.motivo)
+            const medioTexto = pago.medio_pago === 'efectivo' ? 'Efectivo' : 'Transferencia'
+
+            const puedeConfirmar =
+              pago.estado === 'pendiente' &&
+              (pago.comprobante_path || pago.medio_pago === 'efectivo') &&
+              !(pago.medio_pago === 'efectivo' && perfilPropio!.role !== 'administrador')
 
             return (
-              <tr key={pago.id} className={TABLA_FILA}>
-                <td className={TABLA_CELDA}>{new Date(pago.created_at).toLocaleDateString('es-AR')}</td>
-                <td className={TABLA_CELDA}>{pago.identificadorLote}</td>
-                <td className={TABLA_CELDA}>
-                  {pago.nombreCliente}
-                  {pago.dniCliente && <div className="text-xs text-slate-400">DNI {pago.dniCliente}</div>}
-                </td>
-                <td className={TABLA_CELDA}>{pago.nombreAcreedor}</td>
-                <td className={TABLA_CELDA}>
-                  {pago.motivo === 'sena'
-                    ? 'Seña'
-                    : pago.motivo === 'ajuste'
-                      ? 'Corrección'
-                      : pago.motivo === 'entrega'
-                        ? 'Entrega'
-                        : 'Cuota'}
-                </td>
-                <td className={TABLA_CELDA}>{pago.medio_pago === 'efectivo' ? 'Efectivo' : 'Transferencia'}</td>
-                <td className={TABLA_CELDA}>
-                  {pago.monto} {pago.moneda}
-                </td>
-                <td className={TABLA_CELDA}>
-                  {pago.comprobante_path ? (
-                    pago.comprobanteUrl ? (
-                      <a href={pago.comprobanteUrl} target="_blank" className={ENLACE}>
-                        Ver comprobante
-                      </a>
+              <div
+                key={pago.id}
+                className={tieneAlerta ? PAGO_TARJETA_ALERTA : PAGO_TARJETA}
+              >
+                {/* Cabecera de la Tarjeta */}
+                <div className={PAGO_TARJETA_HEADER}>
+                  {/* Icono de Medio de Pago */}
+                  <div
+                    className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-lg ${
+                      pago.medio_pago === 'efectivo'
+                        ? 'bg-green-50 text-green-700 border border-green-100'
+                        : 'bg-blue-50 text-blue-800 border border-blue-100'
+                    }`}
+                  >
+                    {pago.medio_pago === 'efectivo' ? (
+                      <Banknote className="h-4.5 w-4.5" />
                     ) : (
-                      <span className="text-slate-500">Comprobante no disponible</span>
-                    )
-                  ) : pago.medio_pago === 'efectivo' ? (
-                    <span className="text-slate-500">— (efectivo, no hace falta)</span>
-                  ) : (
-                    <span className="text-slate-500">Sin comprobante</span>
-                  )}
-                </td>
-                <td className={TABLA_CELDA}>{pago.estado}</td>
-                <td className={TABLA_CELDA}>
-                  {pago.medio_pago === 'efectivo' ? (
-                    <span className="text-slate-500">— (efectivo)</span>
-                  ) : pago.cuentaCobroExterna ? (
-                    <span className="text-slate-500">— (cuenta externa)</span>
-                  ) : pago.sinAcreedorVinculado ? (
-                    <span className="font-semibold text-red-700">⚠ Lote sin acreedor vinculado</span>
-                  ) : pago.confirmado_acreedor_por ? (
-                    'Sí'
-                  ) : (
-                    'No'
-                  )}
-                </td>
-                <td className={TABLA_CELDA}>{pago.confirmado_admin_por ? 'Sí' : 'No'}</td>
-                <td className={TABLA_CELDA}>
-                  {pago.estado === 'pendiente' &&
-                  pago.medio_pago === 'efectivo' &&
-                  perfilPropio!.role !== 'administrador' ? (
-                    <span className="text-slate-500">Pendiente de confirmación del admin</span>
-                  ) : (
-                    pago.estado === 'pendiente' &&
-                    (pago.comprobante_path || pago.medio_pago === 'efectivo' ? (
-                      <>
-                        {pago.sinAcreedorVinculado && pago.medio_pago !== 'efectivo' && (
-                          <p className="mb-2 font-semibold text-red-700">
-                            ⚠ Este lote todavía no tiene un acreedor vinculado. Podés confirmar
-                            tu parte, pero el pago no se va a completar hasta asignar uno desde
-                            el detalle del lote.
-                          </p>
-                        )}
-                        <form action={confirmarEstePago} className="flex flex-col gap-2">
-                        <input type="hidden" name="montoVisto" value={pago.monto} />
-                        <label className="text-xs text-slate-500">
-                          Monto a confirmar
-                          <input
-                            name="monto"
-                            type="number"
-                            step="0.01"
-                            min="0"
-                            defaultValue={pago.monto}
-                            required
-                            className={ENTRADA}
-                          />
-                        </label>
-                        <label className="text-xs text-slate-500">
-                          Monto recibido (opcional, para cierre de caja)
-                          <input
-                            name="montoRecibido"
-                            type="number"
-                            step="0.01"
-                            min="0"
-                            defaultValue={pago.monto_recibido ?? undefined}
-                            className={ENTRADA}
-                          />
-                        </label>
-                        <label className="text-xs text-slate-500">
-                          Moneda recibida
-                          <select
-                            name="monedaRecibida"
-                            defaultValue={pago.moneda_recibida ?? 'USD'}
-                            className={ENTRADA}
-                          >
-                            <option value="USD">USD</option>
-                            <option value="ARS">ARS</option>
-                          </select>
-                        </label>
-                        <BotonEnvio className={`cursor-pointer self-start ${ENLACE}`}>
-                          Confirmar mi parte
-                        </BotonEnvio>
-                        </form>
-                      </>
-                    ) : (
-                      <span className="text-slate-500">Esperando comprobante</span>
-                    )))}
-                  {pago.estado === 'confirmado' &&
-                    pago.motivo !== 'ajuste' &&
-                    perfilPropio!.role === 'administrador' && (
-                      <form action={editarMontoEstePago} className="flex flex-col gap-2">
-                        <input type="hidden" name="montoEfectivoVisto" value={pago.montoEfectivo} />
-                        <label className="text-xs text-slate-500">
-                          Corregir monto (actual: {pago.montoEfectivo} {pago.moneda})
-                          <input
-                            name="montoNuevo"
-                            type="number"
-                            step="0.01"
-                            min="0"
-                            defaultValue={pago.montoEfectivo}
-                            required
-                            className={ENTRADA}
-                          />
-                        </label>
-                        <BotonEnvio className={`cursor-pointer self-start ${ENLACE}`}>
-                          Editar monto
-                        </BotonEnvio>
-                      </form>
+                      <FileImage className="h-4.5 w-4.5" />
                     )}
-                </td>
-              </tr>
+                  </div>
+
+                  {/* Datos del Cliente y Lote */}
+                  <div className="flex min-w-0 flex-1 flex-col gap-0.5">
+                    <div className="flex items-baseline gap-2">
+                      <EnlaceBoton
+                        href={`/admin/clientes/${pago.cliente_id}`}
+                        className="text-[14px] font-bold text-blue-900 hover:underline"
+                      >
+                        {pago.nombreCliente}
+                      </EnlaceBoton>
+                      {pago.dniCliente && (
+                        <span className="text-xs font-medium text-slate-500">
+                          DNI {pago.dniCliente}
+                        </span>
+                      )}
+                    </div>
+                    <div className="text-[12.5px] text-slate-600">
+                      {pago.ubicacionLote} · {motivoTexto} · {medioTexto} · {fechaFormateada}
+                      {pago.nombreAcreedor !== '—' && (
+                        <span className="text-slate-500"> · Acreedor: {pago.nombreAcreedor}</span>
+                      )}
+                    </div>
+                    {/* Indicadores de Doble Confirmación para pagos pendientes */}
+                    {pago.estado === 'pendiente' && (
+                      <div className="flex items-center gap-3 pt-0.5 text-[11.5px]">
+                        {pago.medio_pago === 'efectivo' ? (
+                          <span className="text-slate-500">Confirmación solo de Admin (Efectivo)</span>
+                        ) : pago.cuentaCobroExterna ? (
+                          <span className="text-slate-500">Confirmación solo de Admin (Cuenta externa)</span>
+                        ) : (
+                          <>
+                            <span className={pago.confirmado_acreedor_por ? 'font-semibold text-green-700' : 'text-slate-500'}>
+                              {pago.confirmado_acreedor_por ? '✓ Acreedor confirmó' : '⏳ Acreedor pendiente'}
+                            </span>
+                            <span className="text-slate-300">·</span>
+                            <span className={pago.confirmado_admin_por ? 'font-semibold text-green-700' : 'text-slate-500'}>
+                              {pago.confirmado_admin_por ? '✓ Admin confirmó' : '⏳ Admin pendiente'}
+                            </span>
+                          </>
+                        )}
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Monto */}
+                  <div className="shrink-0 text-right">
+                    <span className={`text-[15px] font-extrabold text-blue-950 ${NUMERO_TABULAR}`}>
+                      {pago.moneda} {pago.monto.toLocaleString('es-AR')}
+                    </span>
+                  </div>
+
+                  {/* Enlace al Comprobante */}
+                  <div className="shrink-0">
+                    {pago.comprobante_path ? (
+                      pago.comprobanteUrl ? (
+                        <a
+                          href={pago.comprobanteUrl}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="flex items-center gap-1 text-xs font-semibold text-blue-700 hover:text-blue-900 hover:underline"
+                        >
+                          <ExternalLink className="h-3.5 w-3.5" />
+                          Comprobante
+                        </a>
+                      ) : (
+                        <span className="text-xs text-slate-400">Comprobante no disponible</span>
+                      )
+                    ) : pago.medio_pago === 'efectivo' ? (
+                      <span className="text-xs text-slate-400">— (efectivo)</span>
+                    ) : (
+                      <span className="text-xs text-slate-400">Sin comprobante</span>
+                    )}
+                  </div>
+
+                  {/* Badge de Estado */}
+                  <div className="shrink-0">
+                    {pago.estado === 'confirmado' ? (
+                      <span className={`${BADGE_BASE} ${BADGE_VERDE}`}>
+                        <CheckCircle2 className="mr-1 h-3 w-3" />
+                        Confirmado
+                      </span>
+                    ) : pago.medio_pago === 'efectivo' &&
+                      perfilPropio!.role !== 'administrador' ? (
+                      <span className={`${BADGE_BASE} ${BADGE_AMARILLO}`}>
+                        <Clock className="mr-1 h-3 w-3" />
+                        Pendiente admin
+                      </span>
+                    ) : (
+                      <span className={`${BADGE_BASE} ${BADGE_AMARILLO}`}>
+                        <Clock className="mr-1 h-3 w-3" />
+                        Pendiente
+                      </span>
+                    )}
+                  </div>
+                </div>
+
+                {/* Banner de Alerta si el lote no tiene acreedor vinculado */}
+                {tieneAlerta && (
+                  <div className={PAGO_BANNER_ALERTA}>
+                    <TriangleAlert className="h-4 w-4 shrink-0 text-red-600" />
+                    <span>
+                      Este lote todavía no tiene acreedor vinculado. Podés confirmar tu parte, pero el
+                      pago no se completa hasta asignar uno desde el detalle del lote.
+                    </span>
+                  </div>
+                )}
+
+                {/* Formulario de Confirmación Plegado (para pagos pendientes) */}
+                {puedeConfirmar && (
+                  <form action={confirmarEstePago} className={PAGO_FORM_CONFIRMACION}>
+                    <input type="hidden" name="montoVisto" value={pago.monto} />
+
+                    <label className="flex flex-col gap-1 text-[11px] font-semibold text-slate-600">
+                      Monto a confirmar
+                      <input
+                        name="monto"
+                        type="number"
+                        step="0.01"
+                        min="0"
+                        defaultValue={pago.monto}
+                        required
+                        className={`w-32 rounded-lg border border-blue-200 bg-white px-2.5 py-1.5 text-xs text-slate-900 shadow-sm ${NUMERO_TABULAR} focus:border-blue-600 focus:outline-none`}
+                      />
+                    </label>
+
+                    <label className="flex flex-col gap-1 text-[11px] font-semibold text-slate-600">
+                      Monto recibido (caja)
+                      <input
+                        name="montoRecibido"
+                        type="number"
+                        step="0.01"
+                        min="0"
+                        defaultValue={pago.monto_recibido ?? undefined}
+                        placeholder="opcional"
+                        className={`w-32 rounded-lg border border-blue-200 bg-white px-2.5 py-1.5 text-xs text-slate-900 shadow-sm ${NUMERO_TABULAR} focus:border-blue-600 focus:outline-none`}
+                      />
+                    </label>
+
+                    <label className="flex flex-col gap-1 text-[11px] font-semibold text-slate-600">
+                      Moneda recibida
+                      <select
+                        name="monedaRecibida"
+                        defaultValue={pago.moneda_recibida ?? 'USD'}
+                        className="rounded-lg border border-blue-200 bg-white px-2.5 py-1.5 text-xs text-slate-900 shadow-sm focus:border-blue-600 focus:outline-none"
+                      >
+                        <option value="USD">USD</option>
+                        <option value="ARS">ARS</option>
+                      </select>
+                    </label>
+
+                    <BotonEnvio className="cursor-pointer rounded-lg bg-blue-800 px-4 py-2 text-xs font-bold text-white shadow-sm transition-all hover:bg-blue-900 active:scale-[0.98]">
+                      Confirmar mi parte
+                    </BotonEnvio>
+                  </form>
+                )}
+
+                {/* Formulario de Corrección de Monto (para pagos confirmados, admin) */}
+                {pago.estado === 'confirmado' &&
+                  pago.motivo !== 'ajuste' &&
+                  perfilPropio!.role === 'administrador' && (
+                    <form action={editarMontoEstePago} className={PAGO_FORM_CONFIRMACION}>
+                      <input type="hidden" name="montoEfectivoVisto" value={pago.montoEfectivo} />
+
+                      <label className="flex flex-col gap-1 text-[11px] font-semibold text-slate-600">
+                        Corregir monto (actual: {pago.montoEfectivo.toLocaleString('es-AR')}{' '}
+                        {pago.moneda})
+                        <input
+                          name="montoNuevo"
+                          type="number"
+                          step="0.01"
+                          min="0"
+                          defaultValue={pago.montoEfectivo}
+                          required
+                          className={`w-36 rounded-lg border border-blue-200 bg-white px-2.5 py-1.5 text-xs text-slate-900 shadow-sm ${NUMERO_TABULAR} focus:border-blue-600 focus:outline-none`}
+                        />
+                      </label>
+
+                      <BotonEnvio className="cursor-pointer rounded-lg border-2 border-blue-800 bg-white px-3 py-1.5 text-xs font-bold text-blue-800 shadow-sm transition-all hover:bg-blue-50 active:scale-[0.98]">
+                        Editar monto
+                      </BotonEnvio>
+                    </form>
+                  )}
+              </div>
             )
-          })}
-        </tbody>
-      </table>
+          })
+        )}
       </div>
 
       {perfilPropio!.role === 'administrador' && (
-        // A propósito sin link en la navegación principal (pedido de Gabriel
-        // 28/08: "una pestaña que no esté visible pero que se pueda ver sin
-        // ningún problema") -- queda accesible acá, al pie.
-        <p className="mt-6 text-xs text-slate-400">
+        <p className="mt-3 text-xs text-slate-400">
           <EnlaceBoton href="/admin/pagos/auditoria" className={ENLACE}>
             Ver historial de auditoría de confirmaciones →
           </EnlaceBoton>

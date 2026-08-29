@@ -219,3 +219,27 @@ export const PORTAL_BOTON_PAGAR =
   'flex items-center gap-[7px] rounded-[9px] bg-blue-800 px-[18px] py-[10px] text-[13.5px] font-semibold text-white shadow-[0_4px_12px_-4px_rgba(30,64,175,0.55)] transition-colors hover:bg-blue-900'
 export const PORTAL_BOTON_REGULARIZAR =
   'flex items-center gap-[7px] rounded-[9px] bg-amber-700 px-[18px] py-[10px] text-[13.5px] font-semibold text-white transition-colors hover:bg-amber-800'
+
+// PR 4 (ver design-system/rediseno/PLAN.md) -- Panel de morosos + Pagos
+// (MOCKUP 3 y MOCKUP 4). Valores sacados del mockup de referencia.
+
+export const MOROSOS_KPI_TARJETA =
+  'flex flex-col gap-2 rounded-xl bg-white p-[15px_17px] shadow-[0_1px_2px_rgba(15,32,73,0.05)]'
+export const MOROSOS_LISTA_WRAP =
+  'flex flex-col overflow-hidden rounded-xl border border-blue-100 bg-white shadow-[0_1px_2px_rgba(15,32,73,0.05)]'
+export const MOROSOS_GRUPO_HEADER =
+  'flex items-center gap-2.5 border-b border-blue-50/70 bg-slate-50/50 px-5 py-3'
+export const MOROSOS_FILA =
+  'flex items-center gap-3 border-t border-blue-50/60 px-5 py-3 transition-colors hover:bg-slate-50/60'
+
+export const PAGO_TARJETA =
+  'overflow-hidden rounded-xl border border-blue-100 bg-white shadow-[0_1px_2px_rgba(15,32,73,0.05)] transition-all'
+export const PAGO_TARJETA_ALERTA =
+  'overflow-hidden rounded-xl border border-red-200 bg-white shadow-[0_1px_2px_rgba(15,32,73,0.05)] transition-all'
+export const PAGO_TARJETA_HEADER =
+  'flex flex-wrap items-center gap-3.5 px-5 py-3.5 sm:flex-nowrap'
+export const PAGO_FORM_CONFIRMACION =
+  'flex flex-wrap items-end gap-3.5 border-t border-blue-50 bg-slate-50/70 px-5 py-3.5'
+export const PAGO_BANNER_ALERTA =
+  'flex items-center gap-2 border-t border-red-100 bg-red-50/80 px-5 py-2.5 text-[12.5px] font-semibold text-red-700'
+

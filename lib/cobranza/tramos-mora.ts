@@ -11,6 +11,9 @@ export interface FilaMoroso {
   cuotasVencidas: number
   saldoPendiente: number
   moneda: string
+  loteoNombre?: string
+  manzana?: string | null
+  numeroLote?: string | null
 }
 
 export interface TramosMora {
@@ -30,7 +33,7 @@ export async function calcularTramosMora(supabase: SupabaseServerClient): Promis
 
   const { data: lotesVendidos } = await supabase
     .from('lotes')
-    .select('id, identificador, moneda, cliente_id, ciclo_actual, marcado_prejudicial')
+    .select('id, identificador, moneda, cliente_id, ciclo_actual, marcado_prejudicial, loteo_id, manzana, numero_lote, loteos(nombre)')
     .eq('estado', 'vendido')
     .not('cliente_id', 'is', null)
 
@@ -65,7 +68,18 @@ export async function calcularTramosMora(supabase: SupabaseServerClient): Promis
     prejudicialOficial: [],
   }
 
-  for (const lote of lotesVendidos ?? []) {
+  for (const lote of (lotesVendidos ?? []) as unknown as Array<{
+    id: string
+    identificador: string
+    moneda: string
+    cliente_id: string
+    ciclo_actual: number
+    marcado_prejudicial: boolean
+    loteo_id: string | null
+    manzana: string | null
+    numero_lote: string | null
+    loteos: { nombre: string } | { nombre: string }[] | null
+  }>) {
     const cuotasDelLote = cuotasPorLote.get(lote.id) ?? []
     const cuotasVencidas = cuotasDelLote.filter(
       (cuota) => cuota.saldo_pendiente > 0 && cuota.fecha_vencimiento < hoy
@@ -73,6 +87,10 @@ export async function calcularTramosMora(supabase: SupabaseServerClient): Promis
     const saldoPendiente = cuotasDelLote.reduce((acum, cuota) => acum + cuota.saldo_pendiente, 0)
 
     if (saldoPendiente === 0 && !lote.marcado_prejudicial) continue
+
+    const loteoNombre = Array.isArray(lote.loteos)
+      ? lote.loteos[0]?.nombre
+      : lote.loteos?.nombre
 
     const fila: FilaMoroso = {
       loteId: lote.id,
@@ -82,6 +100,9 @@ export async function calcularTramosMora(supabase: SupabaseServerClient): Promis
       cuotasVencidas,
       saldoPendiente,
       moneda: lote.moneda,
+      loteoNombre,
+      manzana: lote.manzana,
+      numeroLote: lote.numero_lote,
     }
 
     if (lote.marcado_prejudicial) {
