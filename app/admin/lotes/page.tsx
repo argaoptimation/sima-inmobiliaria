@@ -14,6 +14,7 @@ import { hoyArgentina } from '@/lib/fecha/hoy-argentina'
 import { formatearFechaCorta } from '@/lib/fecha/formatear-fecha-corta'
 import { EnlaceBoton } from '@/components/EnlaceBoton'
 import { BotonEnvio } from '@/components/BotonEnvio'
+import { EncabezadoPagina } from '@/components/EncabezadoPagina'
 import {
   TARJETA,
   ENTRADA,
@@ -21,7 +22,6 @@ import {
   BOTON_SECUNDARIO,
   ENLACE,
   ENLACE_TABLA,
-  TITULO_H1,
   TITULO_H2,
   BANNER_ERROR,
   TABLA_CONTENEDOR,
@@ -365,6 +365,23 @@ export default async function LotesPage({
 
   return (
     <main>
+      <EncabezadoPagina
+        titulo="Lotes"
+        migas={['Lotes']}
+        acciones={
+          !esVendedorOCobrador && (
+            <>
+              <EnlaceBoton href="/admin/lotes/importar" className={`cursor-pointer ${BOTON_SECUNDARIO}`}>
+                Importar varios
+              </EnlaceBoton>
+              <EnlaceBoton href="/admin/lotes/nuevo" className={`cursor-pointer ${BOTON_PRIMARIO}`}>
+                + Nuevo lote
+              </EnlaceBoton>
+            </>
+          )
+        }
+      />
+
       {error && <p className={BANNER_ERROR}>{error}</p>}
 
       <div className={`mb-6 ${TARJETA}`}>
@@ -405,20 +422,6 @@ export default async function LotesPage({
         <EnlaceBoton href="/admin/cotizacion-dolar" className={`mt-2 inline-block ${ENLACE}`}>
           Ver historial completo →
         </EnlaceBoton>
-      </div>
-
-      <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
-        <h1 className={TITULO_H1}>Lotes</h1>
-        {!esVendedorOCobrador && (
-          <div className="flex gap-3">
-            <EnlaceBoton href="/admin/lotes/importar" className={`cursor-pointer ${BOTON_SECUNDARIO}`}>
-              Importar varios
-            </EnlaceBoton>
-            <EnlaceBoton href="/admin/lotes/nuevo" className={`cursor-pointer ${BOTON_PRIMARIO}`}>
-              + Nuevo lote
-            </EnlaceBoton>
-          </div>
-        )}
       </div>
 
       {esVendedorOCobrador && (

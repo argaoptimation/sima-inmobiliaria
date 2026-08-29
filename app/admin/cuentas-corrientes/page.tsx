@@ -4,12 +4,12 @@ import { calcularSaldoCuentaCorrientePorMoneda } from '@/lib/cuenta-corriente/ca
 import { obtenerCuotasSinDistribucion } from '@/lib/cuenta-corriente/cuotas-sin-distribucion'
 import { FiltroEnVivo } from '@/components/FiltroEnVivo'
 import { EnlaceBoton } from '@/components/EnlaceBoton'
+import { EncabezadoPagina } from '@/components/EncabezadoPagina'
 import {
   ENTRADA,
   BOTON_SECUNDARIO,
   ENLACE,
   ENLACE_TABLA,
-  TITULO_H1,
   TABLA_CONTENEDOR,
   TABLA_HEADER_FILA,
   TABLA_HEADER_CELDA,
@@ -56,7 +56,7 @@ export default async function CuentasCorrientesPage({
 
   return (
     <main className="max-w-3xl">
-      <h1 className={`mb-6 ${TITULO_H1}`}>Cuentas corrientes</h1>
+      <EncabezadoPagina titulo="Cuentas corrientes" migas={['Cuentas corrientes']} />
 
       {cuotasSinDistribucion.length > 0 && (
         <div className="mb-6 rounded-lg bg-amber-50 p-3 text-sm text-amber-800">

@@ -3,11 +3,11 @@ import { requireAdminOCobrador } from '@/lib/auth/require-admin'
 import { FiltroEnVivo } from '@/components/FiltroEnVivo'
 import { hoyArgentina as hoyISO, fechaEnArgentina } from '@/lib/fecha/hoy-argentina'
 import { EnlaceBoton } from '@/components/EnlaceBoton'
+import { EncabezadoPagina } from '@/components/EncabezadoPagina'
 import {
   ENTRADA,
   ENLACE,
   ENLACE_TABLA,
-  TITULO_H1,
   TITULO_H2,
   TARJETA,
   TABLA_CONTENEDOR,
@@ -96,7 +96,7 @@ export default async function CierreCajaPage({
 
   return (
     <main>
-      <h1 className={`mb-2 ${TITULO_H1}`}>Cierre de caja</h1>
+      <EncabezadoPagina titulo="Cierre de caja" migas={['Cierre de caja']} />
       <p className="mb-6 text-sm text-slate-600">
         Resumen de lo recibido en el día — efectivo y transferencias por separado, una caja única
         para toda la operación.

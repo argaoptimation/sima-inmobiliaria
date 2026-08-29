@@ -1,0 +1,663 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>SIMA — Mockups de referencia para Claude Code</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<script src="https://unpkg.com/lucide@0.544.0/dist/umd/lucide.js"></script>
+<style>
+  body { margin:0; background:#eef2f7; font-family:'Plus Jakarta Sans', Arial, Helvetica, sans-serif; -webkit-font-smoothing:antialiased; }
+  a { color:#1e40af; text-decoration:none; }
+  a:hover { color:#1e3a8a; }
+  [data-icon] svg { width:100%; height:100%; display:block; stroke-width:1.75; }
+  .mock-wrap { padding:48px; display:flex; flex-direction:column; gap:40px; align-items:flex-start; }
+  .mock-label { font:600 12px/1 ui-monospace,SFMono-Regular,Menlo,monospace; letter-spacing:.1em; text-transform:uppercase; color:#475569; margin-bottom:10px; }
+</style>
+</head>
+<body>
+<div class="mock-wrap">
+  <div>
+    <div class="mock-label">MOCKUP 1 — Dashboard admin (PR2, reemplaza NavAdmin + redirect de /admin/lotes)</div>
+    <div id="1b" style="display:flex; flex-direction:column; gap:14px;">
+      <div style="display:flex; align-items:center; gap:12px;">
+        <span style="display:inline-flex; align-items:center; justify-content:center; min-width:34px; height:26px; padding:0 10px; border-radius:999px; background:#1e40af; color:#fff; font-size:13px; font-weight:700; letter-spacing:.02em;">1b</span>
+        <span style="font-size:15px; font-weight:600; color:#1e3a8a;">Shell nuevo + dashboard</span>
+        <span style="font-size:13px; color:#475569;">— sidebar agrupada reemplaza los 13 links en fila</span>
+      </div>
+
+      <div style="width:1440px; height:900px; background:#f8fafc; border-radius:16px; overflow:hidden; box-shadow:0 24px 60px -20px rgba(15,32,73,.35), 0 0 0 1px rgba(15,32,73,.06); display:flex;">
+
+        <div style="width:248px; height:900px; background:#16264f; display:flex; flex-direction:column; flex-shrink:0;">
+          <div style="display:flex; align-items:center; gap:11px; padding:22px 20px 20px;">
+            <div style="display:flex; align-items:center; padding:7px 12px; border-radius:9px; background:#fff;">
+              <img src="public/logo.png" alt="SIMA" style="height:24px; width:auto; display:block;">
+            </div>
+            <span data-icon="panel-left-close" style="width:17px; height:17px; color:rgba(255,255,255,.55); margin-left:auto; cursor:pointer;"></span>
+          </div>
+
+          <div style="flex:1; overflow:hidden; display:flex; flex-direction:column; gap:20px; padding:6px 12px 12px;">
+
+            <div style="display:flex; flex-direction:column; gap:2px;">
+              <a href="#" style="display:flex; align-items:center; gap:11px; padding:9px 11px; border-radius:8px; background:rgba(59,130,246,.18); color:#fff; font-size:14px; font-weight:600; position:relative;">
+                <span style="position:absolute; left:0; top:9px; bottom:9px; width:3px; border-radius:0 3px 3px 0; background:#60a5fa;"></span>
+                <span data-icon="layout-dashboard" style="width:17px; height:17px;"></span>Inicio
+              </a>
+            </div>
+
+            <div style="display:flex; flex-direction:column; gap:2px;">
+              <div style="padding:0 11px 6px; font:700 10.5px/1 'Plus Jakarta Sans'; letter-spacing:.13em; text-transform:uppercase; color:rgba(255,255,255,.62);">Operación</div>
+              <a href="#" style="display:flex; align-items:center; gap:11px; padding:9px 11px; border-radius:8px; color:rgba(255,255,255,.78); font-size:14px; font-weight:500; transition:background-color .2s, color .2s;" style-hover="background:rgba(255,255,255,.08); color:#fff;"><span data-icon="map-pinned" style="width:17px; height:17px;"></span>Lotes</a>
+              <a href="#" style="display:flex; align-items:center; gap:11px; padding:9px 11px; border-radius:8px; color:rgba(255,255,255,.78); font-size:14px; font-weight:500; transition:background-color .2s, color .2s;" style-hover="background:rgba(255,255,255,.08); color:#fff;"><span data-icon="layers" style="width:17px; height:17px;"></span>Loteos</a>
+              <a href="#" style="display:flex; align-items:center; gap:11px; padding:9px 11px; border-radius:8px; color:rgba(255,255,255,.78); font-size:14px; font-weight:500; transition:background-color .2s, color .2s;" style-hover="background:rgba(255,255,255,.08); color:#fff;"><span data-icon="users" style="width:17px; height:17px;"></span>Clientes</a>
+            </div>
+
+            <div style="display:flex; flex-direction:column; gap:2px;">
+              <div style="padding:0 11px 6px; font:700 10.5px/1 'Plus Jakarta Sans'; letter-spacing:.13em; text-transform:uppercase; color:rgba(255,255,255,.62);">Cobranza</div>
+              <a href="#" style="display:flex; align-items:center; gap:11px; padding:9px 11px; border-radius:8px; color:rgba(255,255,255,.78); font-size:14px; font-weight:500; transition:background-color .2s, color .2s;" style-hover="background:rgba(255,255,255,.08); color:#fff;">
+                <span data-icon="banknote" style="width:17px; height:17px;"></span>Pagos
+                <span style="margin-left:auto; min-width:19px; height:19px; padding:0 6px; border-radius:999px; background:#f59e0b; color:#3b1d02; font-size:11px; font-weight:800; display:flex; align-items:center; justify-content:center;">6</span>
+              </a>
+              <a href="#" style="display:flex; align-items:center; gap:11px; padding:9px 11px; border-radius:8px; color:rgba(255,255,255,.78); font-size:14px; font-weight:500; transition:background-color .2s, color .2s;" style-hover="background:rgba(255,255,255,.08); color:#fff;"><span data-icon="triangle-alert" style="width:17px; height:17px;"></span>Panel de morosos</a>
+              <a href="#" style="display:flex; align-items:center; gap:11px; padding:9px 11px; border-radius:8px; color:rgba(255,255,255,.78); font-size:14px; font-weight:500; transition:background-color .2s, color .2s;" style-hover="background:rgba(255,255,255,.08); color:#fff;"><span data-icon="wallet" style="width:17px; height:17px;"></span>Efectivo</a>
+              <a href="#" style="display:flex; align-items:center; gap:11px; padding:9px 11px; border-radius:8px; color:rgba(255,255,255,.78); font-size:14px; font-weight:500; transition:background-color .2s, color .2s;" style-hover="background:rgba(255,255,255,.08); color:#fff;"><span data-icon="calculator" style="width:17px; height:17px;"></span>Cierre de caja</a>
+            </div>
+
+            <div style="display:flex; flex-direction:column; gap:2px;">
+              <div style="padding:0 11px 6px; font:700 10.5px/1 'Plus Jakarta Sans'; letter-spacing:.13em; text-transform:uppercase; color:rgba(255,255,255,.62);">Finanzas</div>
+              <a href="#" style="display:flex; align-items:center; gap:11px; padding:9px 11px; border-radius:8px; color:rgba(255,255,255,.78); font-size:14px; font-weight:500; transition:background-color .2s, color .2s;" style-hover="background:rgba(255,255,255,.08); color:#fff;"><span data-icon="book-open" style="width:17px; height:17px;"></span>Cuentas corrientes</a>
+              <a href="#" style="display:flex; align-items:center; gap:11px; padding:9px 11px; border-radius:8px; color:rgba(255,255,255,.78); font-size:14px; font-weight:500; transition:background-color .2s, color .2s;" style-hover="background:rgba(255,255,255,.08); color:#fff;"><span data-icon="building-2" style="width:17px; height:17px;"></span>Cuentas externas</a>
+              <a href="#" style="display:flex; align-items:center; gap:11px; padding:9px 11px; border-radius:8px; color:rgba(255,255,255,.78); font-size:14px; font-weight:500; transition:background-color .2s, color .2s;" style-hover="background:rgba(255,255,255,.08); color:#fff;"><span data-icon="trending-up" style="width:17px; height:17px;"></span>Índices</a>
+            </div>
+
+            <div style="display:flex; flex-direction:column; gap:2px;">
+              <div style="padding:0 11px 6px; font:700 10.5px/1 'Plus Jakarta Sans'; letter-spacing:.13em; text-transform:uppercase; color:rgba(255,255,255,.62);">Sistema</div>
+              <a href="#" style="display:flex; align-items:center; gap:11px; padding:9px 11px; border-radius:8px; color:rgba(255,255,255,.78); font-size:14px; font-weight:500; transition:background-color .2s, color .2s;" style-hover="background:rgba(255,255,255,.08); color:#fff;"><span data-icon="user-cog" style="width:17px; height:17px;"></span>Usuarios</a>
+              <a href="#" style="display:flex; align-items:center; gap:11px; padding:9px 11px; border-radius:8px; color:rgba(255,255,255,.78); font-size:14px; font-weight:500; transition:background-color .2s, color .2s;" style-hover="background:rgba(255,255,255,.08); color:#fff;"><span data-icon="file-clock" style="width:17px; height:17px;"></span>Historial</a>
+            </div>
+          </div>
+
+          <div style="border-top:1px solid rgba(255,255,255,.10); padding:14px 16px; display:flex; align-items:center; gap:11px;">
+            <div style="width:32px; height:32px; border-radius:50%; background:#1e40af; display:flex; align-items:center; justify-content:center; color:#fff; font-size:12.5px; font-weight:700;">NR</div>
+            <div style="display:flex; flex-direction:column; gap:1px; min-width:0;">
+              <span style="color:#fff; font-size:13px; font-weight:600; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">Nicolás R.</span>
+              <span style="color:rgba(255,255,255,.72); font-size:11.5px;">Administrador</span>
+            </div>
+            <span data-icon="log-out" style="width:16px; height:16px; color:rgba(255,255,255,.45); margin-left:auto; cursor:pointer;"></span>
+          </div>
+        </div>
+
+        <div style="flex:1; height:900px; display:flex; flex-direction:column; min-width:0;">
+
+          <div style="height:64px; flex-shrink:0; background:#fff; border-bottom:1px solid #dbeafe; display:flex; align-items:center; gap:16px; padding:0 28px;">
+            <div style="position:relative; width:340px;">
+              <span data-icon="search" style="position:absolute; left:12px; top:50%; transform:translateY(-50%); width:16px; height:16px; color:#64748b;"></span>
+              <input placeholder="Buscar lote, cliente o comprobante…" style="width:100%; box-sizing:border-box; padding:9px 12px 9px 36px; border:1px solid #dbeafe; border-radius:9px; background:#f8fafc; font-family:inherit; font-size:13.5px; color:#1e293b; outline:none;" style-focus="border-color:#3b82f6; box-shadow:0 0 0 3px #dbeafe; background:#fff;">
+            </div>
+            <div style="margin-left:auto; display:flex; align-items:center; gap:14px;">
+              <div style="display:flex; align-items:center; gap:7px; padding:6px 11px; border-radius:8px; background:#f0fdf4; border:1px solid #dcfce7;">
+                <span style="width:6px; height:6px; border-radius:50%; background:#16a34a;"></span>
+                <span style="font-size:12.5px; font-weight:600; color:#15803d; font-variant-numeric:tabular-nums;">Dólar $1.485</span>
+              </div>
+              <span data-icon="bell" style="width:19px; height:19px; color:#64748b; cursor:pointer;"></span>
+            </div>
+          </div>
+
+          <div style="flex:1; overflow:hidden; padding:26px 28px; display:flex; flex-direction:column; gap:20px;">
+
+            <div style="display:flex; align-items:flex-end; justify-content:space-between; gap:20px;">
+              <div style="display:flex; flex-direction:column; gap:6px;">
+                <div style="display:flex; align-items:center; gap:7px; font-size:12.5px; color:#64748b;">
+                  <span>SIMA</span><span data-icon="chevron-right" style="width:13px; height:13px;"></span><span style="color:#64748b;">Inicio</span>
+                </div>
+                <h2 style="margin:0; font-size:24px; font-weight:800; color:#1e3a8a; letter-spacing:-.02em;">Buenos días, Nicolás</h2>
+              </div>
+              <div style="display:flex; gap:9px;">
+                <button style="display:flex; align-items:center; gap:7px; padding:9px 14px; border:1px solid #1e40af; border-radius:9px; background:#fff; color:#1e40af; font-family:inherit; font-size:13.5px; font-weight:600; cursor:pointer; transition:background-color .2s; padding-left:14px; padding-right:14px; align-self:auto;" style-hover="background:#eff6ff;"><span data-icon="download" style="width:15px; height:15px;"></span>Exportar</button>
+                <button style="display:flex; align-items:center; gap:7px; padding:9px 14px; border:none; border-radius:9px; background:#1e40af; color:#fff; font-family:inherit; font-size:13.5px; font-weight:600; cursor:pointer; transition:background-color .2s;" style-hover="background:#1e3a8a;"><span data-icon="plus" style="width:15px; height:15px;"></span>Registrar pago</button>
+              </div>
+            </div>
+
+            <div style="display:grid; grid-template-columns:repeat(4,1fr); gap:14px;">
+
+              <div style="background:#fff; border:1px solid #dbeafe; border-radius:12px; padding:16px 17px; box-shadow:0 1px 2px rgba(15,32,73,.05); display:flex; flex-direction:column; gap:11px;">
+                <div style="display:flex; align-items:center; justify-content:space-between;">
+                  <span style="font-size:12.5px; font-weight:600; color:#64748b;">Lotes disponibles</span>
+                  <span data-icon="map-pinned" style="width:16px; height:16px; color:#64748b;"></span>
+                </div>
+                <div style="display:flex; align-items:baseline; gap:7px;">
+                  <span style="font-size:30px; font-weight:800; color:#1e3a8a; letter-spacing:-.03em; font-variant-numeric:tabular-nums;">47</span>
+                  <span style="font-size:13px; color:#475569; font-variant-numeric:tabular-nums;">/ 312</span>
+                </div>
+                <div style="height:5px; border-radius:3px; background:#eff6ff; overflow:hidden;"><div style="width:15%; height:100%; border-radius:3px; background:#3b82f6;"></div></div>
+              </div>
+
+              <div style="background:#fff; border:1px solid #dbeafe; border-radius:12px; padding:16px 17px; box-shadow:0 1px 2px rgba(15,32,73,.05); display:flex; flex-direction:column; gap:11px;">
+                <div style="display:flex; align-items:center; justify-content:space-between;">
+                  <span style="font-size:12.5px; font-weight:600; color:#64748b;">Cobrado este mes</span>
+                  <span data-icon="banknote" style="width:16px; height:16px; color:#64748b;"></span>
+                </div>
+                <div style="display:flex; align-items:baseline; gap:5px;">
+                  <span style="font-size:15px; font-weight:600; color:#475569;">USD</span>
+                  <span style="font-size:30px; font-weight:800; color:#1e3a8a; letter-spacing:-.03em; font-variant-numeric:tabular-nums;">184.500</span>
+                </div>
+                <div style="display:flex; align-items:center; gap:5px;">
+                  <span data-icon="arrow-up-right" style="width:14px; height:14px; color:#15803d;"></span>
+                  <span style="font-size:12.5px; font-weight:600; color:#15803d; font-variant-numeric:tabular-nums;">12,4%</span>
+                  <span style="font-size:12.5px; color:#475569;">vs. julio</span>
+                </div>
+              </div>
+
+              <div style="background:#fff; border:1px solid #dbeafe; border-radius:12px; padding:16px 17px; box-shadow:0 1px 2px rgba(15,32,73,.05); display:flex; flex-direction:column; gap:11px;">
+                <div style="display:flex; align-items:center; justify-content:space-between;">
+                  <span style="font-size:12.5px; font-weight:600; color:#64748b;">Lotes en mora</span>
+                  <span data-icon="triangle-alert" style="width:16px; height:16px; color:#64748b;"></span>
+                </div>
+                <div style="display:flex; align-items:baseline; gap:7px;">
+                  <span style="font-size:30px; font-weight:800; color:#1e3a8a; letter-spacing:-.03em; font-variant-numeric:tabular-nums;">23</span>
+                  <span style="font-size:13px; color:#475569;">de 265 vendidos</span>
+                </div>
+                <div style="display:flex; gap:4px; height:5px;">
+                  <div style="flex:11; border-radius:3px; background:#fcd34d;"></div>
+                  <div style="flex:7; border-radius:3px; background:#f59e0b;"></div>
+                  <div style="flex:5; border-radius:3px; background:#dc2626;"></div>
+                </div>
+              </div>
+
+              <div style="background:#fff; border:1px solid #dbeafe; border-radius:12px; padding:16px 17px; box-shadow:0 1px 2px rgba(15,32,73,.05); display:flex; flex-direction:column; gap:11px;">
+                <div style="display:flex; align-items:center; justify-content:space-between;">
+                  <span style="font-size:12.5px; font-weight:600; color:#64748b;">Pagos por aprobar</span>
+                  <span data-icon="receipt" style="width:16px; height:16px; color:#64748b;"></span>
+                </div>
+                <div style="display:flex; align-items:baseline; gap:7px;">
+                  <span style="font-size:30px; font-weight:800; color:#b45309; letter-spacing:-.03em; font-variant-numeric:tabular-nums;">6</span>
+                  <span style="font-size:13px; color:#475569;">esperando revisión</span>
+                </div>
+                <a href="#" style="font-size:12.5px; font-weight:600; color:#1e40af; display:flex; align-items:center; gap:4px;">Revisar ahora <span data-icon="arrow-right" style="width:13px; height:13px;"></span></a>
+              </div>
+            </div>
+
+            <div style="display:grid; grid-template-columns:1fr 340px; gap:14px; flex:1; min-height:0;">
+
+              <div style="background:#fff; border:1px solid #dbeafe; border-radius:12px; box-shadow:0 1px 2px rgba(15,32,73,.05); display:flex; flex-direction:column; overflow:hidden;">
+                <div style="padding:15px 18px 12px; display:flex; align-items:center; justify-content:space-between; border-bottom:1px solid #eff6ff;">
+                  <span style="font-size:14.5px; font-weight:700; color:#1e3a8a;">Cobranza mensual</span>
+                  <span style="font-size:12px; color:#64748b;">USD · últimos 8 meses</span>
+                </div>
+                <div style="flex:1; padding:20px 18px 12px; display:flex; align-items:flex-end; gap:14px;">
+                  <div style="flex:1; display:flex; flex-direction:column; align-items:center; gap:8px; height:100%; justify-content:flex-end;"><div style="width:100%; max-width:38px; height:44%; border-radius:5px 5px 2px 2px; background:#dbeafe;"></div><span style="font-size:11.5px; color:#475569; font-weight:500;">Ene</span></div>
+                  <div style="flex:1; display:flex; flex-direction:column; align-items:center; gap:8px; height:100%; justify-content:flex-end;"><div style="width:100%; max-width:38px; height:52%; border-radius:5px 5px 2px 2px; background:#dbeafe;"></div><span style="font-size:11.5px; color:#475569; font-weight:500;">Feb</span></div>
+                  <div style="flex:1; display:flex; flex-direction:column; align-items:center; gap:8px; height:100%; justify-content:flex-end;"><div style="width:100%; max-width:38px; height:47%; border-radius:5px 5px 2px 2px; background:#dbeafe;"></div><span style="font-size:11.5px; color:#475569; font-weight:500;">Mar</span></div>
+                  <div style="flex:1; display:flex; flex-direction:column; align-items:center; gap:8px; height:100%; justify-content:flex-end;"><div style="width:100%; max-width:38px; height:61%; border-radius:5px 5px 2px 2px; background:#bfdbfe;"></div><span style="font-size:11.5px; color:#475569; font-weight:500;">Abr</span></div>
+                  <div style="flex:1; display:flex; flex-direction:column; align-items:center; gap:8px; height:100%; justify-content:flex-end;"><div style="width:100%; max-width:38px; height:58%; border-radius:5px 5px 2px 2px; background:#bfdbfe;"></div><span style="font-size:11.5px; color:#475569; font-weight:500;">May</span></div>
+                  <div style="flex:1; display:flex; flex-direction:column; align-items:center; gap:8px; height:100%; justify-content:flex-end;"><div style="width:100%; max-width:38px; height:70%; border-radius:5px 5px 2px 2px; background:#93c5fd;"></div><span style="font-size:11.5px; color:#475569; font-weight:500;">Jun</span></div>
+                  <div style="flex:1; display:flex; flex-direction:column; align-items:center; gap:8px; height:100%; justify-content:flex-end;"><div style="width:100%; max-width:38px; height:76%; border-radius:5px 5px 2px 2px; background:#60a5fa;"></div><span style="font-size:11.5px; color:#475569; font-weight:500;">Jul</span></div>
+                  <div style="flex:1; display:flex; flex-direction:column; align-items:center; gap:8px; height:100%; justify-content:flex-end; position:relative;">
+                    <span style="position:absolute; top:0; left:50%; transform:translateX(-50%); font-size:11.5px; font-weight:700; color:#1e40af; font-variant-numeric:tabular-nums;">184.5k</span>
+                    <div style="width:100%; max-width:38px; height:86%; border-radius:5px 5px 2px 2px; background:#1e40af;"></div><span style="font-size:11.5px; color:#1e3a8a; font-weight:700;">Ago</span>
+                  </div>
+                </div>
+              </div>
+
+              <div style="background:#fff; border:1px solid #dbeafe; border-radius:12px; box-shadow:0 1px 2px rgba(15,32,73,.05); display:flex; flex-direction:column; overflow:hidden;">
+                <div style="padding:15px 18px 12px; border-bottom:1px solid #eff6ff; display:flex; align-items:center; justify-content:space-between;">
+                  <span style="font-size:14.5px; font-weight:700; color:#1e3a8a;">Mora por tramo</span>
+                  <a href="#" style="font-size:12px; font-weight:600; color:#1e40af;">Ver panel</a>
+                </div>
+                <div style="padding:12px 18px; display:flex; flex-direction:column;">
+                  <div style="display:flex; align-items:center; gap:11px; padding:11px 0; border-bottom:1px solid #f1f5f9;">
+                    <span style="width:9px; height:9px; border-radius:50%; background:#fcd34d;"></span>
+                    <span style="font-size:13.5px; color:#475569; font-weight:500;">Deben 1 cuota</span>
+                    <span style="margin-left:auto; font-size:15px; font-weight:700; color:#1e3a8a; font-variant-numeric:tabular-nums;">11</span>
+                  </div>
+                  <div style="display:flex; align-items:center; gap:11px; padding:11px 0; border-bottom:1px solid #f1f5f9;">
+                    <span style="width:9px; height:9px; border-radius:50%; background:#f59e0b;"></span>
+                    <span style="font-size:13.5px; color:#475569; font-weight:500;">Deben 2 cuotas</span>
+                    <span style="margin-left:auto; font-size:15px; font-weight:700; color:#1e3a8a; font-variant-numeric:tabular-nums;">7</span>
+                  </div>
+                  <div style="display:flex; align-items:center; gap:11px; padding:11px 0; border-bottom:1px solid #f1f5f9;">
+                    <span style="width:9px; height:9px; border-radius:50%; background:#ea580c;"></span>
+                    <span style="font-size:13.5px; color:#475569; font-weight:500;">Posible prejudicial</span>
+                    <span style="margin-left:auto; font-size:15px; font-weight:700; color:#b45309; font-variant-numeric:tabular-nums;">5</span>
+                  </div>
+                  <div style="display:flex; align-items:center; gap:11px; padding:11px 0;">
+                    <span style="width:9px; height:9px; border-radius:50%; background:#dc2626;"></span>
+                    <span style="font-size:13.5px; color:#475569; font-weight:500;">Prejudicial marcado</span>
+                    <span style="margin-left:auto; font-size:15px; font-weight:700; color:#b91c1c; font-variant-numeric:tabular-nums;">2</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div style="background:#fff; border:1px solid #dbeafe; border-radius:12px; box-shadow:0 1px 2px rgba(15,32,73,.05); overflow:hidden;">
+              <div style="padding:14px 18px; display:flex; align-items:center; justify-content:space-between; border-bottom:1px solid #eff6ff;">
+                <span style="font-size:14.5px; font-weight:700; color:#1e3a8a;">Pagos esperando aprobación</span>
+                <a href="#" style="font-size:12.5px; font-weight:600; color:#1e40af;">Ver todos</a>
+              </div>
+              <table style="width:100%; border-collapse:collapse; font-size:13.5px;">
+                <thead>
+                  <tr style="background:#eff6ff; text-align:left; color:#1e3a8a;">
+                    <th style="padding:10px 18px; font-weight:600;">Cliente</th>
+                    <th style="padding:10px 18px; font-weight:600;">Lote</th>
+                    <th style="padding:10px 18px; font-weight:600;">Fecha</th>
+                    <th style="padding:10px 18px; font-weight:600; text-align:right;">Monto</th>
+                    <th style="padding:10px 18px; font-weight:600;">Estado</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr style="border-top:1px solid #dbeafe; transition:background-color .2s;" style-hover="background:rgba(239,246,255,.6);">
+                    <td style="padding:11px 18px; font-weight:500; color:#1e293b;">Martín Escalante</td>
+                    <td style="padding:11px 18px; color:#475569;">Los Álamos · Mz 4 Lt 12</td>
+                    <td style="padding:11px 18px; color:#475569; font-variant-numeric:tabular-nums;">27/08/2026</td>
+                    <td style="padding:11px 18px; color:#1e293b; font-weight:600; text-align:right; font-variant-numeric:tabular-nums;">USD 1.250</td>
+                    <td style="padding:11px 18px;"><span style="display:inline-block; padding:3px 10px; border-radius:999px; background:#fffbeb; color:#b45309; font-size:12px; font-weight:600;">Pendiente</span></td>
+                  </tr>
+                  <tr style="border-top:1px solid #dbeafe; transition:background-color .2s;" style-hover="background:rgba(239,246,255,.6);">
+                    <td style="padding:11px 18px; font-weight:500; color:#1e293b;">Carla Benítez</td>
+                    <td style="padding:11px 18px; color:#475569;">Vista Sur · Mz 1 Lt 03</td>
+                    <td style="padding:11px 18px; color:#475569; font-variant-numeric:tabular-nums;">27/08/2026</td>
+                    <td style="padding:11px 18px; color:#1e293b; font-weight:600; text-align:right; font-variant-numeric:tabular-nums;">ARS 940.000</td>
+                    <td style="padding:11px 18px;"><span style="display:inline-block; padding:3px 10px; border-radius:999px; background:#fffbeb; color:#b45309; font-size:12px; font-weight:600;">Pendiente</span></td>
+                  </tr>
+                  <tr style="border-top:1px solid #dbeafe; transition:background-color .2s;" style-hover="background:rgba(239,246,255,.6);">
+                    <td style="padding:11px 18px; font-weight:500; color:#1e293b;">Jorge Villalba</td>
+                    <td style="padding:11px 18px; color:#475569;">Los Álamos · Mz 7 Lt 21</td>
+                    <td style="padding:11px 18px; color:#475569; font-variant-numeric:tabular-nums;">26/08/2026</td>
+                    <td style="padding:11px 18px; color:#1e293b; font-weight:600; text-align:right; font-variant-numeric:tabular-nums;">USD 2.100</td>
+                    <td style="padding:11px 18px;"><span style="display:inline-block; padding:3px 10px; border-radius:999px; background:#fffbeb; color:#b45309; font-size:12px; font-weight:600;">Pendiente</span></td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div style="display:flex; gap:22px; max-width:1440px; padding-top:4px;">
+        <p style="margin:0; flex:1; font-size:13px; line-height:1.65; color:#475569;"><strong style="color:#1e3a8a;">Qué reemplaza:</strong> los 13 links en fila de <span style="font-family:ui-monospace,Menlo,monospace; font-size:12px;">NavAdmin.tsx</span> pasan a cuatro grupos con jerarquía. Los permisos por rol no cambian: se ocultan los mismos ítems, solo que ahora dentro de su grupo.</p>
+        <p style="margin:0; flex:1; font-size:13px; line-height:1.65; color:#475569;"><strong style="color:#1e3a8a;">Densidad preservada:</strong> las tablas mantienen <span style="font-family:ui-monospace,Menlo,monospace; font-size:12px;">px-4 py-3</span> y la semántica verde/ámbar/rojo. Lo único nuevo es <em>tabular-nums</em> y montos alineados a la derecha.</p>
+      </div>
+    </div>
+  </div>
+  <div>
+    <div class="mock-label">MOCKUP 2 — Portal del cliente (PR3, reemplaza app/portal-cliente/page.tsx)</div>
+    <div id="1c" style="display:flex; flex-direction:column; gap:14px;">
+      <div style="display:flex; align-items:center; gap:12px;">
+        <span style="display:inline-flex; align-items:center; justify-content:center; min-width:34px; height:26px; padding:0 10px; border-radius:999px; background:#1e40af; color:#fff; font-size:13px; font-weight:700; letter-spacing:.02em;">1c</span>
+        <span style="font-size:15px; font-weight:600; color:#1e3a8a;">Portal del cliente</span>
+        <span style="font-size:13px; color:#475569;">— la cara del producto ante los clientes de Nicolás</span>
+      </div>
+
+      <div style="width:1440px; height:900px; background:#f8fafc; border-radius:16px; overflow:hidden; box-shadow:0 24px 60px -20px rgba(15,32,73,.35), 0 0 0 1px rgba(15,32,73,.06); display:flex; flex-direction:column;">
+
+        <div style="flex:1; overflow:hidden; display:flex; flex-direction:column;">
+
+          <div style="position:relative; height:200px; flex-shrink:0; overflow:hidden; background:linear-gradient(120deg, #0f3d3a 0%, #1a5c4f 30%, #1e6b6a 55%, #1e4f7a 80%, #16355e 100%); background-size:220% 220%; animation:simaFluido 16s ease-in-out infinite;">
+            <div style="position:absolute; inset:-20%; background:radial-gradient(closest-side at 25% 35%, rgba(255,255,255,.10), transparent 60%),radial-gradient(closest-side at 78% 65%, rgba(255,255,255,.08), transparent 55%); animation:simaFluido2 20s ease-in-out infinite;"></div>
+            <div style="position:absolute; inset:0; background:linear-gradient(200deg, rgba(8,20,24,.25) 0%, rgba(8,20,24,.05) 45%, rgba(8,16,26,.82) 100%);"></div>
+
+            <div style="position:absolute; left:48px; top:26px; display:flex; align-items:center; padding:8px 14px; border-radius:10px; background:#fff;">
+              <img src="public/logo.png" alt="SIMA" style="height:22px; width:auto; display:block;">
+            </div>
+            <div style="position:absolute; top:26px; right:48px; display:flex; align-items:center; gap:22px;">
+              <a href="#" style="font-size:14px; font-weight:600; color:#fff;">Mis lotes</a>
+              <a href="#" style="font-size:14px; font-weight:500; color:rgba(255,255,255,.75);">Mi perfil</a>
+              <div style="width:31px; height:31px; border-radius:50%; background:rgba(255,255,255,.18); border:1px solid rgba(255,255,255,.3); display:flex; align-items:center; justify-content:center; color:#fff; font-size:12px; font-weight:700;">ME</div>
+              <span data-icon="log-out" style="width:17px; height:17px; color:rgba(255,255,255,.75); cursor:pointer;"></span>
+            </div>
+
+            <div style="position:absolute; left:48px; bottom:22px; display:flex; align-items:flex-end; justify-content:space-between; gap:20px; right:48px;">
+              <div style="display:flex; flex-direction:column; gap:5px;">
+                <h2 style="margin:0; font-size:26px; font-weight:800; color:#fff; letter-spacing:-.02em;">Hola, Martín</h2>
+                <p style="margin:0; font-size:14px; color:rgba(255,255,255,.82);">Tenés 2 lotes en curso. Tu próximo vencimiento es el 10 de septiembre.</p>
+              </div>
+              <div style="display:flex; align-items:center; gap:8px; padding:9px 14px; border-radius:10px; background:rgba(255,255,255,.95); box-shadow:0 4px 14px -4px rgba(0,0,0,.3);">
+                <span data-icon="circle-check" style="width:16px; height:16px; color:#15803d;"></span>
+                <span style="font-size:13.5px; font-weight:600; color:#15803d;">Estás al día</span>
+              </div>
+            </div>
+          </div>
+
+          <div style="flex:1; overflow:hidden; padding:0 48px 40px; display:flex; flex-direction:column; gap:26px; max-width:1100px; width:100%; box-sizing:border-box; margin:0 auto;">
+
+          <div style="display:flex; flex-direction:column; gap:16px; margin-top:24px; position:relative; z-index:1;">
+
+            <div style="background:#fff; border:1px solid #dbeafe; border-radius:14px; box-shadow:0 1px 3px rgba(15,32,73,.06); overflow:hidden; display:flex;">
+              <div style="flex:1; padding:22px 26px; display:flex; flex-direction:column; gap:18px; min-width:0;">
+                <div style="display:flex; align-items:flex-start; justify-content:space-between; gap:16px;">
+                  <div style="display:flex; flex-direction:column; gap:4px; min-width:0;">
+                    <span style="font-size:11.5px; font-weight:700; letter-spacing:.11em; text-transform:uppercase; color:#475569;">Los Álamos</span>
+                    <span style="font-size:20px; font-weight:700; color:#1e3a8a; letter-spacing:-.015em;">Manzana 4 · Lote 12</span>
+                  </div>
+                  <span style="flex-shrink:0; padding:5px 13px; border-radius:999px; background:#f0fdf4; color:#15803d; font-size:12.5px; font-weight:600;">Al día</span>
+                </div>
+
+                <div style="display:flex; flex-direction:column; gap:8px;">
+                  <div style="display:flex; align-items:baseline; justify-content:space-between;">
+                    <span style="font-size:13px; color:#64748b;">Cuota <strong style="color:#1e3a8a; font-variant-numeric:tabular-nums;">18</strong> de <span style="font-variant-numeric:tabular-nums;">60</span></span>
+                    <span style="font-size:13px; color:#64748b; font-variant-numeric:tabular-nums;">Saldo <strong style="color:#1e3a8a;">USD 52.500</strong></span>
+                  </div>
+                  <div style="height:7px; border-radius:4px; background:#eff6ff; overflow:hidden;"><div style="width:30%; height:100%; border-radius:4px; background:linear-gradient(90deg,#3b82f6,#1e40af);"></div></div>
+                </div>
+
+                <div style="display:flex; align-items:center; gap:26px; padding-top:2px;">
+                  <div style="display:flex; flex-direction:column; gap:3px;">
+                    <span style="font-size:11.5px; color:#475569; font-weight:500;">Próximo vencimiento</span>
+                    <span style="font-size:14.5px; font-weight:700; color:#1e3a8a; font-variant-numeric:tabular-nums;">10/09/2026</span>
+                  </div>
+                  <div style="display:flex; flex-direction:column; gap:3px;">
+                    <span style="font-size:11.5px; color:#475569; font-weight:500;">Monto</span>
+                    <span style="font-size:14.5px; font-weight:700; color:#1e3a8a; font-variant-numeric:tabular-nums;">USD 1.250</span>
+                  </div>
+                  <div style="margin-left:auto; display:flex; gap:9px;">
+                    <button style="padding:10px 16px; border:1px solid #dbeafe; border-radius:9px; background:#fff; color:#1e40af; font-family:inherit; font-size:13.5px; font-weight:600; cursor:pointer; transition:background-color .2s;" style-hover="background:#eff6ff;">Ver detalle</button>
+                    <button style="display:flex; align-items:center; gap:7px; padding:10px 18px; border:none; border-radius:9px; background:#1e40af; color:#fff; font-family:inherit; font-size:13.5px; font-weight:600; cursor:pointer; transition:background-color .2s, box-shadow .2s; box-shadow:0 4px 12px -4px rgba(30,64,175,.55);" style-hover="background:#1e3a8a;"><span data-icon="credit-card" style="width:15px; height:15px;"></span>Pagar cuota</button>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div style="background:#fff; border:1px solid #dbeafe; border-radius:14px; box-shadow:0 1px 3px rgba(15,32,73,.06); overflow:hidden; display:flex;">
+              <div style="flex:1; padding:22px 26px; display:flex; flex-direction:column; gap:18px; min-width:0;">
+                <div style="display:flex; align-items:flex-start; justify-content:space-between; gap:16px;">
+                  <div style="display:flex; flex-direction:column; gap:4px; min-width:0;">
+                    <span style="font-size:11.5px; font-weight:700; letter-spacing:.11em; text-transform:uppercase; color:#475569;">Vista Sur</span>
+                    <span style="font-size:20px; font-weight:700; color:#1e3a8a; letter-spacing:-.015em;">Manzana 2 · Lote 07</span>
+                  </div>
+                  <span style="flex-shrink:0; padding:5px 13px; border-radius:999px; background:#fffbeb; color:#b45309; font-size:12.5px; font-weight:600;">1 cuota vencida</span>
+                </div>
+
+                <div style="display:flex; flex-direction:column; gap:8px;">
+                  <div style="display:flex; align-items:baseline; justify-content:space-between;">
+                    <span style="font-size:13px; color:#64748b;">Cuota <strong style="color:#1e3a8a; font-variant-numeric:tabular-nums;">7</strong> de <span style="font-variant-numeric:tabular-nums;">48</span></span>
+                    <span style="font-size:13px; color:#64748b; font-variant-numeric:tabular-nums;">Saldo <strong style="color:#1e3a8a;">ARS 18.400.000</strong></span>
+                  </div>
+                  <div style="height:7px; border-radius:4px; background:#eff6ff; overflow:hidden;"><div style="width:14%; height:100%; border-radius:4px; background:linear-gradient(90deg,#f59e0b,#d97706);"></div></div>
+                </div>
+
+                <div style="display:flex; align-items:center; gap:26px; padding-top:2px;">
+                  <div style="display:flex; flex-direction:column; gap:3px;">
+                    <span style="font-size:11.5px; color:#475569; font-weight:500;">Venció el</span>
+                    <span style="font-size:14.5px; font-weight:700; color:#b45309; font-variant-numeric:tabular-nums;">10/08/2026</span>
+                  </div>
+                  <div style="display:flex; flex-direction:column; gap:3px;">
+                    <span style="font-size:11.5px; color:#475569; font-weight:500;">Monto con interés</span>
+                    <span style="font-size:14.5px; font-weight:700; color:#1e3a8a; font-variant-numeric:tabular-nums;">ARS 412.300</span>
+                  </div>
+                  <div style="margin-left:auto; display:flex; gap:9px;">
+                    <button style="padding:10px 16px; border:1px solid #dbeafe; border-radius:9px; background:#fff; color:#1e40af; font-family:inherit; font-size:13.5px; font-weight:600; cursor:pointer; transition:background-color .2s;" style-hover="background:#eff6ff;">Ver detalle</button>
+                    <button style="display:flex; align-items:center; gap:7px; padding:10px 18px; border:none; border-radius:9px; background:#b45309; color:#fff; font-family:inherit; font-size:13.5px; font-weight:600; cursor:pointer; transition:background-color .2s;" style-hover="background:#92400e;"><span data-icon="credit-card" style="width:15px; height:15px;"></span>Regularizar</button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div style="display:flex; align-items:center; gap:14px; padding:16px 20px; border-radius:12px; background:#eff6ff; border:1px solid #dbeafe;">
+            <span data-icon="file-text" style="width:19px; height:19px; color:#1e40af; flex-shrink:0;"></span>
+            <div style="display:flex; flex-direction:column; gap:2px;">
+              <span style="font-size:13.5px; font-weight:600; color:#1e3a8a;">Comprobantes y contratos</span>
+              <span style="font-size:12.5px; color:#64748b;">Descargá el recibo de cada pago y el contrato firmado de cada lote.</span>
+            </div>
+            <a href="#" style="margin-left:auto; font-size:13.5px; font-weight:600; color:#1e40af; display:flex; align-items:center; gap:5px; white-space:nowrap;">Ver documentos <span data-icon="arrow-right" style="width:14px; height:14px;"></span></a>
+          </div>
+          </div>
+        </div>
+      </div>
+
+      <div style="display:flex; gap:22px; max-width:1440px; padding-top:4px;">
+        <p style="margin:0; flex:1; font-size:13px; line-height:1.65; color:#475569;"><strong style="color:#1e3a8a;">Qué reemplaza:</strong> la tabla de 4 columnas dentro de un <span style="font-family:ui-monospace,Menlo,monospace; font-size:12px;">max-w-2xl</span>. La versión mobile ya usa tarjetas — esta unifica ambas en una sola tarjeta que escala.</p>
+        <p style="margin:0; flex:1; font-size:13px; line-height:1.65; color:#475569;"><strong style="color:#1e3a8a;">Dato nuevo:</strong> la barra de progreso y el próximo vencimiento salen de <span style="font-family:ui-monospace,Menlo,monospace; font-size:12px;">cuotas</span>, que ya se consulta en esa página. No hace falta pedir nada extra a Supabase.</p>
+      </div>
+    </div>
+  </div>
+  <div>
+    <div class="mock-label">MOCKUP 3 — Panel de morosos (PR4, reemplaza app/admin/panel-morosos/page.tsx)</div>
+    <div id="4a" style="display:flex; flex-direction:column; gap:14px;">
+      <div style="display:flex; align-items:center; gap:12px;">
+        <span style="display:inline-flex; align-items:center; justify-content:center; min-width:34px; height:26px; padding:0 10px; border-radius:999px; background:#1e40af; color:#fff; font-size:13px; font-weight:700;">4a</span>
+        <span style="font-size:15px; font-weight:600; color:#1e3a8a;">Panel de morosos</span>
+        <span style="font-size:13px; color:#475569;">— mismos 4 tramos, ahora con jerarquía visual</span>
+      </div>
+
+      <div style="width:1440px; height:900px; background:#f8fafc; border-radius:16px; overflow:hidden; box-shadow:0 24px 60px -20px rgba(15,32,73,.35), 0 0 0 1px rgba(15,32,73,.06); display:flex;">
+
+        <div style="width:248px; height:900px; background:#16264f; display:flex; flex-direction:column; flex-shrink:0;">
+          <div style="display:flex; align-items:center; gap:11px; padding:22px 20px 20px;">
+            <div style="display:flex; align-items:center; padding:7px 12px; border-radius:9px; background:#fff;">
+              <img src="public/logo.png" alt="SIMA" style="height:24px; width:auto; display:block;">
+            </div>
+          </div>
+          <div style="flex:1; overflow:hidden; display:flex; flex-direction:column; gap:20px; padding:6px 12px 12px;">
+            <div style="display:flex; flex-direction:column; gap:2px;">
+              <a href="#" style="display:flex; align-items:center; gap:11px; padding:9px 11px; border-radius:8px; color:rgba(255,255,255,.78); font-size:14px; font-weight:500;"><span data-icon="layout-dashboard" style="width:17px; height:17px;"></span>Inicio</a>
+            </div>
+            <div style="display:flex; flex-direction:column; gap:2px;">
+              <div style="padding:0 11px 6px; font:700 10.5px/1 'Plus Jakarta Sans'; letter-spacing:.13em; text-transform:uppercase; color:rgba(255,255,255,.62);">Cobranza</div>
+              <a href="#" style="display:flex; align-items:center; gap:11px; padding:9px 11px; border-radius:8px; color:rgba(255,255,255,.78); font-size:14px; font-weight:500;"><span data-icon="banknote" style="width:17px; height:17px;"></span>Pagos<span style="margin-left:auto; min-width:19px; height:19px; padding:0 6px; border-radius:999px; background:#f59e0b; color:#3b1d02; font-size:11px; font-weight:800; display:flex; align-items:center; justify-content:center;">6</span></a>
+              <a href="#" style="display:flex; align-items:center; gap:11px; padding:9px 11px; border-radius:8px; background:rgba(59,130,246,.18); color:#fff; font-size:14px; font-weight:600; position:relative;"><span style="position:absolute; left:0; top:9px; bottom:9px; width:3px; border-radius:0 3px 3px 0; background:#60a5fa;"></span><span data-icon="triangle-alert" style="width:17px; height:17px;"></span>Panel de morosos</a>
+            </div>
+          </div>
+        </div>
+
+        <div style="flex:1; height:900px; display:flex; flex-direction:column; min-width:0;">
+          <div style="height:64px; flex-shrink:0; background:#fff; border-bottom:1px solid #dbeafe; display:flex; align-items:center; gap:16px; padding:0 28px;">
+            <div style="display:flex; flex-direction:column; gap:3px;">
+              <div style="display:flex; align-items:center; gap:7px; font-size:12.5px; color:#64748b;"><span>SIMA</span><span data-icon="chevron-right" style="width:13px; height:13px;"></span><span style="color:#475569;">Panel de morosos</span></div>
+              <span style="font-size:18px; font-weight:800; color:#1e3a8a; letter-spacing:-.02em;">Panel de morosos</span>
+            </div>
+            <div style="margin-left:auto; display:flex; align-items:center; gap:9px;">
+              <button style="display:flex; align-items:center; gap:7px; padding:9px 14px; border:1px solid #dbeafe; border-radius:9px; background:#fff; color:#1e40af; font-family:inherit; font-size:13.5px; font-weight:600; cursor:pointer;"><span data-icon="download" style="width:15px; height:15px;"></span>Exportar</button>
+            </div>
+          </div>
+
+          <div style="flex:1; overflow:hidden; padding:24px 28px; display:flex; flex-direction:column; gap:18px;">
+
+            <div style="display:grid; grid-template-columns:repeat(4,1fr); gap:14px;">
+              <div style="background:#fff; border:1px solid #dbeafe; border-radius:12px; padding:15px 17px; display:flex; flex-direction:column; gap:8px;">
+                <span style="font-size:12px; font-weight:600; color:#64748b;">Lotes en algún tramo de mora</span>
+                <span style="font-size:26px; font-weight:800; color:#1e3a8a; font-variant-numeric:tabular-nums; letter-spacing:-.02em;">25</span>
+              </div>
+              <div style="background:#fff; border:1px solid #fde68a; border-radius:12px; padding:15px 17px; display:flex; flex-direction:column; gap:8px;">
+                <span style="font-size:12px; font-weight:600; color:#64748b;">Deben 1 o 2 cuotas</span>
+                <span style="font-size:26px; font-weight:800; color:#b45309; font-variant-numeric:tabular-nums; letter-spacing:-.02em;">18</span>
+              </div>
+              <div style="background:#fff; border:1px solid #fed7aa; border-radius:12px; padding:15px 17px; display:flex; flex-direction:column; gap:8px;">
+                <span style="font-size:12px; font-weight:600; color:#64748b;">Posible prejudicial (3+)</span>
+                <span style="font-size:26px; font-weight:800; color:#c2410c; font-variant-numeric:tabular-nums; letter-spacing:-.02em;">5</span>
+              </div>
+              <div style="background:#fff; border:1px solid #fecaca; border-radius:12px; padding:15px 17px; display:flex; flex-direction:column; gap:8px;">
+                <span style="font-size:12px; font-weight:600; color:#64748b;">Prejudicial marcado</span>
+                <span style="font-size:26px; font-weight:800; color:#b91c1c; font-variant-numeric:tabular-nums; letter-spacing:-.02em;">2</span>
+              </div>
+            </div>
+
+            <div style="display:flex; padding:3px; border-radius:10px; background:#eff6ff; gap:2px; width:fit-content;">
+              <span style="padding:8px 16px; border-radius:8px; background:#fff; color:#1e40af; font-size:13px; font-weight:700; box-shadow:0 1px 2px rgba(15,32,73,.08); cursor:pointer;">Deben 1 <span style="opacity:.6; font-variant-numeric:tabular-nums;">11</span></span>
+              <span style="padding:8px 16px; border-radius:8px; color:#475569; font-size:13px; font-weight:600; cursor:pointer;">Deben 2 <span style="opacity:.7; font-variant-numeric:tabular-nums;">7</span></span>
+              <span style="padding:8px 16px; border-radius:8px; color:#c2410c; font-size:13px; font-weight:600; cursor:pointer;">Posible prejudicial <span style="opacity:.7; font-variant-numeric:tabular-nums;">5</span></span>
+              <span style="padding:8px 16px; border-radius:8px; color:#b91c1c; font-size:13px; font-weight:600; cursor:pointer;">Prejudicial <span style="opacity:.7; font-variant-numeric:tabular-nums;">2</span></span>
+            </div>
+
+            <div style="flex:1; background:#fff; border:1px solid #dbeafe; border-radius:12px; overflow:hidden; display:flex; flex-direction:column;">
+              <div style="padding:12px 20px; border-bottom:1px solid #eff6ff; display:flex; align-items:center; gap:10px;">
+                <span style="width:8px; height:8px; border-radius:50%; background:#fbbf24;"></span>
+                <span style="font-size:13.5px; font-weight:700; color:#1e3a8a;">Deben 1 cuota</span>
+                <span style="font-size:12.5px; color:#64748b;">— vencida hace poco, todavía sin acción urgente</span>
+              </div>
+              <table style="width:100%; border-collapse:collapse; font-size:13.5px;">
+                <thead>
+                  <tr style="background:#f8fafc; text-align:left; color:#475569;">
+                    <th style="padding:9px 20px; font-weight:600;">Cliente</th>
+                    <th style="padding:9px 20px; font-weight:600;">Lote</th>
+                    <th style="padding:9px 20px; font-weight:600; text-align:center;">Cuotas vencidas</th>
+                    <th style="padding:9px 20px; font-weight:600; text-align:right;">Saldo pendiente</th>
+                    <th style="padding:9px 20px; font-weight:600;"></th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr style="border-top:1px solid #eff6ff;"><td style="padding:5px 20px 5px 0;"></td></tr>
+                </tbody>
+              </table>
+              <div style="display:flex; flex-direction:column;">
+                <div style="display:flex; align-items:center; gap:0; padding:12px 20px; border-top:1px solid #eff6ff; border-left:3px solid #fbbf24;">
+                  <a href="#" style="flex:1; font-size:13.5px; font-weight:600; color:#1e40af;">Jorge Villalba</a>
+                  <span style="flex:1; font-size:13px; color:#475569;">Los Álamos · Mz 7 Lt 21</span>
+                  <span style="flex:0 0 140px; text-align:center; font-size:12.5px; font-weight:700; color:#b45309; background:#fffbeb; border-radius:999px; padding:3px 10px; margin:0 auto;">1 cuota</span>
+                  <span style="flex:1; text-align:right; font-size:13.5px; font-weight:700; color:#1e3a8a; font-variant-numeric:tabular-nums;">USD 2.100</span>
+                  <a href="#" style="flex:0 0 90px; text-align:right; font-size:12.5px; font-weight:600; color:#1e40af;">Ver lote</a>
+                </div>
+                <div style="display:flex; align-items:center; gap:0; padding:12px 20px; border-top:1px solid #eff6ff; border-left:3px solid #fbbf24;">
+                  <a href="#" style="flex:1; font-size:13.5px; font-weight:600; color:#1e40af;">Carla Benítez</a>
+                  <span style="flex:1; font-size:13px; color:#475569;">Vista Sur · Mz 1 Lt 03</span>
+                  <span style="flex:0 0 140px; text-align:center; font-size:12.5px; font-weight:700; color:#b45309; background:#fffbeb; border-radius:999px; padding:3px 10px; margin:0 auto;">1 cuota</span>
+                  <span style="flex:1; text-align:right; font-size:13.5px; font-weight:700; color:#1e3a8a; font-variant-numeric:tabular-nums;">ARS 940.000</span>
+                  <a href="#" style="flex:0 0 90px; text-align:right; font-size:12.5px; font-weight:600; color:#1e40af;">Ver lote</a>
+                </div>
+              </div>
+
+              <div style="padding:12px 20px; border-top:1px solid #eff6ff; display:flex; align-items:center; gap:10px;">
+                <span style="width:8px; height:8px; border-radius:50%; background:#f97316;"></span>
+                <span style="font-size:13.5px; font-weight:700; color:#1e3a8a;">Posible prejudicial — 3 o más cuotas</span>
+                <span style="font-size:12.5px; color:#64748b;">— señal automática, todavía sin marcar</span>
+              </div>
+              <div style="display:flex; align-items:center; gap:0; padding:12px 20px; border-top:1px solid #eff6ff; border-left:3px solid #f97316; background:#fff7ed;">
+                <a href="#" style="flex:1; font-size:13.5px; font-weight:600; color:#1e40af;">Ricardo Ponce</a>
+                <span style="flex:1; font-size:13px; color:#475569;">El Mirador · Mz 3 Lt 08</span>
+                <span style="flex:0 0 140px; text-align:center; font-size:12.5px; font-weight:700; color:#c2410c; background:#ffedd5; border-radius:999px; padding:3px 10px; margin:0 auto;">4 cuotas</span>
+                <span style="flex:1; text-align:right; font-size:13.5px; font-weight:700; color:#1e3a8a; font-variant-numeric:tabular-nums;">USD 5.400</span>
+                <div style="flex:0 0 180px; display:flex; justify-content:flex-end; gap:10px;">
+                  <a href="#" style="font-size:12.5px; font-weight:600; color:#1e40af;">Ver lote</a>
+                  <button style="padding:5px 11px; border:1px solid #c2410c; border-radius:7px; background:#fff; color:#c2410c; font-family:inherit; font-size:12px; font-weight:700; cursor:pointer;">Marcar prejudicial</button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div style="display:flex; gap:22px; max-width:1440px; padding-top:4px;">
+        <p style="margin:0; flex:1; font-size:13px; line-height:1.65; color:#475569;"><strong style="color:#1e3a8a;">Mismos 4 tramos, mismo cálculo:</strong> deben 1, deben 2, posible prejudicial (3+, automático) y prejudicial (marca manual). La franja de color a la izquierda de cada fila reemplaza tener que abrir cuatro tablas separadas para saber en qué tramo cae cada uno de un vistazo.</p>
+        <p style="margin:0; flex:1; font-size:13px; line-height:1.65; color:#475569;"><strong style="color:#1e3a8a;">El botón de marcar sigue en el lugar exacto:</strong> solo en la fila de posible prejudicial, como hoy — la lógica de <span style="font-family:ui-monospace,Menlo,monospace; font-size:12px;">marcarPrejudicial</span> no cambia, cambia dónde vive visualmente.</p>
+      </div>
+    </div>
+  </div>
+  <div>
+    <div class="mock-label">MOCKUP 4 — Pagos (PR4, reemplaza app/admin/pagos/page.tsx)</div>
+    <div id="4b" style="display:flex; flex-direction:column; gap:14px;">
+      <div style="display:flex; align-items:center; gap:12px;">
+        <span style="display:inline-flex; align-items:center; justify-content:center; min-width:34px; height:26px; padding:0 10px; border-radius:999px; background:#1e40af; color:#fff; font-size:13px; font-weight:700;">4b</span>
+        <span style="font-size:15px; font-weight:600; color:#1e3a8a;">Pagos</span>
+        <span style="font-size:13px; color:#475569;">— la bandeja de aprobación, no una planilla</span>
+      </div>
+
+      <div style="width:1440px; height:900px; background:#f8fafc; border-radius:16px; overflow:hidden; box-shadow:0 24px 60px -20px rgba(15,32,73,.35), 0 0 0 1px rgba(15,32,73,.06); display:flex;">
+
+        <div style="width:248px; height:900px; background:#16264f; display:flex; flex-direction:column; flex-shrink:0;">
+          <div style="display:flex; align-items:center; gap:11px; padding:22px 20px 20px;">
+            <div style="display:flex; align-items:center; padding:7px 12px; border-radius:9px; background:#fff;">
+              <img src="public/logo.png" alt="SIMA" style="height:24px; width:auto; display:block;">
+            </div>
+          </div>
+          <div style="flex:1; overflow:hidden; display:flex; flex-direction:column; gap:20px; padding:6px 12px 12px;">
+            <div style="display:flex; flex-direction:column; gap:2px;">
+              <a href="#" style="display:flex; align-items:center; gap:11px; padding:9px 11px; border-radius:8px; color:rgba(255,255,255,.78); font-size:14px; font-weight:500;"><span data-icon="layout-dashboard" style="width:17px; height:17px;"></span>Inicio</a>
+            </div>
+            <div style="display:flex; flex-direction:column; gap:2px;">
+              <div style="padding:0 11px 6px; font:700 10.5px/1 'Plus Jakarta Sans'; letter-spacing:.13em; text-transform:uppercase; color:rgba(255,255,255,.62);">Cobranza</div>
+              <a href="#" style="display:flex; align-items:center; gap:11px; padding:9px 11px; border-radius:8px; background:rgba(59,130,246,.18); color:#fff; font-size:14px; font-weight:600; position:relative;"><span style="position:absolute; left:0; top:9px; bottom:9px; width:3px; border-radius:0 3px 3px 0; background:#60a5fa;"></span><span data-icon="banknote" style="width:17px; height:17px;"></span>Pagos<span style="margin-left:auto; min-width:19px; height:19px; padding:0 6px; border-radius:999px; background:#f59e0b; color:#3b1d02; font-size:11px; font-weight:800; display:flex; align-items:center; justify-content:center;">6</span></a>
+              <a href="#" style="display:flex; align-items:center; gap:11px; padding:9px 11px; border-radius:8px; color:rgba(255,255,255,.78); font-size:14px; font-weight:500;"><span data-icon="triangle-alert" style="width:17px; height:17px;"></span>Panel de morosos</a>
+            </div>
+          </div>
+        </div>
+
+        <div style="flex:1; height:900px; display:flex; flex-direction:column; min-width:0;">
+          <div style="height:64px; flex-shrink:0; background:#fff; border-bottom:1px solid #dbeafe; display:flex; align-items:center; gap:16px; padding:0 28px;">
+            <div style="display:flex; flex-direction:column; gap:3px;">
+              <div style="display:flex; align-items:center; gap:7px; font-size:12.5px; color:#64748b;"><span>SIMA</span><span data-icon="chevron-right" style="width:13px; height:13px;"></span><span style="color:#475569;">Pagos</span></div>
+              <span style="font-size:18px; font-weight:800; color:#1e3a8a; letter-spacing:-.02em;">Pagos</span>
+            </div>
+          </div>
+
+          <div style="flex:1; overflow:hidden; padding:24px 28px; display:flex; flex-direction:column; gap:16px;">
+
+            <div style="display:flex; align-items:center; gap:10px; flex-wrap:wrap;">
+              <div style="position:relative; width:280px;">
+                <span data-icon="search" style="position:absolute; left:12px; top:50%; transform:translateY(-50%); width:16px; height:16px; color:#64748b;"></span>
+                <input placeholder="Cliente, DNI o lote…" style="width:100%; box-sizing:border-box; padding:9px 12px 9px 36px; border:1px solid #dbeafe; border-radius:9px; background:#fff; font-family:inherit; font-size:13.5px; color:#1e293b; outline:none;">
+              </div>
+              <select style="padding:9px 12px; border:1px solid #dbeafe; border-radius:9px; background:#fff; font-family:inherit; font-size:13.5px; color:#1e293b;"><option>Todos los estados</option></select>
+              <select style="padding:9px 12px; border:1px solid #dbeafe; border-radius:9px; background:#fff; font-family:inherit; font-size:13.5px; color:#1e293b;"><option>Todos los acreedores</option></select>
+              <div style="display:flex; padding:3px; border-radius:10px; background:#eff6ff; gap:2px; margin-left:auto;">
+                <span style="padding:7px 14px; border-radius:8px; background:#fff; color:#1e40af; font-size:12.5px; font-weight:700; box-shadow:0 1px 2px rgba(15,32,73,.08); cursor:pointer;">Pendientes <span style="opacity:.6;">6</span></span>
+                <span style="padding:7px 14px; border-radius:8px; color:#475569; font-size:12.5px; font-weight:600; cursor:pointer;">Confirmados</span>
+              </div>
+            </div>
+
+            <div style="flex:1; overflow:hidden; display:flex; flex-direction:column; gap:10px;">
+
+              <div style="background:#fff; border:1px solid #dbeafe; border-radius:12px; overflow:hidden;">
+                <div style="display:flex; align-items:center; gap:14px; padding:14px 20px;">
+                  <div style="width:38px; height:38px; border-radius:9px; background:#eff6ff; display:flex; align-items:center; justify-content:center; flex-shrink:0;"><span data-icon="file-image" style="width:18px; height:18px; color:#1e40af;"></span></div>
+                  <div style="flex:1; min-width:0; display:flex; flex-direction:column; gap:2px;">
+                    <span style="font-size:14px; font-weight:700; color:#1e3a8a;">Martín Escalante <span style="font-weight:500; color:#64748b; font-size:12px;">DNI 30.145.822</span></span>
+                    <span style="font-size:12.5px; color:#475569;">Los Álamos · Mz 4 Lt 12 · Cuota · Transferencia · 27/08/2026</span>
+                  </div>
+                  <span style="flex-shrink:0; font-size:15px; font-weight:800; color:#1e3a8a; font-variant-numeric:tabular-nums;">USD 1.250</span>
+                  <a href="#" style="flex-shrink:0; font-size:12.5px; font-weight:600; color:#1e40af; display:flex; align-items:center; gap:5px;"><span data-icon="external-link" style="width:13px; height:13px;"></span>Comprobante</a>
+                  <span style="flex-shrink:0; padding:4px 11px; border-radius:999px; background:#fffbeb; color:#b45309; font-size:12px; font-weight:600;">Pendiente</span>
+                </div>
+                <div style="padding:14px 20px 16px; border-top:1px solid #eff6ff; background:#f8fafc; display:flex; align-items:flex-end; gap:14px;">
+                  <label style="display:flex; flex-direction:column; gap:5px;"><span style="font-size:11px; font-weight:600; color:#475569;">Monto a confirmar</span><input value="1.250" style="width:120px; padding:8px 10px; border:1px solid #dbeafe; border-radius:8px; font-family:inherit; font-size:13px; font-variant-numeric:tabular-nums;"></label>
+                  <label style="display:flex; flex-direction:column; gap:5px;"><span style="font-size:11px; font-weight:600; color:#475569;">Monto recibido (caja)</span><input placeholder="opcional" style="width:130px; padding:8px 10px; border:1px solid #dbeafe; border-radius:8px; font-family:inherit; font-size:13px;"></label>
+                  <label style="display:flex; flex-direction:column; gap:5px;"><span style="font-size:11px; font-weight:600; color:#475569;">Moneda recibida</span><select style="width:90px; padding:8px 10px; border:1px solid #dbeafe; border-radius:8px; font-family:inherit; font-size:13px;"><option>USD</option><option>ARS</option></select></label>
+                  <button style="padding:9px 18px; border:none; border-radius:8px; background:#1e40af; color:#fff; font-family:inherit; font-size:13px; font-weight:700; cursor:pointer;">Confirmar mi parte</button>
+                </div>
+              </div>
+
+              <div style="background:#fff; border:1px solid #fecaca; border-radius:12px; overflow:hidden;">
+                <div style="display:flex; align-items:center; gap:14px; padding:14px 20px;">
+                  <div style="width:38px; height:38px; border-radius:9px; background:#eff6ff; display:flex; align-items:center; justify-content:center; flex-shrink:0;"><span data-icon="file-image" style="width:18px; height:18px; color:#1e40af;"></span></div>
+                  <div style="flex:1; min-width:0; display:flex; flex-direction:column; gap:2px;">
+                    <span style="font-size:14px; font-weight:700; color:#1e3a8a;">Carla Benítez <span style="font-weight:500; color:#64748b; font-size:12px;">DNI 27.884.310</span></span>
+                    <span style="font-size:12.5px; color:#475569;">Vista Sur · Mz 1 Lt 03 · Cuota · Transferencia · 27/08/2026</span>
+                  </div>
+                  <span style="flex-shrink:0; font-size:15px; font-weight:800; color:#1e3a8a; font-variant-numeric:tabular-nums;">ARS 940.000</span>
+                  <a href="#" style="flex-shrink:0; font-size:12.5px; font-weight:600; color:#1e40af; display:flex; align-items:center; gap:5px;"><span data-icon="external-link" style="width:13px; height:13px;"></span>Comprobante</a>
+                  <span style="flex-shrink:0; padding:4px 11px; border-radius:999px; background:#fffbeb; color:#b45309; font-size:12px; font-weight:600;">Pendiente</span>
+                </div>
+                <div style="padding:10px 20px; border-top:1px solid #fee2e2; background:#fef2f2; display:flex; align-items:center; gap:8px;">
+                  <span data-icon="triangle-alert" style="width:14px; height:14px; color:#b91c1c; flex-shrink:0;"></span>
+                  <span style="font-size:12.5px; color:#b91c1c; font-weight:600;">Este lote todavía no tiene acreedor vinculado. Podés confirmar tu parte, pero el pago no se completa hasta asignar uno desde el detalle del lote.</span>
+                </div>
+              </div>
+
+              <div style="background:#fff; border:1px solid #dbeafe; border-radius:12px; padding:14px 20px; display:flex; align-items:center; gap:14px;">
+                <div style="width:38px; height:38px; border-radius:9px; background:#f0fdf4; display:flex; align-items:center; justify-content:center; flex-shrink:0;"><span data-icon="banknote" style="width:18px; height:18px; color:#15803d;"></span></div>
+                <div style="flex:1; min-width:0; display:flex; flex-direction:column; gap:2px;">
+                  <span style="font-size:14px; font-weight:700; color:#1e3a8a;">Jorge Villalba <span style="font-weight:500; color:#64748b; font-size:12px;">DNI 22.910.774</span></span>
+                  <span style="font-size:12.5px; color:#475569;">Los Álamos · Mz 7 Lt 21 · Cuota · Efectivo · 26/08/2026</span>
+                </div>
+                <span style="flex-shrink:0; font-size:15px; font-weight:800; color:#1e3a8a; font-variant-numeric:tabular-nums;">USD 2.100</span>
+                <span style="flex-shrink:0; font-size:12.5px; color:#64748b;">— (efectivo, sin comprobante)</span>
+                <span style="flex-shrink:0; padding:4px 11px; border-radius:999px; background:#fffbeb; color:#b45309; font-size:12px; font-weight:600;">Pendiente admin</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div style="display:flex; gap:22px; max-width:1440px; padding-top:4px;">
+        <p style="margin:0; flex:1; font-size:13px; line-height:1.65; color:#475569;"><strong style="color:#1e3a8a;">La misma doble confirmación, ordenada:</strong> acreedor y admin siguen confirmando cada uno su parte por separado — nada de esa lógica cambia. Lo que cambia es que el formulario de confirmación vive plegado dentro de la tarjeta del pago, no en una columna más de una tabla de 12 columnas.</p>
+        <p style="margin:0; flex:1; font-size:13px; line-height:1.65; color:#475569;"><strong style="color:#1e3a8a;">Las alertas ya existentes, más visibles:</strong> "lote sin acreedor vinculado" pasa de un texto rojo perdido en una celda a un banner que no se puede pasar por alto. El caso de efectivo (sin comprobante, solo admin) también queda claro sin tener que leer tres columnas.</p>
+      </div>
+    </div>
+  </div>
+</div>
+<script>
+  if (window.lucide) window.lucide.createIcons({ nameAttr: 'data-icon' });
+</script>
+</body>
+</html>

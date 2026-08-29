@@ -26,10 +26,19 @@ export default async function Home() {
     redirect('/portal-cliente')
   }
 
+  // PR2 del rediseño (ver design-system/rediseno/PLAN.md): el admin aterriza
+  // en el dashboard nuevo. Los demás roles siguen yendo a /admin/lotes como
+  // antes -- el dashboard cruza métricas globales (cobranza de TODOS los
+  // acreedores, mora de TODOS los clientes) que hoy ningún otro rol ve
+  // agregadas, así que no se le abre a nadie más en este PR.
+  if (profile.role === 'administrador') {
+    redirect('/admin/inicio')
+  }
+
   const rolesConAcceso = ['administrador', 'acreedor', 'vendedor', 'cobrador']
 
   if (rolesConAcceso.includes(profile.role)) {
-    redirect('/admin')
+    redirect('/admin/lotes')
   }
 
   return (

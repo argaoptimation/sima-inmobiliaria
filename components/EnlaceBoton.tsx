@@ -20,14 +20,19 @@ export function IndicadorPendiente() {
   return <Spinner />
 }
 
+// `claseInterna` (PR2 del rediseño, 29/08): el gap/alineación real del
+// contenido lo pone este span interno, no el <Link> -- la sidebar nueva
+// necesita un gap de 11px (mockup) en vez del gap-2 de siempre, así que se
+// puede pisar sin tocar los ~35 usos existentes (quedan con el default).
 export function EnlaceBoton({
   children,
   className,
+  claseInterna = 'inline-flex items-center gap-2',
   ...props
-}: ComponentProps<typeof Link> & { children: ReactNode }) {
+}: ComponentProps<typeof Link> & { children: ReactNode; claseInterna?: string }) {
   return (
     <Link {...props} className={className}>
-      <span className="inline-flex items-center gap-2">
+      <span className={claseInterna}>
         {children}
         <IndicadorPendiente />
       </span>

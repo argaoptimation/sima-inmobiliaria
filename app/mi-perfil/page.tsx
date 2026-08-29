@@ -56,12 +56,19 @@ export default async function MiPerfilPage({
     ([, monto]) => monto !== 0
   )
 
+  const esStaff = ['administrador', 'acreedor', 'vendedor', 'cobrador'].includes(perfil!.role)
+
   return (
-    <>
-      {['administrador', 'acreedor', 'vendedor', 'cobrador'].includes(perfil!.role) && (
-        <NavAdmin role={perfil!.role} pagosPendientes={pagosPendientes} userId={user!.id} />
+    <div className={esStaff ? 'flex h-screen overflow-hidden' : undefined}>
+      {esStaff && (
+        <NavAdmin
+          role={perfil!.role}
+          pagosPendientes={pagosPendientes}
+          userId={user!.id}
+          nombreUsuario={perfil!.full_name ?? user!.email ?? 'Usuario'}
+        />
       )}
-      <main className="mx-auto mt-12 max-w-md p-6">
+      <main className={`mx-auto mt-12 max-w-md p-6 ${esStaff ? 'w-full overflow-y-auto' : ''}`}>
         <h1 className={`mb-6 ${TITULO_H1}`}>Mi perfil</h1>
         {error && <p className={BANNER_ERROR}>{error}</p>}
         {ok && <p className={BANNER_OK}>Guardado.</p>}
@@ -115,6 +122,6 @@ export default async function MiPerfilPage({
           <BotonEnvio className={`cursor-pointer self-start ${BOTON_PRIMARIO}`}>Guardar</BotonEnvio>
         </form>
       </main>
-    </>
+    </div>
   )
 }

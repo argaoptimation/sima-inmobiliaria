@@ -11,13 +11,13 @@ import { tieneDatosTransferencia } from '@/lib/lotes/validar-cuenta-cobro'
 import { FiltroEnVivo } from '@/components/FiltroEnVivo'
 import { EnlaceBoton } from '@/components/EnlaceBoton'
 import { BotonEnvio } from '@/components/BotonEnvio'
+import { EncabezadoPagina } from '@/components/EncabezadoPagina'
 import {
   ENTRADA,
   BOTON_PRIMARIO,
   BOTON_SECUNDARIO,
   ENLACE,
   ENLACE_TABLA,
-  TITULO_H1,
   TITULO_H2,
   BANNER_ERROR,
   TABLA_CONTENEDOR,
@@ -72,7 +72,7 @@ export default async function UsuariosPage({
 
     return (
       <main className="max-w-2xl">
-        <h1 className={`mb-6 ${TITULO_H1}`}>Usuarios de staff</h1>
+        <EncabezadoPagina titulo="Usuarios de staff" migas={['Usuarios']} />
         {error && <p className={BANNER_ERROR}>{error}</p>}
 
         <h2 className={`mb-2 ${TITULO_H2}`}>Vendedores de tus lotes</h2>
@@ -129,7 +129,7 @@ export default async function UsuariosPage({
 
   return (
     <main className="max-w-2xl">
-      <h1 className={`mb-6 ${TITULO_H1}`}>Usuarios de staff</h1>
+      <EncabezadoPagina titulo="Usuarios de staff" migas={['Usuarios']} />
       {error && <p className={BANNER_ERROR}>{error}</p>}
 
       <form action={crearUsuarioStaff} className="mb-8 flex flex-col gap-3">

@@ -2,12 +2,12 @@ import { createClient } from '@/lib/supabase/server'
 import { requireAdministrador } from '@/lib/auth/require-admin'
 import { FiltroEnVivo } from '@/components/FiltroEnVivo'
 import { EnlaceBoton } from '@/components/EnlaceBoton'
+import { EncabezadoPagina } from '@/components/EncabezadoPagina'
 import {
   ENTRADA,
   BOTON_SECUNDARIO,
   ENLACE,
   ENLACE_TABLA,
-  TITULO_H1,
   TABLA_CONTENEDOR,
   TABLA_HEADER_FILA,
   TABLA_HEADER_CELDA,
@@ -57,7 +57,7 @@ export default async function ClientesPage({
 
   return (
     <main className="max-w-2xl">
-      <h1 className={`mb-6 ${TITULO_H1}`}>Clientes</h1>
+      <EncabezadoPagina titulo="Clientes" migas={['Clientes']} />
 
       <FiltroEnVivo className="mb-4 flex items-end gap-3">
         <label className="text-sm text-slate-600">

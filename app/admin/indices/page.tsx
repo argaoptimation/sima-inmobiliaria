@@ -6,9 +6,9 @@ import { BotonEliminarIndice } from './BotonEliminarIndice'
 import { FormularioCargarIndice } from './FormularioCargarIndice'
 import { FormularioCorregirIndice } from './FormularioCorregirIndice'
 import { EnlaceBoton } from '@/components/EnlaceBoton'
+import { EncabezadoPagina } from '@/components/EncabezadoPagina'
 import {
   ENLACE,
-  TITULO_H1,
   TITULO_H2,
   BANNER_ERROR,
   BANNER_OK,
@@ -110,7 +110,7 @@ export default async function IndicesPage({
 
   return (
     <main>
-      <h1 className={`mb-2 ${TITULO_H1}`}>Índices</h1>
+      <EncabezadoPagina titulo="Índices" migas={['Índices']} />
       <p className="mb-6 text-sm text-slate-600">
         Valores mensuales de índices (IPC, ICC, u otros) para lotes cobrados en pesos. Apenas se
         carga el valor de un mes, se aplica solo a las cuotas que vencen el mes siguiente de los

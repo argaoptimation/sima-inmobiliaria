@@ -5,12 +5,12 @@ import { confirmarPago, editarMontoPago } from './actions'
 import { FiltroEnVivo } from '@/components/FiltroEnVivo'
 import { EnlaceBoton } from '@/components/EnlaceBoton'
 import { BotonEnvio } from '@/components/BotonEnvio'
+import { EncabezadoPagina } from '@/components/EncabezadoPagina'
 import {
   TARJETA,
   ENTRADA,
   BOTON_SECUNDARIO,
   ENLACE,
-  TITULO_H1,
   BANNER_ERROR,
   TABLA_CONTENEDOR,
   TABLA_HEADER_FILA,
@@ -266,7 +266,7 @@ export default async function PagosPage({
 
   return (
     <main>
-      <h1 className={`mb-6 ${TITULO_H1}`}>Pagos</h1>
+      <EncabezadoPagina titulo="Pagos" migas={['Pagos']} />
       {error && <p className={BANNER_ERROR}>{error}</p>}
       <FiltroEnVivo className={`mb-4 flex flex-wrap items-end gap-3 ${TARJETA}`}>
         <label className="text-sm text-slate-600">

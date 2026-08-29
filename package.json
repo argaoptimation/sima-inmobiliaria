@@ -16,6 +16,7 @@
     "country-flag-icons": "^1.6.20",
     "docxtemplater": "^3.69.3",
     "exceljs": "^4.4.0",
+    "lucide-react": "^1.35.0",
     "next": "16.2.12",
     "pizzip": "^3.2.0",
     "react": "19.2.4",

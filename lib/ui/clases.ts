@@ -46,3 +46,91 @@ export const BADGE_AZUL = 'bg-blue-100 text-blue-800'
 export const BADGE_AMARILLO = 'bg-amber-100 text-amber-800'
 export const BADGE_ROJO = 'bg-red-100 text-red-800'
 export const BADGE_GRIS = 'bg-slate-100 text-slate-700'
+
+// Fundaciones del rediseño 2026-08 (ver design-system/rediseno/PLAN.md,
+// PR 1) -- valores sacados tal cual del mockup de referencia
+// (design-system/mockups/rediseno-2026-08.html), no inventados. Todavía
+// no se usan en ninguna pantalla (eso arranca en el PR 2, shell admin +
+// dashboard) -- por ahora solo quedan disponibles acá.
+
+// Números monetarios/de cuotas: alinea los dígitos a ancho fijo para que
+// no "salten" al cambiar de valor. Se compone con text-right aparte
+// cuando corresponde (en el mockup NO siempre va alineado a la derecha,
+// ej. los números grandes de los KPI van a la izquierda).
+export const NUMERO_TABULAR = 'tabular-nums'
+
+// Tarjeta de KPI del dashboard (mockup 1, tarjetas "Lotes disponibles" /
+// "Cobrado este mes" / etc: bg #fff, border #dbeafe, radius 12px, padding
+// 16px/17px, shadow con tinte azul marino en vez de negro puro).
+export const KPI_TARJETA =
+  'flex flex-col gap-[11px] rounded-xl border border-blue-100 bg-white p-[16px_17px] shadow-[0_1px_2px_rgba(15,32,73,0.05)]'
+
+// Ítem de navegación de la sidebar nueva (mockup 1, links tipo "Lotes"/
+// "Loteos" sin estar activos): texto blanco al 78% de opacidad, radius
+// 8px, hover con fondo blanco muy tenue.
+export const SIDEBAR_ITEM =
+  'flex items-center gap-[11px] rounded-lg px-[11px] py-[9px] text-sm font-medium text-white/[0.78] transition-colors duration-200 hover:bg-white/[0.08] hover:text-white'
+
+// Ítem de navegación activo (mockup 1, "Inicio" resaltado): fondo azul
+// #3b82f6 al 18%, texto blanco sólido. La barra de 3px a la izquierda
+// (#60a5fa) es un elemento aparte posicionado absoluto dentro de este
+// ítem (position:relative acá) -- se arma en el PR 2 junto con el
+// componente de sidebar, no es parte de esta clase.
+export const SIDEBAR_ITEM_ACTIVO =
+  'relative flex items-center gap-[11px] rounded-lg bg-blue-500/[0.18] px-[11px] py-[9px] text-sm font-semibold text-white'
+
+// Título de cada grupo de la sidebar ("Operación", "Cobranza", etc.):
+// versalitas chicas, bien espaciadas, blanco apagado al 62%.
+export const SIDEBAR_GRUPO_TITULO =
+  'px-[11px] pb-1.5 text-[10.5px] font-bold uppercase leading-none tracking-[0.13em] text-white/[0.62]'
+
+// Fila de encabezado de página (breadcrumb + h1 + acciones a la derecha),
+// para el componente EncabezadoPagina del PR 2. Mockup 1: la fila queda
+// arriba de las tarjetas de KPI, con las acciones ("Exportar"/"Registrar
+// pago") alineadas al final del bloque de texto (items-end, no center).
+export const PAGINA_HEADER = 'flex items-end justify-between gap-5'
+
+// Breadcrumb chico arriba del h1 ("SIMA › Inicio"): gris slate-500 tal
+// cual, el piso mínimo que permite la regla dura de contraste del PLAN.md
+// (nunca por debajo de slate-500 sobre fondo claro).
+export const BREADCRUMB = 'flex items-center gap-[7px] text-[12.5px] text-slate-500'
+
+// PR 2 (ver design-system/rediseno/PLAN.md) -- shell admin (sidebar nueva +
+// topbar) y dashboard de /admin/inicio. Igual que en el PR1, valores
+// sacados del mockup (MOCKUP 1), no inventados.
+
+// Logo dentro de la sidebar: recuadro blanco propio -- sin esto el logo
+// (fondo transparente) se perdería contra el azul marino de la sidebar.
+export const SIDEBAR_LOGO = 'flex items-center rounded-[9px] bg-white px-3 py-[7px]'
+
+// Contador numérico junto a "Pagos" en la sidebar (pendientes por
+// confirmar) -- mismo criterio de `contarPagosPendientes`, solo cambia el
+// estilo de píldora para la sidebar oscura en vez de la nav clara vieja.
+export const SIDEBAR_BADGE =
+  'ml-auto flex h-[19px] min-w-[19px] items-center justify-center rounded-full bg-amber-500 px-[6px] text-[11px] font-extrabold text-[#3b1d02]'
+
+// Bloque de usuario + logout, al pie de la sidebar.
+export const SIDEBAR_USUARIO = 'flex items-center gap-[11px] border-t border-white/10 px-4 py-3.5'
+export const SIDEBAR_AVATAR =
+  'flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-blue-800 text-[12.5px] font-bold text-white'
+
+// Topbar de 64px arriba del contenido (buscador global + cotización +
+// notificaciones).
+export const TOPBAR = 'flex h-16 shrink-0 items-center gap-4 border-b border-blue-100 bg-white px-7'
+export const BUSCADOR_GLOBAL =
+  'w-full rounded-[9px] border border-blue-100 bg-slate-50 py-[9px] pr-3 pl-9 text-[13.5px] text-slate-800 outline-none placeholder:text-slate-500 focus:border-blue-500 focus:bg-white focus:ring-[3px] focus:ring-blue-100'
+export const DOLAR_PILL =
+  'flex items-center gap-[7px] rounded-lg border border-green-100 bg-green-50 px-[11px] py-[6px] text-[12.5px] font-semibold text-green-700'
+
+// Tarjetas KPI del dashboard ya tienen KPI_TARJETA (PR1); estos son los
+// textos internos reutilizados en las 4 tarjetas de /admin/inicio.
+export const KPI_ETIQUETA = 'flex items-center justify-between text-[12.5px] font-semibold text-slate-500'
+export const KPI_NUMERO = 'text-[30px] font-extrabold tracking-[-0.03em] text-blue-900'
+
+// Tarjeta genérica de contenido del dashboard (gráfico, lista de mora,
+// tabla de pagos): mismo borde/sombra que KPI_TARJETA pero sin el padding
+// fijo -- cada bloque interno pone el suyo.
+export const DASHBOARD_TARJETA = 'flex flex-col overflow-hidden rounded-xl border border-blue-100 bg-white shadow-[0_1px_2px_rgba(15,32,73,0.05)]'
+export const DASHBOARD_TARJETA_HEADER =
+  'flex items-center justify-between border-b border-blue-50 px-[18px] py-[13.5px]'
+export const DASHBOARD_TARJETA_TITULO = 'text-[14.5px] font-bold text-blue-900'

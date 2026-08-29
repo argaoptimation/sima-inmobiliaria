@@ -3,12 +3,12 @@ import { requireAdminOCobrador } from '@/lib/auth/require-admin'
 import { FiltroEnVivo } from '@/components/FiltroEnVivo'
 import { EVENTO_HISTORIAL_ETIQUETA } from '@/lib/lotes/eventos-historial'
 import { EnlaceBoton } from '@/components/EnlaceBoton'
+import { EncabezadoPagina } from '@/components/EncabezadoPagina'
 import {
   ENTRADA,
   BOTON_SECUNDARIO,
   ENLACE,
   ENLACE_TABLA,
-  TITULO_H1,
   TABLA_CONTENEDOR,
   TABLA_HEADER_FILA,
   TABLA_HEADER_CELDA,
@@ -90,7 +90,7 @@ export default async function HistorialLotesPage({
       <EnlaceBoton href="/admin/lotes" className={`mb-4 inline-block ${ENLACE}`}>
         ← Volver a Lotes
       </EnlaceBoton>
-      <h1 className={`mb-2 ${TITULO_H1}`}>Historial de lotes</h1>
+      <EncabezadoPagina titulo="Historial de lotes" migas={['Historial']} />
       <p className="mb-6 text-sm text-slate-600">
         Todos los movimientos de todos los lotes en un solo lugar (alta, reserva, venta,
         rescisión, refinanciación, etc.), en orden cronológico.

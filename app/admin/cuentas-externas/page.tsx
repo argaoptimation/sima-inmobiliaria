@@ -3,13 +3,13 @@ import { requireAdministrador } from '@/lib/auth/require-admin'
 import { calcularSaldoPorMoneda } from '@/lib/cuentas-externas/calcular-saldo'
 import { FiltroEnVivo } from '@/components/FiltroEnVivo'
 import { EnlaceBoton } from '@/components/EnlaceBoton'
+import { EncabezadoPagina } from '@/components/EncabezadoPagina'
 import {
   ENTRADA,
   BOTON_PRIMARIO,
   BOTON_SECUNDARIO,
   ENLACE,
   ENLACE_TABLA,
-  TITULO_H1,
   TABLA_CONTENEDOR,
   TABLA_HEADER_FILA,
   TABLA_HEADER_CELDA,
@@ -61,12 +61,15 @@ export default async function CuentasExternasPage({
 
   return (
     <main className="max-w-2xl">
-      <div className="mb-6 flex items-center justify-between">
-        <h1 className={TITULO_H1}>Cuentas externas</h1>
-        <EnlaceBoton href="/admin/cuentas-externas/nuevo" className={`cursor-pointer ${BOTON_PRIMARIO}`}>
-          + Nueva cuenta externa
-        </EnlaceBoton>
-      </div>
+      <EncabezadoPagina
+        titulo="Cuentas externas"
+        migas={['Cuentas externas']}
+        acciones={
+          <EnlaceBoton href="/admin/cuentas-externas/nuevo" className={`cursor-pointer ${BOTON_PRIMARIO}`}>
+            + Nueva cuenta externa
+          </EnlaceBoton>
+        }
+      />
 
       <FiltroEnVivo className="mb-4 flex items-end gap-3">
         <label className="text-sm text-slate-600">

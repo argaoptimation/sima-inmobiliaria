@@ -6,9 +6,9 @@ import { confirmarPago } from '../pagos/actions'
 import { PanelEfectivo, type LoteConDeuda, type CuotaPendienteInfo } from './PanelEfectivo'
 import { EnlaceBoton } from '@/components/EnlaceBoton'
 import { BotonEnvio } from '@/components/BotonEnvio'
+import { EncabezadoPagina } from '@/components/EncabezadoPagina'
 import {
   TARJETA,
-  TITULO_H1,
   TITULO_H2,
   BANNER_ERROR,
   BANNER_OK,
@@ -129,7 +129,7 @@ export default async function EfectivoPage({
 
   return (
     <main>
-      <h1 className={`mb-2 ${TITULO_H1}`}>Pagos en efectivo</h1>
+      <EncabezadoPagina titulo="Pagos en efectivo" migas={['Efectivo']} />
       <p className="mb-6 text-sm text-slate-600">
         Registrá acá la plata que se recibió en mano. Queda pendiente hasta que un administrador
         la marque como recibida — recién ahí queda confirmada y se refleja en el saldo del

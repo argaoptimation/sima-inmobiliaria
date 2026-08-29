@@ -6,6 +6,7 @@ import { FiltroEnVivo } from '@/components/FiltroEnVivo'
 import { CampoArchivoDirecto } from '@/components/CampoArchivoDirecto'
 import { EnlaceBoton } from '@/components/EnlaceBoton'
 import { BotonEnvio } from '@/components/BotonEnvio'
+import { EncabezadoPagina } from '@/components/EncabezadoPagina'
 import {
   TARJETA,
   ENTRADA,
@@ -13,7 +14,6 @@ import {
   BOTON_SECUNDARIO,
   ENLACE,
   ENLACE_TABLA,
-  TITULO_H1,
   TITULO_H2,
   BANNER_ERROR,
   BANNER_OK,
@@ -105,6 +105,8 @@ export default async function LoteosPage({
 
   return (
     <main>
+      <EncabezadoPagina titulo="Loteos" migas={['Loteos']} />
+
       {error && <p className={BANNER_ERROR}>{error}</p>}
       {ok && <p className={BANNER_OK}>{ok}</p>}
       {listaPlaceholdersDesconocidos.length > 0 && (
@@ -119,7 +121,6 @@ export default async function LoteosPage({
         </p>
       )}
 
-      <h1 className={`mb-2 ${TITULO_H1}`}>Loteos</h1>
       <p className="mb-6 text-sm text-slate-600">
         Un loteo agrupa varios lotes (ej. un desarrollo o conjunto). Por ahora solo tiene nombre —
         no cambia ubicación, acreedor ni moneda de ningún lote.
