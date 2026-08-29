@@ -134,3 +134,76 @@ export const DASHBOARD_TARJETA = 'flex flex-col overflow-hidden rounded-xl borde
 export const DASHBOARD_TARJETA_HEADER =
   'flex items-center justify-between border-b border-blue-50 px-[18px] py-[13.5px]'
 export const DASHBOARD_TARJETA_TITULO = 'text-[14.5px] font-bold text-blue-900'
+
+// PR 3 (ver design-system/rediseno/PLAN.md) -- portal del cliente
+// (MOCKUP 2), reemplaza app/portal-cliente/page.tsx. Valores sacados del
+// mockup tal cual. La animación `simaFluido`/`simaFluido2` que el mockup
+// referencia en el degradé NO está definida en ningún lado del propio
+// archivo del mockup (sin @keyframes) -- un navegador real la ignora y
+// muestra el degradé estático, así que es lo que se reproduce acá: no se
+// inventó una animación que el mockup no define.
+// Alto responsive: el mockup es un frame fijo de 1440px que no cubre
+// mobile -- 200px alcanza en desktop (una sola fila de nav + una fila de
+// saludo), pero en mobile el saludo/píldora se apilan (ver
+// PORTAL_SALUDO_WRAP) y necesitan más alto para no cortarse.
+//
+// Los 3 degradés (banner/radiales/sombra) van por `style` inline en el call
+// site, NO como clase `bg-[...]` -- probado en vivo: con el degradé de 5
+// stops metido en la misma clase que `h-[280px] sm:h-[200px]`, Tailwind
+// dejaba de generar la regla de alto (quedaba en 0 en mobile, sin ninguna
+// regla "280px" en ninguna hoja de estilos cargada). Separar el degradé a
+// `style` lo resolvió -- son valores igual de fieles al mockup, un
+// `style` inline no es "inventar" nada.
+export const PORTAL_BANNER = 'relative h-[280px] sm:h-[200px] shrink-0 overflow-hidden'
+export const PORTAL_BANNER_GRADIENTE =
+  'linear-gradient(120deg,#0f3d3a 0%,#1a5c4f 30%,#1e6b6a 55%,#1e4f7a 80%,#16355e 100%)'
+export const PORTAL_BANNER_RADIALES = 'absolute -inset-[20%]'
+export const PORTAL_BANNER_RADIALES_GRADIENTE =
+  'radial-gradient(closest-side at 25% 35%, rgba(255,255,255,.10), transparent 60%),radial-gradient(closest-side at 78% 65%, rgba(255,255,255,.08), transparent 55%)'
+export const PORTAL_BANNER_SOMBRA = 'absolute inset-0'
+export const PORTAL_BANNER_SOMBRA_GRADIENTE =
+  'linear-gradient(200deg, rgba(8,20,24,.25) 0%, rgba(8,20,24,.05) 45%, rgba(8,16,26,.82) 100%)'
+
+export const PORTAL_LOGO_WRAP =
+  'absolute top-[26px] left-4 sm:left-12 flex items-center rounded-[10px] bg-white px-[14px] py-2'
+export const PORTAL_NAV = 'absolute top-[26px] right-4 sm:right-12 flex items-center gap-2 sm:gap-[22px]'
+export const PORTAL_NAV_LINK_ACTIVO = 'text-xs sm:text-sm font-semibold text-white'
+export const PORTAL_NAV_LINK = 'text-xs sm:text-sm font-medium text-white/75 hover:text-white transition-colors'
+export const PORTAL_AVATAR =
+  'flex h-[27px] w-[27px] sm:h-[31px] sm:w-[31px] items-center justify-center rounded-full border border-white/30 bg-white/[0.18] text-[11px] sm:text-xs font-bold text-white'
+
+export const PORTAL_SALUDO_WRAP =
+  'absolute bottom-[22px] left-4 right-4 sm:left-12 sm:right-12 flex flex-col items-start gap-3 sm:flex-row sm:items-end sm:justify-between sm:gap-5'
+export const PORTAL_SALUDO_TITULO = 'text-xl sm:text-[26px] font-extrabold tracking-[-0.02em] text-white'
+export const PORTAL_SALUDO_SUB = 'text-sm text-white/[0.82]'
+
+// Píldora de estado global ("Estás al día" / "Tenés pagos pendientes"),
+// arriba a la derecha del saludo. El color (verde/ámbar) se agrega en el
+// call site según el estado -- acá solo la forma.
+export const PORTAL_PILL =
+  'flex items-center gap-2 rounded-[10px] bg-white/95 px-[14px] py-[9px] text-[13.5px] font-semibold shadow-[0_4px_14px_-4px_rgba(0,0,0,0.3)]'
+
+export const PORTAL_TARJETA_LOTE =
+  'flex overflow-hidden rounded-[14px] border border-blue-100 bg-white shadow-[0_1px_3px_rgba(15,32,73,0.06)]'
+export const PORTAL_TARJETA_LOTE_BODY = 'flex min-w-0 flex-1 flex-col gap-[18px] px-[26px] py-[22px]'
+export const PORTAL_ETIQUETA_LOTEO = 'text-[11.5px] font-bold tracking-[0.11em] text-slate-600 uppercase'
+export const PORTAL_TITULO_LOTE = 'text-xl font-bold tracking-[-0.015em] text-blue-900'
+
+// Píldora de estado de CADA lote (dentro de la tarjeta) -- mismo tamaño en
+// las 4 pantallas, el color varía según el mismo estado de cobranza de
+// siempre (normal/atrasado/moroso/prejudicial), no se reinventa la
+// semántica de colores.
+export const PORTAL_BADGE_LOTE = 'shrink-0 rounded-full px-[13px] py-[5px] text-[12.5px] font-semibold'
+
+export const PORTAL_BARRA_FONDO = 'h-[7px] overflow-hidden rounded-[4px] bg-blue-50'
+export const PORTAL_DATO_MINI_LABEL = 'text-[11.5px] font-medium text-slate-600'
+export const PORTAL_DATO_MINI_VALOR = 'text-[14.5px] font-bold text-blue-900 tabular-nums'
+
+export const PORTAL_BOTON_VER_DETALLE =
+  'rounded-[9px] border border-blue-100 bg-white px-4 py-[10px] text-[13.5px] font-semibold text-blue-800 transition-colors hover:bg-blue-50'
+export const PORTAL_BOTON_PAGAR =
+  'flex items-center gap-[7px] rounded-[9px] bg-blue-800 px-[18px] py-[10px] text-[13.5px] font-semibold text-white shadow-[0_4px_12px_-4px_rgba(30,64,175,0.55)] transition-colors hover:bg-blue-900'
+export const PORTAL_BOTON_REGULARIZAR =
+  'flex items-center gap-[7px] rounded-[9px] bg-amber-700 px-[18px] py-[10px] text-[13.5px] font-semibold text-white transition-colors hover:bg-amber-800'
+
+export const PORTAL_DOC_BANNER = 'flex items-center gap-[14px] rounded-xl border border-blue-100 bg-blue-50 px-5 py-4'

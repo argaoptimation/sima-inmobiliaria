@@ -22,6 +22,7 @@ import { logout } from '@/app/login/actions'
 import { BotonEnvio } from './BotonEnvio'
 import { EnlaceBoton } from './EnlaceBoton'
 import { SIDEBAR_ITEM, SIDEBAR_ITEM_ACTIVO, SIDEBAR_GRUPO_TITULO, SIDEBAR_LOGO, SIDEBAR_BADGE, SIDEBAR_USUARIO, SIDEBAR_AVATAR } from '@/lib/ui/clases'
+import { inicialesDeNombre } from '@/lib/ui/iniciales'
 
 interface ItemNav {
   href: string
@@ -171,14 +172,7 @@ export function NavAdmin({
       </div>
 
       <div className={SIDEBAR_USUARIO}>
-        <div className={SIDEBAR_AVATAR}>
-          {nombreUsuario
-            .split(' ')
-            .filter(Boolean)
-            .slice(0, 2)
-            .map((parte) => parte[0]?.toUpperCase())
-            .join('') || '?'}
-        </div>
+        <div className={SIDEBAR_AVATAR}>{inicialesDeNombre(nombreUsuario)}</div>
         <div className="flex min-w-0 flex-col gap-px">
           <span className="truncate text-[13px] font-semibold text-white">{nombreUsuario}</span>
           <span className="text-[11.5px] text-white/[0.72]">{NOMBRE_ROL[role] ?? role}</span>
