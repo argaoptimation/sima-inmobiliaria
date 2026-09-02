@@ -16,6 +16,9 @@ import {
   UserCog,
   FileClock,
   LogOut,
+  PanelLeftClose,
+  PanelLeftOpen,
+  X,
   type LucideIcon,
 } from 'lucide-react'
 import { logout } from '@/app/login/actions'
@@ -47,16 +50,35 @@ const NOMBRE_ROL: Record<string, string> = {
 // vertical agrupada (PR2 del rediseño, ver design-system/rediseno/PLAN.md
 // y MOCKUP 1). La lógica de permisos por rol es EXACTAMENTE la misma que
 // tenía la nav vieja -- lo único que cambia es la agrupación visual.
+//
+// 02/09 (pedido de Gabriel, "necesito que se pueda contraer la navbar de
+// la izquierda, ya que sino en versión mobile no puedo visualizar bien la
+// plataforma"): dos comportamientos nuevos, controlados por AdminShell
+// (que es quien guarda el estado, para compartirlo con el botón hamburguesa
+// de la topbar):
+//   - Mobile (< md): la sidebar es un drawer superpuesto, oculto por
+//     defecto (arranca cerrada en cada visita) -- antes ocupaba todo el
+//     ancho fijo de 248px y tapaba el contenido por completo.
+//   - Desktop (>= md): además del drawer, se puede colapsar a un riel
+//     angosto de solo íconos (persistido en localStorage vía AdminShell).
 export function NavAdmin({
   role,
   pagosPendientes,
   userId,
   nombreUsuario,
+  colapsada,
+  onToggleColapsar,
+  abiertaMobile,
+  onCerrarMobile,
 }: {
   role: string
   pagosPendientes: number
   userId: string
   nombreUsuario: string
+  colapsada: boolean
+  onToggleColapsar: () => void
+  abiertaMobile: boolean
+  onCerrarMobile: () => void
 }) {
   const pathname = usePathname()
 
@@ -67,6 +89,11 @@ export function NavAdmin({
   const puedeVerEfectivoYCaja = role === 'administrador' || role === 'cobrador'
 
   const inicioHref = esAdministrador ? '/admin/inicio' : '/admin/lotes'
+
+  // Solo se aplica arriba de md (768px) -- en mobile el drawer siempre
+  // muestra las etiquetas completas, sin importar si quedó "colapsada" de
+  // una sesión de escritorio anterior.
+  const claseOcultarEnColapsada = colapsada ? 'md:hidden' : ''
 
   const grupos: GrupoNav[] = [
     {
@@ -121,68 +148,110 @@ export function NavAdmin({
   }
 
   return (
-    <nav className="flex h-full w-[248px] shrink-0 flex-col bg-[var(--sima-sidebar)]">
-      <div className="flex items-center gap-[11px] px-5 pt-[22px] pb-5">
-        <div className={SIDEBAR_LOGO}>
-          {/* eslint-disable-next-line @next/next/no-img-element -- mismo patrón que app/portal-cliente/layout.tsx: sin width/height fijo no se puede usar next/image sin arriesgar estirar el logo */}
-          <img src="/logo.png" alt="SIMA" className="block h-6 w-auto" />
-        </div>
-      </div>
+    <>
+      {abiertaMobile && (
+        <div
+          className="fixed inset-0 z-30 bg-slate-950/50 md:hidden"
+          onClick={onCerrarMobile}
+          aria-hidden="true"
+        />
+      )}
 
-      <div className="flex flex-1 flex-col gap-5 overflow-y-auto px-3 pt-1.5 pb-3">
-        <div className="flex flex-col gap-0.5">
-          <EnlaceBoton
-            href={inicioHref}
-            className={esActivo(inicioHref) ? SIDEBAR_ITEM_ACTIVO : SIDEBAR_ITEM}
-            claseInterna="flex w-full items-center gap-[11px]"
+      <nav
+        className={`fixed inset-y-0 left-0 z-40 flex h-full w-[248px] shrink-0 flex-col bg-[var(--sima-sidebar)] transition-transform duration-200 md:relative md:z-auto md:translate-x-0 md:transition-[width] ${
+          abiertaMobile ? 'translate-x-0' : '-translate-x-full'
+        } ${colapsada ? 'md:w-[76px]' : 'md:w-[248px]'}`}
+      >
+        <div
+          className={`flex items-center gap-[11px] px-5 pt-[22px] pb-5 justify-between ${
+            colapsada ? 'md:justify-center md:px-3' : ''
+          }`}
+        >
+          <div className={`${SIDEBAR_LOGO} ${claseOcultarEnColapsada}`}>
+            {/* eslint-disable-next-line @next/next/no-img-element -- mismo patrón que app/portal-cliente/layout.tsx: sin width/height fijo no se puede usar next/image sin arriesgar estirar el logo */}
+            <img src="/logo.png" alt="SIMA" className="block h-6 w-auto" />
+          </div>
+          <button
+            type="button"
+            onClick={onToggleColapsar}
+            className="hidden shrink-0 rounded-lg p-1.5 text-white/60 transition-colors hover:bg-white/[0.08] hover:text-white md:flex"
+            title={colapsada ? 'Expandir menú' : 'Contraer menú'}
           >
-            {esActivo(inicioHref) && (
-              <span className="absolute top-[9px] bottom-[9px] left-0 w-[3px] rounded-r-[3px] bg-[#60a5fa]" />
-            )}
-            <LayoutDashboard className="h-[17px] w-[17px] shrink-0" />
-            Inicio
-          </EnlaceBoton>
+            {colapsada ? <PanelLeftOpen className="h-[18px] w-[18px]" /> : <PanelLeftClose className="h-[18px] w-[18px]" />}
+          </button>
+          <button
+            type="button"
+            onClick={onCerrarMobile}
+            className="shrink-0 rounded-lg p-1.5 text-white/60 transition-colors hover:bg-white/[0.08] hover:text-white md:hidden"
+            aria-label="Cerrar menú"
+          >
+            <X className="h-[18px] w-[18px]" />
+          </button>
         </div>
 
-        {grupos
-          .filter((grupo) => grupo.items.length > 0)
-          .map((grupo) => (
-            <div key={grupo.titulo} className="flex flex-col gap-0.5">
-              <div className={SIDEBAR_GRUPO_TITULO}>{grupo.titulo}</div>
-              {grupo.items.map((item) => {
-                const activo = esActivo(item.href)
-                return (
-                  <EnlaceBoton
-                    key={item.href}
-                    href={item.href}
-                    className={activo ? SIDEBAR_ITEM_ACTIVO : SIDEBAR_ITEM}
-                    claseInterna="flex w-full items-center gap-[11px]"
-                  >
-                    {activo && (
-                      <span className="absolute top-[9px] bottom-[9px] left-0 w-[3px] rounded-r-[3px] bg-[#60a5fa]" />
-                    )}
-                    <item.icono className="h-[17px] w-[17px] shrink-0" />
-                    {item.etiqueta}
-                    {!!item.badge && item.badge > 0 && <span className={SIDEBAR_BADGE}>{item.badge}</span>}
-                  </EnlaceBoton>
-                )
-              })}
-            </div>
-          ))}
-      </div>
+        <div className="flex flex-1 flex-col gap-5 overflow-y-auto px-3 pt-1.5 pb-3">
+          <div className="flex flex-col gap-0.5">
+            <EnlaceBoton
+              href={inicioHref}
+              onClick={onCerrarMobile}
+              className={esActivo(inicioHref) ? SIDEBAR_ITEM_ACTIVO : SIDEBAR_ITEM}
+              claseInterna="flex w-full items-center gap-[11px]"
+              title={colapsada ? 'Inicio' : undefined}
+            >
+              {esActivo(inicioHref) && (
+                <span className="absolute top-[9px] bottom-[9px] left-0 w-[3px] rounded-r-[3px] bg-[#60a5fa]" />
+              )}
+              <LayoutDashboard className="h-[17px] w-[17px] shrink-0" />
+              <span className={claseOcultarEnColapsada}>Inicio</span>
+            </EnlaceBoton>
+          </div>
 
-      <div className={SIDEBAR_USUARIO}>
-        <div className={SIDEBAR_AVATAR}>{inicialesDeNombre(nombreUsuario)}</div>
-        <div className="flex min-w-0 flex-col gap-px">
-          <span className="truncate text-[13px] font-semibold text-white">{nombreUsuario}</span>
-          <span className="text-[11.5px] text-white/[0.72]">{NOMBRE_ROL[role] ?? role}</span>
+          {grupos
+            .filter((grupo) => grupo.items.length > 0)
+            .map((grupo) => (
+              <div key={grupo.titulo} className="flex flex-col gap-0.5">
+                <div className={`${SIDEBAR_GRUPO_TITULO} ${claseOcultarEnColapsada}`}>{grupo.titulo}</div>
+                {grupo.items.map((item) => {
+                  const activo = esActivo(item.href)
+                  return (
+                    <EnlaceBoton
+                      key={item.href}
+                      href={item.href}
+                      onClick={onCerrarMobile}
+                      className={activo ? SIDEBAR_ITEM_ACTIVO : SIDEBAR_ITEM}
+                      claseInterna="flex w-full items-center gap-[11px]"
+                      title={colapsada ? item.etiqueta : undefined}
+                    >
+                      {activo && (
+                        <span className="absolute top-[9px] bottom-[9px] left-0 w-[3px] rounded-r-[3px] bg-[#60a5fa]" />
+                      )}
+                      <item.icono className="h-[17px] w-[17px] shrink-0" />
+                      <span className={claseOcultarEnColapsada}>{item.etiqueta}</span>
+                      {!!item.badge && item.badge > 0 && (
+                        <span className={`${SIDEBAR_BADGE} ${claseOcultarEnColapsada}`}>{item.badge}</span>
+                      )}
+                    </EnlaceBoton>
+                  )
+                })}
+              </div>
+            ))}
         </div>
-        <form action={logout} className="ml-auto shrink-0">
-          <BotonEnvio className="cursor-pointer text-white/[0.45] transition-colors hover:text-white" cargandoTexto="…">
-            <LogOut className="h-4 w-4" />
-          </BotonEnvio>
-        </form>
-      </div>
-    </nav>
+
+        <div
+          className={`${SIDEBAR_USUARIO} ${colapsada ? 'md:justify-center md:gap-2 md:px-2' : ''}`}
+        >
+          <div className={SIDEBAR_AVATAR}>{inicialesDeNombre(nombreUsuario)}</div>
+          <div className={`flex min-w-0 flex-col gap-px ${claseOcultarEnColapsada}`}>
+            <span className="truncate text-[13px] font-semibold text-white">{nombreUsuario}</span>
+            <span className="text-[11.5px] text-white/[0.72]">{NOMBRE_ROL[role] ?? role}</span>
+          </div>
+          <form action={logout} className={`ml-auto shrink-0 ${colapsada ? 'md:ml-0' : ''}`}>
+            <BotonEnvio className="cursor-pointer text-white/[0.45] transition-colors hover:text-white" cargandoTexto="…">
+              <LogOut className="h-4 w-4" />
+            </BotonEnvio>
+          </form>
+        </div>
+      </nav>
+    </>
   )
 }
