@@ -742,3 +742,105 @@ export async function generarContratoLote(loteId: string, formData: FormData) {
 
   redirect(`/admin/lotes/${loteId}?ok=${encodeURIComponent('Contrato generado')}`)
 }
+
+// "Saldar" (pedido de Nico, 02/09, ver memoria del backlog de Notion):
+// Nico negocia con el cliente cerrar el resto de la deuda por un monto
+// MENOR al saldo real -- no es un pago normal (que se imputa 1:1 a las
+// cuotas vía FIFO), es una decisión manual del admin de dar la deuda por
+// saldada. Registra el monto acordado como un pago ya confirmado (no hace
+// falta la doble confirmación de siempre, la decide Nico acá mismo) y deja
+// TODAS las cuotas pendientes del ciclo vigente en saldo 0 -- sin
+// prorratear el monto entre ellas.
+//
+// Deliberadamente NO crea filas en pago_imputaciones: ese mecanismo es
+// para repartir un pago 1:1 entre acreedor/vendedor/admin según la
+// distribución configurada de cada cuota, y acá el monto cobrado es MENOR
+// al saldo, sin que Nico haya especificado cómo repartir esa diferencia
+// entre los distintos participantes. El pago queda registrado (visible en
+// Pagos, Cierre de caja, historial del lote) pero no alimenta la cuenta
+// corriente de nadie automáticamente -- eso queda pendiente de definir.
+export async function saldarLote(loteId: string, formData: FormData) {
+  await requireAdministrador()
+
+  const supabase = await createClient()
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
+
+  const destino = `/admin/lotes/${loteId}`
+
+  const montoTexto = ((formData.get('monto') as string) || '').trim()
+  const monto = Number(montoTexto)
+  const medioPago = formData.get('medioPago') as string
+
+  if (!Number.isFinite(monto) || monto < 0) {
+    redirect(`${destino}?error=${encodeURIComponent('Ingresá un monto válido')}`)
+  }
+
+  if (medioPago !== 'efectivo' && medioPago !== 'transferencia') {
+    redirect(`${destino}?error=${encodeURIComponent('Elegí el medio de pago')}`)
+  }
+
+  const { data: lote } = await supabase
+    .from('lotes')
+    .select('id, estado, moneda, cliente_id, ciclo_actual')
+    .eq('id', loteId)
+    .single()
+
+  if (!lote || lote.estado !== 'vendido' || !lote.cliente_id) {
+    redirect(`${destino}?error=${encodeURIComponent('Solo se puede saldar un lote vendido')}`)
+  }
+
+  const { data: cuotasPendientes } = await supabase
+    .from('cuotas')
+    .select('id, saldo_pendiente')
+    .eq('lote_id', loteId)
+    .eq('ciclo', lote!.ciclo_actual)
+    .gt('saldo_pendiente', 0)
+
+  if (!cuotasPendientes || cuotasPendientes.length === 0) {
+    redirect(`${destino}?error=${encodeURIComponent('Este lote no tiene saldo pendiente para saldar')}`)
+  }
+
+  const totalPendienteAntes = cuotasPendientes.reduce((acum, cuota) => acum + cuota.saldo_pendiente, 0)
+
+  const { error: errorPago } = await supabase.from('pagos').insert({
+    cliente_id: lote!.cliente_id,
+    lote_id: loteId,
+    monto,
+    moneda: lote!.moneda,
+    motivo: 'saldar',
+    medio_pago: medioPago,
+    estado: 'confirmado',
+    confirmado_admin_por: user!.id,
+    confirmado_admin_at: new Date().toISOString(),
+  })
+
+  if (errorPago) {
+    redirect(`${destino}?error=${encodeURIComponent(mensajeDeError(errorPago))}`)
+  }
+
+  const { error: errorCuotas } = await supabase
+    .from('cuotas')
+    .update({ saldo_pendiente: 0 })
+    .eq('lote_id', loteId)
+    .eq('ciclo', lote!.ciclo_actual)
+    .gt('saldo_pendiente', 0)
+
+  if (errorCuotas) {
+    redirect(
+      `${destino}?error=${encodeURIComponent(
+        'El pago se registró pero no se pudieron saldar las cuotas. Revisalo manualmente.'
+      )}`
+    )
+  }
+
+  await supabase.from('lote_historial_estados').insert({
+    lote_id: loteId,
+    evento: 'saldado',
+    cambiado_por: user!.id,
+    detalle: `Saldado por ${monto} ${lote!.moneda} (${medioPago}) -- quedaban pendientes ${totalPendienteAntes} ${lote!.moneda}.`,
+  })
+
+  redirect(`${destino}?ok=${encodeURIComponent('Lote saldado -- la deuda restante quedó cerrada.')}`)
+}

@@ -55,6 +55,8 @@ function obtenerMotivoTexto(motivo: string) {
       return 'Seña'
     case 'ajuste':
       return 'Corrección'
+    case 'saldar':
+      return 'Saldado'
     case 'entrega':
       return 'Entrega'
     default:
@@ -584,6 +586,7 @@ export default async function PagosPage({
                 {/* Formulario de Corrección de Monto (para pagos confirmados, admin) */}
                 {pago.estado === 'confirmado' &&
                   pago.motivo !== 'ajuste' &&
+                  pago.motivo !== 'saldar' &&
                   perfilPropio!.role === 'administrador' && (
                     <form action={editarMontoEstePago} className={PAGO_FORM_CONFIRMACION}>
                       <input type="hidden" name="montoEfectivoVisto" value={pago.montoEfectivo} />

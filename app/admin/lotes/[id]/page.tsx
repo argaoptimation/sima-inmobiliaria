@@ -18,6 +18,7 @@ import {
   desmarcarPrejudicial,
   refinanciarLote,
   generarContratoLote,
+  saldarLote,
 } from './actions'
 import { agregarParticipante, quitarParticipante } from './participantes-actions'
 import { cancelarReserva } from '../actions'
@@ -26,6 +27,7 @@ import { BotonCancelarReserva } from '../BotonCancelarReserva'
 import { BotonRescindir } from './BotonRescindir'
 import { BotonVolverADisponible } from './BotonVolverADisponible'
 import { BotonMarcarPrejudicial, BotonDesmarcarPrejudicial } from './BotonPrejudicial'
+import { PanelSaldar } from './PanelSaldar'
 import { tieneDatosTransferencia } from '@/lib/lotes/validar-cuenta-cobro'
 import { telefonoParaWhatsApp } from '@/lib/telefono/prefijos'
 import { mesDeFecha } from '@/lib/lotes/aplicar-indexacion'
@@ -75,6 +77,7 @@ const MOTIVO_PAGO_ETIQUETA: Record<string, string> = {
   sena: 'Seña',
   entrega: 'Entrega',
   ajuste: 'Corrección',
+  saldar: 'Saldado',
 }
 
 export default async function LoteDetallePage({
@@ -169,6 +172,9 @@ export default async function LoteDetallePage({
   const nombreAplicadorIndexacionPorId = new Map(
     (aplicadoresIndexacion ?? []).map((persona) => [persona.id, persona.full_name])
   )
+
+  const saldoPendienteTotal = (cuotas ?? []).reduce((acum, cuota) => acum + cuota.saldo_pendiente, 0)
+  const saldarLoteConId = saldarLote.bind(null, id)
 
   const hoy = hoyArgentina()
   const estado =
@@ -672,6 +678,13 @@ export default async function LoteDetallePage({
             Ver / editar distribución de cuotas →
           </EnlaceBoton>
         </p>
+      )}
+      {perfilPropio!.role === 'administrador' && lote!.estado === 'vendido' && saldoPendienteTotal > 0 && (
+        <PanelSaldar
+          saldarAction={saldarLoteConId}
+          saldoPendienteTotal={saldoPendienteTotal}
+          moneda={lote!.moneda}
+        />
       )}
       {lote!.estado !== 'vendido' && (
         <p className="mb-2 text-sm text-amber-700">

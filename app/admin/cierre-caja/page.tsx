@@ -92,6 +92,7 @@ export default async function CierreCajaPage({
     sena: 'Seña',
     entrega: 'Entrega',
     ajuste: 'Corrección',
+    saldar: 'Saldado',
   }
 
   return (

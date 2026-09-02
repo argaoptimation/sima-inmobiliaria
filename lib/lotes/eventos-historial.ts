@@ -10,4 +10,5 @@ export const EVENTO_HISTORIAL_ETIQUETA: Record<string, string> = {
   refinanciado: 'Refinanció',
   marcado_prejudicial: 'Pasó a Prejudicial',
   desmarcado_prejudicial: 'Salió de Prejudicial',
+  saldado: 'Saldado',
 }
