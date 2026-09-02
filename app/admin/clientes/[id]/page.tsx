@@ -4,6 +4,7 @@ import { calcularEstadoCobranza, cuotasVencidas } from '@/lib/cobranza/estado-cl
 import { calcularInteresMoratorio } from '@/lib/cobranza/interes-moratorio'
 import { armarLinkWhatsApp, armarMensajeWhatsApp } from '@/lib/cobranza/plantillas-whatsapp'
 import { telefonoParaWhatsApp } from '@/lib/telefono/prefijos'
+import { obtenerSiteUrl } from '@/lib/config/site-url'
 import { hoyArgentina } from '@/lib/fecha/hoy-argentina'
 import { CampoTelefono, AyudaTelefono } from '@/components/CampoTelefono'
 import { notFound } from 'next/navigation'
@@ -118,6 +119,7 @@ export default async function ClienteDetallePage({
               moneda: lote.moneda,
               fechaVencimiento: proximaCuotaPendiente.fecha_vencimiento,
               fechasVencidas: vencidas.map((cuota) => cuota.fechaVencimiento),
+              linkPortal: obtenerSiteUrl(),
             })
           : null
 

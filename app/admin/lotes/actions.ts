@@ -6,6 +6,7 @@ import { redirect } from 'next/navigation'
 import { requireAdmin } from '@/lib/auth/require-admin'
 import { validarSeleccionAcreedor } from '@/lib/lotes/validar-seleccion-acreedor'
 import { mensajeDeError } from '@/lib/errores'
+import { obtenerSiteUrl } from '@/lib/config/site-url'
 
 export async function crearLote(formData: FormData) {
   await requireAdmin()
@@ -49,7 +50,8 @@ export async function crearLote(formData: FormData) {
 
   if (seleccion.tipo === 'nuevo') {
     const { data: invited, error: errorInvite } = await admin.auth.admin.inviteUserByEmail(
-      seleccion.email
+      seleccion.email,
+      { redirectTo: `${obtenerSiteUrl()}/auth/confirm` }
     )
 
     if (errorInvite || !invited.user) {

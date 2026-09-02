@@ -24,7 +24,9 @@ test.describe('Buscar cliente por DNI al reservar', () => {
     fixtures = await ensureTestFixtures()
   })
 
-  test('buscar un DNI que coincide con un cliente existente precarga sus datos', async ({ page }) => {
+  test('buscar por DNI o nombre y elegir de la lista precarga los datos, sin recargar la página', async ({
+    page,
+  }) => {
     const admin = createAdminClient()
     const dni = `${Date.now()}`.slice(-8)
     const email = `cliente.buscar.dni.${Date.now()}@sima-e2e.invalid`
@@ -44,10 +46,15 @@ test.describe('Buscar cliente por DNI al reservar', () => {
 
     await login(page, fixtures.admin.email, fixtures.password)
     await page.goto(`/admin/lotes/${loteId}/reservar`)
-    await page.getByPlaceholder('Buscar cliente por DNI').fill(dni)
-    await page.getByRole('button', { name: 'Buscar' }).click()
 
-    await expect(page.getByText(/Encontramos a Juan Encontrado con este DNI/)).toBeVisible()
+    // Escribe algo en OTRO campo primero -- el punto del rediseño (bug real
+    // reportado 01/09) es justamente que buscar no tiene que borrar esto.
+    await page.getByPlaceholder('Domicilio').fill('Borrador que no se tiene que perder')
+
+    await page.getByPlaceholder('Buscar cliente por DNI o nombre').fill(dni)
+    await page.getByRole('button', { name: new RegExp(`${dni}.*Juan Encontrado`) }).click()
+
+    await expect(page.getByText(/Encontramos a Juan Encontrado/)).toBeVisible()
     await expect(page.getByPlaceholder('Nombre completo')).toHaveValue('Juan Encontrado')
     await expect(page.getByPlaceholder('DNI', { exact: true })).toHaveValue(dni)
     await expect(page.getByPlaceholder('Domicilio')).toHaveValue('Domicilio Encontrado 333')
@@ -55,19 +62,42 @@ test.describe('Buscar cliente por DNI al reservar', () => {
     await expect(page.getByPlaceholder('9351234567')).toHaveValue('3517777777')
   })
 
-  test('buscar un DNI que no coincide con nadie muestra el aviso y deja el formulario vacío', async ({
-    page,
-  }) => {
-    const loteId = await crearLoteDisponible(`E2E Buscar DNI Sin Match ${Date.now()}`)
-    const dniInexistente = `${Date.now()}`.slice(-8)
+  test('buscar por nombre también encuentra al cliente (no solo por DNI)', async ({ page }) => {
+    const admin = createAdminClient()
+    const nombreUnico = `Nombre Buscable ${Date.now()}`
+    const email = `cliente.buscar.nombre.${Date.now()}@sima-e2e.invalid`
+
+    const { data: invited } = await admin.auth.admin.inviteUserByEmail(email)
+    await admin.from('profiles').insert({
+      id: invited!.user.id,
+      role: 'cliente',
+      full_name: nombreUnico,
+      email,
+    })
+
+    const loteId = await crearLoteDisponible(`E2E Buscar Nombre Match ${Date.now()}`)
 
     await login(page, fixtures.admin.email, fixtures.password)
     await page.goto(`/admin/lotes/${loteId}/reservar`)
-    await page.getByPlaceholder('Buscar cliente por DNI').fill(dniInexistente)
-    await page.getByRole('button', { name: 'Buscar' }).click()
+    await page.getByPlaceholder('Buscar cliente por DNI o nombre').fill('Nombre Buscable')
 
-    await expect(page.getByText('No encontramos ningún cliente con ese DNI')).toBeVisible()
+    await expect(page.getByRole('button', { name: new RegExp(nombreUnico) })).toBeVisible()
+  })
+
+  test('buscar algo que no coincide con nadie muestra el aviso, sin tocar el resto del formulario', async ({
+    page,
+  }) => {
+    const loteId = await crearLoteDisponible(`E2E Buscar Sin Match ${Date.now()}`)
+    const textoInexistente = `zzz-inexistente-${Date.now()}`
+
+    await login(page, fixtures.admin.email, fixtures.password)
+    await page.goto(`/admin/lotes/${loteId}/reservar`)
+    await page.getByPlaceholder('Domicilio').fill('Esto tampoco se tiene que borrar')
+    await page.getByPlaceholder('Buscar cliente por DNI o nombre').fill(textoInexistente)
+
+    await expect(page.getByText('No encontramos ningún cliente con eso')).toBeVisible()
     await expect(page.getByPlaceholder('Nombre completo')).toHaveValue('')
+    await expect(page.getByPlaceholder('Domicilio')).toHaveValue('Esto tampoco se tiene que borrar')
   })
 
   test('sin usar el buscador, el formulario de reservar se comporta igual que siempre', async ({

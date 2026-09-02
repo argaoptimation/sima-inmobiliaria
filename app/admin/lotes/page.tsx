@@ -9,6 +9,7 @@ import { calcularEstadoCobranza, cuotasVencidas } from '@/lib/cobranza/estado-cl
 import { calcularInteresMoratorio } from '@/lib/cobranza/interes-moratorio'
 import { armarLinkWhatsApp, armarMensajeWhatsApp } from '@/lib/cobranza/plantillas-whatsapp'
 import { telefonoParaWhatsApp } from '@/lib/telefono/prefijos'
+import { obtenerSiteUrl } from '@/lib/config/site-url'
 import { FiltroEnVivo } from '@/components/FiltroEnVivo'
 import { hoyArgentina } from '@/lib/fecha/hoy-argentina'
 import { formatearFechaCorta } from '@/lib/fecha/formatear-fecha-corta'
@@ -190,6 +191,13 @@ export default async function LotesPage({
       : { data: [] }
   const clientePorId = new Map((clientes ?? []).map((cliente) => [cliente.id, cliente]))
   const esAdministrador = perfilPropio!.role === 'administrador'
+  // Pedido de Nico (01/09): el acreedor puede VER el estado de cobranza acá
+  // (columna que sigue gateada por !esVendedorOCobrador más abajo), pero no
+  // puede mandarle WhatsApp al cliente -- eso queda para admin. Ampliar esto
+  // a cobrador es un cambio más grande (hoy esVendedorOCobrador le esconde
+  // toda esta columna y filtra la query a solo disponible/reservado) que
+  // queda pendiente como su propio ítem, no se tocó acá.
+  const puedeEnviarWhatsApp = esAdministrador
 
   const cicloActualPorLoteId = new Map(lotesVendidos.map((lote) => [lote.id, lote.ciclo_actual]))
 
@@ -262,6 +270,7 @@ export default async function LotesPage({
               moneda: lote.moneda,
               fechaVencimiento: proximaCuotaPendiente.fecha_vencimiento,
               fechasVencidas: vencidas.map((cuota) => cuota.fechaVencimiento),
+              linkPortal: obtenerSiteUrl(),
             })
           : null
 
@@ -651,7 +660,11 @@ export default async function LotesPage({
                         {cobranza ? (
                           <div className="flex items-center gap-2">
                             <span className={claseCobranza(cobranza)}>{etiquetaCobranza(cobranza)}</span>
-                            {cobranza.mensajeWhatsApp && cobranza.telefono && (
+                            {/* Solo admin/cobrador pueden contactar clientes por WhatsApp
+                                (pedido de Nico 01/09): el acreedor podía apretarlo y no
+                                debería -- ver Notas_Decisiones_SIMA.txt / memoria del
+                                backlog de Notion. */}
+                            {cobranza.mensajeWhatsApp && cobranza.telefono && puedeEnviarWhatsApp && (
                               <a
                                 href={armarLinkWhatsApp(cobranza.telefono, cobranza.mensajeWhatsApp)}
                                 target="_blank"

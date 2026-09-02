@@ -2,19 +2,11 @@ import { createClient } from '@/lib/supabase/server'
 import { notFound } from 'next/navigation'
 import { requireAccesoParaReservar } from '@/lib/auth/require-admin'
 import { reservarLote } from './actions'
-import { CampoTelefono, AyudaTelefono } from '@/components/CampoTelefono'
+import { CamposIdentidadReserva } from './CamposIdentidadReserva'
 import { CampoArchivoDirecto } from '@/components/CampoArchivoDirecto'
 import { EnlaceBoton } from '@/components/EnlaceBoton'
 import { BotonEnvio } from '@/components/BotonEnvio'
-import {
-  ENTRADA,
-  BOTON_PRIMARIO,
-  BOTON_SECUNDARIO,
-  ENLACE,
-  TITULO_H1,
-  BANNER_ERROR,
-  BANNER_OK,
-} from '@/lib/ui/clases'
+import { ENTRADA, BOTON_PRIMARIO, ENLACE, TITULO_H1, BANNER_ERROR } from '@/lib/ui/clases'
 
 export default async function ReservarLotePage({
   params,
@@ -23,7 +15,6 @@ export default async function ReservarLotePage({
   params: Promise<{ id: string }>
   searchParams: Promise<{
     error?: string
-    dni?: string
     nombreCompleto?: string
     dniPreservado?: string
     domicilio?: string
@@ -42,7 +33,6 @@ export default async function ReservarLotePage({
   const { id } = await params
   const {
     error,
-    dni: dniBuscado,
     nombreCompleto: nombreCompletoPreservado,
     dniPreservado,
     domicilio: domicilioPreservado,
@@ -76,25 +66,6 @@ export default async function ReservarLotePage({
     notFound()
   }
 
-  let clienteEncontrado: {
-    full_name: string
-    dni: string | null
-    domicilio: string | null
-    telefono_prefijo: string | null
-    telefono_numero: string | null
-    email: string | null
-  } | null = null
-
-  if (dniBuscado) {
-    const { data } = await supabase
-      .from('profiles')
-      .select('full_name, dni, domicilio, telefono_prefijo, telefono_numero, email')
-      .eq('role', 'cliente')
-      .eq('dni', dniBuscado)
-      .maybeSingle()
-    clienteEncontrado = data
-  }
-
   const { data: staff } = await supabase
     .from('profiles')
     .select('id, full_name, role')
@@ -106,9 +77,6 @@ export default async function ReservarLotePage({
   // Si venimos de un error de validación, se respeta exactamente lo que el
   // admin ya había tipeado (aunque esté vacío). Si es la primera carga,
   // se prioriza lo encontrado por DNI.
-  const prefijoForm = prefijoPreservado ?? clienteEncontrado?.telefono_prefijo ?? null
-  const numeroForm = telefonoNumeroPreservado ?? clienteEncontrado?.telefono_numero ?? null
-
   return (
     <main className="max-w-md">
       <EnlaceBoton href="/admin/lotes" className={`mb-4 inline-block ${ENLACE}`}>
@@ -122,67 +90,17 @@ export default async function ReservarLotePage({
         </p>
       ) : (
         <>
-        <form method="GET" className="mb-4 flex gap-2">
-          <input
-            name="dni"
-            placeholder="Buscar cliente por DNI"
-            defaultValue={dniBuscado ?? ''}
-            className={`flex-1 ${ENTRADA}`}
-          />
-          <button type="submit" className={`cursor-pointer ${BOTON_SECUNDARIO}`}>
-            Buscar
-          </button>
-        </form>
-
-        {dniBuscado &&
-          (clienteEncontrado ? (
-            <p className={BANNER_OK}>
-              Encontramos a {clienteEncontrado.full_name} con este DNI. Sus datos se precargaron abajo
-              — revisalos antes de confirmar.
-            </p>
-          ) : (
-            <p className="mb-4 rounded-lg bg-slate-100 p-3 text-sm text-slate-700">
-              No encontramos ningún cliente con ese DNI — completá los datos manualmente.
-            </p>
-          ))}
-
         <form action={reservarLoteConId} className="flex flex-col gap-3">
           {error && <p className={BANNER_ERROR}>{error}</p>}
 
-          <input
-            name="nombreCompleto"
-            placeholder="Nombre completo"
-            defaultValue={nombreCompletoPreservado ?? clienteEncontrado?.full_name ?? ''}
-            required
-            className={ENTRADA}
+          <CamposIdentidadReserva
+            nombreCompletoInicial={nombreCompletoPreservado ?? ''}
+            dniInicial={dniPreservado ?? ''}
+            domicilioInicial={domicilioPreservado ?? ''}
+            emailInicial={emailPreservado ?? ''}
+            prefijoInicial={prefijoPreservado ?? null}
+            numeroInicial={telefonoNumeroPreservado ?? null}
           />
-          <input
-            name="dni"
-            placeholder="DNI"
-            defaultValue={dniPreservado ?? clienteEncontrado?.dni ?? dniBuscado ?? ''}
-            required
-            className={ENTRADA}
-          />
-          <input
-            name="domicilio"
-            placeholder="Domicilio"
-            defaultValue={domicilioPreservado ?? clienteEncontrado?.domicilio ?? ''}
-            required
-            className={ENTRADA}
-          />
-          <input
-            name="email"
-            type="email"
-            placeholder="Email"
-            defaultValue={emailPreservado ?? clienteEncontrado?.email ?? ''}
-            required
-            className={ENTRADA}
-          />
-          <label className="text-sm text-slate-600">
-            Teléfono
-            <CampoTelefono prefijoGuardado={prefijoForm} numeroGuardado={numeroForm} requerido />
-            <AyudaTelefono />
-          </label>
           <input
             name="telefonoAlternativo"
             placeholder="Teléfono alternativo (opcional)"
