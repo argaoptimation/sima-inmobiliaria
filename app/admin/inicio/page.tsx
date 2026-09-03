@@ -235,21 +235,33 @@ export default async function InicioPage() {
                 // una altura de verdad a esta columna, no h-full: probado que
                 // h-full (height:100%) acá quedaba en 0, el % no se resolvía
                 // bien contra el alto de un contenedor flex-1 anidado.
-                <div key={mes.clave} className="relative flex flex-1 flex-col items-center gap-2">
-                  {esActual && mes.total > 0 && (
-                    <span
-                      className={`absolute top-0 left-1/2 -translate-x-1/2 text-[11.5px] font-bold text-blue-800 ${NUMERO_TABULAR}`}
-                    >
-                      {mes.total >= 1000 ? `${(mes.total / 1000).toLocaleString('es-AR')}k` : mes.total}
-                    </span>
-                  )}
+                <div key={mes.clave} className="flex flex-1 flex-col items-center gap-2">
                   {/* El div de acá abajo es el que crece para llenar el alto
                       disponible (flex-1) -- la barra de adentro recién ahí
                       puede usar height:% con una referencia real. Ponerle el
                       % directo a un flex item en un contenedor column (como
                       antes) lo hacía competir por alto con las 2 etiquetas y
-                      terminaba colapsando a 0 (min-height:auto de flexbox). */}
-                  <div className="flex w-full flex-1 items-end justify-center">
+                      terminaba colapsando a 0 (min-height:auto de flexbox).
+                      `relative` vive ACÁ (no en la columna entera) para que
+                      el número pueda ubicarse con `bottom: alturaPorcentaje%`
+                      -- relativo a la altura real de la barra, no a un
+                      `top: 0` fijo. Antes solo se mostraba el número del mes
+                      actual porque con `top: 0` fijo, los meses de montos
+                      chicos (barras bajitas) quedaban todos amontonados
+                      arriba, superpuestos -- Nico lo marcó como "número
+                      tapado" en agosto (03/09): esperaba ver el valor en
+                      todos los meses con datos, no solo en el último. */}
+                  <div className="relative flex w-full flex-1 items-end justify-center">
+                    {mes.total > 0 && (
+                      <span
+                        className={`absolute left-1/2 -translate-x-1/2 whitespace-nowrap text-[11.5px] ${NUMERO_TABULAR} ${
+                          esActual ? 'font-bold text-blue-800' : 'font-semibold text-slate-500'
+                        }`}
+                        style={{ bottom: `calc(${alturaPorcentaje}% + 4px)` }}
+                      >
+                        {mes.total >= 1000 ? `${(mes.total / 1000).toLocaleString('es-AR')}k` : mes.total}
+                      </span>
+                    )}
                     <div
                       className="w-full max-w-[38px] rounded-t-[5px] rounded-b-sm"
                       style={{ height: `${alturaPorcentaje}%`, background: TONOS_BARRA[indice] }}
