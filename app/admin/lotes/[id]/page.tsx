@@ -896,14 +896,29 @@ export default async function LoteDetallePage({
             </label>
             <label className="text-sm">
               Precio total del lote
-              <input
-                name="precioTotal"
-                type="number"
-                step="0.01"
-                min="0"
-                defaultValue={lote!.precio_total ?? ''}
-                className={`${ENTRADA} w-full`}
-              />
+              {/* Badge de moneda al lado del campo (pedido de Gabriel 03/09):
+                  antes solo se veía la moneda arriba del todo, en el resumen
+                  del lote -- si entrabas directo a este formulario para
+                  editar el precio no había forma de saber en qué moneda
+                  sin scrollear. La moneda no es editable acá a propósito:
+                  se fija al crear el lote, cambiarla después rompería los
+                  cálculos de cuotas/pagos ya cargados en la otra moneda. */}
+              <div className="flex items-center gap-2">
+                <input
+                  name="precioTotal"
+                  type="number"
+                  step="0.01"
+                  min="0"
+                  defaultValue={lote!.precio_total ?? ''}
+                  className={`${ENTRADA} w-full`}
+                />
+                <span
+                  className="mt-1 shrink-0 rounded-lg border-2 border-slate-200 bg-slate-100 px-3 py-2.5 text-sm font-semibold text-slate-600"
+                  title="La moneda se fija al crear el lote y no se puede cambiar acá"
+                >
+                  {lote!.moneda}
+                </span>
+              </div>
             </label>
             {lote!.moneda === 'ARS' && (
               <label className="text-sm">
