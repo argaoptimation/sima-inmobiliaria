@@ -1,14 +1,9 @@
 import { createClient } from '@/lib/supabase/server'
-import { requireAdministrador } from '@/lib/auth/require-admin'
+import { requireAdminOCobrador } from '@/lib/auth/require-admin'
 import { calcularTramosMora } from '@/lib/cobranza/tramos-mora'
 import { EncabezadoPagina } from '@/components/EncabezadoPagina'
 import { PanelMorososVista } from './PanelMorososVista'
-import {
-  BANNER_ERROR,
-  BANNER_OK,
-  NUMERO_TABULAR,
-  MOROSOS_KPI_TARJETA,
-} from '@/lib/ui/clases'
+import { BANNER_ERROR, BANNER_OK } from '@/lib/ui/clases'
 
 // Panel de Morosos (PR4 del rediseño, MOCKUP 3): agrupa a todos los clientes
 // con cuotas vencidas en 4 tramos -- deben 1, deben 2, posible prejudicial (3+)
@@ -19,24 +14,31 @@ export default async function PanelMorososPage({
 }: {
   searchParams: Promise<{ ok?: string; error?: string }>
 }) {
-  await requireAdministrador()
+  await requireAdminOCobrador()
 
   const { ok, error } = await searchParams
 
   const supabase = await createClient()
-  const { debe1, debe2, posiblePrejudicial, prejudicialOficial } =
-    await calcularTramosMora(supabase)
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
+  const { data: perfilPropio } = await supabase
+    .from('profiles')
+    .select('role')
+    .eq('id', user!.id)
+    .single()
+  const esAdministrador = perfilPropio?.role === 'administrador'
 
-  const totalEnMora =
-    debe1.length + debe2.length + posiblePrejudicial.length + prejudicialOficial.length
-  const deben1o2 = debe1.length + debe2.length
+  const { debe1, debe2, posiblePrejudicial, prejudicialOficial, alDia } =
+    await calcularTramosMora(supabase)
 
   return (
     <main className="flex flex-col gap-5">
       {/* Renombrado a "Panel de cuotas" (pedido de Nico, confirmado por Gabriel
           03/09) -- la URL/slug se deja igual (`/admin/panel-morosos`) a
           propósito, para no romper enlaces/bookmarks existentes; solo cambia
-          el nombre visible. */}
+          el nombre visible. Ahora también accesible para cobrador (antes
+          requireAdministrador lo bloqueaba de entrar directo por URL). */}
       <EncabezadoPagina titulo="Panel de cuotas" migas={['Panel de cuotas']} />
 
       {error && <p className={BANNER_ERROR}>{error}</p>}
@@ -48,6 +50,8 @@ export default async function PanelMorososPage({
         debe2={debe2}
         posiblePrejudicial={posiblePrejudicial}
         prejudicialOficial={prejudicialOficial}
+        alDia={alDia}
+        esAdministrador={esAdministrador}
       />
     </main>
   )

@@ -1,6 +1,6 @@
 import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
-import { requireAdminOAcreedor } from '@/lib/auth/require-admin'
+import { requireAdminAcreedorOCobrador } from '@/lib/auth/require-admin'
 import { confirmarPago, editarMontoPago } from './actions'
 import { FiltroEnVivo } from '@/components/FiltroEnVivo'
 import { EnlaceBoton } from '@/components/EnlaceBoton'
@@ -71,11 +71,29 @@ function obtenerMotivoTexto(motivo: string) {
 export default async function PagosPage({
   searchParams,
 }: {
-  searchParams: Promise<{ error?: string; q?: string; estado?: string; acreedor?: string }>
+  searchParams: Promise<{
+    error?: string
+    q?: string
+    estado?: string
+    acreedor?: string
+    motivo?: string
+    desde?: string
+    hasta?: string
+  }>
 }) {
-  const { error, q: filtroTexto, estado: filtroEstado, acreedor: filtroAcreedorId } = await searchParams
+  const {
+    error,
+    q: filtroTexto,
+    estado: filtroEstado,
+    acreedor: filtroAcreedorId,
+    motivo: filtroMotivo,
+    desde: filtroDesde,
+    hasta: filtroHasta,
+  } = await searchParams
 
-  await requireAdminOAcreedor()
+  // Cobrador ahora entra acá también (03/09, confirmado con Nico) -- ya
+  // veía el link "Pagos" en el sidebar pero la página lo bloqueaba igual.
+  await requireAdminAcreedorOCobrador()
 
   const supabase = await createClient()
 
@@ -155,6 +173,9 @@ export default async function PagosPage({
         .in('lote_id', loteIds)
         .order('created_at', { ascending: false })
       if (filtroEstado) query = query.eq('estado', filtroEstado)
+      if (filtroMotivo) query = query.eq('motivo', filtroMotivo)
+      if (filtroDesde) query = query.gte('created_at', `${filtroDesde}T00:00:00`)
+      if (filtroHasta) query = query.lte('created_at', `${filtroHasta}T23:59:59`)
       const { data } = await query
       pagos = data ?? []
     }
@@ -167,12 +188,18 @@ export default async function PagosPage({
           .in('lote_id', loteIdsFiltro)
           .order('created_at', { ascending: false })
         if (filtroEstado) query = query.eq('estado', filtroEstado)
+        if (filtroMotivo) query = query.eq('motivo', filtroMotivo)
+        if (filtroDesde) query = query.gte('created_at', `${filtroDesde}T00:00:00`)
+        if (filtroHasta) query = query.lte('created_at', `${filtroHasta}T23:59:59`)
         const { data } = await query
         pagos = data ?? []
       }
     } else {
       let query = supabase.from('pagos').select(columnasPago).order('created_at', { ascending: false })
       if (filtroEstado) query = query.eq('estado', filtroEstado)
+      if (filtroMotivo) query = query.eq('motivo', filtroMotivo)
+      if (filtroDesde) query = query.gte('created_at', `${filtroDesde}T00:00:00`)
+      if (filtroHasta) query = query.lte('created_at', `${filtroHasta}T23:59:59`)
       const { data } = await query
       pagos = data ?? []
     }
@@ -334,6 +361,43 @@ export default async function PagosPage({
             </select>
           )}
 
+          {/* Filtro por motivo y por fecha (pedido de Nico 03/09: concilia
+              día por día contra el banco, hoy tenía que revisar todo sin
+              poder acotar). Filtra sobre created_at -- el mismo campo que
+              ya se muestra como "fecha" en cada tarjeta. */}
+          <select
+            key={filtroMotivo ?? 'empty'}
+            name="motivo"
+            defaultValue={filtroMotivo ?? ''}
+            className={`${ENTRADA} !mt-0 !py-2 !text-[13.5px]`}
+          >
+            <option value="">Todos los motivos</option>
+            <option value="cuota">Cuota</option>
+            <option value="sena">Seña</option>
+            <option value="entrega">Entrega</option>
+            <option value="ajuste">Corrección</option>
+            <option value="saldar">Pago total anticipado</option>
+          </select>
+
+          <label className="flex items-center gap-1.5 text-xs font-semibold text-slate-600">
+            Desde
+            <input
+              type="date"
+              name="desde"
+              defaultValue={filtroDesde ?? ''}
+              className={`${ENTRADA} !mt-0 !py-2 !text-[13.5px]`}
+            />
+          </label>
+          <label className="flex items-center gap-1.5 text-xs font-semibold text-slate-600">
+            Hasta
+            <input
+              type="date"
+              name="hasta"
+              defaultValue={filtroHasta ?? ''}
+              className={`${ENTRADA} !mt-0 !py-2 !text-[13.5px]`}
+            />
+          </label>
+
           {/* Acceso Rápido de Estado (Integrado al Filtro en Vivo) */}
           <div className="flex items-center gap-1 rounded-xl border border-blue-100 bg-blue-50/80 p-1">
             <label
@@ -371,7 +435,7 @@ export default async function PagosPage({
             </label>
           </div>
 
-          {(filtroTexto || filtroEstado || filtroAcreedorId) && (
+          {(filtroTexto || filtroEstado || filtroAcreedorId || filtroMotivo || filtroDesde || filtroHasta) && (
             <EnlaceBoton 
               href="/admin/pagos" 
               className="ml-auto flex items-center justify-center rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs font-bold text-slate-600 shadow-[0_1px_2px_rgba(15,32,73,0.05)] transition-all hover:bg-slate-50 hover:text-slate-900"
@@ -386,7 +450,7 @@ export default async function PagosPage({
       <div className="flex flex-col gap-3">
         {pagosConLink.length === 0 ? (
           <div className="rounded-xl border border-blue-100 bg-white p-8 text-center text-sm text-slate-600 shadow-sm">
-            {filtroTexto || filtroEstado || filtroAcreedorId
+            {filtroTexto || filtroEstado || filtroAcreedorId || filtroMotivo || filtroDesde || filtroHasta
               ? 'No se encontraron pagos con los filtros seleccionados.'
               : 'No hay pagos registrados todavía.'}
           </div>

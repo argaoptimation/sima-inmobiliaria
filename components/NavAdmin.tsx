@@ -82,11 +82,17 @@ export function NavAdmin({
 }) {
   const pathname = usePathname()
 
-  const puedeVerPagosYUsuarios = role === 'administrador' || role === 'acreedor'
   const esAdministrador = role === 'administrador'
-  const tieneCuentaPropia = role === 'acreedor' || role === 'vendedor' || role === 'cobrador'
-  const puedeVerIndices = role === 'administrador' || role === 'cobrador'
-  const puedeVerEfectivoYCaja = role === 'administrador' || role === 'cobrador'
+  const esCobrador = role === 'cobrador'
+  // Pagos y Panel de cuotas: cobrador ve todo lo que ve admin acá (confirmado
+  // con Nico 03/09) -- Usuarios queda aparte, admin/acreedor solamente, no es
+  // parte de "toda la info de lotes/cobranza" que se le confirmó a cobrador.
+  const puedeVerPagos = esAdministrador || role === 'acreedor' || esCobrador
+  const puedeVerUsuarios = esAdministrador || role === 'acreedor'
+  const puedeVerPanelCuotas = esAdministrador || esCobrador
+  const tieneCuentaPropia = role === 'acreedor' || role === 'vendedor' || esCobrador
+  const puedeVerIndices = esAdministrador || esCobrador
+  const puedeVerEfectivoYCaja = esAdministrador || esCobrador
 
   const inicioHref = esAdministrador ? '/admin/inicio' : '/admin/lotes'
 
@@ -107,10 +113,10 @@ export function NavAdmin({
     {
       titulo: 'Cobranza',
       items: [
-        ...(puedeVerPagosYUsuarios
+        ...(puedeVerPagos
           ? [{ href: '/admin/pagos', etiqueta: 'Pagos', icono: Banknote, badge: pagosPendientes }]
           : []),
-        ...(esAdministrador
+        ...(puedeVerPanelCuotas
           ? [{ href: '/admin/panel-morosos', etiqueta: 'Panel de cuotas', icono: TriangleAlert }]
           : []),
         ...(puedeVerEfectivoYCaja ? [{ href: '/admin/efectivo', etiqueta: 'Efectivo', icono: Wallet }] : []),
@@ -137,7 +143,7 @@ export function NavAdmin({
     {
       titulo: 'Sistema',
       items: [
-        ...(puedeVerPagosYUsuarios ? [{ href: '/admin/usuarios', etiqueta: 'Usuarios', icono: UserCog }] : []),
+        ...(puedeVerUsuarios ? [{ href: '/admin/usuarios', etiqueta: 'Usuarios', icono: UserCog }] : []),
         ...(puedeVerIndices ? [{ href: '/admin/historial-lotes', etiqueta: 'Historial', icono: FileClock }] : []),
       ],
     },

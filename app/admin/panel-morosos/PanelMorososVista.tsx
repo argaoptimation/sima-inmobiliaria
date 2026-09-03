@@ -5,6 +5,7 @@ import type { FilaMoroso } from '@/lib/cobranza/tramos-mora'
 import { marcarPrejudicial } from '../lotes/[id]/actions'
 import { BotonMarcarPrejudicial } from '../lotes/[id]/BotonPrejudicial'
 import { EnlaceBoton } from '@/components/EnlaceBoton'
+import { armarLinkWhatsApp } from '@/lib/cobranza/plantillas-whatsapp'
 import {
   NUMERO_TABULAR,
   MOROSOS_LISTA_WRAP,
@@ -13,13 +14,21 @@ import {
   ENLACE_TABLA,
 } from '@/lib/ui/clases'
 
-type TabTramo = 'todos' | 'debe1' | 'debe2' | 'posible' | 'prejudicial'
+type TabTramo = 'todos' | 'debe1' | 'debe2' | 'posible' | 'prejudicial' | 'alDia'
 
 interface Props {
   debe1: FilaMoroso[]
   debe2: FilaMoroso[]
   posiblePrejudicial: FilaMoroso[]
   prejudicialOficial: FilaMoroso[]
+  // Agregado 03/09: clientes al día (con saldo pendiente pero sin cuotas
+  // vencidas) -- antes no se calculaban acá. "Todos" ahora los incluye.
+  alDia: FilaMoroso[]
+  // Cobrador ahora entra a este panel (03/09), pero "Marcar prejudicial"
+  // sigue siendo una acción exclusiva de administrador -- el server action
+  // ya la re-valida (requireAdministrador), esto solo evita mostrar un botón
+  // que para cobrador no haría nada.
+  esAdministrador: boolean
 }
 
 export function PanelMorososVista({
@@ -27,11 +36,16 @@ export function PanelMorososVista({
   debe2,
   posiblePrejudicial,
   prejudicialOficial,
+  alDia,
+  esAdministrador,
 }: Props) {
   const [tabActivo, setTabActivo] = useState<TabTramo>('todos')
 
   const totalEnMora =
     debe1.length + debe2.length + posiblePrejudicial.length + prejudicialOficial.length
+  // "Todos" (pedido de Nico 03/09): la cabecera principal ahora suma también
+  // a los clientes al día, no solo a los que están en mora.
+  const totalGeneral = totalEnMora + alDia.length
 
   const secciones = [
     {
@@ -78,6 +92,17 @@ export function PanelMorososVista({
       filas: [...prejudicialOficial].sort((a, b) => a.clienteNombre.localeCompare(b.clienteNombre)),
       conBotonMarcar: false,
     },
+    {
+      id: 'alDia' as const,
+      titulo: 'Al día',
+      subtitulo: '— saldo pendiente, ninguna cuota vencida todavía',
+      dotColor: 'bg-emerald-500',
+      bordeFila: 'border-l-[3px] border-l-emerald-500',
+      fondoFila: '',
+      badgeClase: 'bg-emerald-50 text-emerald-700 border border-emerald-200/60',
+      filas: [...alDia].sort((a, b) => a.clienteNombre.localeCompare(b.clienteNombre)),
+      conBotonMarcar: false,
+    },
   ]
 
   const seccionesVisibles =
@@ -87,8 +112,10 @@ export function PanelMorososVista({
 
   return (
     <div className="flex flex-col gap-5">
-      {/* 5 KPIs que actúan como Tabs de Filtrado Directo */}
-      <div className="grid grid-cols-2 gap-3 md:grid-cols-3 lg:grid-cols-5">
+      {/* 6 KPIs que actúan como Tabs de Filtrado Directo -- "Todos" ahora
+          suma también a los clientes al día (pedido de Nico 03/09), no solo
+          los que están en mora. */}
+      <div className="grid grid-cols-2 gap-3 md:grid-cols-3 lg:grid-cols-6">
         <button
           type="button"
           onClick={() => setTabActivo('todos')}
@@ -99,10 +126,10 @@ export function PanelMorososVista({
           }`}
         >
           <span className={`text-xs font-semibold ${tabActivo === 'todos' ? 'text-blue-800' : 'text-slate-500'}`}>
-            Total en mora
+            Todos
           </span>
           <span className={`text-2xl font-extrabold ${NUMERO_TABULAR} tracking-[-0.02em] ${tabActivo === 'todos' ? 'text-blue-900' : 'text-slate-700'}`}>
-            {totalEnMora}
+            {totalGeneral}
           </span>
         </button>
 
@@ -173,13 +200,30 @@ export function PanelMorososVista({
             {prejudicialOficial.length}
           </span>
         </button>
+
+        <button
+          type="button"
+          onClick={() => setTabActivo('alDia')}
+          className={`flex flex-col gap-1.5 rounded-xl border p-[14px_16px] text-left shadow-sm transition-all hover:border-emerald-300 ${
+            tabActivo === 'alDia'
+              ? 'border-emerald-400 bg-emerald-50/50 ring-1 ring-emerald-400'
+              : 'border-slate-200 bg-white'
+          }`}
+        >
+          <span className={`text-xs font-semibold ${tabActivo === 'alDia' ? 'text-emerald-800' : 'text-slate-500'}`}>
+            Al día
+          </span>
+          <span className={`text-2xl font-extrabold ${NUMERO_TABULAR} tracking-[-0.02em] ${tabActivo === 'alDia' ? 'text-emerald-700' : 'text-emerald-600'}`}>
+            {alDia.length}
+          </span>
+        </button>
       </div>
 
       {/* Lista Unificada de Morosos */}
       <div className={MOROSOS_LISTA_WRAP}>
-        {totalEnMora === 0 ? (
+        {totalGeneral === 0 ? (
           <div className="p-8 text-center text-sm font-medium text-slate-600">
-            No hay ningún lote con cuotas vencidas actualmente.
+            No hay ningún lote vendido con saldo pendiente actualmente.
           </div>
         ) : (
           seccionesVisibles.map((seccion) => {
@@ -253,7 +297,21 @@ export function PanelMorososVista({
                         >
                           Ver lote
                         </EnlaceBoton>
-                        {seccion.conBotonMarcar && (
+                        {/* Mandar WhatsApp directo desde acá (pedido de Nico
+                            03/09) -- mismo mensaje/link que ya se arma en
+                            /admin/lotes, filtrando por tramo en vez de tener
+                            que ir a buscar el lote uno por uno. */}
+                        {fila.mensajeWhatsApp && fila.telefono && (
+                          <a
+                            href={armarLinkWhatsApp(fila.telefono, fila.mensajeWhatsApp)}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-xs font-semibold text-green-700 hover:text-green-900"
+                          >
+                            WhatsApp
+                          </a>
+                        )}
+                        {seccion.conBotonMarcar && esAdministrador && (
                           <BotonMarcarPrejudicial
                             marcarPrejudicialAction={marcarPrejudicialConId}
                           />
