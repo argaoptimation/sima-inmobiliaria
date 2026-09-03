@@ -1,4 +1,3 @@
-import Image from 'next/image'
 import { solicitarRecuperacion } from './actions'
 import { EnlaceBoton } from '@/components/EnlaceBoton'
 import { BotonEnvio } from '@/components/BotonEnvio'
@@ -28,7 +27,13 @@ export default async function RecuperarContrasenaPage({
         
         <div className="relative z-10 flex h-full flex-col justify-between p-12 text-white">
           <div>
-            <Image src="/logo.png" alt="SIMA" width={120} height={42} className="brightness-0 invert object-contain" priority />
+            {/* <img> plano, no next/image -- el optimizador de next/image
+                (sharp) achata la transparencia de este logo a blanco sólido
+                al reescalarlo (bug reproducido 03/09, mismo archivo se ve
+                perfecto servido directo). El resto de la app ya usa <img>
+                para este logo (NavAdmin, portal cliente) sin problema. */}
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src="/logo.png" alt="SIMA" className="h-[42px] w-auto brightness-0 invert" />
           </div>
           <div className="max-w-md">
             <h2 className="mb-4 text-4xl font-extrabold tracking-tight">Gestión inmobiliaria inteligente.</h2>
@@ -45,7 +50,8 @@ export default async function RecuperarContrasenaPage({
           <div className="mb-8 flex flex-col gap-1 text-center lg:text-left">
             <div className="mb-2 flex justify-center lg:hidden">
               <div className="flex items-center justify-center rounded-xl bg-white p-2.5 shadow-sm border border-slate-100">
-                <Image src="/logo.png" alt="SIMA" width={110} height={38} className="h-9 w-auto object-contain" priority />
+                {/* eslint-disable-next-line @next/next/no-img-element -- ver comentario arriba */}
+                <img src="/logo.png" alt="SIMA" className="h-9 w-auto" />
               </div>
             </div>
             <h1 className="text-2xl font-extrabold tracking-tight text-blue-950">Recuperar contraseña</h1>

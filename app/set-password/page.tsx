@@ -1,4 +1,3 @@
-import Image from 'next/image'
 import { setPassword } from './actions'
 import { CampoPassword } from '@/components/CampoPassword'
 import { BotonEnvio } from '@/components/BotonEnvio'
@@ -14,7 +13,12 @@ export default async function SetPasswordPage({
     <main className="flex min-h-full flex-1 items-center justify-center p-6">
       <div className="w-full max-w-sm rounded-xl border border-blue-100 bg-white p-8 shadow-sm">
         <div className="mb-6 flex flex-col items-center gap-3 text-center">
-          <Image src="/logo.png" alt="SIMA" width={64} height={64} className="rounded-lg" />
+          {/* <img> plano, no next/image -- el optimizador (sharp) achata la
+              transparencia de este logo a blanco sólido al reescalarlo
+              (bug reproducido 03/09). Además, forzar 64x64 en un logo
+              horizontal (~3.5:1) lo deformaba -- h-16 w-auto lo respeta. */}
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src="/logo.png" alt="SIMA" className="h-16 w-auto" />
           <h1 className="text-xl font-extrabold text-blue-900">Elegí tu contraseña</h1>
         </div>
 

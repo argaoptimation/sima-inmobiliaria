@@ -5,6 +5,7 @@ import type { FilaMoroso } from '@/lib/cobranza/tramos-mora'
 import { marcarPrejudicial } from '../lotes/[id]/actions'
 import { BotonMarcarPrejudicial } from '../lotes/[id]/BotonPrejudicial'
 import { EnlaceBoton } from '@/components/EnlaceBoton'
+import { IconoWhatsApp } from '@/components/IconoWhatsApp'
 import { armarLinkWhatsApp } from '@/lib/cobranza/plantillas-whatsapp'
 import {
   NUMERO_TABULAR,
@@ -297,17 +298,25 @@ export function PanelMorososVista({
                         >
                           Ver lote
                         </EnlaceBoton>
-                        {/* Mandar WhatsApp directo desde acá (pedido de Nico
-                            03/09) -- mismo mensaje/link que ya se arma en
-                            /admin/lotes, filtrando por tramo en vez de tener
-                            que ir a buscar el lote uno por uno. */}
+                        {/* Botón de WhatsApp centralizado acá (pedido de
+                            Gabriel 03/09, tras revisar la llamada con Nico:
+                            "Panel de morosos con botón de WhatsApp directo:
+                            un click abre el chat con el mensaje de deuda
+                            pre-armado") -- ya no vive en /admin/lotes, este
+                            panel es el único lugar. El mensaje sigue el
+                            estado real de cada fila (al día/atrasado/
+                            moroso/prejudicial), no uno fijo. Ícono propio
+                            (no hay set de íconos de marca instalado) para
+                            que sea fácil de reconocer y de apretar. */}
                         {fila.mensajeWhatsApp && fila.telefono && (
                           <a
                             href={armarLinkWhatsApp(fila.telefono, fila.mensajeWhatsApp)}
                             target="_blank"
                             rel="noopener noreferrer"
-                            className="text-xs font-semibold text-green-700 hover:text-green-900"
+                            className="flex items-center gap-1 rounded-lg bg-green-600 px-2.5 py-1.5 text-xs font-bold text-white shadow-sm transition-colors hover:bg-green-700"
+                            title="Enviar recordatorio por WhatsApp"
                           >
+                            <IconoWhatsApp className="h-3.5 w-3.5" />
                             WhatsApp
                           </a>
                         )}

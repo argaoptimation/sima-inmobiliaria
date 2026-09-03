@@ -5,11 +5,7 @@ import { BotonCancelarReserva } from './BotonCancelarReserva'
 import { eliminarLote } from './[id]/actions'
 import { BotonEliminarLote } from './[id]/BotonEliminarLote'
 import { guardarCotizacionDolar } from './cotizacion-dolar-actions'
-import { calcularEstadoCobranza, cuotasVencidas } from '@/lib/cobranza/estado-cliente'
-import { calcularInteresMoratorio } from '@/lib/cobranza/interes-moratorio'
-import { armarLinkWhatsApp, armarMensajeWhatsApp } from '@/lib/cobranza/plantillas-whatsapp'
-import { telefonoParaWhatsApp } from '@/lib/telefono/prefijos'
-import { obtenerSiteUrl } from '@/lib/config/site-url'
+import { calcularEstadoCobranza } from '@/lib/cobranza/estado-cliente'
 import { FiltroEnVivo } from '@/components/FiltroEnVivo'
 import { hoyArgentina } from '@/lib/fecha/hoy-argentina'
 import { formatearFechaCorta } from '@/lib/fecha/formatear-fecha-corta'
@@ -124,7 +120,7 @@ export default async function LotesPage({
   let queryLotes = supabase
     .from('lotes')
     .select(
-      'id, identificador, moneda, estado, cantidad_cuotas, ubicacion, precio_total, acreedor_id, loteo_id, cliente_id, ciclo_actual, marcado_prejudicial, numero_lote, manzana, interes_moratorio_diario'
+      'id, identificador, moneda, estado, cantidad_cuotas, ubicacion, precio_total, acreedor_id, loteo_id, cliente_id, ciclo_actual, marcado_prejudicial'
     )
     .order(columnaOrden, { ascending: ordenAscendente })
 
@@ -183,6 +179,10 @@ export default async function LotesPage({
 
   // Estado de cobranza por lote vendido: para que se vea de un vistazo quién
   // está en mora sin tener que entrar a cada cliente (ver Notas_Decisiones_SIMA.txt).
+  // El botón de WhatsApp que vivía acá (por fila) se sacó (03/09, pedido de
+  // Gabriel: "tener todo centralizado" en un solo lugar) -- ahora manda
+  // siempre desde /admin/panel-morosos, que ya permite filtrar por tramo
+  // (deben 1/2/posible prejudicial/etc.) antes de escribirle a cada uno.
   const lotesVendidos = (lotes ?? []).filter((lote) => lote.estado === 'vendido' && lote.cliente_id)
   const loteVendidoIds = lotesVendidos.map((lote) => lote.id)
   const clienteIds = [...new Set(lotesVendidos.map((lote) => lote.cliente_id as string))]
@@ -196,12 +196,6 @@ export default async function LotesPage({
       : { data: [] }
   const clientePorId = new Map((clientes ?? []).map((cliente) => [cliente.id, cliente]))
   const esAdministrador = perfilPropio!.role === 'administrador'
-  // Pedido de Nico (01/09): el acreedor puede VER el estado de cobranza acá
-  // (columna que sigue gateada por !esVendedor más abajo), pero no puede
-  // mandarle WhatsApp al cliente -- eso queda para admin y cobrador (03/09,
-  // confirmado en la llamada: el cobrador sí necesita poder contactar a los
-  // morosos por WhatsApp).
-  const puedeEnviarWhatsApp = esAdministrador || esCobrador
 
   const cicloActualPorLoteId = new Map(lotesVendidos.map((lote) => [lote.id, lote.ciclo_actual]))
 
@@ -240,52 +234,12 @@ export default async function LotesPage({
         })),
         hoy
       )
-      const proximaCuotaPendiente = cuotasDelLote.find((cuota) => cuota.saldo_pendiente > 0)
-      const cliente = clientePorId.get(lote.cliente_id as string)
-      // moroso/prejudicial: el monto que se manda por WhatsApp incluye el
-      // interés moratorio acumulado de cada cuota vencida (pedido explícito
-      // de Nicolás en las plantillas del 28/08) -- normal/atrasado siguen
-      // usando el saldo de capital nomás, todavía no acumularon mora real.
-      const vencidas = cuotasVencidas(
-        cuotasDelLote.map((cuota) => ({
-          saldoPendiente: cuota.saldo_pendiente,
-          fechaVencimiento: cuota.fecha_vencimiento,
-        })),
-        hoy
-      )
-      const montoConMora =
-        estadoCobranza === 'moroso' || estadoCobranza === 'prejudicial'
-          ? saldoPendiente +
-            vencidas.reduce(
-              (acum, cuota) =>
-                acum + calcularInteresMoratorio(cuota, lote.interes_moratorio_diario, hoy),
-              0
-            )
-          : saldoPendiente
-      const mensajeWhatsApp =
-        saldoPendiente > 0 && proximaCuotaPendiente && cliente
-          ? armarMensajeWhatsApp(estadoCobranza, {
-              nombre: cliente.full_name,
-              lote: lote.identificador,
-              numeroLote: lote.numero_lote,
-              manzana: lote.manzana,
-              nombreLoteo: lote.loteo_id ? (nombreLoteoPorId.get(lote.loteo_id) ?? null) : null,
-              monto: montoConMora,
-              moneda: lote.moneda,
-              fechaVencimiento: proximaCuotaPendiente.fecha_vencimiento,
-              fechasVencidas: vencidas.map((cuota) => cuota.fechaVencimiento),
-              linkPortal: obtenerSiteUrl(),
-            })
-          : null
-
       return [
         lote.id,
         {
           saldoPendiente,
           estadoCobranza,
           marcadoPrejudicial: lote.marcado_prejudicial,
-          mensajeWhatsApp,
-          telefono: telefonoParaWhatsApp(cliente?.telefono_prefijo ?? null, cliente?.telefono_numero ?? null),
         },
       ]
     })
@@ -667,23 +621,7 @@ export default async function LotesPage({
                     {!esVendedor && (
                       <td className={TABLA_CELDA}>
                         {cobranza ? (
-                          <div className="flex items-center gap-2">
-                            <span className={claseCobranza(cobranza)}>{etiquetaCobranza(cobranza)}</span>
-                            {/* Solo admin/cobrador pueden contactar clientes por WhatsApp
-                                (pedido de Nico 01/09): el acreedor podía apretarlo y no
-                                debería -- ver Notas_Decisiones_SIMA.txt / memoria del
-                                backlog de Notion. */}
-                            {cobranza.mensajeWhatsApp && cobranza.telefono && puedeEnviarWhatsApp && (
-                              <a
-                                href={armarLinkWhatsApp(cobranza.telefono, cobranza.mensajeWhatsApp)}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className={ENLACE}
-                              >
-                                WhatsApp
-                              </a>
-                            )}
-                          </div>
+                          <span className={claseCobranza(cobranza)}>{etiquetaCobranza(cobranza)}</span>
                         ) : (
                           <span className="text-slate-500">—</span>
                         )}
