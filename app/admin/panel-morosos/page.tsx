@@ -33,7 +33,11 @@ export default async function PanelMorososPage({
 
   return (
     <main className="flex flex-col gap-5">
-      <EncabezadoPagina titulo="Panel de morosos" migas={['Panel de morosos']} />
+      {/* Renombrado a "Panel de cuotas" (pedido de Nico, confirmado por Gabriel
+          03/09) -- la URL/slug se deja igual (`/admin/panel-morosos`) a
+          propósito, para no romper enlaces/bookmarks existentes; solo cambia
+          el nombre visible. */}
+      <EncabezadoPagina titulo="Panel de cuotas" migas={['Panel de cuotas']} />
 
       {error && <p className={BANNER_ERROR}>{error}</p>}
       {ok && <p className={BANNER_OK}>{ok}</p>}

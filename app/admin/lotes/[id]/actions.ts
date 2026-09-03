@@ -839,8 +839,10 @@ export async function saldarLote(loteId: string, formData: FormData) {
     lote_id: loteId,
     evento: 'saldado',
     cambiado_por: user!.id,
-    detalle: `Saldado por ${monto} ${lote!.moneda} (${medioPago}) -- quedaban pendientes ${totalPendienteAntes} ${lote!.moneda}.`,
+    detalle: `Pago total anticipado por ${monto} ${lote!.moneda} (${medioPago}) -- quedaban pendientes ${totalPendienteAntes} ${lote!.moneda}.`,
   })
 
-  redirect(`${destino}?ok=${encodeURIComponent('Lote saldado -- la deuda restante quedó cerrada.')}`)
+  redirect(
+    `${destino}?ok=${encodeURIComponent('Pago total anticipado registrado -- la deuda restante quedó cerrada.')}`
+  )
 }

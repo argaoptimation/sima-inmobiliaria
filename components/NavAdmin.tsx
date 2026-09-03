@@ -111,7 +111,7 @@ export function NavAdmin({
           ? [{ href: '/admin/pagos', etiqueta: 'Pagos', icono: Banknote, badge: pagosPendientes }]
           : []),
         ...(esAdministrador
-          ? [{ href: '/admin/panel-morosos', etiqueta: 'Panel de morosos', icono: TriangleAlert }]
+          ? [{ href: '/admin/panel-morosos', etiqueta: 'Panel de cuotas', icono: TriangleAlert }]
           : []),
         ...(puedeVerEfectivoYCaja ? [{ href: '/admin/efectivo', etiqueta: 'Efectivo', icono: Wallet }] : []),
         ...(puedeVerEfectivoYCaja

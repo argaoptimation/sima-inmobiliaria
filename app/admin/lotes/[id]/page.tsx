@@ -77,7 +77,7 @@ const MOTIVO_PAGO_ETIQUETA: Record<string, string> = {
   sena: 'Seña',
   entrega: 'Entrega',
   ajuste: 'Corrección',
-  saldar: 'Saldado',
+  saldar: 'Pago total anticipado',
 }
 
 export default async function LoteDetallePage({

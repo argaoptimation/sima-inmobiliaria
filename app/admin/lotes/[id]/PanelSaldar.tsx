@@ -4,10 +4,13 @@ import { useState } from 'react'
 import { BotonEnvio } from '@/components/BotonEnvio'
 import { ENTRADA, BOTON_SECUNDARIO } from '@/lib/ui/clases'
 
-// Botón "Saldar" (pedido de Nico, 02/09) que revela un formulario chico
-// (monto acordado + medio de pago) -- ver saldarLote en actions.ts para la
-// lógica. Colapsado por default para no sumar ruido a la pantalla cuando
-// no se está usando.
+// Botón "Pago total anticipado" (pedido de Nico, 02/09, renombrado 03/09 --
+// "Saldar" quedaba ambiguo, en la llamada Nico prefirió este nombre) que
+// revela un formulario chico (monto acordado + medio de pago) -- ver
+// saldarLote en actions.ts para la lógica. El nombre interno (componente,
+// action, enum 'saldar' en la base) se deja igual a propósito -- solo
+// cambia el texto que ve el usuario. Colapsado por default para no sumar
+// ruido a la pantalla cuando no se está usando.
 export function PanelSaldar({
   saldarAction,
   saldoPendienteTotal,
@@ -26,7 +29,7 @@ export function PanelSaldar({
         onClick={() => setAbierto(true)}
         className={`mb-3 cursor-pointer ${BOTON_SECUNDARIO}`}
       >
-        Saldar
+        Pago total anticipado
       </button>
     )
   }
@@ -37,7 +40,7 @@ export function PanelSaldar({
       onSubmit={(evento) => {
         if (
           !confirm(
-            `¿Saldar este lote? Esto cierra TODA la deuda restante (hoy ${saldoPendienteTotal.toLocaleString(
+            `¿Registrar el pago total anticipado de este lote? Esto cierra TODA la deuda restante (hoy ${saldoPendienteTotal.toLocaleString(
               'es-AR'
             )} ${moneda}) con el monto que cargues acá -- no se puede deshacer desde la plataforma.`
           )
@@ -68,9 +71,9 @@ export function PanelSaldar({
       </label>
       <BotonEnvio
         className="cursor-pointer rounded-lg bg-blue-800 px-4 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-blue-900"
-        cargandoTexto="Saldando…"
+        cargandoTexto="Guardando…"
       >
-        Confirmar saldar
+        Confirmar pago anticipado
       </BotonEnvio>
       <button
         type="button"

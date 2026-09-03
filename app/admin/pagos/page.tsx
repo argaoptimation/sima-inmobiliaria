@@ -56,7 +56,7 @@ function obtenerMotivoTexto(motivo: string) {
     case 'ajuste':
       return 'Corrección'
     case 'saldar':
-      return 'Saldado'
+      return 'Pago total anticipado'
     case 'entrega':
       return 'Entrega'
     default:
