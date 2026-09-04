@@ -25,6 +25,7 @@ export default async function ReservarLotePage({
     telefonoAlternativo?: string
     estadoCivil?: string
     instrumentacion?: string
+    formaPago?: string
     montoSena?: string
     monedaSena?: string
     recibidoPor?: string
@@ -43,6 +44,7 @@ export default async function ReservarLotePage({
     telefonoAlternativo: telefonoAlternativoPreservado,
     estadoCivil: estadoCivilPreservado,
     instrumentacion: instrumentacionPreservado,
+    formaPago: formaPagoPreservado,
     montoSena: montoSenaPreservado,
     monedaSena: monedaSenaPreservado,
     recibidoPor: recibidoPorPreservado,
@@ -59,7 +61,7 @@ export default async function ReservarLotePage({
 
   const { data: lote } = await supabase
     .from('lotes')
-    .select('id, identificador, estado')
+    .select('id, identificador, estado, loteo_id')
     .eq('id', id)
     .single()
 
@@ -125,18 +127,62 @@ export default async function ReservarLotePage({
             </select>
           </label>
 
+          {/* Forma de pago + instrumentación (04/09, hablado con Nico): el
+              boleto de compraventa solo tiene sentido si el lote se vende
+              financiado; pagado en una sola cuota se va directo a
+              escritura. La forma de pago PROPONE la instrumentación pero no
+              la determina -- a veces se hace solo escritura aunque sea
+              financiado -- así que las dos se eligen a mano. */}
           <label className="text-sm text-slate-600">
-            Instrumentación prevista (opcional)
+            Forma de pago
+            <Obligatorio />
+            <select
+              name="formaPago"
+              required
+              defaultValue={formaPagoPreservado ?? ''}
+              className={`${ENTRADA} w-full`}
+            >
+              <option value="" disabled>
+                — elegí una —
+              </option>
+              <option value="financiado">Financiado (en cuotas)</option>
+              <option value="contado">Contado (en un solo pago)</option>
+            </select>
+          </label>
+
+          <label className="text-sm text-slate-600">
+            Instrumentación
+            <Obligatorio />
             <select
               name="instrumentacion"
+              required
               defaultValue={instrumentacionPreservado ?? ''}
               className={`${ENTRADA} w-full`}
             >
-              <option value="">— sin definir —</option>
+              <option value="" disabled>
+                — elegí una —
+              </option>
               <option value="boleto">Boleto de compraventa</option>
               <option value="escritura">Escritura</option>
             </select>
+            <span className="mt-1 block text-xs text-slate-500">
+              Lo habitual es boleto de compraventa cuando se financia, y escritura directa cuando se
+              paga al contado — pero no siempre: si este caso va solo a escritura aunque sea
+              financiado, elegí escritura. El boleto se genera automáticamente al confirmar la
+              reserva solo si elegís &quot;Boleto de compraventa&quot;. Si más adelante cambia (por
+              ejemplo, se reserva al contado y después el cliente pide cuotas), se edita la reserva y
+              se genera el boleto desde Boletos de compraventa: nada queda trabado.
+            </span>
           </label>
+
+          {!lote!.loteo_id && (
+            <p className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">
+              Ojo: este lote no tiene un loteo asignado, y la plantilla del contrato sale del loteo.
+              La reserva se va a guardar igual, pero <strong>el boleto no se va a generar solo</strong>{' '}
+              — no lo busques en Boletos de compraventa. Asignale un loteo al lote y generalo desde
+              ahí.
+            </p>
+          )}
 
           <input
             name="montoSena"

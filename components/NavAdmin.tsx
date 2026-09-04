@@ -6,6 +6,7 @@ import {
   MapPinned,
   Layers,
   Users,
+  FileSignature,
   Banknote,
   TriangleAlert,
   Wallet,
@@ -116,6 +117,11 @@ export function NavAdmin({
         { href: '/admin/lotes', etiqueta: 'Lotes', icono: MapPinned },
         ...(esAdministrador ? [{ href: '/admin/loteos', etiqueta: 'Loteos', icono: Layers }] : []),
         ...(esAdministrador ? [{ href: '/admin/clientes', etiqueta: 'Clientes', icono: Users }] : []),
+        // Boletos de compraventa (04/09): pantalla propia para generarlos
+        // sin entrar lote por lote, con búsqueda por lote/comprador/DNI.
+        ...(esAdministrador
+          ? [{ href: '/admin/boletos', etiqueta: 'Boletos de compraventa', icono: FileSignature }]
+          : []),
       ],
     },
     {

@@ -21,6 +21,7 @@ import {
   ENLACE_TABLA,
   TITULO_H2,
   BANNER_ERROR,
+  BANNER_OK,
   TABLA_CONTENEDOR,
   TABLA_HEADER_FILA,
   TABLA_HEADER_CELDA,
@@ -59,6 +60,7 @@ export default async function LotesPage({
     estado?: string
     q?: string
     error?: string
+    ok?: string
   }>
 }) {
   const {
@@ -72,6 +74,7 @@ export default async function LotesPage({
     estado: filtroEstado,
     q: filtroTexto,
     error,
+    ok,
   } = await searchParams
 
   const supabase = await createClient()
@@ -357,6 +360,7 @@ export default async function LotesPage({
       />
 
       {error && <p className={BANNER_ERROR}>{error}</p>}
+      {ok && <p className={BANNER_OK}>{ok}</p>}
 
       {puedeCargarCotizacion && (
       <div className={`mb-6 ${TARJETA}`}>

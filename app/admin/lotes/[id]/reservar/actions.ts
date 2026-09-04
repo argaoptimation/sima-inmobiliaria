@@ -7,10 +7,13 @@ import { requireAccesoParaReservar, requireAdministrador } from '@/lib/auth/requ
 import { tieneRecibidoPorValido } from '@/lib/reservas/validar-recibido-por'
 import { vendedorIdAlReservar } from '@/lib/lotes/asignar-vendedor-al-reservar'
 import { telefonoParaGuardar, errorLongitudTelefono } from '@/lib/telefono/prefijos'
+import { generarYGuardarContrato } from '@/lib/contratos/generar-y-guardar'
+import { hoyArgentina } from '@/lib/fecha/hoy-argentina'
 
 const ESTADOS_CIVILES_VALIDOS = ['soltero', 'casado', 'divorciado', 'viudo']
 const MONEDAS_VALIDAS = ['USD', 'ARS']
 const INSTRUMENTACIONES_VALIDAS = ['boleto', 'escritura']
+const FORMAS_PAGO_VALIDAS = ['contado', 'financiado']
 
 const CAMPOS_PRESERVABLES: Array<[string, string]> = [
   ['nombreCompleto', 'nombreCompleto'],
@@ -22,6 +25,7 @@ const CAMPOS_PRESERVABLES: Array<[string, string]> = [
   ['telefonoAlternativo', 'telefonoAlternativo'],
   ['estadoCivil', 'estadoCivil'],
   ['instrumentacion', 'instrumentacion'],
+  ['formaPago', 'formaPago'],
   ['montoSena', 'montoSena'],
   ['monedaSena', 'monedaSena'],
   ['recibidoPor', 'recibidoPor'],
@@ -90,6 +94,7 @@ export async function reservarLote(loteId: string, formData: FormData) {
   const telefonoAlternativo = ((formData.get('telefonoAlternativo') as string) || '').trim() || null
   const estadoCivil = ((formData.get('estadoCivil') as string) || '').trim()
   const instrumentacion = ((formData.get('instrumentacion') as string) || '').trim() || null
+  const formaPago = ((formData.get('formaPago') as string) || '').trim() || null
   const montoSena = Number(formData.get('montoSena'))
   const monedaSena = ((formData.get('monedaSena') as string) || '').trim()
   const recibidoPor = ((formData.get('recibidoPor') as string) || '').trim() || null
@@ -158,8 +163,15 @@ export async function reservarLote(loteId: string, formData: FormData) {
     redirectConError(loteId, formData, 'Moneda de la seña inválida')
   }
 
-  if (instrumentacion && !INSTRUMENTACIONES_VALIDAS.includes(instrumentacion)) {
-    redirectConError(loteId, formData, 'Instrumentación inválida')
+  // Instrumentación y forma de pago pasaron a ser obligatorias (04/09):
+  // de la instrumentación depende si se genera el boleto de compraventa,
+  // y "sin definir" dejaba esa decisión en el aire para siempre.
+  if (!instrumentacion || !INSTRUMENTACIONES_VALIDAS.includes(instrumentacion)) {
+    redirectConError(loteId, formData, 'Elegí la instrumentación (boleto o escritura)')
+  }
+
+  if (!formaPago || !FORMAS_PAGO_VALIDAS.includes(formaPago)) {
+    redirectConError(loteId, formData, 'Elegí la forma de pago (contado o financiado)')
   }
 
   const admin = createAdminClient()
@@ -241,6 +253,7 @@ export async function reservarLote(loteId: string, formData: FormData) {
     telefono_alternativo: telefonoAlternativo,
     estado_civil: estadoCivil,
     instrumentacion,
+    forma_pago: formaPago,
     monto_sena: montoSena,
     moneda_sena: monedaSena,
     recibido_por: recibidoPor,
@@ -260,7 +273,34 @@ export async function reservarLote(loteId: string, formData: FormData) {
     )
   }
 
-  redirect('/admin/lotes')
+  // Boleto de compraventa automático (04/09, pedido de Gabriel tras
+  // hablarlo con Nico): solo si la instrumentación elegida es boleto. Si va
+  // a escritura directa no hay boleto que generar.
+  //
+  // Best-effort a propósito: la reserva YA quedó tomada y guardada, así que
+  // un problema generando el .docx (lote sin loteo, loteo sin plantilla,
+  // placeholder mal escrito) no puede tirar abajo el flujo ni perder los
+  // documentos que se acaban de subir. Si falla, el lote queda reservado
+  // igual y el boleto se genera a mano desde Boletos de compraventa -- y el
+  // formulario ya avisa de antemano cuando el lote no tiene loteo, que es
+  // el caso previsible.
+  let avisoBoleto: string | null = null
+
+  if (instrumentacion === 'boleto') {
+    const resultado = await generarYGuardarContrato({
+      loteId,
+      fechaContrato: hoyArgentina(),
+      userId: user!.id,
+    })
+
+    avisoBoleto = resultado.ok
+      ? 'Reserva guardada y boleto de compraventa generado.'
+      : `Reserva guardada, pero el boleto no se generó: ${resultado.error}`
+  } else {
+    avisoBoleto = 'Reserva guardada. No se generó boleto porque la instrumentación es escritura.'
+  }
+
+  redirect(`/admin/lotes?ok=${encodeURIComponent(avisoBoleto)}`)
 }
 
 export async function actualizarReserva(loteId: string, formData: FormData) {

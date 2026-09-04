@@ -6,8 +6,7 @@ import { redirect } from 'next/navigation'
 import { requireAdminSobreLote, requireAdministrador } from '@/lib/auth/require-admin'
 import { tieneDatosTransferencia } from '@/lib/lotes/validar-cuenta-cobro'
 import { mensajeDeError } from '@/lib/errores'
-import { armarDatosContrato } from '@/lib/contratos/armar-datos-contrato'
-import { generarContrato, ErrorPlantillaContrato } from '@/lib/contratos/generar-contrato'
+import { generarYGuardarContrato } from '@/lib/contratos/generar-y-guardar'
 import { generarCuotas, generarCuotasManual } from '@/lib/lotes/generar-cuotas'
 import { calcularMontoCuota } from '@/lib/lotes/calcular-monto-cuota'
 
@@ -608,144 +607,13 @@ export async function generarContratoLote(loteId: string, formData: FormData) {
     redirect(`/admin/lotes/${loteId}?error=${encodeURIComponent('Elegí la fecha del contrato')}`)
   }
 
-  const { data: lote } = await supabase
-    .from('lotes')
-    .select(
-      'identificador, moneda, cliente_id, acreedor_id, loteo_id, ciclo_actual, ubicacion, precio_total, numero_lote, manzana, superficie_m2, cuenta_rentas, nomenclatura_catastral, matricula, interes_moratorio_diario'
-    )
-    .eq('id', loteId)
-    .single()
+  // El trabajo real vive en lib/contratos/generar-y-guardar.ts: lo comparte
+  // con la generación automática al reservar y con la pantalla de Boletos
+  // de compraventa (04/09).
+  const resultado = await generarYGuardarContrato({ loteId, fechaContrato, userId: user!.id })
 
-  if (!lote) {
-    redirect(`/admin/lotes/${loteId}?error=${encodeURIComponent('No se encontró el lote')}`)
-  }
-
-  if (!lote!.loteo_id) {
-    redirect(
-      `/admin/lotes/${loteId}?error=${encodeURIComponent(
-        'Este lote no tiene un loteo asignado -- asignale uno primero para poder generar el contrato.'
-      )}`
-    )
-  }
-
-  const { data: loteo } = await supabase
-    .from('loteos')
-    .select('plantilla_contrato_path')
-    .eq('id', lote!.loteo_id!)
-    .single()
-
-  if (!loteo?.plantilla_contrato_path) {
-    redirect(
-      `/admin/lotes/${loteId}?error=${encodeURIComponent(
-        'El loteo de este lote todavía no tiene una plantilla de contrato cargada (se carga desde /admin/loteos).'
-      )}`
-    )
-  }
-
-  const admin = createAdminClient()
-
-  const [{ data: acreedor }, { data: cliente }, { data: cuotas }, { data: reserva }, { data: plantillaBlob, error: errorDescarga }] =
-    await Promise.all([
-      lote!.acreedor_id
-        ? supabase.from('profiles').select('full_name, dni, domicilio').eq('id', lote!.acreedor_id).single()
-        : Promise.resolve({ data: null }),
-      lote!.cliente_id
-        ? supabase.from('profiles').select('full_name, dni, domicilio, email').eq('id', lote!.cliente_id).single()
-        : Promise.resolve({ data: null }),
-      supabase
-        .from('cuotas')
-        .select('numero, monto_base, fecha_vencimiento')
-        .eq('lote_id', loteId)
-        .eq('ciclo', lote!.ciclo_actual)
-        .order('numero', { ascending: true }),
-      // Datos de la seña -- monto SIEMPRE (venía de acá), y también nombre/
-      // DNI/domicilio/email del RESERVANTE cuando el lote todavía está en
-      // "reservado" (04/09, pedido de Gabriel: poder generar el contrato ya
-      // desde la reserva, antes de que exista un cliente con cuenta/login).
-      // En ese estado `lote.cliente_id` todavía es null -- recién se
-      // completa al vender -- así que la identidad de la persona vive acá,
-      // no en `profiles`.
-      supabase
-        .from('reservas')
-        .select('monto_sena, nombre_completo, dni, domicilio, email')
-        .eq('lote_id', loteId)
-        .is('cancelada_at', null)
-        .order('created_at', { ascending: false })
-        .limit(1)
-        .maybeSingle(),
-      admin.storage.from('comprobantes').download(loteo!.plantilla_contrato_path),
-    ])
-
-  if (errorDescarga || !plantillaBlob) {
-    redirect(
-      `/admin/lotes/${loteId}?error=${encodeURIComponent('No se pudo descargar la plantilla del loteo. Probá de nuevo.')}`
-    )
-  }
-
-  if (!cliente && !reserva) {
-    redirect(
-      `/admin/lotes/${loteId}?error=${encodeURIComponent('Este lote todavía no tiene un cliente ni una reserva asociada.')}`
-    )
-  }
-
-  const primeraCuota = (cuotas ?? [])[0] ?? null
-
-  const datosContrato = armarDatosContrato({
-    fechaContrato,
-    acreedorNombre: acreedor?.full_name ?? null,
-    acreedorDni: acreedor?.dni ?? null,
-    acreedorDomicilio: acreedor?.domicilio ?? null,
-    clienteNombre: cliente?.full_name ?? reserva!.nombre_completo,
-    clienteDni: cliente?.dni ?? reserva?.dni ?? null,
-    clienteDomicilio: cliente?.domicilio ?? reserva?.domicilio ?? null,
-    clienteEmail: cliente?.email ?? reserva?.email ?? null,
-    loteIdentificador: lote!.identificador,
-    numeroLote: lote!.numero_lote,
-    manzana: lote!.manzana,
-    ubicacion: lote!.ubicacion,
-    superficieM2: lote!.superficie_m2,
-    cuentaRentas: lote!.cuenta_rentas,
-    nomenclaturaCatastral: lote!.nomenclatura_catastral,
-    matricula: lote!.matricula,
-    moneda: lote!.moneda,
-    precioTotal: lote!.precio_total,
-    montoSena: reserva?.monto_sena ?? null,
-    cantidadCuotas: (cuotas ?? []).length,
-    montoCuota: primeraCuota?.monto_base ?? null,
-    primeraCuotaFecha: primeraCuota?.fecha_vencimiento ?? null,
-    interesMoratorioDiario: lote!.interes_moratorio_diario,
-  })
-
-  const plantillaBuffer = Buffer.from(await plantillaBlob.arrayBuffer())
-
-  let contratoBuffer: Buffer
-  try {
-    contratoBuffer = generarContrato(plantillaBuffer, datosContrato)
-  } catch (error) {
-    const mensaje = error instanceof ErrorPlantillaContrato ? error.message : 'No se pudo generar el contrato.'
-    redirect(`/admin/lotes/${loteId}?error=${encodeURIComponent(mensaje)}`)
-  }
-
-  const path = `lotes/${loteId}/contrato-generado-${Date.now()}.docx`
-  const { error: errorSubida } = await admin.storage.from('comprobantes').upload(path, contratoBuffer!, {
-    contentType: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-  })
-
-  if (errorSubida) {
-    redirect(
-      `/admin/lotes/${loteId}?error=${encodeURIComponent('El contrato se generó pero no se pudo guardar. Probá de nuevo.')}`
-    )
-  }
-
-  const { error: errorInsert } = await supabase.from('lote_documentos').insert({
-    lote_id: loteId,
-    path,
-    descripcion: `Contrato generado (${fechaContrato})`,
-    subido_por: user!.id,
-  })
-
-  if (errorInsert) {
-    redirect(`/admin/lotes/${loteId}?error=${encodeURIComponent(mensajeDeError(errorInsert))}`)
+  if (!resultado.ok) {
+    redirect(`/admin/lotes/${loteId}?error=${encodeURIComponent(resultado.error)}`)
   }
 
   redirect(`/admin/lotes/${loteId}?ok=${encodeURIComponent('Contrato generado')}`)
