@@ -310,29 +310,39 @@ export default async function PortalClienteLotePage({
                       {puedeEliminar && <BotonEliminarPago eliminarPagoAction={eliminarPagoConId} />}
                     </div>
                   </div>
-                  {!pago.comprobante_path ? (
-                    <div className="flex flex-wrap items-center gap-2 text-sm text-amber-700">
-                      <span className="rounded-full bg-amber-50 px-2 py-1 text-xs font-semibold">
-                        ⚠ Falta subir comprobante
-                      </span>
-                      <EnlaceBoton
-                        href={`/portal-cliente/pagos/${pago.id}/comprobante`}
-                        className="font-medium text-blue-800 underline-offset-4 hover:text-blue-900 hover:underline"
+                  <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
+                    {!pago.comprobante_path ? (
+                      <div className="flex flex-wrap items-center gap-2 text-sm text-amber-700">
+                        <span className="rounded-full bg-amber-50 px-2 py-1 text-xs font-semibold">
+                          ⚠ Falta subir comprobante
+                        </span>
+                        <EnlaceBoton
+                          href={`/portal-cliente/pagos/${pago.id}/comprobante`}
+                          className="font-medium text-blue-800 underline-offset-4 hover:text-blue-900 hover:underline"
+                        >
+                          Subir
+                        </EnlaceBoton>
+                      </div>
+                    ) : pago.comprobanteUrl ? (
+                      <a
+                        href={pago.comprobanteUrl}
+                        target="_blank"
+                        className="text-sm font-medium text-blue-800 underline-offset-4 hover:text-blue-900 hover:underline"
                       >
-                        Subir
+                        Ver comprobante
+                      </a>
+                    ) : (
+                      <span className="text-sm text-slate-500">Comprobante no disponible</span>
+                    )}
+                    {pago.estado === 'confirmado' && (
+                      <EnlaceBoton
+                        href={`/portal-cliente/pagos/${pago.id}/recibo`}
+                        className="text-sm font-medium text-blue-800 underline-offset-4 hover:text-blue-900 hover:underline"
+                      >
+                        Ver recibo
                       </EnlaceBoton>
-                    </div>
-                  ) : pago.comprobanteUrl ? (
-                    <a
-                      href={pago.comprobanteUrl}
-                      target="_blank"
-                      className="text-sm font-medium text-blue-800 underline-offset-4 hover:text-blue-900 hover:underline"
-                    >
-                      Ver comprobante
-                    </a>
-                  ) : (
-                    <span className="text-sm text-slate-500">Comprobante no disponible</span>
-                  )}
+                    )}
+                  </div>
                 </div>
               )
             })}
@@ -359,29 +369,39 @@ export default async function PortalClienteLotePage({
                       </td>
                       <td className="px-4 py-3 text-slate-600">{pago.estado}</td>
                       <td className="px-4 py-3">
-                        {!pago.comprobante_path ? (
-                          <span className="inline-flex items-center gap-2 text-amber-700">
-                            <span className="rounded-full bg-amber-50 px-2 py-1 text-xs font-semibold">
-                              ⚠ Falta subir comprobante
+                        <span className="flex flex-wrap items-center gap-x-3 gap-y-1">
+                          {!pago.comprobante_path ? (
+                            <span className="inline-flex items-center gap-2 text-amber-700">
+                              <span className="rounded-full bg-amber-50 px-2 py-1 text-xs font-semibold">
+                                ⚠ Falta subir comprobante
+                              </span>
+                              <EnlaceBoton
+                                href={`/portal-cliente/pagos/${pago.id}/comprobante`}
+                                className="font-medium text-blue-800 underline-offset-4 hover:text-blue-900 hover:underline"
+                              >
+                                Subir
+                              </EnlaceBoton>
                             </span>
-                            <EnlaceBoton
-                              href={`/portal-cliente/pagos/${pago.id}/comprobante`}
+                          ) : pago.comprobanteUrl ? (
+                            <a
+                              href={pago.comprobanteUrl}
+                              target="_blank"
                               className="font-medium text-blue-800 underline-offset-4 hover:text-blue-900 hover:underline"
                             >
-                              Subir
+                              Ver comprobante
+                            </a>
+                          ) : (
+                            <span className="text-slate-500">Comprobante no disponible</span>
+                          )}
+                          {pago.estado === 'confirmado' && (
+                            <EnlaceBoton
+                              href={`/portal-cliente/pagos/${pago.id}/recibo`}
+                              className="font-medium text-blue-800 underline-offset-4 hover:text-blue-900 hover:underline"
+                            >
+                              Ver recibo
                             </EnlaceBoton>
-                          </span>
-                        ) : pago.comprobanteUrl ? (
-                          <a
-                            href={pago.comprobanteUrl}
-                            target="_blank"
-                            className="font-medium text-blue-800 underline-offset-4 hover:text-blue-900 hover:underline"
-                          >
-                            Ver comprobante
-                          </a>
-                        ) : (
-                          <span className="text-slate-500">Comprobante no disponible</span>
-                        )}
+                          )}
+                        </span>
                       </td>
                       <td className="px-4 py-3 text-right">
                         {puedeEliminar && <BotonEliminarPago eliminarPagoAction={eliminarPagoConId} />}

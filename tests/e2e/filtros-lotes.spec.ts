@@ -17,8 +17,9 @@ test.describe('Filtros de Cliente, Loteo y Cobranza en /admin/lotes', () => {
     await page.getByRole('button', { name: 'Filtrar' }).click()
 
     await expect(page.getByRole('row', { name: /E2E Test Lote/ })).toBeVisible()
-    // "Lote1" es de otro cliente ("Juan Perez Comprador") -- no debería matchear.
-    await expect(page.getByRole('row', { name: /^Lote1/ })).toHaveCount(0)
+    // "DEMO Debe 1 cuota - sin teléfono" (ex "Lote1", renombrado 04/09) es de
+    // otro cliente ("Juan Perez Comprador") -- no debería matchear.
+    await expect(page.getByRole('row', { name: /^DEMO Debe 1 cuota - sin teléfono/ })).toHaveCount(0)
   })
 
   test('filtrar por cobranza "Al día" excluye un lote atrasado', async ({ page }) => {

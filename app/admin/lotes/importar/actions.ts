@@ -3,11 +3,13 @@
 import { createClient } from '@/lib/supabase/server'
 import { parsearTextoImportacion } from '@/lib/lotes/parsear-importacion'
 import { redirect } from 'next/navigation'
-import { requireAdminOAcreedor } from '@/lib/auth/require-admin'
+import { requireAdministrador } from '@/lib/auth/require-admin'
 import { mensajeDeError } from '@/lib/errores'
 
 export async function importarLotes(formData: FormData) {
-  await requireAdminOAcreedor()
+  // Admin-only (04/09, pedido explícito de Gabriel): antes dejaba pasar
+  // también a acreedor.
+  await requireAdministrador()
 
   const texto = (formData.get('filas') as string) || ''
   const resultado = parsearTextoImportacion(texto)

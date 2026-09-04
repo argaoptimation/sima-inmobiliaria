@@ -48,3 +48,35 @@ body {
     background-position: 100% 100%;
   }
 }
+
+/* Recibos de pago (04/09, pedido de Gabriel) -- al imprimir, solo tiene que
+   salir el recibo (no el sidebar de admin ni el layout del portal del
+   cliente que lo rodean). Truco clásico: ocultar todo el body y volver a
+   mostrar únicamente el subárbol con esta clase, posicionado desde el
+   origen de la hoja. Media A4 de alto (no la hoja entera) para que no se
+   gaste una hoja completa por cada recibo -- queda la mitad de la hoja en
+   blanco, lista para cortar o para el próximo recibo. */
+@media print {
+  @page {
+    size: A4;
+    margin: 0;
+  }
+
+  body * {
+    visibility: hidden;
+  }
+
+  .recibo-imprimible,
+  .recibo-imprimible * {
+    visibility: visible;
+  }
+
+  .recibo-imprimible {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 210mm;
+    max-height: 148mm;
+    overflow: hidden;
+  }
+}

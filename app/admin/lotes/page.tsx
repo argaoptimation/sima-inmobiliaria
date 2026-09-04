@@ -99,7 +99,6 @@ export default async function LotesPage({
   // columnas acotadas. Las dos únicas excepciones de cobrador (distribución
   // de cuotas y cuentas de acreedores) viven en otras pantallas, no en esta.
   const esVendedor = perfilPropio!.role === 'vendedor'
-  const esCobrador = perfilPropio!.role === 'cobrador'
 
   const hoy = hoyArgentina()
   const { data: cotizacionHoy } = await supabase
@@ -336,12 +335,11 @@ export default async function LotesPage({
         titulo="Lotes"
         migas={['Lotes']}
         acciones={
-          // Crear/importar lotes queda fuera del alcance confirmado para
-          // cobrador (03/09: "acceso a toda la INFO de lotes" -- ver
-          // memoria del backlog) -- se gatea aparte de esVendedor, que ya
-          // no lo incluye, para no abrirle de rebote una acción que
-          // modifica datos y no se conversó explícitamente.
-          !esVendedor && !esCobrador && (
+          // Crear/importar lotes es admin-only (04/09, pedido explícito de
+          // Gabriel): antes esVendedor/esCobrador dejaban pasar a acreedor,
+          // que igual no debería poder dar de alta ni importar lotes -- ver
+          // memoria del backlog.
+          esAdministrador && (
             <>
               <EnlaceBoton href="/admin/lotes/importar" className={`cursor-pointer ${BOTON_SECUNDARIO}`}>
                 Importar varios

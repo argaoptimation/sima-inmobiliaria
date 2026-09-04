@@ -566,12 +566,17 @@ export default async function PagosPage({
                   </div>
 
                   {/* Badge de Estado */}
-                  <div className="shrink-0">
+                  <div className="flex shrink-0 flex-col items-end gap-1">
                     {pago.estado === 'confirmado' ? (
-                      <span className={`${BADGE_BASE} ${BADGE_VERDE}`}>
-                        <CheckCircle2 className="mr-1 h-3 w-3" />
-                        Confirmado
-                      </span>
+                      <>
+                        <span className={`${BADGE_BASE} ${BADGE_VERDE}`}>
+                          <CheckCircle2 className="mr-1 h-3 w-3" />
+                          Confirmado
+                        </span>
+                        <EnlaceBoton href={`/admin/pagos/${pago.id}/recibo`} className={`text-xs ${ENLACE}`}>
+                          Recibo →
+                        </EnlaceBoton>
+                      </>
                     ) : pago.medio_pago === 'efectivo' &&
                       perfilPropio!.role !== 'administrador' ? (
                       <span className={`${BADGE_BASE} ${BADGE_AMARILLO}`}>

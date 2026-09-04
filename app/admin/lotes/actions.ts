@@ -3,13 +3,15 @@
 import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { redirect } from 'next/navigation'
-import { requireAdmin } from '@/lib/auth/require-admin'
+import { requireAdministrador } from '@/lib/auth/require-admin'
 import { validarSeleccionAcreedor } from '@/lib/lotes/validar-seleccion-acreedor'
 import { mensajeDeError } from '@/lib/errores'
 import { obtenerSiteUrl } from '@/lib/config/site-url'
 
 export async function crearLote(formData: FormData) {
-  await requireAdmin()
+  // Admin-only (04/09, pedido explícito de Gabriel): requireAdmin() dejaba
+  // pasar también a acreedor, que no debería poder dar de alta lotes.
+  await requireAdministrador()
 
   const supabase = await createClient()
   const admin = createAdminClient()

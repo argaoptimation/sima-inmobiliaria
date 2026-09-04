@@ -1,5 +1,5 @@
 import { createClient } from '@/lib/supabase/server'
-import { requireAdminOAcreedor } from '@/lib/auth/require-admin'
+import { requireAdministrador } from '@/lib/auth/require-admin'
 import { crearLote } from '../actions'
 import { EnlaceBoton } from '@/components/EnlaceBoton'
 import { BotonEnvio } from '@/components/BotonEnvio'
@@ -12,7 +12,9 @@ export default async function NuevoLotePage({
 }) {
   const { error } = await searchParams
 
-  await requireAdminOAcreedor()
+  // Admin-only (04/09, pedido explícito de Gabriel): antes dejaba pasar
+  // también a acreedor.
+  await requireAdministrador()
 
   const supabase = await createClient()
   const { data: acreedores } = await supabase
