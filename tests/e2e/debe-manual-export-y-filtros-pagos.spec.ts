@@ -1,4 +1,5 @@
 import { test, expect } from '@playwright/test'
+import ExcelJS from 'exceljs'
 import { ensureTestFixtures, createAdminClient, TestFixtures } from './fixtures/test-data'
 import { login } from './utils/login'
 
@@ -64,31 +65,46 @@ test.describe('Debe manual en cuenta corriente (25/08)', () => {
   })
 })
 
-test.describe('Descarga CSV de movimientos (25/08)', () => {
+test.describe('Descarga Excel de movimientos (25/08, reescrito a .xlsx 04/09)', () => {
   let fixtures: TestFixtures
 
   test.beforeAll(async () => {
     fixtures = await ensureTestFixtures()
   })
 
-  test('el link de descarga trae un CSV con las columnas esperadas', async ({ page }) => {
+  // 04/09: era un .csv separado por comas -- en Excel con configuración
+  // regional Argentina/Español (que usa coma como separador decimal) todo
+  // entraba amontonado en una sola columna. Reescrito a .xlsx real (mismo
+  // patrón que /admin/cierre-caja/export), columnas reales que no dependen
+  // de ningún separador regional.
+  test('el link de descarga trae un .xlsx con Resumen y Detalle', async ({ page }) => {
     await login(page, fixtures.admin.email, fixtures.password)
     await page.goto(`/admin/cuentas-corrientes/${fixtures.acreedorConDatos.id}`)
 
     const [download] = await Promise.all([
       page.waitForEvent('download'),
-      page.getByRole('link', { name: 'Descargar CSV →' }).click(),
+      page.getByRole('link', { name: 'Descargar Excel →' }).click(),
     ])
+
+    expect(download.suggestedFilename()).toMatch(/^cuenta-corriente-.*\.xlsx$/)
 
     const stream = await download.createReadStream()
     const chunks: Buffer[] = []
     for await (const chunk of stream!) {
       chunks.push(chunk as Buffer)
     }
-    const contenido = Buffer.concat(chunks).toString('utf-8')
+    const buffer = Buffer.concat(chunks)
 
-    expect(contenido).toContain('Fecha,Tipo,Origen,Detalle,Lote,Monto,Moneda')
-    expect(download.suggestedFilename()).toMatch(/^cuenta-corriente-.*\.csv$/)
+    const workbook = new ExcelJS.Workbook()
+    await workbook.xlsx.load(buffer)
+    const hoja = workbook.getWorksheet('Cuenta corriente')!
+    const celdas: string[] = []
+    hoja.eachRow((fila) => fila.eachCell((celda) => celdas.push(String(celda.value ?? ''))))
+
+    expect(celdas).toContain('Resumen')
+    expect(celdas).toContain('Detalle')
+    expect(celdas).toContain('Fecha')
+    expect(celdas).toContain('Cotización del día')
   })
 })
 

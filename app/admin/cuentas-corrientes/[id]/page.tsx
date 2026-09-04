@@ -166,7 +166,7 @@ export default async function CuentaCorrienteDetallePage({
 
       <h2 className={`mb-2 ${TITULO_H2}`}>Movimientos</h2>
       <a href={`/admin/cuentas-corrientes/${id}/export?${queryStringExport}`} className={`mb-3 inline-block ${ENLACE}`}>
-        Descargar CSV →
+        Descargar Excel →
       </a>
       {movimientos.length === 0 ? (
         <p className="text-sm text-slate-600">Sin movimientos todavía.</p>
