@@ -153,6 +153,10 @@ export default async function CuentaCorrienteDetallePage({
         Positivo: la empresa todavía le debe. Negativo: cobró de más y le debe a la empresa.
       </p>
 
+      <EnlaceBoton href={`/admin/cuentas-corrientes/${id}/proyeccion`} className={`mb-6 inline-block ${ENLACE}`}>
+        Ver proyección de cobranza mes a mes →
+      </EnlaceBoton>
+
       {esAdmin && (
         <>
           <h2 className={`mb-2 ${TITULO_H2}`}>Registrar movimiento manual</h2>
