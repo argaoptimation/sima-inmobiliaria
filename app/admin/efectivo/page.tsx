@@ -203,7 +203,10 @@ export default async function EfectivoPage({
                           <span className="text-slate-500">Esperando confirmación del admin</span>
                         ))}
                       {pago.estado === 'confirmado' && (
-                        <EnlaceBoton href={`/admin/pagos/${pago.id}/recibo`} className={ENLACE_TABLA}>
+                        <EnlaceBoton
+                          href={`/admin/pagos/${pago.id}/recibo?desde=efectivo`}
+                          className={ENLACE_TABLA}
+                        >
                           Recibo
                         </EnlaceBoton>
                       )}

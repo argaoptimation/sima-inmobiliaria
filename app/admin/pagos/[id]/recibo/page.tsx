@@ -10,9 +10,22 @@ import { ENLACE } from '@/lib/ui/clases'
 // Recibo de un pago ya confirmado -- accesible desde /admin/pagos y desde
 // /admin/efectivo (04/09, pedido de Gabriel: mismo modelo de recibo para
 // cualquier pago, no solo los de efectivo).
-export default async function ReciboPagoAdminPage({ params }: { params: Promise<{ id: string }> }) {
+export default async function ReciboPagoAdminPage({
+  params,
+  searchParams,
+}: {
+  params: Promise<{ id: string }>
+  searchParams: Promise<{ desde?: string }>
+}) {
   const { id } = await params
+  const { desde } = await searchParams
   await requireAdminAcreedorOCobrador()
+
+  // El recibo se linkea desde /admin/pagos Y desde /admin/efectivo (04/09,
+  // corrección de Gabriel: el "Volver" tenía que respetar de dónde vino,
+  // no ir siempre a Pagos).
+  const volverHref = desde === 'efectivo' ? '/admin/efectivo' : '/admin/pagos'
+  const volverEtiqueta = desde === 'efectivo' ? '← Volver a Efectivo' : '← Volver a Pagos'
 
   const supabase = await createClient()
   const {
@@ -39,8 +52,8 @@ export default async function ReciboPagoAdminPage({ params }: { params: Promise<
     return (
       <div className="mx-auto mt-24 max-w-md p-6 text-center text-slate-600">
         <p>Este pago todavía no está confirmado, o no se encontró.</p>
-        <EnlaceBoton href="/admin/pagos" className={`mt-3 inline-block ${ENLACE}`}>
-          ← Volver a Pagos
+        <EnlaceBoton href={volverHref} className={`mt-3 inline-block ${ENLACE}`}>
+          {volverEtiqueta}
         </EnlaceBoton>
       </div>
     )
@@ -49,8 +62,8 @@ export default async function ReciboPagoAdminPage({ params }: { params: Promise<
   return (
     <div className="p-6">
       <div className="mb-4 flex items-center justify-between print:hidden">
-        <EnlaceBoton href="/admin/pagos" className={ENLACE}>
-          ← Volver a Pagos
+        <EnlaceBoton href={volverHref} className={ENLACE}>
+          {volverEtiqueta}
         </EnlaceBoton>
         <BotonImprimirRecibo />
       </div>

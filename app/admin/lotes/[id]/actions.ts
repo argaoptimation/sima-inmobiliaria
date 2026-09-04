@@ -658,10 +658,18 @@ export async function generarContratoLote(loteId: string, formData: FormData) {
         .eq('lote_id', loteId)
         .eq('ciclo', lote!.ciclo_actual)
         .order('numero', { ascending: true }),
+      // Datos de la seña -- monto SIEMPRE (venía de acá), y también nombre/
+      // DNI/domicilio/email del RESERVANTE cuando el lote todavía está en
+      // "reservado" (04/09, pedido de Gabriel: poder generar el contrato ya
+      // desde la reserva, antes de que exista un cliente con cuenta/login).
+      // En ese estado `lote.cliente_id` todavía es null -- recién se
+      // completa al vender -- así que la identidad de la persona vive acá,
+      // no en `profiles`.
       supabase
         .from('reservas')
-        .select('monto_sena')
+        .select('monto_sena, nombre_completo, dni, domicilio, email')
         .eq('lote_id', loteId)
+        .is('cancelada_at', null)
         .order('created_at', { ascending: false })
         .limit(1)
         .maybeSingle(),
@@ -674,9 +682,9 @@ export async function generarContratoLote(loteId: string, formData: FormData) {
     )
   }
 
-  if (!cliente) {
+  if (!cliente && !reserva) {
     redirect(
-      `/admin/lotes/${loteId}?error=${encodeURIComponent('Este lote todavía no tiene un cliente asignado.')}`
+      `/admin/lotes/${loteId}?error=${encodeURIComponent('Este lote todavía no tiene un cliente ni una reserva asociada.')}`
     )
   }
 
@@ -687,10 +695,10 @@ export async function generarContratoLote(loteId: string, formData: FormData) {
     acreedorNombre: acreedor?.full_name ?? null,
     acreedorDni: acreedor?.dni ?? null,
     acreedorDomicilio: acreedor?.domicilio ?? null,
-    clienteNombre: cliente!.full_name,
-    clienteDni: cliente!.dni ?? null,
-    clienteDomicilio: cliente!.domicilio ?? null,
-    clienteEmail: cliente!.email ?? null,
+    clienteNombre: cliente?.full_name ?? reserva!.nombre_completo,
+    clienteDni: cliente?.dni ?? reserva?.dni ?? null,
+    clienteDomicilio: cliente?.domicilio ?? reserva?.domicilio ?? null,
+    clienteEmail: cliente?.email ?? reserva?.email ?? null,
     loteIdentificador: lote!.identificador,
     numeroLote: lote!.numero_lote,
     manzana: lote!.manzana,

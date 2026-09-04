@@ -55,6 +55,11 @@ export function MontoYMoneda({
   const montoEnMonedaLote = convertirAMonedaLote(monto, moneda, monedaLote, cotizacion)
   const esPagoParcial =
     montoTexto.trim() !== '' && montoEnMonedaLote > 0 && montoEnMonedaLote < saldoPendiente
+  // 04/09, pedido de Gabriel: aclarar qué pasa si paga de más -- el
+  // excedente no se pierde ni queda "flotando", se imputa automáticamente a
+  // las cuotas siguientes (mismo FIFO que ya usa confirmarPago).
+  const esPagoDeMas =
+    montoTexto.trim() !== '' && montoEnMonedaLote > saldoPendiente && saldoPendiente > 0
 
   return (
     <>
@@ -115,6 +120,14 @@ export function MontoYMoneda({
           cuota. Si no lo cubrís antes del vencimiento, ese saldo empieza a generar un interés
           moratorio del {interesMoratorioDiario}% por día a partir del día siguiente al
           vencimiento.
+        </p>
+      )}
+
+      {esPagoDeMas && (
+        <p className="rounded border border-blue-200 bg-blue-50 p-3 text-sm text-blue-900">
+          Estás pagando {Math.round((montoEnMonedaLote - saldoPendiente) * 100) / 100} {monedaLote} de
+          más sobre esta cuota — no se pierde: ese excedente se imputa automáticamente a tus
+          próximas cuotas.
         </p>
       )}
     </>

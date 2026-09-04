@@ -24,6 +24,19 @@ const CLASE_ESTADO: Record<string, string> = {
   prejudicial: 'bg-orange-50 text-orange-700 font-semibold',
 }
 
+// Píldora del estado de CADA pago en "Mis pagos" (04/09, pedido de Gabriel:
+// rojo/verde, redondeada, para que el cliente detecte de un vistazo si se
+// olvidó de subir un comprobante o si ya quedó confirmado -- solo visual,
+// no es un botón).
+const CLASE_ESTADO_PAGO: Record<string, string> = {
+  pendiente: 'bg-red-100 text-red-700',
+  confirmado: 'bg-green-100 text-green-700',
+}
+const ETIQUETA_ESTADO_PAGO: Record<string, string> = {
+  pendiente: 'Pendiente',
+  confirmado: 'Confirmado',
+}
+
 export default async function PortalClienteLotePage({
   params,
   searchParams,
@@ -306,7 +319,13 @@ export default async function PortalClienteLotePage({
                       {pago.monto} {pago.moneda}
                     </span>
                     <div className="flex items-center gap-2">
-                      <span className="text-sm text-slate-600">{pago.estado}</span>
+                      <span
+                        className={`rounded-full px-2.5 py-1 text-xs font-semibold ${
+                          CLASE_ESTADO_PAGO[pago.estado] ?? 'bg-slate-100 text-slate-700'
+                        }`}
+                      >
+                        {ETIQUETA_ESTADO_PAGO[pago.estado] ?? pago.estado}
+                      </span>
                       {puedeEliminar && <BotonEliminarPago eliminarPagoAction={eliminarPagoConId} />}
                     </div>
                   </div>
@@ -367,7 +386,15 @@ export default async function PortalClienteLotePage({
                       <td className="px-4 py-3 font-medium text-slate-800">
                         {pago.monto} {pago.moneda}
                       </td>
-                      <td className="px-4 py-3 text-slate-600">{pago.estado}</td>
+                      <td className="px-4 py-3">
+                        <span
+                          className={`rounded-full px-2.5 py-1 text-xs font-semibold ${
+                            CLASE_ESTADO_PAGO[pago.estado] ?? 'bg-slate-100 text-slate-700'
+                          }`}
+                        >
+                          {ETIQUETA_ESTADO_PAGO[pago.estado] ?? pago.estado}
+                        </span>
+                      </td>
                       <td className="px-4 py-3">
                         <span className="flex flex-wrap items-center gap-x-3 gap-y-1">
                           {!pago.comprobante_path ? (

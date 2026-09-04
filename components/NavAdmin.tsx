@@ -15,6 +15,7 @@ import {
   TrendingUp,
   UserCog,
   FileClock,
+  ShieldCheck,
   LogOut,
   PanelLeftClose,
   PanelLeftOpen,
@@ -145,6 +146,9 @@ export function NavAdmin({
       items: [
         ...(puedeVerUsuarios ? [{ href: '/admin/usuarios', etiqueta: 'Usuarios', icono: UserCog }] : []),
         ...(puedeVerIndices ? [{ href: '/admin/historial-lotes', etiqueta: 'Historial', icono: FileClock }] : []),
+        ...(esAdministrador
+          ? [{ href: '/admin/historial-ingresos', etiqueta: 'Historial de ingresos', icono: ShieldCheck }]
+          : []),
       ],
     },
   ]

@@ -25,18 +25,16 @@ async function requireClienteLogueado() {
   return { supabase, userId: user!.id }
 }
 
+// Solo el teléfono es editable por el cliente (04/09, pedido de Gabriel).
+// Nombre/DNI/domicilio son los datos que figuran en el contrato y en los
+// recibos -- se sacaron del form en la UI, pero el guard de verdad está
+// acá: aunque alguien arme un POST a mano con esos campos, esta función ya
+// ni siquiera los lee, así que no hay forma de pisarlos vía este endpoint.
 export async function actualizarMisDatosCliente(formData: FormData) {
   const { supabase, userId } = await requireClienteLogueado()
 
-  const fullName = (formData.get('fullName') as string)?.trim()
-  const dni = ((formData.get('dni') as string) || '').trim() || null
-  const domicilio = ((formData.get('domicilio') as string) || '').trim() || null
   const prefijo = (formData.get('prefijo') as string) || ''
   const telefonoNumero = (formData.get('telefonoNumero') as string) || ''
-
-  if (!fullName) {
-    redirect(`/portal-cliente/mi-perfil?error=${encodeURIComponent('El nombre no puede estar vacío')}`)
-  }
 
   const errorTelefono = errorLongitudTelefono(prefijo, telefonoNumero)
   if (errorTelefono) {
@@ -51,17 +49,13 @@ export async function actualizarMisDatosCliente(formData: FormData) {
   const { error } = await supabase
     .from('profiles')
     .update({
-      full_name: fullName,
-      dni,
-      domicilio,
       telefono_prefijo: telefonoPrefijo,
       telefono_numero: telefonoNumeroGuardar,
     })
     .eq('id', userId)
 
   if (error) {
-    const mensaje = mensajeDeError(error, { '23505': 'Ese DNI ya pertenece a otro cliente' })
-    redirect(`/portal-cliente/mi-perfil?error=${encodeURIComponent(mensaje)}`)
+    redirect(`/portal-cliente/mi-perfil?error=${encodeURIComponent(mensajeDeError(error))}`)
   }
 
   redirect('/portal-cliente/mi-perfil?ok=1')

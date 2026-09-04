@@ -2,12 +2,15 @@ import { createClient } from '@/lib/supabase/server'
 import { requireAdministrador } from '@/lib/auth/require-admin'
 import { notFound } from 'next/navigation'
 import { calcularSaldoPorMoneda } from '@/lib/cuentas-externas/calcular-saldo'
+import { fechaEnArgentina } from '@/lib/fecha/hoy-argentina'
 import { actualizarCuentaExterna, agregarMovimiento, eliminarCuentaExterna } from '../actions'
 import { BotonEliminarCuentaExterna } from '../BotonEliminarCuentaExterna'
 import { EnlaceBoton } from '@/components/EnlaceBoton'
 import { BotonEnvio } from '@/components/BotonEnvio'
+import { FiltroEnVivo } from '@/components/FiltroEnVivo'
 import {
   ENTRADA,
+  BOTON_SECUNDARIO,
   BOTON_PRIMARIO,
   ENLACE,
   TITULO_H1,
@@ -27,12 +30,12 @@ export default async function CuentaExternaDetallePage({
   searchParams,
 }: {
   params: Promise<{ id: string }>
-  searchParams: Promise<{ error?: string; ok?: string }>
+  searchParams: Promise<{ error?: string; ok?: string; desde?: string; hasta?: string }>
 }) {
   await requireAdministrador()
 
   const { id } = await params
-  const { error, ok } = await searchParams
+  const { error, ok, desde: filtroDesde, hasta: filtroHasta } = await searchParams
 
   const supabase = await createClient()
 
@@ -64,6 +67,20 @@ export default async function CuentaExternaDetallePage({
     }))
   )
 
+  // Filtro desde/hasta (04/09, pedido de Gabriel -- mismo patrón que
+  // /admin/cuentas-corrientes): el saldo de arriba sigue calculado con TODOS
+  // los movimientos, el filtro solo acota qué se lista abajo. `created_at`
+  // es un timestamptz -- se compara por el día de calendario ARGENTINO
+  // (fechaEnArgentina), no por el string UTC crudo.
+  const movimientosFiltrados = (movimientos ?? []).filter((movimiento) => {
+    if (filtroDesde || filtroHasta) {
+      const fecha = fechaEnArgentina(movimiento.created_at)
+      if (filtroDesde && fecha < filtroDesde) return false
+      if (filtroHasta && fecha > filtroHasta) return false
+    }
+    return true
+  })
+  const hayFiltrosActivos = Boolean(filtroDesde || filtroHasta)
 
   return (
     <main className="max-w-2xl">
@@ -146,34 +163,58 @@ export default async function CuentaExternaDetallePage({
       {(movimientos ?? []).length === 0 ? (
         <p className="mb-8 text-sm text-slate-600">Sin movimientos todavía.</p>
       ) : (
-        <div className={`mb-8 ${TABLA_CONTENEDOR}`}>
-          <table className="w-full text-sm">
-            <thead>
-              <tr className={TABLA_HEADER_FILA}>
-                <th className={TABLA_HEADER_CELDA}>Fecha</th>
-                <th className={TABLA_HEADER_CELDA}>Tipo</th>
-                <th className={TABLA_HEADER_CELDA}>Concepto</th>
-                <th className={TABLA_HEADER_CELDA}>Monto</th>
-              </tr>
-            </thead>
-            <tbody>
-              {movimientos!.map((movimiento) => (
-                <tr key={movimiento.id} className={TABLA_FILA}>
-                  <td className={TABLA_CELDA_PRINCIPAL}>
-                    {new Date(movimiento.created_at).toLocaleDateString('es-AR')}
-                  </td>
-                  <td className={TABLA_CELDA}>
-                    {movimiento.tipo === 'debito' ? 'Débito (le debemos)' : 'Crédito (nos debe / le pagamos)'}
-                  </td>
-                  <td className={TABLA_CELDA}>{movimiento.concepto}</td>
-                  <td className={TABLA_CELDA}>
-                    {movimiento.monto} {movimiento.moneda}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+        <>
+          <FiltroEnVivo className="mb-3 flex flex-wrap items-end gap-3">
+            <label className="text-sm text-slate-600">
+              Desde
+              <input type="date" name="desde" defaultValue={filtroDesde ?? ''} className={ENTRADA} />
+            </label>
+            <label className="text-sm text-slate-600">
+              Hasta
+              <input type="date" name="hasta" defaultValue={filtroHasta ?? ''} className={ENTRADA} />
+            </label>
+            <button type="submit" className={`cursor-pointer ${BOTON_SECUNDARIO}`}>
+              Filtrar
+            </button>
+            {hayFiltrosActivos && (
+              <EnlaceBoton href={`/admin/cuentas-externas/${id}`} className={ENLACE}>
+                Limpiar filtros
+              </EnlaceBoton>
+            )}
+          </FiltroEnVivo>
+          {movimientosFiltrados.length === 0 ? (
+            <p className="mb-8 text-sm text-slate-600">Ningún movimiento coincide con los filtros.</p>
+          ) : (
+            <div className={`mb-8 max-h-[70vh] overflow-y-auto ${TABLA_CONTENEDOR}`}>
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className={`${TABLA_HEADER_FILA} sticky top-0 z-10`}>
+                    <th className={TABLA_HEADER_CELDA}>Fecha</th>
+                    <th className={TABLA_HEADER_CELDA}>Tipo</th>
+                    <th className={TABLA_HEADER_CELDA}>Concepto</th>
+                    <th className={TABLA_HEADER_CELDA}>Monto</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {movimientosFiltrados.map((movimiento) => (
+                    <tr key={movimiento.id} className={TABLA_FILA}>
+                      <td className={TABLA_CELDA_PRINCIPAL}>
+                        {new Date(movimiento.created_at).toLocaleDateString('es-AR')}
+                      </td>
+                      <td className={TABLA_CELDA}>
+                        {movimiento.tipo === 'debito' ? 'Débito (le debemos)' : 'Crédito (nos debe / le pagamos)'}
+                      </td>
+                      <td className={TABLA_CELDA}>{movimiento.concepto}</td>
+                      <td className={TABLA_CELDA}>
+                        {movimiento.monto} {movimiento.moneda}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </>
       )}
 
       <h2 className={`mb-2 ${TITULO_H2}`}>Eliminar</h2>

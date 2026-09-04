@@ -22,6 +22,7 @@ import {
 } from './actions'
 import { agregarParticipante, quitarParticipante } from './participantes-actions'
 import { cancelarReserva } from '../actions'
+import { confirmarPago } from '../../pagos/actions'
 import { BotonEliminarLote } from './BotonEliminarLote'
 import { BotonCancelarReserva } from '../BotonCancelarReserva'
 import { BotonRescindir } from './BotonRescindir'
@@ -50,6 +51,7 @@ import {
   TABLA_HEADER_CELDA,
   TABLA_FILA,
   TABLA_CELDA,
+  ENLACE_TABLA,
 } from '@/lib/ui/clases'
 
 const MESES_ABREVIADOS = [
@@ -154,6 +156,13 @@ export default async function LoteDetallePage({
     .select('id, monto, moneda, medio_pago, motivo, estado, created_at')
     .eq('lote_id', id)
     .order('created_at', { ascending: false })
+
+  // Confirmar un pago pendiente directo desde acá (04/09, pedido de Gabriel:
+  // no tener que ir hasta /admin/pagos a buscarlo) -- mismos roles que
+  // confirmarPago() ya exige internamente, para no mostrar un botón que en
+  // el fondo no hace nada.
+  const puedeConfirmarPagoDesdeLote =
+    perfilPropio!.role === 'administrador' || perfilPropio!.role === 'acreedor'
 
   const { data: ajustesIndexacion } = await supabase
     .from('ajustes_indexacion')
@@ -345,6 +354,12 @@ export default async function LoteDetallePage({
       }
     })
   )
+
+  // Separa los contratos generados (identificados por la descripción fija
+  // que les pone generarContratoLote) del resto de "Documentos" -- 04/09,
+  // para que tengan su propia sección en vez de mezclarse con planos/fotos.
+  const contratosGenerados = documentosConUrl.filter((d) => d.descripcion.startsWith('Contrato generado'))
+  const documentosSinContrato = documentosConUrl.filter((d) => !d.descripcion.startsWith('Contrato generado'))
 
   // Historial de rescindido/vuelta a disponible + cuánto se cobró mientras
   // estuvo vendido -- solo tiene sentido pedirlo si el lote ya pasó por
@@ -811,20 +826,35 @@ export default async function LoteDetallePage({
                 <th className={TABLA_HEADER_CELDA}>Medio</th>
                 <th className={TABLA_HEADER_CELDA}>Monto</th>
                 <th className={TABLA_HEADER_CELDA}>Estado</th>
+                {puedeConfirmarPagoDesdeLote && <th className={TABLA_HEADER_CELDA}></th>}
               </tr>
             </thead>
             <tbody>
-              {(pagosDelLote ?? []).map((pago) => (
-                <tr key={pago.id} className={TABLA_FILA}>
-                  <td className={TABLA_CELDA}>{new Date(pago.created_at).toLocaleDateString('es-AR')}</td>
-                  <td className={TABLA_CELDA}>{MOTIVO_PAGO_ETIQUETA[pago.motivo] ?? pago.motivo}</td>
-                  <td className={TABLA_CELDA}>{pago.medio_pago === 'efectivo' ? 'Efectivo' : 'Transferencia'}</td>
-                  <td className={TABLA_CELDA}>
-                    {pago.monto} {pago.moneda}
-                  </td>
-                  <td className={TABLA_CELDA}>{pago.estado === 'confirmado' ? 'Confirmado' : 'Pendiente'}</td>
-                </tr>
-              ))}
+              {(pagosDelLote ?? []).map((pago) => {
+                const confirmarEstePago = confirmarPago.bind(null, pago.id)
+                return (
+                  <tr key={pago.id} className={TABLA_FILA}>
+                    <td className={TABLA_CELDA}>{new Date(pago.created_at).toLocaleDateString('es-AR')}</td>
+                    <td className={TABLA_CELDA}>{MOTIVO_PAGO_ETIQUETA[pago.motivo] ?? pago.motivo}</td>
+                    <td className={TABLA_CELDA}>{pago.medio_pago === 'efectivo' ? 'Efectivo' : 'Transferencia'}</td>
+                    <td className={TABLA_CELDA}>
+                      {pago.monto} {pago.moneda}
+                    </td>
+                    <td className={TABLA_CELDA}>{pago.estado === 'confirmado' ? 'Confirmado' : 'Pendiente'}</td>
+                    {puedeConfirmarPagoDesdeLote && (
+                      <td className={TABLA_CELDA}>
+                        {pago.estado === 'pendiente' && (
+                          <form action={confirmarEstePago}>
+                            <input type="hidden" name="montoVisto" value={pago.monto} />
+                            <input type="hidden" name="monto" value={pago.monto} />
+                            <BotonEnvio className={ENLACE_TABLA}>Confirmar</BotonEnvio>
+                          </form>
+                        )}
+                      </td>
+                    )}
+                  </tr>
+                )
+              })}
             </tbody>
           </table>
           </div>
@@ -1010,11 +1040,11 @@ export default async function LoteDetallePage({
         </>
       )}
 
-      {perfilPropio!.role !== 'cobrador' && lote!.estado === 'vendido' && (
+      {perfilPropio!.role !== 'cobrador' && (lote!.estado === 'vendido' || lote!.estado === 'reservado') && (
         <>
-          <h2 className={`mb-2 mt-8 ${TITULO_H2}`}>Contrato</h2>
+          <h2 className={`mb-2 mt-8 ${TITULO_H2}`}>Contratos</h2>
           {loteoDelLote?.plantilla_contrato_path ? (
-            <form action={generarContratoConId} className="mb-8 flex flex-wrap items-end gap-3">
+            <form action={generarContratoConId} className="mb-4 flex flex-wrap items-end gap-3">
               <label className="text-sm">
                 Fecha del contrato
                 <input
@@ -1029,11 +1059,13 @@ export default async function LoteDetallePage({
                 Generar contrato
               </BotonEnvio>
               <span className="text-xs text-slate-500">
-                Se guarda como un documento más de este lote, con los datos cargados hasta ahora.
+                {lote!.estado === 'reservado'
+                  ? 'Genera el contrato ya con los datos de la reserva -- las cuotas todavía no están cargadas (recién se cargan al vender), así que esa parte queda en blanco hasta ese momento.'
+                  : 'Se guarda como un documento más de este lote, con los datos cargados hasta ahora.'}
               </span>
             </form>
           ) : (
-            <p className="mb-8 text-sm text-amber-700">
+            <p className="mb-4 text-sm text-amber-700">
               El loteo de este lote todavía no tiene una plantilla de contrato cargada --{' '}
               <EnlaceBoton href="/admin/loteos" className={ENLACE}>
                 subí una acá
@@ -1041,15 +1073,44 @@ export default async function LoteDetallePage({
               para poder generarlo.
             </p>
           )}
+          {/* Contratos ya generados -- separados del resto de "Documentos"
+              (04/09, pedido de Gabriel: solapa propia para no tener que
+              buscarlos entre planos/fotos/otros archivos). Se identifican
+              por la descripción que les pone generarContratoLote al
+              subirlos ("Contrato generado (...)"). */}
+          {contratosGenerados.length > 0 && (
+            <ul className="mb-8 flex flex-col gap-2">
+              {contratosGenerados.map((documento) => {
+                const eliminarContratoConId = eliminarDocumentoLote.bind(null, documento.id, id)
+                return (
+                  <li key={documento.id} className="flex items-center gap-3 text-sm">
+                    {documento.url ? (
+                      <a href={documento.url} target="_blank" className={ENLACE}>
+                        {documento.descripcion}
+                      </a>
+                    ) : (
+                      <span>{documento.descripcion} (link no disponible)</span>
+                    )}
+                    <span className="text-slate-500">— generado por {documento.nombreSubidoPor}</span>
+                    <form action={eliminarContratoConId}>
+                      <BotonEnvio className="cursor-pointer text-sm text-red-700 underline-offset-2 hover:underline">
+                        Eliminar
+                      </BotonEnvio>
+                    </form>
+                  </li>
+                )
+              })}
+            </ul>
+          )}
         </>
       )}
 
       <h2 className={`mb-2 mt-8 ${TITULO_H2}`}>Documentos</h2>
-      {documentosConUrl.length === 0 ? (
+      {documentosSinContrato.length === 0 ? (
         <p className="mb-3 text-sm text-slate-600">Todavía no se subió ningún documento.</p>
       ) : (
         <ul className="mb-3 flex flex-col gap-2">
-          {documentosConUrl.map((documento) => {
+          {documentosSinContrato.map((documento) => {
             const eliminarDocumentoConId = eliminarDocumentoLote.bind(null, documento.id, id)
             return (
               <li key={documento.id} className="flex items-center gap-3 text-sm">
