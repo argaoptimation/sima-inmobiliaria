@@ -7,6 +7,7 @@ import { CampoArchivoDirecto } from '@/components/CampoArchivoDirecto'
 import { EnlaceBoton } from '@/components/EnlaceBoton'
 import { BotonEnvio } from '@/components/BotonEnvio'
 import { ENTRADA, BOTON_PRIMARIO, ENLACE, TITULO_H1, BANNER_ERROR } from '@/lib/ui/clases'
+import { Obligatorio } from '@/components/Obligatorio'
 
 export default async function ReservarLotePage({
   params,
@@ -110,6 +111,7 @@ export default async function ReservarLotePage({
 
           <label className="text-sm text-slate-600">
             Estado civil
+            <Obligatorio />
             <select
               name="estadoCivil"
               required
@@ -141,13 +143,14 @@ export default async function ReservarLotePage({
             type="number"
             step="0.01"
             min="0"
-            placeholder="Monto de la seña"
+            placeholder="Monto de la seña *"
             defaultValue={montoSenaPreservado ?? ''}
             required
             className={ENTRADA}
           />
           <label className="text-sm text-slate-600">
             Moneda de la seña
+            <Obligatorio />
             <select
               name="monedaSena"
               required

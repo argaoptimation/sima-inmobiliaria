@@ -6,7 +6,12 @@ import { revalidatePath } from 'next/cache'
 import { mensajeDeError } from '@/lib/errores'
 import { hoyArgentina } from '@/lib/fecha/hoy-argentina'
 
-const ROLES_CON_ACCESO_A_LOTES = ['administrador', 'acreedor', 'vendedor', 'cobrador']
+// Quién puede CARGAR/corregir la cotización del día: solo admin y cobrador
+// (04/09, pedido de Gabriel: "el acreedor tiene disponible la parte de
+// cargar el monto del dólar... eso solo lo pueden hacer los cobradores y
+// los admins"). Ver también /admin/lotes, que esconde el formulario para
+// el resto -- esto es el candado real, esa es solo la parte visual.
+const ROLES_QUE_CARGAN_COTIZACION = ['administrador', 'cobrador']
 
 export async function guardarCotizacionDolar(formData: FormData) {
   const supabase = await createClient()
@@ -21,8 +26,8 @@ export async function guardarCotizacionDolar(formData: FormData) {
 
   const { data: perfil } = await supabase.from('profiles').select('role').eq('id', user!.id).single()
 
-  if (!perfil || !ROLES_CON_ACCESO_A_LOTES.includes(perfil.role)) {
-    redirect('/login')
+  if (!perfil || !ROLES_QUE_CARGAN_COTIZACION.includes(perfil.role)) {
+    redirect('/admin/lotes')
   }
 
   const valorRaw = ((formData.get('valor') as string) || '').trim()

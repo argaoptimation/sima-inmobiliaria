@@ -12,6 +12,7 @@ import { resetearContrasenaCliente, eliminarCliente, actualizarDatosCliente } fr
 import { BotonEliminarUsuario } from '@/app/admin/usuarios/BotonEliminarUsuario'
 import { EnlaceBoton } from '@/components/EnlaceBoton'
 import { BotonEnvio } from '@/components/BotonEnvio'
+import { Obligatorio } from '@/components/Obligatorio'
 import {
   ENTRADA,
   BOTON_PRIMARIO,
@@ -211,6 +212,7 @@ export default async function ClienteDetallePage({
       >
         <label className="text-sm text-slate-600">
           Nombre completo
+          <Obligatorio />
           <input
             name="fullName"
             defaultValue={cliente!.full_name}
@@ -256,7 +258,7 @@ export default async function ClienteDetallePage({
         <input
           name="nuevaContrasena"
           type="text"
-          placeholder="Nueva contraseña"
+          placeholder="Nueva contraseña *"
           minLength={8}
           required
           className={`flex-1 ${ENTRADA}`}

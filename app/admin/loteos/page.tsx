@@ -7,6 +7,7 @@ import { CampoArchivoDirecto } from '@/components/CampoArchivoDirecto'
 import { EnlaceBoton } from '@/components/EnlaceBoton'
 import { BotonEnvio } from '@/components/BotonEnvio'
 import { EncabezadoPagina } from '@/components/EncabezadoPagina'
+import { Obligatorio } from '@/components/Obligatorio'
 import {
   TARJETA,
   ENTRADA,
@@ -129,10 +130,11 @@ export default async function LoteosPage({
       <form action={crearLoteo} className="mb-6 flex items-end gap-2">
         <label className="text-sm text-slate-600">
           Nombre del loteo nuevo
+          <Obligatorio />
           <input
             name="nombre"
             type="text"
-            placeholder="Ej: Loteo San Martín"
+            placeholder="Ej: Loteo San Martín *"
             required
             className={ENTRADA}
           />
@@ -286,6 +288,7 @@ export default async function LoteosPage({
         <div className="mb-3 flex items-end gap-2">
           <label className="text-sm text-slate-600">
             Mover los seleccionados a
+            <Obligatorio />
             <select name="loteoDestino" required className={ENTRADA}>
               <option value="">— elegir loteo —</option>
               {(loteos ?? []).map((loteo) => (

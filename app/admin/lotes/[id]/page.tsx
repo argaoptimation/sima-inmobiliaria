@@ -1140,7 +1140,7 @@ export default async function LoteDetallePage({
           Descripción
           <input
             name="descripcion"
-            placeholder="Ej: Plano del lote"
+            placeholder="Ej: Plano del lote *"
             required
             className={`${ENTRADA} w-full`}
           />

@@ -7,6 +7,7 @@ import { telefonoParaWhatsApp } from '@/lib/telefono/prefijos'
 import { EnlaceBoton } from '@/components/EnlaceBoton'
 import { BotonEnvio } from '@/components/BotonEnvio'
 import { ENTRADA, BOTON_PRIMARIO, ENLACE, TITULO_H1, BANNER_ERROR } from '@/lib/ui/clases'
+import { Obligatorio } from '@/components/Obligatorio'
 
 export default async function VenderLotePage({
   params,
@@ -154,7 +155,7 @@ export default async function VenderLotePage({
 
             <input
               name="fullName"
-              placeholder="Nombre completo del comprador"
+              placeholder="Nombre completo del comprador *"
               defaultValue={fullNamePreservado ?? reserva?.nombre_completo ?? ''}
               required
               className={ENTRADA}
@@ -162,13 +163,14 @@ export default async function VenderLotePage({
             <input
               name="email"
               type="email"
-              placeholder="Email del comprador"
+              placeholder="Email del comprador *"
               defaultValue={emailPreservado ?? reserva?.email ?? ''}
               required
               className={ENTRADA}
             />
             <label className="text-sm text-slate-600">
               Fecha de la primera cuota
+              <Obligatorio />
               <input
                 name="fechaPrimeraCuota"
                 type="date"

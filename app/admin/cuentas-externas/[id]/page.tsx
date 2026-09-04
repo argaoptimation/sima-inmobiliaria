@@ -8,6 +8,7 @@ import { BotonEliminarCuentaExterna } from '../BotonEliminarCuentaExterna'
 import { EnlaceBoton } from '@/components/EnlaceBoton'
 import { BotonEnvio } from '@/components/BotonEnvio'
 import { FiltroEnVivo } from '@/components/FiltroEnVivo'
+import { Obligatorio } from '@/components/Obligatorio'
 import {
   ENTRADA,
   BOTON_SECUNDARIO,
@@ -106,18 +107,22 @@ export default async function CuentaExternaDetallePage({
       <form action={actualizarCuentaExternaConId} className="mb-8 flex flex-col gap-3">
         <label className="text-sm text-slate-600">
           Nombre del destinatario
+          <Obligatorio />
           <input name="nombre" defaultValue={cuentaExterna!.nombre} required className={`w-full ${ENTRADA}`} />
         </label>
         <label className="text-sm text-slate-600">
           Titular
+          <Obligatorio />
           <input name="titular" defaultValue={cuentaExterna!.titular} required className={`w-full ${ENTRADA}`} />
         </label>
         <label className="text-sm text-slate-600">
           Alias
+          <Obligatorio />
           <input name="alias" defaultValue={cuentaExterna!.alias} required className={`w-full ${ENTRADA}`} />
         </label>
         <label className="text-sm text-slate-600">
           Banco
+          <Obligatorio />
           <input name="banco" defaultValue={cuentaExterna!.banco} required className={`w-full ${ENTRADA}`} />
         </label>
         <label className="text-sm text-slate-600">
@@ -138,6 +143,7 @@ export default async function CuentaExternaDetallePage({
         </label>
         <label className="text-sm text-slate-600">
           Monto
+          <Obligatorio />
           <input name="monto" type="number" step="0.01" min="0" required className={`w-full ${ENTRADA}`} />
         </label>
         <label className="text-sm text-slate-600">
@@ -149,6 +155,7 @@ export default async function CuentaExternaDetallePage({
         </label>
         <label className="text-sm text-slate-600">
           Concepto
+          <Obligatorio />
           <input
             name="concepto"
             required

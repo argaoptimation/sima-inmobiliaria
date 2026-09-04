@@ -5,6 +5,7 @@ import { BuscadorLote } from '../BuscadorLote'
 import { hoyArgentina } from '@/lib/fecha/hoy-argentina'
 import { BotonEnvio } from '@/components/BotonEnvio'
 import { ENTRADA, BOTON_PRIMARIO } from '@/lib/ui/clases'
+import { Obligatorio } from '@/components/Obligatorio'
 
 export function FormularioMovimientoManual({
   agregarMovimientoManualAction,
@@ -42,6 +43,7 @@ export function FormularioMovimientoManual({
       )}
       <label className="text-sm text-slate-600">
         Monto
+        <Obligatorio />
         <input name="monto" type="number" step="0.01" min="0" required className={`w-full ${ENTRADA}`} />
       </label>
       <label className="text-sm text-slate-600">
@@ -53,6 +55,7 @@ export function FormularioMovimientoManual({
       </label>
       <label className="text-sm text-slate-600">
         Fecha
+        <Obligatorio />
         <input name="fechaEvento" type="date" required defaultValue={hoyArgentina()} className={`w-full ${ENTRADA}`} />
       </label>
       {tipo === 'haber' && (

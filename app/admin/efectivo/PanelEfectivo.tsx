@@ -5,6 +5,7 @@ import { BuscadorLoteAmplio, type LoteBuscable } from './BuscadorLoteAmplio'
 import { calcularInteresMoratorio } from '@/lib/cobranza/interes-moratorio'
 import { BotonEnvio } from '@/components/BotonEnvio'
 import { ENTRADA, BOTON_PRIMARIO } from '@/lib/ui/clases'
+import { Obligatorio } from '@/components/Obligatorio'
 
 export interface LoteConDeuda extends LoteBuscable {
   moneda: string
@@ -68,6 +69,7 @@ export function PanelEfectivo({
         </label>
         <label className="text-sm text-slate-600">
           Monto
+          <Obligatorio />
           <input name="monto" type="number" step="0.01" min="0.01" required className={`${ENTRADA} w-full`} />
         </label>
         <label className="text-sm text-slate-600">

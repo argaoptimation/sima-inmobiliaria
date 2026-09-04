@@ -4,7 +4,7 @@ import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { redirect } from 'next/navigation'
 import { requireAdministrador } from '@/lib/auth/require-admin'
-import { validarSeleccionAcreedor } from '@/lib/lotes/validar-seleccion-acreedor'
+import { validarSeleccionAcreedorPorNombre } from '@/lib/lotes/validar-seleccion-acreedor'
 import { mensajeDeError } from '@/lib/errores'
 import { obtenerSiteUrl } from '@/lib/config/site-url'
 
@@ -26,6 +26,19 @@ export async function crearLote(formData: FormData) {
   const precioTotalTexto = ((formData.get('precioTotal') as string) || '').trim()
   const precioTotal = precioTotalTexto ? Number(precioTotalTexto) : null
 
+  // Datos legales/catastrales: se podían cargar solo desde el detalle del
+  // lote, no al crearlo (incongruencia reportada por Gabriel 04/09).
+  // Opcionales, igual que en el detalle -- hacen falta recién para el
+  // contrato. Mismos names que app/admin/lotes/[id]/actions.ts.
+  const loteoId = ((formData.get('loteoId') as string) || '').trim() || null
+  const numeroLote = ((formData.get('numeroLote') as string) || '').trim() || null
+  const manzana = ((formData.get('manzana') as string) || '').trim() || null
+  const superficieM2Texto = ((formData.get('superficieM2') as string) || '').trim()
+  const superficieM2 = superficieM2Texto ? Number(superficieM2Texto) : null
+  const cuentaRentas = ((formData.get('cuentaRentas') as string) || '').trim() || null
+  const nomenclaturaCatastral = ((formData.get('nomenclaturaCatastral') as string) || '').trim() || null
+  const matricula = ((formData.get('matricula') as string) || '').trim() || null
+
   if (!ubicacion || !precioTotal || !Number.isFinite(precioTotal) || precioTotal <= 0) {
     redirect(
       `/admin/lotes/nuevo?error=${encodeURIComponent(
@@ -34,12 +47,21 @@ export async function crearLote(formData: FormData) {
     )
   }
 
-  const acreedorId = ((formData.get('acreedorId') as string) || '').trim()
+  // El formulario manda el NOMBRE elegido en el buscador, no un id (ver
+  // components/BuscadorPersona.tsx) -- se resuelve acá contra la lista real
+  // de acreedores.
+  const acreedorNombre = ((formData.get('acreedorNombre') as string) || '').trim()
   const acreedorNombreNuevo = ((formData.get('acreedorNombreNuevo') as string) || '').trim()
   const acreedorEmailNuevo = ((formData.get('acreedorEmailNuevo') as string) || '').trim()
 
-  const seleccion = validarSeleccionAcreedor({
-    acreedorId,
+  const { data: acreedoresExistentes } = await admin
+    .from('profiles')
+    .select('id, full_name')
+    .eq('role', 'acreedor')
+
+  const seleccion = validarSeleccionAcreedorPorNombre({
+    nombreElegido: acreedorNombre,
+    acreedores: acreedoresExistentes ?? [],
     nombreNuevo: acreedorNombreNuevo,
     emailNuevo: acreedorEmailNuevo,
   })
@@ -97,6 +119,13 @@ export async function crearLote(formData: FormData) {
       ubicacion,
       precio_total: precioTotal,
       acreedor_id: acreedorIdFinal,
+      loteo_id: loteoId,
+      numero_lote: numeroLote,
+      manzana,
+      superficie_m2: superficieM2,
+      cuenta_rentas: cuentaRentas,
+      nomenclatura_catastral: nomenclaturaCatastral,
+      matricula,
     })
     .select('id')
     .single()

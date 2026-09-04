@@ -3,6 +3,7 @@
 import { createClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
 import { tieneDatosTransferencia } from '@/lib/lotes/validar-cuenta-cobro'
+import { telefonoParaGuardar, errorLongitudTelefono } from '@/lib/telefono/prefijos'
 import { mensajeDeError } from '@/lib/errores'
 
 async function requireStaffLogueado() {
@@ -25,16 +26,45 @@ async function requireStaffLogueado() {
   return { supabase, userId: user!.id }
 }
 
-export async function actualizarNombre(formData: FormData) {
+// Reemplaza al viejo actualizarNombre (04/09): además del nombre ahora se
+// carga el teléfono, que hasta acá solo tenían los clientes -- el staff no
+// tenía dónde ponerlo (pedido de Gabriel: "los acreedores, cobradores,
+// vendedores, admin, etc., sí todos tienen que tener un campo donde poner
+// sus datos personales"). El email no se toca acá: es la identidad de
+// login, cambiarlo es cosa de un admin.
+export async function actualizarDatosPersonales(formData: FormData) {
   const { supabase, userId } = await requireStaffLogueado()
 
   const fullName = (formData.get('fullName') as string)?.trim()
+  const prefijo = ((formData.get('prefijo') as string) || '').trim()
+  const telefonoNumero = ((formData.get('telefonoNumero') as string) || '').trim()
 
   if (!fullName) {
     redirect(`/mi-perfil?error=${encodeURIComponent('El nombre no puede estar vacío')}`)
   }
 
-  const { error } = await supabase.from('profiles').update({ full_name: fullName }).eq('id', userId)
+  if (!telefonoNumero) {
+    redirect(`/mi-perfil?error=${encodeURIComponent('El teléfono es obligatorio')}`)
+  }
+
+  const errorTelefono = errorLongitudTelefono(prefijo, telefonoNumero)
+  if (errorTelefono) {
+    redirect(`/mi-perfil?error=${encodeURIComponent(errorTelefono)}`)
+  }
+
+  const { prefijo: telefonoPrefijo, numero: telefonoNumeroGuardar } = telefonoParaGuardar(
+    prefijo,
+    telefonoNumero
+  )
+
+  const { error } = await supabase
+    .from('profiles')
+    .update({
+      full_name: fullName,
+      telefono_prefijo: telefonoPrefijo,
+      telefono_numero: telefonoNumeroGuardar,
+    })
+    .eq('id', userId)
 
   if (error) {
     redirect(`/mi-perfil?error=${encodeURIComponent(mensajeDeError(error))}`)

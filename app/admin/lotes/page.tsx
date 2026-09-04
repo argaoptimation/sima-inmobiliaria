@@ -195,6 +195,10 @@ export default async function LotesPage({
       : { data: [] }
   const clientePorId = new Map((clientes ?? []).map((cliente) => [cliente.id, cliente]))
   const esAdministrador = perfilPropio!.role === 'administrador'
+  // Cargar/corregir la cotización del día: admin y cobrador solamente
+  // (04/09, pedido de Gabriel -- el acreedor la tenía disponible por error).
+  // El candado real está en cotizacion-dolar-actions.ts; esto es lo visual.
+  const puedeCargarCotizacion = esAdministrador || perfilPropio!.role === 'cobrador'
 
   const cicloActualPorLoteId = new Map(lotesVendidos.map((lote) => [lote.id, lote.ciclo_actual]))
 
@@ -354,6 +358,7 @@ export default async function LotesPage({
 
       {error && <p className={BANNER_ERROR}>{error}</p>}
 
+      {puedeCargarCotizacion && (
       <div className={`mb-6 ${TARJETA}`}>
         {cotizacionHoy ? (
           <p className="mb-3 text-sm text-green-700">
@@ -393,6 +398,7 @@ export default async function LotesPage({
           Ver historial completo →
         </EnlaceBoton>
       </div>
+      )}
 
       {esVendedor && (
         <>
@@ -427,7 +433,7 @@ export default async function LotesPage({
                         <td className={TABLA_CELDA}>
                           <div className="flex flex-wrap items-center gap-3">
                             <EnlaceBoton href={`/admin/lotes/${lote.id}/info`} className={ENLACE}>
-                              Ver información del lote →
+                              Ver documentación del lote →
                             </EnlaceBoton>
                             {lote.estado === 'reservado' && (
                               <BotonCancelarReserva cancelarReservaAction={cancelarReservaConId} />
@@ -629,7 +635,7 @@ export default async function LotesPage({
                       {esVendedor ? (
                         <div className="flex flex-wrap items-center gap-3">
                           <EnlaceBoton href={`/admin/lotes/${lote.id}/info`} className={ENLACE}>
-                            Ver información del lote →
+                            Ver documentación del lote →
                           </EnlaceBoton>
                           {lote.estado === 'disponible' && (
                             <EnlaceBoton href={`/admin/lotes/${lote.id}/reservar`} className={ENLACE}>
@@ -640,7 +646,7 @@ export default async function LotesPage({
                       ) : (
                         <div className="flex flex-wrap items-center gap-3">
                           <EnlaceBoton href={`/admin/lotes/${lote.id}/info`} className={ENLACE}>
-                            Ver información del lote →
+                            Ver documentación del lote →
                           </EnlaceBoton>
                           <EnlaceBoton href={`/admin/lotes/${lote.id}`} className={ENLACE}>
                             Ver detalle

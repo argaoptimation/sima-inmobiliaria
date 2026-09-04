@@ -2,6 +2,7 @@
 
 import { BotonEnvio } from '@/components/BotonEnvio'
 import { ENTRADA, BOTON_PRIMARIO, TARJETA } from '@/lib/ui/clases'
+import { Obligatorio } from '@/components/Obligatorio'
 
 const VALOR_SOSPECHOSO = 50
 
@@ -62,6 +63,7 @@ export function FormularioCargarIndice({
       </label>
       <label className="text-sm text-slate-600">
         Mes
+        <Obligatorio />
         <input
           name="periodo"
           type="month"
@@ -72,11 +74,12 @@ export function FormularioCargarIndice({
       </label>
       <label className="text-sm text-slate-600">
         Valor (%)
+        <Obligatorio />
         <input
           name="valor"
           type="number"
           step="0.01"
-          placeholder="Ej: 3"
+          placeholder="Ej: 3 *"
           required
           className={ENTRADA}
         />

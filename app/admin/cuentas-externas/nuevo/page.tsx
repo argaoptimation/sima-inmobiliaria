@@ -3,6 +3,7 @@ import { crearCuentaExterna } from '../actions'
 import { EnlaceBoton } from '@/components/EnlaceBoton'
 import { BotonEnvio } from '@/components/BotonEnvio'
 import { ENTRADA, BOTON_PRIMARIO, ENLACE, TITULO_H1, BANNER_ERROR } from '@/lib/ui/clases'
+import { Obligatorio } from '@/components/Obligatorio'
 
 export default async function NuevaCuentaExternaPage({
   searchParams,
@@ -22,6 +23,7 @@ export default async function NuevaCuentaExternaPage({
       <form action={crearCuentaExterna} className="flex flex-col gap-3">
         <label className="text-sm text-slate-600">
           Nombre del destinatario
+          <Obligatorio />
           <input name="nombre" required className={`w-full ${ENTRADA}`} />
         </label>
         <label className="text-sm text-slate-600">

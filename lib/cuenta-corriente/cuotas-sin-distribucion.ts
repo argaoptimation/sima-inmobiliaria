@@ -18,12 +18,9 @@ export async function obtenerCuotasSinDistribucion(
   supabase: SupabaseServerClient,
   loteId?: string
 ): Promise<CuotaSinDistribucion[]> {
-  // Supabase-js no soporta comparar dos columnas entre si directamente en
-  // el builder (saldo_pendiente < monto_base): se trae todo y se filtra esa
-  // comparación en JS, mas abajo.
   let query = supabase
     .from('cuotas')
-    .select('id, numero, lote_id, ciclo, saldo_pendiente, monto_base, lotes(identificador, ciclo_actual)')
+    .select('id, numero, lote_id, ciclo, lotes(identificador, ciclo_actual)')
 
   if (loteId) {
     query = query.eq('lote_id', loteId)
@@ -40,8 +37,32 @@ export async function obtenerCuotasSinDistribucion(
     (cuota) => cuota.ciclo === (cuota.lotes as any)?.ciclo_actual
   )
 
-  const cuotasConAlgoCobrado = cuotasDelCicloVigente.filter(
-    (cuota) => cuota.saldo_pendiente < cuota.monto_base
+  if (cuotasDelCicloVigente.length === 0) return []
+
+  // "Cobrada" = tiene plata realmente imputada (pago_imputaciones), que es
+  // exactamente lo que dispara generarDebeAutomaticoSiCorresponde. Antes se
+  // deducía de `saldo_pendiente < monto_base`, y eso daba falsos positivos
+  // en los dos casos donde el saldo se pone en cero SIN que entre plata a
+  // esa cuota puntual (bug reportado por Gabriel 04/09 en "DEMO Lote
+  // Contrato Quintana": 36 cuotas avisadas como cobradas-sin-distribución
+  // sin tener una sola imputación):
+  //   - refinanciarLote: marca las cuotas viejas refinanciada=true y les
+  //     pone saldo_pendiente=0; la deuda pasa a las cuotas nuevas.
+  //   - saldarLote (pago total anticipado): pone en cero el saldo de todas
+  //     las cuotas pendientes con UN pago de motivo 'saldar', sin imputar
+  //     cuota por cuota.
+  const { data: imputaciones } = await supabase
+    .from('pago_imputaciones')
+    .select('cuota_id')
+    .in(
+      'cuota_id',
+      cuotasDelCicloVigente.map((cuota) => cuota.id)
+    )
+
+  const cuotasConPlataImputada = new Set((imputaciones ?? []).map((imputacion) => imputacion.cuota_id))
+
+  const cuotasConAlgoCobrado = cuotasDelCicloVigente.filter((cuota) =>
+    cuotasConPlataImputada.has(cuota.id)
   )
 
   if (cuotasConAlgoCobrado.length === 0) return []

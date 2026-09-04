@@ -14,6 +14,7 @@ import {
   Building2,
   TrendingUp,
   UserCog,
+  IdCard,
   FileClock,
   ShieldCheck,
   LogOut,
@@ -95,7 +96,13 @@ export function NavAdmin({
   const puedeVerIndices = esAdministrador || esCobrador
   const puedeVerEfectivoYCaja = esAdministrador || esCobrador
 
-  const inicioHref = esAdministrador ? '/admin/inicio' : '/admin/lotes'
+  // "Inicio" (el dashboard) es admin-only -- requireAdministrador() en
+  // app/admin/inicio/page.tsx. Antes, para el resto de los roles el ítem
+  // seguía apareciendo pero apuntaba a /admin/lotes, o sea: un link
+  // duplicado de "Lotes" que además daba la sensación de "no me lleva a
+  // ningún lado" (reportado por Gabriel 04/09 mirando la vista de
+  // acreedor). Si no tiene dashboard, no se le muestra la puerta.
+  const inicioHref = '/admin/inicio'
 
   // Solo se aplica arriba de md (768px) -- en mobile el drawer siempre
   // muestra las etiquetas completas, sin importar si quedó "colapsada" de
@@ -144,6 +151,12 @@ export function NavAdmin({
     {
       titulo: 'Sistema',
       items: [
+        // Mi perfil (04/09): la pantalla existía desde siempre en /mi-perfil
+        // pero NO había forma de llegar desde el shell admin -- Gabriel la
+        // dio por eliminada ("no veo el tema de poder modificar los datos
+        // de usuario"). Es donde cada uno carga su alias/CBU, que es dato
+        // crítico: sin alias, el cliente no sabe a dónde transferir.
+        { href: '/mi-perfil', etiqueta: 'Mi perfil', icono: IdCard },
         ...(puedeVerUsuarios ? [{ href: '/admin/usuarios', etiqueta: 'Usuarios', icono: UserCog }] : []),
         ...(puedeVerIndices ? [{ href: '/admin/historial-lotes', etiqueta: 'Historial', icono: FileClock }] : []),
         ...(esAdministrador
@@ -200,21 +213,23 @@ export function NavAdmin({
         </div>
 
         <div className="flex flex-1 flex-col gap-5 overflow-y-auto px-3 pt-1.5 pb-3">
-          <div className="flex flex-col gap-0.5">
-            <EnlaceBoton
-              href={inicioHref}
-              onClick={onCerrarMobile}
-              className={esActivo(inicioHref) ? SIDEBAR_ITEM_ACTIVO : SIDEBAR_ITEM}
-              claseInterna="flex w-full items-center gap-[11px]"
-              title={colapsada ? 'Inicio' : undefined}
-            >
-              {esActivo(inicioHref) && (
-                <span className="absolute top-[9px] bottom-[9px] left-0 w-[3px] rounded-r-[3px] bg-[#60a5fa]" />
-              )}
-              <LayoutDashboard className="h-[17px] w-[17px] shrink-0" />
-              <span className={claseOcultarEnColapsada}>Inicio</span>
-            </EnlaceBoton>
-          </div>
+          {esAdministrador && (
+            <div className="flex flex-col gap-0.5">
+              <EnlaceBoton
+                href={inicioHref}
+                onClick={onCerrarMobile}
+                className={esActivo(inicioHref) ? SIDEBAR_ITEM_ACTIVO : SIDEBAR_ITEM}
+                claseInterna="flex w-full items-center gap-[11px]"
+                title={colapsada ? 'Inicio' : undefined}
+              >
+                {esActivo(inicioHref) && (
+                  <span className="absolute top-[9px] bottom-[9px] left-0 w-[3px] rounded-r-[3px] bg-[#60a5fa]" />
+                )}
+                <LayoutDashboard className="h-[17px] w-[17px] shrink-0" />
+                <span className={claseOcultarEnColapsada}>Inicio</span>
+              </EnlaceBoton>
+            </div>
+          )}
 
           {grupos
             .filter((grupo) => grupo.items.length > 0)

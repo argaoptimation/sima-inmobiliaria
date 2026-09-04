@@ -3,6 +3,7 @@
 import { useState } from 'react'
 import { convertirUsdAPesos } from '@/lib/cobranza/cotizacion-dolar'
 import { ENTRADA } from '@/lib/ui/clases'
+import { Obligatorio } from '@/components/Obligatorio'
 
 interface Props {
   saldoPendiente: number
@@ -75,6 +76,7 @@ export function MontoYMoneda({
 
       <label className="text-sm text-slate-600">
         Elegí en qué moneda vas a transferir
+        <Obligatorio />
         <select
           name="moneda"
           required
@@ -89,6 +91,7 @@ export function MontoYMoneda({
 
       <label className="text-sm text-slate-600">
         Monto transferido ({moneda})
+        <Obligatorio />
         <input
           name="monto"
           type="number"

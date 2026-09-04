@@ -58,15 +58,15 @@ export function CamposIdentidadReserva({
       <div key={version} className="flex flex-col gap-3">
         <input
           name="nombreCompleto"
-          placeholder="Nombre completo"
+          placeholder="Nombre completo *"
           defaultValue={datos.nombreCompleto}
           required
           className={ENTRADA}
         />
-        <input name="dni" placeholder="DNI" defaultValue={datos.dni} required className={ENTRADA} />
+        <input name="dni" placeholder="DNI *" defaultValue={datos.dni} required className={ENTRADA} />
         <input
           name="domicilio"
-          placeholder="Domicilio"
+          placeholder="Domicilio *"
           defaultValue={datos.domicilio}
           required
           className={ENTRADA}
@@ -74,7 +74,7 @@ export function CamposIdentidadReserva({
         <input
           name="email"
           type="email"
-          placeholder="Email"
+          placeholder="Email *"
           defaultValue={datos.email}
           required
           className={ENTRADA}

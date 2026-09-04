@@ -12,6 +12,7 @@ import { FiltroEnVivo } from '@/components/FiltroEnVivo'
 import { EnlaceBoton } from '@/components/EnlaceBoton'
 import { BotonEnvio } from '@/components/BotonEnvio'
 import { EncabezadoPagina } from '@/components/EncabezadoPagina'
+import { Obligatorio } from '@/components/Obligatorio'
 import {
   ENTRADA,
   BOTON_PRIMARIO,
@@ -133,25 +134,30 @@ export default async function UsuariosPage({
       {error && <p className={BANNER_ERROR}>{error}</p>}
 
       <form action={crearUsuarioStaff} className="mb-8 flex flex-col gap-3">
-        <input
-          name="fullName"
-          placeholder="Nombre completo"
-          required
-          className={ENTRADA}
-        />
-        <input
-          name="email"
-          type="email"
-          placeholder="Email"
-          required
-          className={ENTRADA}
-        />
-        <select name="role" required className={ENTRADA}>
-          <option value="acreedor">Acreedor</option>
-          <option value="vendedor">Vendedor</option>
-          <option value="cobrador">Cobrador</option>
-        </select>
-        <BotonEnvio className={`cursor-pointer ${BOTON_PRIMARIO}`}>Invitar</BotonEnvio>
+        <label className="text-sm text-slate-600">
+          Nombre completo
+          <Obligatorio />
+          <input name="fullName" required className={`w-full ${ENTRADA}`} />
+        </label>
+        <label className="text-sm text-slate-600">
+          Email
+          <Obligatorio />
+          <input name="email" type="email" required className={`w-full ${ENTRADA}`} />
+        </label>
+        <label className="text-sm text-slate-600">
+          Rol
+          <Obligatorio />
+          <select name="role" required className={`w-full ${ENTRADA}`}>
+            <option value="acreedor">Acreedor</option>
+            <option value="vendedor">Vendedor</option>
+            <option value="cobrador">Cobrador</option>
+          </select>
+        </label>
+        <p className="text-xs text-slate-500">
+          Se le manda una invitación por email. Al elegir su contraseña va a tener que cargar sus
+          datos de cobro (titular, alias y banco) y su teléfono.
+        </p>
+        <BotonEnvio className={`cursor-pointer self-start ${BOTON_PRIMARIO}`}>Invitar</BotonEnvio>
       </form>
 
       <FiltroEnVivo className="mb-4 flex items-end gap-3">
@@ -207,7 +213,7 @@ export default async function UsuariosPage({
                       <input
                         name="fullName"
                         defaultValue={persona.full_name}
-                        placeholder="Nombre completo"
+                        placeholder="Nombre completo *"
                         required
                         className={`flex-1 ${ENTRADA}`}
                       />
@@ -231,21 +237,21 @@ export default async function UsuariosPage({
                       <input
                         name="titular"
                         defaultValue={persona.titular ?? ''}
-                        placeholder="Titular de la cuenta"
+                        placeholder="Titular de la cuenta *"
                         required
                         className={ENTRADA}
                       />
                       <input
                         name="alias"
                         defaultValue={persona.alias ?? ''}
-                        placeholder="Alias"
+                        placeholder="Alias *"
                         required
                         className={ENTRADA}
                       />
                       <input
                         name="banco"
                         defaultValue={persona.banco ?? ''}
-                        placeholder="Banco"
+                        placeholder="Banco *"
                         required
                         className={ENTRADA}
                       />

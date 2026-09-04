@@ -3,6 +3,7 @@
 import { useState } from 'react'
 import { BotonEnvio } from '@/components/BotonEnvio'
 import { ENTRADA, BOTON_SECUNDARIO } from '@/lib/ui/clases'
+import { Obligatorio } from '@/components/Obligatorio'
 
 // Botón "Pago total anticipado" (pedido de Nico, 02/09, renombrado 03/09 --
 // "Saldar" quedaba ambiguo, en la llamada Nico prefirió este nombre) que
@@ -52,6 +53,7 @@ export function PanelSaldar({
     >
       <label className="text-sm text-slate-600">
         Monto acordado
+        <Obligatorio />
         <input
           name="monto"
           type="number"
@@ -64,6 +66,7 @@ export function PanelSaldar({
       </label>
       <label className="text-sm text-slate-600">
         Medio de pago
+        <Obligatorio />
         <select name="medioPago" required defaultValue="transferencia" className={`${ENTRADA} w-full`}>
           <option value="transferencia">Transferencia</option>
           <option value="efectivo">Efectivo</option>

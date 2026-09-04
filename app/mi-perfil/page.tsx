@@ -1,6 +1,8 @@
 import { createClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
-import { actualizarNombre, actualizarDatosTransferencia } from './actions'
+import { actualizarDatosPersonales, actualizarDatosTransferencia } from './actions'
+import { CampoTelefono, AyudaTelefono } from '@/components/CampoTelefono'
+import { Obligatorio } from '@/components/Obligatorio'
 import { AdminShell } from '@/components/AdminShell'
 import { contarPagosPendientes } from '@/lib/pagos-pendientes'
 import { calcularSaldoCuentaCorrientePorMoneda } from '@/lib/cuenta-corriente/calcular-saldo'
@@ -26,7 +28,7 @@ export default async function MiPerfilPage({
 
   const { data: perfil } = await supabase
     .from('profiles')
-    .select('full_name, role, alias, banco, cbu, titular')
+    .select('full_name, role, alias, banco, cbu, titular, email, telefono_prefijo, telefono_numero')
     .eq('id', user!.id)
     .single()
 
@@ -81,29 +83,55 @@ export default async function MiPerfilPage({
           )}
         </div>
 
-        <h2 className={`mb-2 ${TITULO_H2}`}>Nombre completo</h2>
-        <form action={actualizarNombre} className="mb-8 flex gap-3">
-          <input name="fullName" defaultValue={perfil!.full_name} required className={`flex-1 ${ENTRADA}`} />
-          <BotonEnvio className={`cursor-pointer ${BOTON_PRIMARIO}`}>Guardar</BotonEnvio>
+        <h2 className={`mb-2 ${TITULO_H2}`}>Mis datos</h2>
+        <p className="mb-3 text-sm text-slate-600">
+          El email es con el que iniciás sesión: si necesitás cambiarlo, pedíselo a un
+          administrador.
+        </p>
+        <form action={actualizarDatosPersonales} className="mb-8 flex flex-col gap-3">
+          <label className="text-sm text-slate-600">
+            Nombre completo
+            <Obligatorio />
+            <input name="fullName" defaultValue={perfil!.full_name} required className={`w-full ${ENTRADA}`} />
+          </label>
+          <div className="text-sm text-slate-600">
+            Email
+            <p className="mt-1 text-sm font-medium text-slate-800">{perfil!.email ?? user!.email ?? '—'}</p>
+          </div>
+          <label className="text-sm text-slate-600">
+            Teléfono
+            <Obligatorio />
+            <CampoTelefono
+              prefijoGuardado={perfil!.telefono_prefijo}
+              numeroGuardado={perfil!.telefono_numero}
+              requerido
+            />
+            <AyudaTelefono />
+          </label>
+          <BotonEnvio className={`cursor-pointer self-start ${BOTON_PRIMARIO}`}>Guardar</BotonEnvio>
         </form>
 
         <h2 className={`mb-2 ${TITULO_H2}`}>Datos de transferencia</h2>
         <p className="mb-3 text-sm text-slate-600">
           Así los va a ver el cliente para corroborar antes de transferir. El titular tiene que ser
           el nombre tal cual figura en la cuenta bancaria de destino (puede no coincidir con tu
-          nombre de arriba).
+          nombre de arriba). Sin alias cargado, un cliente al que le toque pagarte a vos no tiene a
+          dónde transferir.
         </p>
         <form action={actualizarDatosTransferencia} className="flex flex-col gap-3">
           <label className="text-sm text-slate-600">
             Titular de la cuenta
+            <Obligatorio />
             <input name="titular" defaultValue={perfil!.titular ?? ''} required className={`w-full ${ENTRADA}`} />
           </label>
           <label className="text-sm text-slate-600">
             Alias
+            <Obligatorio />
             <input name="alias" defaultValue={perfil!.alias ?? ''} required className={`w-full ${ENTRADA}`} />
           </label>
           <label className="text-sm text-slate-600">
             Banco
+            <Obligatorio />
             <input name="banco" defaultValue={perfil!.banco ?? ''} required className={`w-full ${ENTRADA}`} />
           </label>
           <label className="text-sm text-slate-600">
