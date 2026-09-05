@@ -101,7 +101,7 @@ test.describe('Contador de pagos pendientes en la nav', () => {
     // href del link "Ver comprobante" — mismo patrón que ya usan
     // `monto-editable-confirmacion.spec.ts` y `pago-flujo-completo.spec.ts`.
     const fila = page
-      .locator('main table tbody tr')
+      .locator('[data-testid="tarjeta-pago"]')
       .filter({ has: page.locator(`a[href*="${nombreArchivo}"]`) })
     await fila.getByRole('button', { name: 'Confirmar mi parte' }).click()
     // Un submit de Server Action no cambia la URL (ya estamos en

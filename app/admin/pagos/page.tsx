@@ -519,6 +519,11 @@ export default async function PagosPage({
             return (
               <div
                 key={pago.id}
+                // Ancla estable para los tests: el listado dejó de ser una
+                // tabla y pasó a tarjetas, y no hay ninguna clase ni rol
+                // que identifique "una fila de pago" sin acoplarse al
+                // diseño (misma convención que CampoArchivoDirecto).
+                data-testid="tarjeta-pago"
                 className={tieneAlerta ? PAGO_TARJETA_ALERTA : PAGO_TARJETA}
               >
                 {/* Cabecera de la Tarjeta */}

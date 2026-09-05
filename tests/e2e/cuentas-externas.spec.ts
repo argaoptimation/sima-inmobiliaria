@@ -364,7 +364,7 @@ test.describe('Cuentas externas', () => {
       await login(page, fixtures.admin.email, fixtures.password)
       await page.goto('/admin/pagos')
       const fila = page
-        .locator('main table tbody tr')
+        .locator('[data-testid="tarjeta-pago"]')
         .filter({ has: page.locator(`a[href*="${nombreComprobante}"]`) })
       await expect(fila.getByText('— (cuenta externa)')).toBeVisible()
       await fila.getByRole('button', { name: 'Confirmar mi parte' }).click()

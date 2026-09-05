@@ -9,6 +9,41 @@ export interface CuotaSinDistribucion {
   numero: number
 }
 
+// De un conjunto de cuotas, cuáles aparecen en `tabla` (pago_imputaciones o
+// cuota_distribuciones).
+//
+// Va de a tandas a propósito. Un solo `.in('cuota_id', [...])` con TODAS las
+// cuotas viaja como query string: con las 434 cuotas que ya hay en producción
+// la URL se pasa del límite del servidor, PostgREST responde un error, y como
+// acá el error se traduce en "ninguna cuota tiene plata imputada", el aviso de
+// "cuota cobrada sin distribución" desaparecía en silencio -- justo el aviso
+// que nunca puede fallar callado. Se veía solo en la pantalla global de
+// Cuentas corrientes; la del lote pasa 3 ids y andaba bien.
+const CUOTAS_POR_TANDA = 100
+
+async function cuotaIdsPresentesEn(
+  supabase: SupabaseServerClient,
+  tabla: 'pago_imputaciones' | 'cuota_distribuciones',
+  cuotaIds: string[]
+): Promise<Set<string>> {
+  const encontradas = new Set<string>()
+
+  for (let desde = 0; desde < cuotaIds.length; desde += CUOTAS_POR_TANDA) {
+    const tanda = cuotaIds.slice(desde, desde + CUOTAS_POR_TANDA)
+    const { data, error } = await supabase.from(tabla).select('cuota_id').in('cuota_id', tanda)
+
+    if (error) {
+      // Mejor ruidoso que un aviso que no aparece nunca sin que nadie sepa.
+      console.error(`No se pudieron leer las filas de ${tabla}:`, error)
+      continue
+    }
+
+    for (const fila of data ?? []) encontradas.add(fila.cuota_id)
+  }
+
+  return encontradas
+}
+
 // Cuotas que ya recibieron algun pago pero nunca tuvieron una distribucion
 // cargada en cuota_distribuciones: nadie generó Debe automático para ellas,
 // y eso nunca puede pasar en silencio (pedido explícito de Gabriel).
@@ -51,15 +86,11 @@ export async function obtenerCuotasSinDistribucion(
   //   - saldarLote (pago total anticipado): pone en cero el saldo de todas
   //     las cuotas pendientes con UN pago de motivo 'saldar', sin imputar
   //     cuota por cuota.
-  const { data: imputaciones } = await supabase
-    .from('pago_imputaciones')
-    .select('cuota_id')
-    .in(
-      'cuota_id',
-      cuotasDelCicloVigente.map((cuota) => cuota.id)
-    )
-
-  const cuotasConPlataImputada = new Set((imputaciones ?? []).map((imputacion) => imputacion.cuota_id))
+  const cuotasConPlataImputada = await cuotaIdsPresentesEn(
+    supabase,
+    'pago_imputaciones',
+    cuotasDelCicloVigente.map((cuota) => cuota.id)
+  )
 
   const cuotasConAlgoCobrado = cuotasDelCicloVigente.filter((cuota) =>
     cuotasConPlataImputada.has(cuota.id)
@@ -67,15 +98,11 @@ export async function obtenerCuotasSinDistribucion(
 
   if (cuotasConAlgoCobrado.length === 0) return []
 
-  const { data: distribuciones } = await supabase
-    .from('cuota_distribuciones')
-    .select('cuota_id')
-    .in(
-      'cuota_id',
-      cuotasConAlgoCobrado.map((cuota) => cuota.id)
-    )
-
-  const cuotasConDistribucion = new Set((distribuciones ?? []).map((distribucion) => distribucion.cuota_id))
+  const cuotasConDistribucion = await cuotaIdsPresentesEn(
+    supabase,
+    'cuota_distribuciones',
+    cuotasConAlgoCobrado.map((cuota) => cuota.id)
+  )
 
   return cuotasConAlgoCobrado
     .filter((cuota) => !cuotasConDistribucion.has(cuota.id))

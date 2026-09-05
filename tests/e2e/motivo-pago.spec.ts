@@ -55,7 +55,7 @@ test.describe('Motivo del pago (seña / cuota) en /admin/pagos', () => {
     await page.goto('/admin/pagos')
 
     const fila = page
-      .locator('main table tbody tr')
+      .locator('[data-testid="tarjeta-pago"]')
       .filter({ has: page.locator(`a[href*="${nombreArchivo}"]`) })
     await expect(fila.locator('td').nth(4)).toHaveText('Cuota')
   })
@@ -68,7 +68,7 @@ test.describe('Motivo del pago (seña / cuota) en /admin/pagos', () => {
     await page.goto('/admin/pagos')
 
     const fila = page
-      .locator('main table tbody tr')
+      .locator('[data-testid="tarjeta-pago"]')
       .filter({ has: page.locator(`a[href*="${nombreArchivo}"]`) })
     await expect(fila.locator('td').nth(4)).toHaveText('Seña')
   })

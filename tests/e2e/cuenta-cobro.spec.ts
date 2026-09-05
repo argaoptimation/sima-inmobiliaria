@@ -34,13 +34,12 @@ test.describe('Cuenta de cobro por lote', () => {
         label: 'E2E Acreedor Con Datos (acreedor)',
       })
       await page.getByRole('button', { name: 'Guardar cobro' }).click()
-      // El submit redirige al admin de vuelta a esta misma URL (misma ruta,
-      // no cambia), así que `waitForURL` con este regex resolvería de
-      // inmediato sin esperar nada (ya matchea la URL actual antes del
-      // click). Esperamos a que la Server Action realmente complete su
-      // round-trip antes de leer el estado del <select>.
-      await page.waitForLoadState('networkidle')
-      await page.waitForURL(/\/admin\/lotes\/.+$/)
+      // Se espera el aviso de confirmación que devuelve el server action, no
+      // el valor del <select>: ese valor lo acaba de poner el propio test con
+      // selectOption, así que leerlo pasaba igual aunque el guardado no
+      // hubiera llegado nunca al servidor -- y el paso siguiente hace logout,
+      // que le corta las cookies a un submit todavía en vuelo.
+      await expect(page.getByText('Datos de cobro guardados.')).toBeVisible()
       await expect(page.locator('select[name="cuentaCobroId"]')).toHaveValue(
         fixtures.acreedorConDatos.id
       )

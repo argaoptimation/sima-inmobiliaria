@@ -17,7 +17,7 @@ const NOMBRE_COMPROBANTE = `e2e-comprobante-${Date.now()}.pdf`
 
 function filaPorComprobante(page: Page) {
   return page
-    .locator('main table tbody tr')
+    .locator('[data-testid="tarjeta-pago"]')
     .filter({ has: page.locator(`a[href*="${NOMBRE_COMPROBANTE}"]`) })
 }
 

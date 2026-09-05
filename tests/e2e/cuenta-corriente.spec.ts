@@ -9,7 +9,7 @@ const COMPROBANTE_BYTES = readFileSync(COMPROBANTE_PATH)
 
 function filaPorComprobante(page: Page, nombreArchivo: string) {
   return page
-    .locator('main table tbody tr')
+    .locator('[data-testid="tarjeta-pago"]')
     .filter({ has: page.locator(`a[href*="${nombreArchivo}"]`) })
 }
 
@@ -208,23 +208,42 @@ test.describe('Cuenta corriente', () => {
     const admin = createAdminClient()
     const cuotaId = fixtures.cuotaIds[1]
 
+    // El escenario es "cobrada SIN distribución": los tests anteriores de
+    // este archivo pueden haber dejado una cargada para esta misma cuota.
+    await admin.from('cuota_distribuciones').delete().eq('cuota_id', cuotaId)
+
     const bucketPath = `pagos/${fixtures.loteId}/${Date.now()}-e2e-cc-sin-distribucion.pdf`
     await admin.storage.from('comprobantes').upload(bucketPath, COMPROBANTE_BYTES, {
       contentType: 'application/pdf',
     })
 
-    await admin.from('pagos').insert({
-      cliente_id: fixtures.cliente.id,
-      lote_id: fixtures.loteId,
-      monto: 1000,
-      moneda: 'USD',
-      comprobante_path: bucketPath,
-      motivo: 'cuota',
-      estado: 'confirmado',
-      confirmado_admin_por: fixtures.admin.id,
-      confirmado_admin_at: new Date().toISOString(),
-      confirmado_acreedor_por: fixtures.acreedorConDatos.id,
-      confirmado_acreedor_at: new Date().toISOString(),
+    const { data: pagoSinDistribucion } = await admin
+      .from('pagos')
+      .insert({
+        cliente_id: fixtures.cliente.id,
+        lote_id: fixtures.loteId,
+        monto: 1000,
+        moneda: 'USD',
+        comprobante_path: bucketPath,
+        motivo: 'cuota',
+        estado: 'confirmado',
+        confirmado_admin_por: fixtures.admin.id,
+        confirmado_admin_at: new Date().toISOString(),
+        confirmado_acreedor_por: fixtures.acreedorConDatos.id,
+        confirmado_acreedor_at: new Date().toISOString(),
+      })
+      .select('id')
+      .single()
+
+    // La imputación es lo que marca "acá entró plata contra esta cuota".
+    // Antes alcanzaba con dejar el saldo en 0, pero eso daba falsos
+    // positivos (una refinanciación o un pago total anticipado también
+    // dejan el saldo en 0 sin que entre un peso), así que desde el 04/09 el
+    // aviso se basa en pago_imputaciones. Un cobro de verdad crea esta fila.
+    await admin.from('pago_imputaciones').insert({
+      pago_id: pagoSinDistribucion!.id,
+      cuota_id: cuotaId,
+      monto_imputado: 1000,
     })
     await admin.from('cuotas').update({ saldo_pendiente: 0 }).eq('id', cuotaId)
 

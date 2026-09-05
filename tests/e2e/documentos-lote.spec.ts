@@ -26,7 +26,7 @@ test.describe('Documentos del lote', () => {
     })
     await expect(page.locator('[data-testid="archivo"]')).toBeEnabled()
     await page.getByRole('button', { name: 'Subir documento' }).click()
-    await page.waitForURL(new RegExp(`/admin/lotes/${fixtures.loteId}$`))
+    await page.waitForURL((url) => url.pathname === `/admin/lotes/${fixtures.loteId}`)
 
     const fila = page.locator('li', { hasText: 'Plano de prueba' })
     await expect(fila).toBeVisible()
@@ -45,7 +45,7 @@ test.describe('Documentos del lote', () => {
     })
     await expect(page.locator('[data-testid="archivo"]')).toBeEnabled()
     await page.getByRole('button', { name: 'Subir documento' }).click()
-    await page.waitForURL(new RegExp(`/admin/lotes/${fixtures.loteSecundarioId}$`))
+    await page.waitForURL((url) => url.pathname === `/admin/lotes/${fixtures.loteSecundarioId}`)
 
     await expect(page.locator('li', { hasText: 'Documento del acreedor' })).toBeVisible()
   })
@@ -129,7 +129,7 @@ test.describe('Documentos del lote', () => {
       })
       await expect(page.locator('[data-testid="archivo"]')).toBeEnabled()
       await page.getByRole('button', { name: 'Subir documento' }).click()
-      await page.waitForURL(new RegExp(`/admin/lotes/${fixtures.loteId}$`))
+      await page.waitForURL((url) => url.pathname === `/admin/lotes/${fixtures.loteId}`)
     }
     // Confirma que el último submit realmente terminó (botón de vuelta a su
     // texto normal) antes de pasar a borrar -- mismo motivo que arriba.
@@ -137,7 +137,7 @@ test.describe('Documentos del lote', () => {
 
     const filaA = page.locator('li', { hasText: 'Doc A' })
     await filaA.getByRole('button', { name: 'Eliminar' }).click()
-    await page.waitForURL(new RegExp(`/admin/lotes/${fixtures.loteId}$`))
+    await page.waitForURL((url) => url.pathname === `/admin/lotes/${fixtures.loteId}`)
 
     await expect(page.locator('li', { hasText: 'Doc A' })).toHaveCount(0)
     await expect(page.locator('li', { hasText: 'Doc B' })).toBeVisible()
@@ -175,11 +175,11 @@ test.describe('Documentos del lote', () => {
     await expect(page).toHaveURL(/\/portal-cliente/)
   })
 
-  test('el link "Ver información del lote →" aparece en /admin/lotes para un vendedor', async ({ page }) => {
+  test('el link "Ver documentación del lote →" aparece en /admin/lotes para un vendedor', async ({ page }) => {
     await login(page, fixtures.vendedorLoteA.email, fixtures.password)
     await page.goto('/admin/lotes')
 
     const fila = page.locator('tr', { has: page.getByText('E2E Lote Secundario') })
-    await expect(fila.getByRole('link', { name: 'Ver información del lote →' })).toBeVisible()
+    await expect(fila.getByRole('link', { name: 'Ver documentación del lote →' })).toBeVisible()
   })
 })

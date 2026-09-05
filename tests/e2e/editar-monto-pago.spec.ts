@@ -10,7 +10,7 @@ const COMPROBANTE_BYTES = readFileSync(COMPROBANTE_PATH)
 
 function filaPorComprobante(page: Page, nombreArchivo: string) {
   return page
-    .locator('main table tbody tr')
+    .locator('[data-testid="tarjeta-pago"]')
     .filter({ has: page.locator(`a[href*="${nombreArchivo}"]`) })
 }
 

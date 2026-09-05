@@ -152,6 +152,14 @@ test.describe('Distribución manual por cuota', () => {
       .select('id')
       .single()
 
+    // Desde el 05/09 la distribución solo ofrece a los integrantes del lote,
+    // así que una cuenta externa recién creada primero hay que sumarla al
+    // lote como participante (es lo mismo que hace el admin desde la
+    // sección de cobro).
+    await admin
+      .from('lote_participantes')
+      .insert({ lote_id: fixtures.loteId, cuenta_externa_id: cuentaExterna!.id })
+
     try {
       await login(page, fixtures.admin.email, fixtures.password)
       await page.goto(`/admin/lotes/${fixtures.loteId}/distribucion`)
@@ -181,6 +189,7 @@ test.describe('Distribución manual por cuota', () => {
       ])
     } finally {
       await admin.from('cuota_distribuciones').delete().eq('cuenta_externa_id', cuentaExterna!.id)
+      await admin.from('lote_participantes').delete().eq('cuenta_externa_id', cuentaExterna!.id)
       await admin.from('cuentas_externas').delete().eq('id', cuentaExterna!.id)
     }
   })
@@ -247,6 +256,10 @@ test.describe('Distribución manual por cuota', () => {
         identificador: `E2E Distribución Race Condition ${Date.now()}`,
         moneda: 'USD',
         estado: 'vendido',
+        // Con vendedor asignado: la distribución solo ofrece a los
+        // integrantes del lote, y un lote sin nadie asignado no tiene a
+        // quién repartirle nada.
+        vendedor_id: fixtures.vendedorLoteA.id,
       })
       .select('id')
       .single()

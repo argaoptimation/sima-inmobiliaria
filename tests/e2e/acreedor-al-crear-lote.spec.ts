@@ -15,11 +15,11 @@ test.describe('Acreedor al crear/importar lotes', () => {
 
     const identificador = `E2E Lote Acreedor Existente ${Date.now()}`
     await page
-      .getByPlaceholder('Identificador (ej: Loteo San Martín - Manzana 3 - Lote 12)')
+      .locator('input[name="identificador"]')
       .fill(identificador)
-    await page.getByPlaceholder('Ubicación').fill('Ubicación E2E')
-    await page.getByPlaceholder('Precio total del lote').fill('10000')
-    await page.selectOption('select[name="acreedorId"]', fixtures.acreedorConDatos.id)
+    await page.locator('input[name="ubicacion"]').fill('Ubicación E2E')
+    await page.locator('input[name="precioTotal"]').fill('10000')
+    await page.locator('input[name="acreedorNombre"]').fill('E2E Acreedor Con Datos')
     await page.getByRole('button', { name: 'Crear lote' }).click()
     await page.waitForURL((url) => url.pathname === '/admin/lotes')
 
@@ -41,11 +41,11 @@ test.describe('Acreedor al crear/importar lotes', () => {
     const identificador = `E2E Lote Acreedor Nuevo ${Date.now()}`
     const emailNuevo = `acreedor.nuevo.${Date.now()}@sima-e2e.invalid`
     await page
-      .getByPlaceholder('Identificador (ej: Loteo San Martín - Manzana 3 - Lote 12)')
+      .locator('input[name="identificador"]')
       .fill(identificador)
-    await page.getByPlaceholder('Ubicación').fill('Ubicación E2E')
-    await page.getByPlaceholder('Precio total del lote').fill('10000')
-    await page.selectOption('select[name="acreedorId"]', '__nuevo__')
+    await page.locator('input[name="ubicacion"]').fill('Ubicación E2E')
+    await page.locator('input[name="precioTotal"]').fill('10000')
+    await page.locator('input[name="acreedorNombre"]').fill('+ Crear nuevo acreedor')
     await page
       .getByPlaceholder("Si elegiste 'Crear nuevo acreedor': nombre completo")
       .fill('Acreedor Nuevo E2E')

@@ -89,7 +89,7 @@ test.describe('Nombre de cliente y búsqueda en /admin/pagos', () => {
     await page.goto('/admin/pagos')
 
     const fila = page
-      .locator('main table tbody tr')
+      .locator('[data-testid="tarjeta-pago"]')
       .filter({ has: page.locator(`a[href*="${nombreArchivo}"]`) })
     // índice 2: Fecha, Lote, Cliente (se agregaron Fecha y Acreedor 25/08).
     await expect(fila.locator('td').nth(2)).toHaveText(cliente.id ? (await (async () => {
@@ -156,7 +156,7 @@ test.describe('Nombre de cliente y búsqueda en /admin/pagos', () => {
     await page.getByRole('button', { name: 'Filtrar' }).click()
 
     const fila = page
-      .locator('main table tbody tr')
+      .locator('[data-testid="tarjeta-pago"]')
       .filter({ has: page.locator(`a[href*="${nombreArchivo}"]`) })
     await expect(fila).toBeVisible()
     await expect(fila.getByText(`DNI ${dniCliente}`)).toBeVisible()
@@ -168,7 +168,7 @@ test.describe('Nombre de cliente y búsqueda en /admin/pagos', () => {
     await page.getByPlaceholder('Cliente, DNI o lote').fill(`Texto Que No Existe ${Date.now()}`)
     await page.getByRole('button', { name: 'Filtrar' }).click()
 
-    await expect(page.locator('main table tbody tr')).toHaveCount(0)
+    await expect(page.locator('[data-testid="tarjeta-pago"]')).toHaveCount(0)
   })
 
   test('un acreedor buscando un cliente con lotes de OTRO acreedor no lo ve', async ({ page }) => {
