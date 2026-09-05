@@ -275,7 +275,7 @@ test.describe('Cuenta corriente propia (26/08)', () => {
   test('un vendedor NO puede ver la cuenta corriente de otra persona', async ({ page }) => {
     await login(page, fixtures.vendedorLoteA.email, fixtures.password)
     await page.goto(`/admin/cuentas-corrientes/${fixtures.acreedorConDatos.id}`)
-    await page.waitForURL('**/admin/lotes')
+    await page.waitForURL((url) => url.pathname === '/admin/lotes')
   })
 
   test('un vendedor tampoco puede acceder al listado /admin/cuentas-corrientes (sigue siendo admin-only)', async ({
@@ -283,6 +283,6 @@ test.describe('Cuenta corriente propia (26/08)', () => {
   }) => {
     await login(page, fixtures.vendedorLoteA.email, fixtures.password)
     await page.goto('/admin/cuentas-corrientes')
-    await page.waitForURL('**/admin/lotes')
+    await page.waitForURL((url) => url.pathname === '/admin/lotes')
   })
 })

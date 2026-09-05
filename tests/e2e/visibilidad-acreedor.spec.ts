@@ -45,7 +45,7 @@ test.describe('Visibilidad acotada acreedor-vendedor', () => {
     await login(page, fixtures.acreedorConDatos.email, fixtures.password)
 
     await page.goto(`/admin/lotes/${fixtures.loteSecundarioId}/vender`)
-    await page.waitForURL('**/admin/lotes')
+    await page.waitForURL((url) => url.pathname === '/admin/lotes')
     await expect(page).toHaveURL(/\/admin\/lotes$/)
   })
 

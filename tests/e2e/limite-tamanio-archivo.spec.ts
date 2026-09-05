@@ -1,6 +1,7 @@
 import { test, expect } from '@playwright/test'
 import { ensureTestFixtures, createAdminClient, TestFixtures } from './fixtures/test-data'
 import { login } from './utils/login'
+import { elegirFormaPago } from './utils/reserva'
 
 const ARCHIVO_GRANDE = Buffer.alloc(16 * 1024 * 1024)
 const ARCHIVO_CHICO = Buffer.from('contenido de prueba chico')
@@ -61,7 +62,7 @@ test.describe('Límite de tamaño de archivo en subidas', () => {
     await page.goto(`/admin/lotes/${loteId}/reservar`)
 
     await page.getByPlaceholder('Nombre completo').fill('Comprador E2E')
-    await page.getByPlaceholder('DNI', { exact: true }).fill('30111222')
+    await page.getByPlaceholder('DNI *', { exact: true }).fill('30111222')
     await page.getByPlaceholder('Domicilio').fill('Calle Falsa 123')
     await page.getByPlaceholder('Email').fill('comprador.archivo.grande@sima-demo.invalid')
     await page.getByPlaceholder('9351234567').fill('3511234567')
@@ -94,6 +95,7 @@ test.describe('Límite de tamaño de archivo en subidas', () => {
 
     // El campo oculto del comprobante quedó vacío (required) -- el navegador
     // bloquea el submit en silencio, nunca llega a pegarle al servidor.
+    await elegirFormaPago(page)
     await page.getByRole('button', { name: 'Confirmar reserva' }).click()
     await expect(page).toHaveURL(new RegExp(`/admin/lotes/${loteId}/reservar$`))
 
@@ -147,7 +149,7 @@ test.describe('Límite de tamaño de archivo en subidas', () => {
     await page.goto(`/admin/lotes/${loteId}/reservar`)
 
     await page.getByPlaceholder('Nombre completo').fill('Comprador E2E')
-    await page.getByPlaceholder('DNI', { exact: true }).fill('30111222')
+    await page.getByPlaceholder('DNI *', { exact: true }).fill('30111222')
     await page.getByPlaceholder('Domicilio').fill('Calle Falsa 123')
     await page.getByPlaceholder('Email').fill('comprador.archivo.valido@sima-demo.invalid')
     await page.getByPlaceholder('9351234567').fill('3511234567')
@@ -171,8 +173,9 @@ test.describe('Límite de tamaño de archivo en subidas', () => {
     await expect(page.locator('[data-testid="comprobante"]')).toBeEnabled()
     await expect(page.locator('[data-testid="dniFrente"]')).toBeEnabled()
     await expect(page.locator('[data-testid="dniDorso"]')).toBeEnabled()
+    await elegirFormaPago(page)
     await page.getByRole('button', { name: 'Confirmar reserva' }).click()
-    await page.waitForURL('**/admin/lotes')
+    await page.waitForURL((url) => url.pathname === '/admin/lotes')
 
     const admin = createAdminClient()
     const { data: lote } = await admin.from('lotes').select('estado').eq('id', loteId).single()

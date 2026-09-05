@@ -89,7 +89,7 @@ test.describe('Eliminar un lote con reserva activa', () => {
 
     page.once('dialog', (dialog) => dialog.accept())
     await page.getByRole('button', { name: 'Eliminar lote' }).click()
-    await page.waitForURL('**/admin/lotes')
+    await page.waitForURL((url) => url.pathname === '/admin/lotes')
 
     const { data: loteTrasEliminar } = await admin
       .from('lotes')

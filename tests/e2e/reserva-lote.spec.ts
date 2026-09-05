@@ -3,6 +3,7 @@ import { readFileSync } from 'node:fs'
 import path from 'node:path'
 import { ensureTestFixtures, createAdminClient, TestFixtures } from './fixtures/test-data'
 import { login, logout } from './utils/login'
+import { elegirFormaPago } from './utils/reserva'
 
 const COMPROBANTE_PATH = path.join(__dirname, 'fixtures', 'comprobante-test.pdf')
 const COMPROBANTE_BYTES = readFileSync(COMPROBANTE_PATH)
@@ -31,7 +32,7 @@ async function crearLoteDisponible(identificador: string, acreedorId?: string) {
 
 async function completarDatosBasicosDeReserva(page: Page) {
   await page.getByPlaceholder('Nombre completo').fill('Comprador E2E')
-  await page.getByPlaceholder('DNI', { exact: true }).fill('30111222')
+  await page.getByPlaceholder('DNI *', { exact: true }).fill('30111222')
   await page.getByPlaceholder('Domicilio').fill('Calle Falsa 123')
   await page.getByPlaceholder('Email').fill('comprador.e2e@sima-demo.invalid')
   await page.getByPlaceholder('9351234567').fill('3511234567')
@@ -78,8 +79,9 @@ test.describe('Reserva de lote (fase 1: texto + comprobante de seña)', () => {
     await login(page, fixtures.vendedorSinLotes.email, fixtures.password)
     await page.goto(`/admin/lotes/${loteId}/reservar`)
     await completarDatosBasicosDeReserva(page)
+    await elegirFormaPago(page)
     await page.getByRole('button', { name: 'Confirmar reserva' }).click()
-    await page.waitForURL('**/admin/lotes')
+    await page.waitForURL((url) => url.pathname === '/admin/lotes')
 
     const admin = createAdminClient()
     const { data: lote } = await admin
@@ -100,8 +102,9 @@ test.describe('Reserva de lote (fase 1: texto + comprobante de seña)', () => {
     await login(page, fixtures.cobrador.email, fixtures.password)
     await page.goto(`/admin/lotes/${loteId}/reservar`)
     await completarDatosBasicosDeReserva(page)
+    await elegirFormaPago(page)
     await page.getByRole('button', { name: 'Confirmar reserva' }).click()
-    await page.waitForURL('**/admin/lotes')
+    await page.waitForURL((url) => url.pathname === '/admin/lotes')
 
     const admin = createAdminClient()
     const { data: lote } = await admin
@@ -123,8 +126,9 @@ test.describe('Reserva de lote (fase 1: texto + comprobante de seña)', () => {
     await login(page, fixtures.acreedorConDatos.email, fixtures.password)
     await page.goto(`/admin/lotes/${loteId}/reservar`)
     await completarDatosBasicosDeReserva(page)
+    await elegirFormaPago(page)
     await page.getByRole('button', { name: 'Confirmar reserva' }).click()
-    await page.waitForURL('**/admin/lotes')
+    await page.waitForURL((url) => url.pathname === '/admin/lotes')
 
     const admin = createAdminClient()
     const { data: lote } = await admin.from('lotes').select('estado').eq('id', loteId).single()
@@ -140,7 +144,7 @@ test.describe('Reserva de lote (fase 1: texto + comprobante de seña)', () => {
 
     await login(page, fixtures.acreedorConDatos.email, fixtures.password)
     await page.goto(`/admin/lotes/${loteId}/reservar`)
-    await page.waitForURL('**/admin/lotes')
+    await page.waitForURL((url) => url.pathname === '/admin/lotes')
     await expect(page).toHaveURL(/\/admin\/lotes$/)
   })
 
@@ -165,7 +169,7 @@ test.describe('Reserva de lote (fase 1: texto + comprobante de seña)', () => {
 
     await test.step('no puede abrir el detalle', async () => {
       await page.goto(`/admin/lotes/${loteId}`)
-      await page.waitForURL('**/admin/lotes')
+      await page.waitForURL((url) => url.pathname === '/admin/lotes')
       await expect(page).toHaveURL(/\/admin\/lotes$/)
     })
 
@@ -214,7 +218,7 @@ test.describe('Reserva de lote (fase 1: texto + comprobante de seña)', () => {
     await login(page, fixtures.vendedorSinLotes.email, fixtures.password)
     await page.goto('/admin/lotes')
 
-    const tablaGeneral = page.locator('table').last()
+    const tablaGeneral = page.getByRole('table').last()
     const filaDisponible = tablaGeneral.getByRole('row', { name: identificadorDisponible })
     const filaReservada = tablaGeneral.getByRole('row', { name: identificadorReservado })
 
@@ -227,14 +231,14 @@ test.describe('Reserva de lote (fase 1: texto + comprobante de seña)', () => {
   test('vendedor no puede abrir /admin/pagos navegando directo por URL', async ({ page }) => {
     await login(page, fixtures.vendedorSinLotes.email, fixtures.password)
     await page.goto('/admin/pagos')
-    await page.waitForURL('**/admin/lotes')
+    await page.waitForURL((url) => url.pathname === '/admin/lotes')
     await expect(page).toHaveURL(/\/admin\/lotes$/)
   })
 
   test('vendedor no puede abrir /admin/lotes/nuevo navegando directo por URL', async ({ page }) => {
     await login(page, fixtures.vendedorSinLotes.email, fixtures.password)
     await page.goto('/admin/lotes/nuevo')
-    await page.waitForURL('**/admin/lotes')
+    await page.waitForURL((url) => url.pathname === '/admin/lotes')
     await expect(page).toHaveURL(/\/admin\/lotes$/)
   })
 
@@ -244,7 +248,7 @@ test.describe('Reserva de lote (fase 1: texto + comprobante de seña)', () => {
     await test.step('vendedor', async () => {
       await login(page, fixtures.vendedorSinLotes.email, fixtures.password)
       await page.goto('/admin/usuarios')
-      await page.waitForURL('**/admin/lotes')
+      await page.waitForURL((url) => url.pathname === '/admin/lotes')
       await expect(page).toHaveURL(/\/admin\/lotes$/)
     })
 
@@ -252,7 +256,7 @@ test.describe('Reserva de lote (fase 1: texto + comprobante de seña)', () => {
       await logout(page)
       await login(page, fixtures.cobrador.email, fixtures.password)
       await page.goto('/admin/usuarios')
-      await page.waitForURL('**/admin/lotes')
+      await page.waitForURL((url) => url.pathname === '/admin/lotes')
       await expect(page).toHaveURL(/\/admin\/lotes$/)
     })
   })
@@ -271,8 +275,9 @@ test.describe('Reserva de lote (fase 1: texto + comprobante de seña)', () => {
       .fill('Persona Externa Sin Cuenta')
 
     await completarDatosBasicosDeReserva(page)
+    await elegirFormaPago(page)
     await page.getByRole('button', { name: 'Confirmar reserva' }).click()
-    await page.waitForURL('**/admin/lotes')
+    await page.waitForURL((url) => url.pathname === '/admin/lotes')
 
     const admin = createAdminClient()
     const { data: reserva } = await admin
@@ -293,8 +298,9 @@ test.describe('Reserva de lote (fase 1: texto + comprobante de seña)', () => {
     await login(page, fixtures.vendedorSinLotes.email, fixtures.password)
     await page.goto(`/admin/lotes/${loteId}/reservar`)
     await completarDatosBasicosDeReserva(page)
+    await elegirFormaPago(page)
     await page.getByRole('button', { name: 'Confirmar reserva' }).click()
-    await page.waitForURL('**/admin/lotes')
+    await page.waitForURL((url) => url.pathname === '/admin/lotes')
 
     await logout(page)
     await login(page, fixtures.admin.email, fixtures.password)
@@ -302,7 +308,7 @@ test.describe('Reserva de lote (fase 1: texto + comprobante de seña)', () => {
 
     page.once('dialog', (dialog) => dialog.accept())
     await page.getByRole('button', { name: 'Cancelar reserva' }).click()
-    await page.waitForURL('**/admin/lotes')
+    await page.waitForURL((url) => url.pathname === '/admin/lotes')
 
     const admin = createAdminClient()
     const { data: lote } = await admin
@@ -331,8 +337,9 @@ test.describe('Reserva de lote (fase 1: texto + comprobante de seña)', () => {
     await login(page, fixtures.vendedorSinLotes.email, fixtures.password)
     await page.goto(`/admin/lotes/${loteId}/reservar`)
     await completarDatosBasicosDeReserva(page)
+    await elegirFormaPago(page)
     await page.getByRole('button', { name: 'Confirmar reserva' }).click()
-    await page.waitForURL('**/admin/lotes')
+    await page.waitForURL((url) => url.pathname === '/admin/lotes')
 
     // El vendedor de prueba acumula reservas de otros tests en la misma
     // corrida -- hay que apuntar al botón de ESTA fila puntual, no
@@ -342,11 +349,11 @@ test.describe('Reserva de lote (fase 1: texto + comprobante de seña)', () => {
     // identificador vuelve a aparecer -- correctamente -- en la tabla de
     // "Lotes disponibles" de abajo, así que un locator sin acotar a tabla
     // nunca bajaría a 0.
-    const tablaMisReservas = page.locator('table').first()
+    const tablaMisReservas = page.getByRole('table').first()
     const filaDeEsteLote = tablaMisReservas.getByRole('row', { name: identificadorLote })
     page.once('dialog', (dialog) => dialog.accept())
     await filaDeEsteLote.getByRole('button', { name: 'Cancelar reserva' }).click()
-    await page.waitForURL('**/admin/lotes')
+    await page.waitForURL((url) => url.pathname === '/admin/lotes')
 
     const admin = createAdminClient()
     await expect(async () => {
@@ -358,7 +365,7 @@ test.describe('Reserva de lote (fase 1: texto + comprobante de seña)', () => {
     // forzamos una navegación real para confirmar que la UI también refleja
     // el cambio, no solo la base de datos.
     await page.goto('/admin/lotes')
-    await expect(page.locator('table').first().getByRole('row', { name: identificadorLote })).toHaveCount(0)
+    await expect(page.getByRole('table').first().getByRole('row', { name: identificadorLote })).toHaveCount(0)
   })
 
   test('un vendedor ve la reserva de otro vendedor en el listado general, pero no puede cancelarla', async ({
@@ -370,8 +377,9 @@ test.describe('Reserva de lote (fase 1: texto + comprobante de seña)', () => {
     await login(page, fixtures.vendedorSinLotes.email, fixtures.password)
     await page.goto(`/admin/lotes/${loteId}/reservar`)
     await completarDatosBasicosDeReserva(page)
+    await elegirFormaPago(page)
     await page.getByRole('button', { name: 'Confirmar reserva' }).click()
-    await page.waitForURL('**/admin/lotes')
+    await page.waitForURL((url) => url.pathname === '/admin/lotes')
 
     // El cobrador no cargó esta reserva -- no le aparece en "Lotes que
     // reservaste" (esa tabla sigue acotada a lo propio), pero sí en el
@@ -381,7 +389,7 @@ test.describe('Reserva de lote (fase 1: texto + comprobante de seña)', () => {
     await login(page, fixtures.cobrador.email, fixtures.password)
     await page.goto('/admin/lotes')
 
-    const tablaGeneral = page.locator('table').last()
+    const tablaGeneral = page.getByRole('table').last()
     const filaDelLote = tablaGeneral.getByRole('row', { name: identificadorLote })
     await expect(filaDelLote).toBeVisible()
     await expect(filaDelLote.getByRole('button', { name: 'Cancelar reserva' })).toHaveCount(0)

@@ -117,7 +117,7 @@ test.describe('Refinanciar cuotas (26/08)', () => {
     const tablaCuotas = page
       .locator('h2', { hasText: 'Cuotas' })
       .locator('xpath=following-sibling::div[1]')
-      .locator('table')
+      .getByRole('table')
     const filaCuota2 = tablaCuotas.locator('tbody tr').nth(1)
     await expect(filaCuota2.getByText('Refinanció')).toBeVisible()
     const filaCuota4 = tablaCuotas.locator('tbody tr').nth(3)
@@ -259,7 +259,7 @@ test.describe('Refinanciar cuotas (26/08)', () => {
     await page.selectOption('select[name="moneda"]', 'USD')
     await page.selectOption('select[name="acreedorId"]', fixtures.acreedorConDatos.id)
     await page.getByRole('button', { name: 'Crear lote' }).click()
-    await page.waitForURL('**/admin/lotes')
+    await page.waitForURL((url) => url.pathname === '/admin/lotes')
 
     const admin = createAdminClient()
     const { data: loteCreado } = await admin

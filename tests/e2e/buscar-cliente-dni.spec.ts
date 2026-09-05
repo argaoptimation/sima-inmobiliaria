@@ -56,7 +56,7 @@ test.describe('Buscar cliente por DNI al reservar', () => {
 
     await expect(page.getByText(/Encontramos a Juan Encontrado/)).toBeVisible()
     await expect(page.getByPlaceholder('Nombre completo')).toHaveValue('Juan Encontrado')
-    await expect(page.getByPlaceholder('DNI', { exact: true })).toHaveValue(dni)
+    await expect(page.getByPlaceholder('DNI *', { exact: true })).toHaveValue(dni)
     await expect(page.getByPlaceholder('Domicilio')).toHaveValue('Domicilio Encontrado 333')
     await expect(page.getByPlaceholder('Email')).toHaveValue(email)
     await expect(page.getByPlaceholder('9351234567')).toHaveValue('3517777777')

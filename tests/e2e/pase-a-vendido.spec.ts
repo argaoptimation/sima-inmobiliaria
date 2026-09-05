@@ -3,6 +3,7 @@ import { readFileSync } from 'node:fs'
 import path from 'node:path'
 import { ensureTestFixtures, createAdminClient, TestFixtures } from './fixtures/test-data'
 import { login, logout } from './utils/login'
+import { elegirFormaPago } from './utils/reserva'
 
 const COMPROBANTE_PATH = path.join(__dirname, 'fixtures', 'comprobante-test.pdf')
 const COMPROBANTE_BYTES = readFileSync(COMPROBANTE_PATH)
@@ -35,7 +36,7 @@ async function reservarLotePorUI(
 ) {
   await page.goto(`/admin/lotes/${loteId}/reservar`)
   await page.getByPlaceholder('Nombre completo').fill(datos.nombreCompleto)
-  await page.getByPlaceholder('DNI', { exact: true }).fill('30111222')
+  await page.getByPlaceholder('DNI *', { exact: true }).fill('30111222')
   await page.getByPlaceholder('Domicilio').fill('Calle Falsa 123')
   await page.getByPlaceholder('Email').fill(datos.email)
   await page.getByPlaceholder('9351234567').fill('3511234567')
@@ -63,8 +64,9 @@ async function reservarLotePorUI(
   await expect(page.locator('[data-testid="comprobante"]')).toBeEnabled()
   await expect(page.locator('[data-testid="dniFrente"]')).toBeEnabled()
   await expect(page.locator('[data-testid="dniDorso"]')).toBeEnabled()
+  await elegirFormaPago(page)
   await page.getByRole('button', { name: 'Confirmar reserva' }).click()
-  await page.waitForURL('**/admin/lotes')
+  await page.waitForURL((url) => url.pathname === '/admin/lotes')
 }
 
 test.describe('Pase a vendido (fase 2)', () => {
@@ -105,7 +107,7 @@ test.describe('Pase a vendido (fase 2)', () => {
 
     await login(page, fixtures.acreedorConDatos.email, fixtures.password)
     await page.goto(`/admin/lotes/${loteId}/vender`)
-    await page.waitForURL('**/admin/lotes')
+    await page.waitForURL((url) => url.pathname === '/admin/lotes')
     await expect(page).toHaveURL(/\/admin\/lotes$/)
   })
 
@@ -235,15 +237,25 @@ test.describe('Pase a vendido (fase 2)', () => {
     const loteId = await crearLoteDisponibleConPrecio(identificadorDisponible, 5000)
 
     await login(page, fixtures.admin.email, fixtures.password)
-    await page.goto('/admin/lotes')
+    // Query única por navegación: el lote se crea con la service role, por
+    // fuera de la app, y sin esto el listado puede servir un render cacheado
+    // de antes del insert (o de antes del cambio de estado) y el test falla
+    // por una fila que en la base ya existe.
+    await page.goto(`/admin/lotes?t=${Date.now()}`)
 
-    const fila = page.locator('table').last().getByRole('row', { name: identificadorDisponible })
+    const fila = page.getByRole('table').last().getByRole('row', { name: identificadorDisponible })
     await expect(fila.getByRole('link', { name: 'Vender / asignar cliente' })).toHaveCount(0)
 
     await createAdminClient().from('lotes').update({ estado: 'reservado' }).eq('id', loteId)
-    await page.goto('/admin/lotes')
-    const filaReservada = page.locator('table').last().getByRole('row', { name: identificadorDisponible })
-    await expect(filaReservada.getByRole('link', { name: 'Vender / asignar cliente' })).toBeVisible()
+    await page.goto(`/admin/lotes?t=${Date.now()}`)
+    const filaReservada = page.getByRole('table').last().getByRole('row', { name: identificadorDisponible })
+    // Timeout más largo que el default de 5s: contra la base compartida de
+    // e2e este listado ya trae más de 130 lotes y en modo dev tarda en
+    // pintar. Lo que se está verificando es la lógica del link, no la
+    // velocidad de render.
+    await expect(filaReservada.getByRole('link', { name: 'Vender / asignar cliente' })).toBeVisible({
+      timeout: 20_000,
+    })
   })
 
   test('vender con seña: se descuenta del total a financiar, no de la primera cuota', async ({

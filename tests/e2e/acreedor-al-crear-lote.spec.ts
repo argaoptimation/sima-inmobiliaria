@@ -21,7 +21,7 @@ test.describe('Acreedor al crear/importar lotes', () => {
     await page.getByPlaceholder('Precio total del lote').fill('10000')
     await page.selectOption('select[name="acreedorId"]', fixtures.acreedorConDatos.id)
     await page.getByRole('button', { name: 'Crear lote' }).click()
-    await page.waitForURL('**/admin/lotes')
+    await page.waitForURL((url) => url.pathname === '/admin/lotes')
 
     const admin = createAdminClient()
     const { data: lote } = await admin
@@ -51,7 +51,7 @@ test.describe('Acreedor al crear/importar lotes', () => {
       .fill('Acreedor Nuevo E2E')
     await page.getByPlaceholder("Si elegiste 'Crear nuevo acreedor': email").fill(emailNuevo)
     await page.getByRole('button', { name: 'Crear lote' }).click()
-    await page.waitForURL('**/admin/lotes')
+    await page.waitForURL((url) => url.pathname === '/admin/lotes')
 
     const admin = createAdminClient()
     const { data: lote } = await admin
@@ -83,7 +83,7 @@ test.describe('Acreedor al crear/importar lotes', () => {
     await page.goto('/admin/lotes/importar')
     await page.locator('textarea[name="filas"]').fill(fila)
     await page.getByRole('button', { name: 'Importar' }).click()
-    await page.waitForURL('**/admin/lotes')
+    await page.waitForURL((url) => url.pathname === '/admin/lotes')
 
     const admin = createAdminClient()
     const { data: lote } = await admin

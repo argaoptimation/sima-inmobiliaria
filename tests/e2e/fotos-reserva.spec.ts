@@ -3,6 +3,7 @@ import { readFileSync } from 'node:fs'
 import path from 'node:path'
 import { ensureTestFixtures, createAdminClient, TestFixtures } from './fixtures/test-data'
 import { login } from './utils/login'
+import { elegirFormaPago } from './utils/reserva'
 
 const COMPROBANTE_PATH = path.join(__dirname, 'fixtures', 'comprobante-test.pdf')
 const COMPROBANTE_BYTES = readFileSync(COMPROBANTE_PATH)
@@ -41,7 +42,7 @@ async function subirArchivo(page: Page, selector: string, nombre: string) {
 
 async function completarCamposBasicos(page: Page, estadoCivil: string) {
   await page.getByPlaceholder('Nombre completo').fill('Comprador Fotos E2E')
-  await page.getByPlaceholder('DNI', { exact: true }).fill('30111222')
+  await page.getByPlaceholder('DNI *', { exact: true }).fill('30111222')
   await page.getByPlaceholder('Domicilio').fill('Calle Falsa 123')
   await page.getByPlaceholder('Email').fill(`fotos.e2e.${Date.now()}@sima-e2e.invalid`)
   await page.getByPlaceholder('9351234567').fill('3511234567')
@@ -69,8 +70,9 @@ test.describe('Fotos en la reserva', () => {
     await subirArchivo(page, '[data-testid="dniFrente"]', `e2e-dni-frente-${Date.now()}.pdf`)
     await subirArchivo(page, '[data-testid="dniDorso"]', `e2e-dni-dorso-${Date.now()}.pdf`)
 
+    await elegirFormaPago(page)
     await page.getByRole('button', { name: 'Confirmar reserva' }).click()
-    await page.waitForURL('**/admin/lotes')
+    await page.waitForURL((url) => url.pathname === '/admin/lotes')
 
     const admin = createAdminClient()
     const { data: reserva } = await admin
@@ -99,6 +101,7 @@ test.describe('Fotos en la reserva', () => {
     await subirArchivo(page, '[data-testid="dniDorso"]', `e2e-dni-dorso-${Date.now()}.pdf`)
     // dniFrente NO se sube a propósito.
 
+    await elegirFormaPago(page)
     await page.getByRole('button', { name: 'Confirmar reserva' }).click()
     await expect(page.getByText('Subí las fotos del DNI (frente y dorso)')).toBeVisible()
 
@@ -120,6 +123,7 @@ test.describe('Fotos en la reserva', () => {
     await subirArchivo(page, '[data-testid="dniDorso"]', `e2e-dni-dorso-${Date.now()}.pdf`)
     // dniConyuge NO se sube a propósito.
 
+    await elegirFormaPago(page)
     await page.getByRole('button', { name: 'Confirmar reserva' }).click()
     await expect(
       page.getByText('Subí el DNI del cónyuge (elegiste "Casado/a")')
@@ -143,6 +147,7 @@ test.describe('Fotos en la reserva', () => {
     await subirArchivo(page, '[data-testid="dniDorso"]', `e2e-dni-dorso-${Date.now()}.pdf`)
     // sentenciaDivorcio NO se sube a propósito.
 
+    await elegirFormaPago(page)
     await page.getByRole('button', { name: 'Confirmar reserva' }).click()
     await expect(
       page.getByText('Subí la sentencia de divorcio (elegiste "Divorciado/a")')
@@ -166,8 +171,9 @@ test.describe('Fotos en la reserva', () => {
     await subirArchivo(page, '[data-testid="dniDorso"]', `e2e-dni-dorso-${Date.now()}.pdf`)
     await subirArchivo(page, '[data-testid="dniConyuge"]', `e2e-dni-conyuge-${Date.now()}.pdf`)
 
+    await elegirFormaPago(page)
     await page.getByRole('button', { name: 'Confirmar reserva' }).click()
-    await page.waitForURL('**/admin/lotes')
+    await page.waitForURL((url) => url.pathname === '/admin/lotes')
 
     const admin = createAdminClient()
     const { data: reserva } = await admin
@@ -191,8 +197,9 @@ test.describe('Fotos en la reserva', () => {
     await subirArchivo(page, '[data-testid="dniFrente"]', `e2e-dni-frente-${Date.now()}.pdf`)
     await subirArchivo(page, '[data-testid="dniDorso"]', `e2e-dni-dorso-${Date.now()}.pdf`)
     await subirArchivo(page, '[data-testid="dniConyuge"]', `e2e-dni-conyuge-${Date.now()}.pdf`)
+    await elegirFormaPago(page)
     await page.getByRole('button', { name: 'Confirmar reserva' }).click()
-    await page.waitForURL('**/admin/lotes')
+    await page.waitForURL((url) => url.pathname === '/admin/lotes')
 
     await page.goto(`/admin/lotes/${loteId}`)
 

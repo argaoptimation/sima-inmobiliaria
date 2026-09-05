@@ -3,6 +3,7 @@ import { readFileSync } from 'node:fs'
 import path from 'node:path'
 import { ensureTestFixtures, createAdminClient, TestFixtures } from './fixtures/test-data'
 import { login } from './utils/login'
+import { elegirFormaPago } from './utils/reserva'
 
 const COMPROBANTE_PATH = path.join(__dirname, 'fixtures', 'comprobante-test.pdf')
 const COMPROBANTE_BYTES = readFileSync(COMPROBANTE_PATH)
@@ -42,7 +43,7 @@ async function reservarLotePorUI(
 ) {
   await page.goto(`/admin/lotes/${loteId}/reservar`)
   await page.getByPlaceholder('Nombre completo').fill(datos.nombreCompleto)
-  await page.getByPlaceholder('DNI', { exact: true }).fill(datos.dni)
+  await page.getByPlaceholder('DNI *', { exact: true }).fill(datos.dni)
   await page.getByPlaceholder('Domicilio').fill(datos.domicilio)
   await page.getByPlaceholder('Email').fill(datos.email)
   await page.getByPlaceholder('9351234567').fill(datos.telefono)
@@ -70,8 +71,9 @@ async function reservarLotePorUI(
   await expect(page.locator('[data-testid="comprobante"]')).toBeEnabled()
   await expect(page.locator('[data-testid="dniFrente"]')).toBeEnabled()
   await expect(page.locator('[data-testid="dniDorso"]')).toBeEnabled()
+  await elegirFormaPago(page)
   await page.getByRole('button', { name: 'Confirmar reserva' }).click()
-  await page.waitForURL('**/admin/lotes')
+  await page.waitForURL((url) => url.pathname === '/admin/lotes')
 }
 
 async function venderLotePorUI(page: Page, loteId: string, datos: { email: string; fullName: string }) {

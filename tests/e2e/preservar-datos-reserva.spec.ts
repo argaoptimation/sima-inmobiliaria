@@ -3,6 +3,7 @@ import { readFileSync } from 'node:fs'
 import path from 'node:path'
 import { ensureTestFixtures, createAdminClient, TestFixtures } from './fixtures/test-data'
 import { login } from './utils/login'
+import { elegirFormaPago } from './utils/reserva'
 
 const COMPROBANTE_PATH = path.join(__dirname, 'fixtures', 'comprobante-test.pdf')
 const COMPROBANTE_BYTES = readFileSync(COMPROBANTE_PATH)
@@ -36,7 +37,7 @@ test.describe('Preservar datos tipeados si falta un campo obligatorio al reserva
     await page.goto(`/admin/lotes/${loteId}/reservar`)
 
     await page.getByPlaceholder('Nombre completo').fill('Comprador Preservado')
-    await page.getByPlaceholder('DNI', { exact: true }).fill('30222333')
+    await page.getByPlaceholder('DNI *', { exact: true }).fill('30222333')
     await page.getByPlaceholder('Domicilio').fill('Calle Preservada 456')
     await page.getByPlaceholder('Email').fill('comprador.preservado@sima-e2e.invalid')
     await page.getByPlaceholder('9351234567').fill('3511112222')
@@ -53,11 +54,12 @@ test.describe('Preservar datos tipeados si falta un campo obligatorio al reserva
     // servidor -- el escenario real que dispara la preservación.
     await expect(page.locator('[data-testid="comprobante"]')).toBeEnabled()
 
+    await elegirFormaPago(page)
     await page.getByRole('button', { name: 'Confirmar reserva' }).click()
 
     await expect(page.getByText('Subí las fotos del DNI (frente y dorso)')).toBeVisible()
     await expect(page.getByPlaceholder('Nombre completo')).toHaveValue('Comprador Preservado')
-    await expect(page.getByPlaceholder('DNI', { exact: true })).toHaveValue('30222333')
+    await expect(page.getByPlaceholder('DNI *', { exact: true })).toHaveValue('30222333')
     await expect(page.getByPlaceholder('Domicilio')).toHaveValue('Calle Preservada 456')
     await expect(page.getByPlaceholder('Email')).toHaveValue('comprador.preservado@sima-e2e.invalid')
     await expect(page.getByPlaceholder('9351234567')).toHaveValue('3511112222')
@@ -102,11 +104,12 @@ test.describe('Preservar datos tipeados si falta un campo obligatorio al reserva
       buffer: COMPROBANTE_BYTES,
     })
     await expect(page.locator('[data-testid="comprobante"]')).toBeEnabled()
+    await elegirFormaPago(page)
     await page.getByRole('button', { name: 'Confirmar reserva' }).click()
 
     await expect(page.getByText('Subí las fotos del DNI (frente y dorso)')).toBeVisible()
     await expect(page.getByPlaceholder('Nombre completo')).toHaveValue('Cliente Preservado')
-    await expect(page.getByPlaceholder('DNI', { exact: true })).toHaveValue(dni)
+    await expect(page.getByPlaceholder('DNI *', { exact: true })).toHaveValue(dni)
     await expect(page.getByPlaceholder('Domicilio')).toHaveValue('Domicilio Precargado 999')
     await expect(page.getByPlaceholder('Email')).toHaveValue(email)
     await expect(page.getByPlaceholder('9351234567')).toHaveValue('3518888888')

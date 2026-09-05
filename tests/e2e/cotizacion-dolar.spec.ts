@@ -88,7 +88,7 @@ test.describe('Cotización del dólar', () => {
 
     await page.getByPlaceholder('Ej: 1500').fill('1500.50')
     await page.getByRole('button', { name: 'Cargar' }).click()
-    await page.waitForURL('**/admin/lotes')
+    await page.waitForURL((url) => url.pathname === '/admin/lotes')
 
     // Timeout largo (27/08): guardarCotizacionDolar hace revalidatePath +
     // redirect a /admin/lotes -- la página más pesada de la app (muchos
@@ -105,7 +105,7 @@ test.describe('Cotización del dólar', () => {
 
     await page.getByPlaceholder('Ej: 1500').fill('1500')
     await page.getByRole('button', { name: 'Cargar' }).click()
-    await page.waitForURL('**/admin/lotes')
+    await page.waitForURL((url) => url.pathname === '/admin/lotes')
     await expect(page.getByText(/ya cargada: 1500\b/)).toBeVisible({ timeout: 15000 })
 
     // Segunda carga del mismo día: el botón ahora dice "Corregir" y el
@@ -113,7 +113,7 @@ test.describe('Cotización del dólar', () => {
     await expect(page.getByPlaceholder('Ej: 1500')).toHaveValue('1500')
     await page.getByPlaceholder('Ej: 1500').fill('1600')
     await page.getByRole('button', { name: 'Corregir' }).click()
-    await page.waitForURL('**/admin/lotes')
+    await page.waitForURL((url) => url.pathname === '/admin/lotes')
     // Timeout largo a propósito (27/08): desde que guardarCotizacionDolar
     // llama revalidatePath('/admin/lotes') -- necesario para que el router
     // cache del cliente no sirva la versión vieja tras el redirect, ver esa
@@ -289,7 +289,7 @@ test.describe('Cotización del dólar', () => {
       await page.goto('/admin/lotes')
       await page.getByPlaceholder('Ej: 1500').fill('1500')
       await page.getByRole('button', { name: 'Cargar' }).click()
-      await page.waitForURL('**/admin/lotes')
+      await page.waitForURL((url) => url.pathname === '/admin/lotes')
 
       await page.getByRole('link', { name: 'Ver historial completo →' }).click()
       await page.waitForURL('**/admin/cotizacion-dolar')

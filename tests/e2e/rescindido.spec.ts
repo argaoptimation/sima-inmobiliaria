@@ -269,7 +269,7 @@ test.describe('Rescindido de lote (24/08)', () => {
     const tablaCuotas = page
       .locator('h2', { hasText: 'Cuotas' })
       .locator('xpath=following-sibling::div[1]')
-      .locator('table')
+      .getByRole('table')
     await expect(tablaCuotas.locator('tbody tr')).toHaveCount(2)
 
     // Regresión 26/08 (bug real encontrado revisando refinanciación): el
