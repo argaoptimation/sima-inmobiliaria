@@ -85,10 +85,12 @@ export function CuotasYDocumento({
   function manejarCambioModo(nuevoModo: 'automatico' | 'manual') {
     setModo(nuevoModo)
     // Al pasar a manual se arranca desde el reparto automático, que es lo
-    // que el admin viene viendo en pantalla -- después lo edita.
+    // que el admin viene viendo en pantalla -- después lo edita. Pisa lo
+    // que hubiera tipeado antes: pasar por "Automático" significa
+    // justamente recalcular.
     if (nuevoModo === 'manual' && cantidadCuotas > 0) {
-      setMontosManuales((anteriores) =>
-        Array.from({ length: cantidadCuotas }, (_, i) => anteriores[i] ?? montosAutomaticos[i] ?? '')
+      setMontosManuales(
+        Array.from({ length: cantidadCuotas }, (_, i) => montosAutomaticos[i] ?? '')
       )
     }
   }

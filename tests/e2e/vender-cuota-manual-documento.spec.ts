@@ -111,7 +111,12 @@ test.describe('Vender — documento firmado y cuota manual', () => {
     await page.locator('input[name="cuotaMonto3"]').fill('3000')
 
     await expect(page.getByText('Suma total de las cuotas cargadas: 11000')).toBeVisible()
-    await expect(page.getByText(/Diferencia respecto al precio de lista: \+1000/)).toBeVisible()
+    // El texto cambió el 05/09: la referencia ya no es el precio de lista
+    // sino lo que queda a financiar (precio - seña - entrega). Sin seña ni
+    // entrega, como acá, los dos números coinciden.
+    await expect(
+      page.getByText(/Diferencia respecto a lo que queda a financiar: \+1000/)
+    ).toBeVisible()
 
     await adjuntarDocumentoFirmado(page)
     await page.getByRole('button', { name: 'Confirmar venta y enviar invitación' }).click()

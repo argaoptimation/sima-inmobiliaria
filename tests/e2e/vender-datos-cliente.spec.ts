@@ -91,8 +91,11 @@ async function venderLotePorUI(page: Page, loteId: string, datos: { email: strin
   // el submit se bloquea en silencio (campo oculto todavía vacío).
   await expect(page.locator('[data-testid="documentoFirmado"]')).toBeEnabled()
   await page.getByRole('button', { name: 'Confirmar venta y enviar invitación' }).click()
+  // Una venta completada termina en la distribución de cuotas (05/09); si
+  // el email ya tenía cuenta, rebota a esta misma pantalla pidiendo
+  // confirmación y hace falta un segundo click.
   await page.waitForURL(
-    (url) => url.pathname === '/admin/lotes' || url.searchParams.has('confirmarClienteId')
+    (url) => url.pathname.endsWith('/distribucion') || url.searchParams.has('confirmarClienteId')
   )
 }
 

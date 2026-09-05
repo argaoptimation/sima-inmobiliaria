@@ -197,10 +197,13 @@ test.describe('Reserva de lote (fase 1: texto + comprobante de seña)', () => {
     await expect(page.getByText('Estado: disponible')).toBeVisible()
     await expect(page.getByRole('heading', { name: 'Datos generales' })).toHaveCount(0)
     await expect(page.getByRole('heading', { name: 'Cobro' })).toHaveCount(0)
-    await expect(page.getByRole('heading', { name: 'Participantes adicionales' })).toHaveCount(0)
+    await expect(page.getByText('Otros participantes del cobro')).toHaveCount(0)
 
     await page.goto('/admin/lotes')
-    await expect(page.getByRole('link', { name: 'Pagos' })).toHaveCount(0)
+    // El cobrador SÍ entra a Pagos desde el 03/09 (confirmado con Nico): ya
+    // veía el link en el menú y la página lo bloqueaba igual, y se resolvió
+    // dejándolo entrar. Lo que sigue sin ver es Usuarios.
+    await expect(page.getByRole('link', { name: 'Pagos' })).toBeVisible()
     await expect(page.getByRole('link', { name: 'Usuarios' })).toHaveCount(0)
     await expect(page.getByRole('link', { name: 'Mi perfil' })).toBeVisible()
   })

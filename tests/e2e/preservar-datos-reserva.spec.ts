@@ -88,8 +88,10 @@ test.describe('Preservar datos tipeados si falta un campo obligatorio al reserva
 
     await login(page, fixtures.admin.email, fixtures.password)
     await page.goto(`/admin/lotes/${loteId}/reservar`)
-    await page.getByPlaceholder('Buscar cliente por DNI').fill(dni)
-    await page.getByRole('button', { name: 'Buscar' }).click()
+    // El buscador dejó de tener un botón "Buscar": filtra mientras se
+    // escribe y se elige un resultado del desplegable.
+    await page.getByPlaceholder('Buscar cliente por DNI o nombre').fill(dni)
+    await page.getByRole('button', { name: new RegExp(`${dni}.*Cliente Preservado`) }).click()
 
     await expect(page.getByPlaceholder('Nombre completo')).toHaveValue('Cliente Preservado')
 
