@@ -253,11 +253,11 @@ test.describe('Refinanciar cuotas (26/08)', () => {
 
     const identificador = `E2E Historial Creado ${Date.now()}`
     await page.goto('/admin/lotes/nuevo')
-    await page.getByPlaceholder(/^Identificador/).fill(identificador)
-    await page.getByPlaceholder('Ubicación').fill('Ubicación E2E')
-    await page.getByPlaceholder('Precio total del lote').fill('1000')
+    await page.locator('input[name="identificador"]').fill(identificador)
+    await page.locator('input[name="ubicacion"]').fill('Ubicación E2E')
+    await page.locator('input[name="precioTotal"]').fill('1000')
     await page.selectOption('select[name="moneda"]', 'USD')
-    await page.selectOption('select[name="acreedorId"]', fixtures.acreedorConDatos.id)
+    await page.locator('input[name="acreedorNombre"]').fill('E2E Acreedor Con Datos')
     await page.getByRole('button', { name: 'Crear lote' }).click()
     await page.waitForURL((url) => url.pathname === '/admin/lotes')
 

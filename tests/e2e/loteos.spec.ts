@@ -237,11 +237,11 @@ test.describe('Loteos', () => {
     await login(page, fixtures.admin.email, fixtures.password)
     await page.goto('/admin/lotes/nuevo')
     await page
-      .getByPlaceholder('Identificador (ej: Loteo San Martín - Manzana 3 - Lote 12)')
+      .locator('input[name="identificador"]')
       .fill(identificadorRepetido)
-    await page.getByPlaceholder('Ubicación').fill('Ubicación de prueba')
-    await page.getByPlaceholder('Precio total del lote').fill('1000')
-    await page.getByLabel('Acreedor').selectOption(fixtures.acreedorConDatos.id)
+    await page.locator('input[name="ubicacion"]').fill('Ubicación de prueba')
+    await page.locator('input[name="precioTotal"]').fill('1000')
+    await page.locator('input[name="acreedorNombre"]').fill('E2E Acreedor Con Datos')
     await page.getByRole('button', { name: 'Crear lote' }).click()
 
     await expect(page.getByText(/Ya existe un lote con ese identificador/)).toBeVisible()
