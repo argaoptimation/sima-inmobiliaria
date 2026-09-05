@@ -95,6 +95,15 @@ export default async function PagosPage({
   // veía el link "Pagos" en el sidebar pero la página lo bloqueaba igual.
   await requireAdminAcreedorOCobrador()
 
+  // "Esperando mi confirmación" (05/09, pedido de Gabriel): "Pendientes"
+  // mezcla dos cosas muy distintas -- el cliente que todavía no pagó y el
+  // pago que YA llegó y espera que yo mire el comprobante. Este filtro
+  // deja solo lo segundo. No es un estado en la base: se filtra sobre el
+  // mismo predicado que habilita el botón Confirmar, así que el filtro y
+  // el botón nunca pueden discrepar.
+  const soloEsperandoMiConfirmacion = filtroEstado === 'por-confirmar'
+  const estadoParaQuery = soloEsperandoMiConfirmacion ? 'pendiente' : filtroEstado
+
   const supabase = await createClient()
 
   const {
@@ -172,7 +181,7 @@ export default async function PagosPage({
         .select(columnasPago)
         .in('lote_id', loteIds)
         .order('created_at', { ascending: false })
-      if (filtroEstado) query = query.eq('estado', filtroEstado)
+      if (estadoParaQuery) query = query.eq('estado', estadoParaQuery)
       if (filtroMotivo) query = query.eq('motivo', filtroMotivo)
       if (filtroDesde) query = query.gte('created_at', `${filtroDesde}T00:00:00`)
       if (filtroHasta) query = query.lte('created_at', `${filtroHasta}T23:59:59`)
@@ -187,7 +196,7 @@ export default async function PagosPage({
           .select(columnasPago)
           .in('lote_id', loteIdsFiltro)
           .order('created_at', { ascending: false })
-        if (filtroEstado) query = query.eq('estado', filtroEstado)
+        if (estadoParaQuery) query = query.eq('estado', estadoParaQuery)
         if (filtroMotivo) query = query.eq('motivo', filtroMotivo)
         if (filtroDesde) query = query.gte('created_at', `${filtroDesde}T00:00:00`)
         if (filtroHasta) query = query.lte('created_at', `${filtroHasta}T23:59:59`)
@@ -196,7 +205,7 @@ export default async function PagosPage({
       }
     } else {
       let query = supabase.from('pagos').select(columnasPago).order('created_at', { ascending: false })
-      if (filtroEstado) query = query.eq('estado', filtroEstado)
+      if (estadoParaQuery) query = query.eq('estado', estadoParaQuery)
       if (filtroMotivo) query = query.eq('motivo', filtroMotivo)
       if (filtroDesde) query = query.gte('created_at', `${filtroDesde}T00:00:00`)
       if (filtroHasta) query = query.lte('created_at', `${filtroHasta}T23:59:59`)
@@ -326,6 +335,24 @@ export default async function PagosPage({
 
   const cantidadPendientes = pagos.filter((p) => p.estado === 'pendiente').length
 
+  // Un pago espera MI confirmación si está pendiente, ya hay evidencia que
+  // mirar (comprobante, o efectivo que solo confirma el admin) y todavía no
+  // lo firmé yo. Es exactamente lo que habilita el botón de abajo.
+  function esperaMiConfirmacion(pago: (typeof pagosConLink)[number]): boolean {
+    if (pago.estado !== 'pendiente') return false
+    if (!pago.comprobante_path && pago.medio_pago !== 'efectivo') return false
+    if (pago.medio_pago === 'efectivo' && perfilPropio!.role !== 'administrador') return false
+    return perfilPropio!.role === 'acreedor'
+      ? !pago.confirmado_acreedor_por
+      : !pago.confirmado_admin_por
+  }
+
+  const pagosVisibles = soloEsperandoMiConfirmacion
+    ? pagosConLink.filter(esperaMiConfirmacion)
+    : pagosConLink
+
+  const cantidadEsperandoMiConfirmacion = pagosConLink.filter(esperaMiConfirmacion).length
+
   return (
     <main className="flex flex-col gap-5">
       <EncabezadoPagina titulo="Pagos" migas={['Pagos']} />
@@ -424,6 +451,28 @@ export default async function PagosPage({
               )}
             </label>
             <label
+              className={`flex items-center gap-1 cursor-pointer rounded-lg px-3 py-1.5 text-xs font-semibold transition-all ${
+                filtroEstado === 'por-confirmar'
+                  ? 'bg-white font-bold text-blue-800 shadow-sm'
+                  : 'text-slate-600 hover:text-blue-800'
+              }`}
+              title="Pagos que ya llegaron y esperan que vos mires el comprobante y los confirmes"
+            >
+              <input
+                type="radio"
+                name="estado"
+                value="por-confirmar"
+                defaultChecked={filtroEstado === 'por-confirmar'}
+                className="hidden"
+              />
+              Esperando mi confirmación
+              {cantidadEsperandoMiConfirmacion > 0 && (
+                <span className={`opacity-70 ${NUMERO_TABULAR}`}>
+                  ({cantidadEsperandoMiConfirmacion})
+                </span>
+              )}
+            </label>
+            <label
               className={`cursor-pointer rounded-lg px-3 py-1.5 text-xs font-semibold transition-all ${
                 filtroEstado === 'confirmado'
                   ? 'bg-white font-bold text-green-800 shadow-sm'
@@ -448,14 +497,14 @@ export default async function PagosPage({
 
       {/* Lista de Tarjetas de Pago */}
       <div className="flex flex-col gap-3">
-        {pagosConLink.length === 0 ? (
+        {pagosVisibles.length === 0 ? (
           <div className="rounded-xl border border-blue-100 bg-white p-8 text-center text-sm text-slate-600 shadow-sm">
             {filtroTexto || filtroEstado || filtroAcreedorId || filtroMotivo || filtroDesde || filtroHasta
               ? 'No se encontraron pagos con los filtros seleccionados.'
               : 'No hay pagos registrados todavía.'}
           </div>
         ) : (
-          pagosConLink.map((pago) => {
+          pagosVisibles.map((pago) => {
             const confirmarEstePago = confirmarPago.bind(null, pago.id)
             const editarMontoEstePago = editarMontoPago.bind(null, pago.id)
             const tieneAlerta = pago.sinAcreedorVinculado && pago.medio_pago !== 'efectivo'
@@ -465,10 +514,7 @@ export default async function PagosPage({
             const motivoTexto = obtenerMotivoTexto(pago.motivo)
             const medioTexto = pago.medio_pago === 'efectivo' ? 'Efectivo' : 'Transferencia'
 
-            const puedeConfirmar =
-              pago.estado === 'pendiente' &&
-              (pago.comprobante_path || pago.medio_pago === 'efectivo') &&
-              !(pago.medio_pago === 'efectivo' && perfilPropio!.role !== 'administrador')
+            const puedeConfirmar = esperaMiConfirmacion(pago)
 
             return (
               <div

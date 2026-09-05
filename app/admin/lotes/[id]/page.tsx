@@ -154,9 +154,22 @@ export default async function LoteDetallePage({
   // ya usa "Total cobrado mientras estuvo vendido" más arriba.
   const { data: pagosDelLote } = await supabase
     .from('pagos')
-    .select('id, monto, moneda, medio_pago, motivo, estado, created_at')
+    .select('id, monto, moneda, medio_pago, motivo, estado, created_at, comprobante_path')
     .eq('lote_id', id)
     .order('created_at', { ascending: false })
+
+  // Enlace al comprobante del cliente, para poder mirarlo y confirmar el
+  // pago sin salir del lote (05/09, pedido de Nico vía Gabriel: "ver el
+  // comprobante de pago del cliente, confirmarlo con un check").
+  const pagosConComprobante = await Promise.all(
+    (pagosDelLote ?? []).map(async (pago) => {
+      if (!pago.comprobante_path) return { ...pago, comprobanteUrl: null }
+      const { data } = await createAdminClient()
+        .storage.from('comprobantes')
+        .createSignedUrl(pago.comprobante_path, 300)
+      return { ...pago, comprobanteUrl: data?.signedUrl ?? null }
+    })
+  )
 
   // Confirmar un pago pendiente directo desde acá (04/09, pedido de Gabriel:
   // no tener que ir hasta /admin/pagos a buscarlo) -- mismos roles que
@@ -709,6 +722,13 @@ export default async function LoteDetallePage({
         </p>
       )}
 
+      {/* Cuotas a la izquierda, historial de pagos a la derecha (05/09,
+          pedido de Nico vía Gabriel): antes había que scrollear hasta
+          abajo de la tabla de cuotas para ver qué se cobró, y desde ahí
+          volver a subir. En pantallas angostas siguen uno debajo del
+          otro. */}
+      <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_minmax(0,30rem)] xl:items-start">
+        <div>
       <h2 className={`mb-2 mt-6 ${TITULO_H2}`}>Cuotas</h2>
       {perfilPropio!.role === 'administrador' && lote!.estado === 'vendido' && (
         <p className="mb-2 text-sm">
@@ -836,8 +856,10 @@ export default async function LoteDetallePage({
           </form>
         </details>
       )}
+        </div>
 
-      {(pagosDelLote ?? []).length > 0 && (
+        <div>
+      {pagosConComprobante.length > 0 && (
         <>
           <h2 className={`mb-2 mt-6 ${TITULO_H2}`}>Historial de pagos</h2>
           <div className={`mb-2 ${TABLA_CONTENEDOR}`}>
@@ -848,12 +870,13 @@ export default async function LoteDetallePage({
                 <th className={TABLA_HEADER_CELDA}>Motivo</th>
                 <th className={TABLA_HEADER_CELDA}>Medio</th>
                 <th className={TABLA_HEADER_CELDA}>Monto</th>
+                <th className={TABLA_HEADER_CELDA}>Comprobante</th>
                 <th className={TABLA_HEADER_CELDA}>Estado</th>
                 {puedeConfirmarPagoDesdeLote && <th className={TABLA_HEADER_CELDA}></th>}
               </tr>
             </thead>
             <tbody>
-              {(pagosDelLote ?? []).map((pago) => {
+              {pagosConComprobante.map((pago) => {
                 const confirmarEstePago = confirmarPago.bind(null, pago.id)
                 return (
                   <tr key={pago.id} className={TABLA_FILA}>
@@ -862,6 +885,22 @@ export default async function LoteDetallePage({
                     <td className={TABLA_CELDA}>{pago.medio_pago === 'efectivo' ? 'Efectivo' : 'Transferencia'}</td>
                     <td className={TABLA_CELDA}>
                       {pago.monto} {pago.moneda}
+                    </td>
+                    <td className={TABLA_CELDA}>
+                      {pago.comprobanteUrl ? (
+                        <a
+                          href={pago.comprobanteUrl}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className={ENLACE_TABLA}
+                        >
+                          Ver
+                        </a>
+                      ) : pago.medio_pago === 'efectivo' ? (
+                        <span className="text-slate-500">Efectivo</span>
+                      ) : (
+                        <span className="text-slate-400">—</span>
+                      )}
                     </td>
                     <td className={TABLA_CELDA}>{pago.estado === 'confirmado' ? 'Confirmado' : 'Pendiente'}</td>
                     {puedeConfirmarPagoDesdeLote && (
@@ -883,6 +922,8 @@ export default async function LoteDetallePage({
           </div>
         </>
       )}
+        </div>
+      </div>
 
       {(ajustesIndexacion ?? []).length > 0 && (
         <>
