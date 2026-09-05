@@ -348,6 +348,7 @@ export async function actualizarReserva(loteId: string, formData: FormData) {
   const telefonoAlternativo = ((formData.get('telefonoAlternativo') as string) || '').trim() || null
   const estadoCivil = ((formData.get('estadoCivil') as string) || '').trim()
   const instrumentacion = ((formData.get('instrumentacion') as string) || '').trim() || null
+  const formaPago = ((formData.get('formaPago') as string) || '').trim() || null
   const montoSena = Number(formData.get('montoSena'))
   const monedaSena = ((formData.get('monedaSena') as string) || '').trim()
   const recibidoPor = ((formData.get('recibidoPor') as string) || '').trim() || null
@@ -387,8 +388,12 @@ export async function actualizarReserva(loteId: string, formData: FormData) {
     redirectEditarConError(loteId, formData, 'Moneda de la seña inválida')
   }
 
-  if (instrumentacion && !INSTRUMENTACIONES_VALIDAS.includes(instrumentacion)) {
-    redirectEditarConError(loteId, formData, 'Instrumentación inválida')
+  if (!instrumentacion || !INSTRUMENTACIONES_VALIDAS.includes(instrumentacion)) {
+    redirectEditarConError(loteId, formData, 'Elegí la instrumentación (boleto de compraventa o escritura)')
+  }
+
+  if (!formaPago || !FORMAS_PAGO_VALIDAS.includes(formaPago)) {
+    redirectEditarConError(loteId, formData, 'Elegí la forma de pago (financiado o contado)')
   }
 
   // CampoArchivoDirecto ya subió el archivo nuevo (si eligieron uno) y
@@ -440,6 +445,7 @@ export async function actualizarReserva(loteId: string, formData: FormData) {
       telefono_alternativo: telefonoAlternativo,
       estado_civil: estadoCivil,
       instrumentacion,
+      forma_pago: formaPago,
       monto_sena: montoSena,
       moneda_sena: monedaSena,
       recibido_por: recibidoPor,

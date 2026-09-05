@@ -56,7 +56,7 @@ export default async function ClientesPage({
   }
 
   return (
-    <main className="max-w-2xl">
+    <main>
       <EncabezadoPagina titulo="Clientes" migas={['Clientes']} />
 
       <FiltroEnVivo className="mb-4 flex items-end gap-3">

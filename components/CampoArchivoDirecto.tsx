@@ -1,6 +1,6 @@
 'use client'
 
-import { useId, useState } from 'react'
+import { useId, useState, type ReactNode } from 'react'
 import { createClient } from '@/lib/supabase/browser'
 import { excedeTamanioMaximo, MAX_ARCHIVO_MB } from '@/lib/storage/validar-tamanio-archivo'
 import { Spinner } from './Spinner'
@@ -18,7 +18,10 @@ interface CampoArchivoDirectoProps {
   // Se antepone al nombre de archivo subido, ej. "dni-frente" -- solo para
   // que el path final sea legible, no tiene efecto en permisos.
   tipoArchivo: string
-  label: string
+  // ReactNode y no string para poder meterle el <Obligatorio /> al lado del
+  // nombre cuando el archivo es obligatorio (05/09: los cinco campos de la
+  // reserva se veían idénticos y no se intuía cuáles hacían falta).
+  label: ReactNode
   ayuda?: string
   required?: boolean
   accept?: string

@@ -30,6 +30,8 @@ export async function generarBoletoDesdeListado(loteId: string, formData: FormDa
   }
 
   redirect(
-    `/admin/boletos?ok=${encodeURIComponent('Boleto generado. Queda en la sección "Contratos" del lote.')}`
+    `/admin/boletos?ok=${encodeURIComponent(
+      'Boleto generado. Bajalo con el botón de descarga de la fila (también queda en la sección "Contratos" del lote).'
+    )}`
   )
 }

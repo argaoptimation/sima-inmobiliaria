@@ -60,7 +60,7 @@ export default async function CuentasExternasPage({
   }
 
   return (
-    <main className="max-w-2xl">
+    <main>
       <EncabezadoPagina
         titulo="Cuentas externas"
         migas={['Cuentas externas']}

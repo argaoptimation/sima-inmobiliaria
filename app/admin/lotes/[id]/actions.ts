@@ -52,7 +52,7 @@ export async function actualizarDatosGenerales(loteId: string, formData: FormDat
     redirect(`/admin/lotes/${loteId}?error=${encodeURIComponent(mensajeDeError(error))}`)
   }
 
-  redirect(`/admin/lotes/${loteId}`)
+  redirect(`/admin/lotes/${loteId}?ok=${encodeURIComponent('Datos del lote guardados.')}`)
 }
 
 export async function eliminarLote(loteId: string) {
@@ -149,7 +149,7 @@ export async function rescindirLote(loteId: string) {
     cambiado_por: user!.id,
   })
 
-  redirect(`/admin/lotes/${loteId}`)
+  redirect(`/admin/lotes/${loteId}?ok=${encodeURIComponent('Lote rescindido.')}`)
 }
 
 // Prejudicial es un paso MANUAL del admin, no automático (Nicolás: "es un
@@ -255,7 +255,7 @@ export async function volverADisponible(loteId: string) {
     cambiado_por: user!.id,
   })
 
-  redirect(`/admin/lotes/${loteId}`)
+  redirect(`/admin/lotes/${loteId}?ok=${encodeURIComponent('Lote devuelto a disponible.')}`)
 }
 
 // Refinanciación (spec confirmada por Nicolás, ver Notas_Decisiones_SIMA.txt
@@ -521,7 +521,7 @@ export async function actualizarCobro(loteId: string, formData: FormData) {
     redirect(`/admin/lotes/${loteId}?error=${encodeURIComponent(mensajeDeError(error))}`)
   }
 
-  redirect(`/admin/lotes/${loteId}`)
+  redirect(`/admin/lotes/${loteId}?ok=${encodeURIComponent('Datos de cobro guardados.')}`)
 }
 
 export async function subirDocumentoLote(loteId: string, formData: FormData) {
@@ -562,7 +562,7 @@ export async function subirDocumentoLote(loteId: string, formData: FormData) {
     redirect(`/admin/lotes/${loteId}?error=${encodeURIComponent(mensajeDeError(errorInsert))}`)
   }
 
-  redirect(`/admin/lotes/${loteId}`)
+  redirect(`/admin/lotes/${loteId}?ok=${encodeURIComponent('Documento subido.')}`)
 }
 
 export async function eliminarDocumentoLote(documentoId: string, loteId: string) {
@@ -585,7 +585,7 @@ export async function eliminarDocumentoLote(documentoId: string, loteId: string)
     redirect(`/admin/lotes/${loteId}?error=${encodeURIComponent(mensajeDeError(error))}`)
   }
 
-  redirect(`/admin/lotes/${loteId}`)
+  redirect(`/admin/lotes/${loteId}?ok=${encodeURIComponent('Documento eliminado.')}`)
 }
 
 // Genera el boleto de compraventa de este lote a partir de la plantilla

@@ -55,7 +55,7 @@ export default async function CuentasCorrientesPage({
   const cuotasSinDistribucion = await obtenerCuotasSinDistribucion(supabase)
 
   return (
-    <main className="max-w-3xl">
+    <main>
       <EncabezadoPagina titulo="Cuentas corrientes" migas={['Cuentas corrientes']} />
 
       {cuotasSinDistribucion.length > 0 && (

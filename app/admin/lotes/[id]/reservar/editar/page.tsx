@@ -8,6 +8,7 @@ import { EnlaceBoton } from '@/components/EnlaceBoton'
 import { BotonEnvio } from '@/components/BotonEnvio'
 import { ENTRADA, BOTON_PRIMARIO, ENLACE, TITULO_H1, BANNER_ERROR } from '@/lib/ui/clases'
 import { Obligatorio } from '@/components/Obligatorio'
+import { FormaPagoEInstrumentacion } from '@/components/FormaPagoEInstrumentacion'
 
 export default async function EditarReservaPage({
   params,
@@ -25,6 +26,7 @@ export default async function EditarReservaPage({
     telefonoAlternativo?: string
     estadoCivil?: string
     instrumentacion?: string
+    formaPago?: string
     montoSena?: string
     monedaSena?: string
     recibidoPor?: string
@@ -43,6 +45,7 @@ export default async function EditarReservaPage({
     telefonoAlternativo: telefonoAlternativoPreservado,
     estadoCivil: estadoCivilPreservado,
     instrumentacion: instrumentacionPreservado,
+    formaPago: formaPagoPreservado,
     montoSena: montoSenaPreservado,
     monedaSena: monedaSenaPreservado,
     recibidoPor: recibidoPorPreservado,
@@ -66,7 +69,7 @@ export default async function EditarReservaPage({
   const { data: reserva } = await supabase
     .from('reservas')
     .select(
-      'nombre_completo, dni, domicilio, email, telefono_prefijo, telefono_numero, telefono_alternativo, estado_civil, instrumentacion, monto_sena, moneda_sena, recibido_por, recibido_por_otro, comprobante_sena_path, dni_frente_path, dni_dorso_path, dni_conyuge_path, sentencia_divorcio_path'
+      'nombre_completo, dni, domicilio, email, telefono_prefijo, telefono_numero, telefono_alternativo, estado_civil, instrumentacion, forma_pago, monto_sena, moneda_sena, recibido_por, recibido_por_otro, comprobante_sena_path, dni_frente_path, dni_dorso_path, dni_conyuge_path, sentencia_divorcio_path'
     )
     .eq('lote_id', id)
     .is('cancelada_at', null)
@@ -162,18 +165,15 @@ export default async function EditarReservaPage({
             </select>
           </label>
 
-          <label className="text-sm text-slate-600">
-            Instrumentación prevista (opcional)
-            <select
-              name="instrumentacion"
-              defaultValue={instrumentacionPreservado ?? reserva.instrumentacion ?? ''}
-              className={`${ENTRADA} w-full`}
-            >
-              <option value="">— sin definir —</option>
-              <option value="boleto">Boleto de compraventa</option>
-              <option value="escritura">Escritura</option>
-            </select>
-          </label>
+          {/* Este es el camino de flexibilidad del 04/09: si el cliente
+              cambia de idea (reservó al contado y después pide cuotas, o al
+              revés), se corrige acá y después se genera el boleto desde
+              Boletos de compraventa. Por eso la forma de pago también tiene
+              que poder editarse, no solo la instrumentación. */}
+          <FormaPagoEInstrumentacion
+            formaPagoInicial={formaPagoPreservado ?? reserva.forma_pago ?? ''}
+            instrumentacionInicial={instrumentacionPreservado ?? reserva.instrumentacion ?? ''}
+          />
 
           <input
             name="montoSena"

@@ -8,6 +8,8 @@ import { EnlaceBoton } from '@/components/EnlaceBoton'
 import { BotonEnvio } from '@/components/BotonEnvio'
 import { EncabezadoPagina } from '@/components/EncabezadoPagina'
 import { Obligatorio } from '@/components/Obligatorio'
+import { BotonCopiarEnlace } from '@/components/BotonCopiarEnlace'
+import { Download } from 'lucide-react'
 import {
   ENTRADA,
   BOTON_SECUNDARIO,
@@ -91,21 +93,41 @@ export default async function BoletosPage({
       : { data: [] }
   const clientePorId = new Map((clientes ?? []).map((c) => [c.id, c]))
 
-  // Boletos ya generados por lote, para saber cuáles están pendientes.
+  // Boletos ya generados por lote, para saber cuáles están pendientes y
+  // para poder bajarlos desde acá mismo.
   const { data: documentos } =
     loteIds.length > 0
       ? await supabase
           .from('lote_documentos')
-          .select('lote_id, descripcion, created_at')
+          .select('lote_id, path, descripcion, created_at')
           .in('lote_id', loteIds)
           .like('descripcion', 'Contrato generado%')
           .order('created_at', { ascending: false })
       : { data: [] }
 
-  const boletoPorLote = new Map<string, string>()
+  // Solo el más reciente de cada lote (vienen ordenados por fecha desc).
+  const boletoPorLote = new Map<string, { path: string; descripcion: string }>()
   for (const documento of documentos ?? []) {
-    if (!boletoPorLote.has(documento.lote_id)) boletoPorLote.set(documento.lote_id, documento.descripcion)
+    if (!boletoPorLote.has(documento.lote_id)) {
+      boletoPorLote.set(documento.lote_id, { path: documento.path, descripcion: documento.descripcion })
+    }
   }
+
+  // Enlaces firmados para bajar / compartir sin salir de esta pantalla
+  // (05/09, pedido de Gabriel: antes había que ir al lote a buscarlo).
+  // Duran una semana a propósito: el punto es que Nicolás pueda pegar el
+  // enlace en un WhatsApp o un mail al comprador, no solo abrirlo él.
+  const DURACION_ENLACE_SEGUNDOS = 60 * 60 * 24 * 7
+  const enlacePorLote = new Map<string, string>()
+  await Promise.all(
+    [...boletoPorLote.entries()].map(async ([loteIdDocumento, documento]) => {
+      const nombreArchivo = `boleto-compraventa-${loteIdDocumento}.docx`
+      const { data } = await admin.storage
+        .from('comprobantes')
+        .createSignedUrl(documento.path, DURACION_ENLACE_SEGUNDOS, { download: nombreArchivo })
+      if (data?.signedUrl) enlacePorLote.set(loteIdDocumento, data.signedUrl)
+    })
+  )
 
   const filas = lotesTipados
     .map((lote) => {
@@ -118,6 +140,7 @@ export default async function BoletosPage({
         instrumentacion: reserva?.instrumentacion ?? null,
         formaPago: reserva?.forma_pago ?? null,
         boletoGenerado: boletoPorLote.get(lote.id) ?? null,
+        enlaceBoleto: enlacePorLote.get(lote.id) ?? null,
         tienePlantilla: Boolean(lote.loteos?.plantilla_contrato_path),
       }
     })
@@ -144,7 +167,9 @@ export default async function BoletosPage({
         Todos los lotes reservados y vendidos, con su comprador. El boleto se genera solo al reservar
         cuando la instrumentación elegida es &quot;boleto&quot; y el lote tiene un loteo con plantilla
         cargada; acá podés generarlo (o volver a generarlo) a mano cuando haga falta. Los lotes que
-        van a escritura directa no llevan boleto.
+        van a escritura directa no llevan boleto. Los ya generados se bajan con el botón de descarga
+        de cada fila, y el botón de al lado copia un enlace (sirve una semana) para mandárselo al
+        comprador por WhatsApp o mail sin tener que bajar el archivo.
       </p>
 
       <FiltroEnVivo className="mb-4 flex flex-wrap items-end gap-3">
@@ -226,30 +251,51 @@ export default async function BoletosPage({
                       )}
                     </td>
                     <td className={TABLA_CELDA}>
-                      {fila.tienePlantilla ? (
-                        <form action={generarConId} className="flex items-end gap-2">
-                          <label className="text-xs text-slate-500">
-                            Fecha
-                            <Obligatorio />
-                            <input
-                              type="date"
-                              name="fechaContrato"
-                              defaultValue={hoy}
-                              required
-                              className={`${ENTRADA} py-1.5 text-xs`}
+                      <div className="flex items-center justify-end gap-1">
+                        {/* Descarga directa desde acá: antes había que ir al
+                            lote, entrar a Contratos y bajarlo de ahí. */}
+                        {fila.enlaceBoleto && (
+                          <>
+                            <a
+                              href={fila.enlaceBoleto}
+                              title="Descargar boleto de compraventa"
+                              aria-label="Descargar boleto de compraventa"
+                              className="cursor-pointer rounded-lg p-1.5 text-blue-800 transition-colors hover:bg-blue-50"
+                            >
+                              <Download className="h-4 w-4" aria-hidden="true" />
+                            </a>
+                            <BotonCopiarEnlace
+                              enlace={fila.enlaceBoleto}
+                              titulo="Copiar enlace del boleto (sirve una semana) para mandárselo al comprador"
                             />
-                          </label>
-                          <BotonEnvio className={`cursor-pointer ${ENLACE_TABLA}`}>
-                            {fila.boletoGenerado ? 'Generar de nuevo' : 'Generar'}
-                          </BotonEnvio>
-                        </form>
-                      ) : (
-                        <span className="text-xs text-amber-700">
-                          {fila.loteo_id
-                            ? 'El loteo no tiene plantilla cargada'
-                            : 'Asignale un loteo al lote primero'}
-                        </span>
-                      )}
+                          </>
+                        )}
+
+                        {fila.tienePlantilla ? (
+                          <form action={generarConId} className="flex items-end gap-2">
+                            <label className="text-xs text-slate-500">
+                              Fecha
+                              <Obligatorio />
+                              <input
+                                type="date"
+                                name="fechaContrato"
+                                defaultValue={hoy}
+                                required
+                                className={`${ENTRADA} py-1.5 text-xs`}
+                              />
+                            </label>
+                            <BotonEnvio className={`cursor-pointer ${ENLACE_TABLA}`}>
+                              {fila.boletoGenerado ? 'Generar de nuevo' : 'Generar'}
+                            </BotonEnvio>
+                          </form>
+                        ) : (
+                          <span className="text-xs text-amber-700">
+                            {fila.loteo_id
+                              ? 'El loteo no tiene plantilla cargada'
+                              : 'Asignale un loteo al lote primero'}
+                          </span>
+                        )}
+                      </div>
                     </td>
                   </tr>
                 )

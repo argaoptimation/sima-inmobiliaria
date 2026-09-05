@@ -508,7 +508,19 @@ export default async function PagosPage({
                       )}
                     </div>
                     <div className="text-[12.5px] text-slate-600">
-                      {pago.ubicacionLote} · {motivoTexto} · {medioTexto} · {fechaFormateada}
+                      {/* 05/09, pedido de Gabriel: desde un pago no había
+                          forma de saltar al lote para ver el detalle. */}
+                      {pago.lote_id ? (
+                        <EnlaceBoton
+                          href={`/admin/lotes/${pago.lote_id}`}
+                          className="font-medium text-blue-800 hover:underline"
+                        >
+                          {pago.ubicacionLote}
+                        </EnlaceBoton>
+                      ) : (
+                        pago.ubicacionLote
+                      )}{' '}
+                      · {motivoTexto} · {medioTexto} · {fechaFormateada}
                       {pago.nombreAcreedor !== '—' && (
                         <span className="text-slate-500"> · Acreedor: {pago.nombreAcreedor}</span>
                       )}

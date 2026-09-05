@@ -129,11 +129,14 @@ export default async function UsuariosPage({
   const { data: staff } = await queryStaff
 
   return (
-    <main className="max-w-2xl">
+    // 05/09, pedido de Gabriel: la tabla no entraba y había que
+    // desplazarse a los costados. El formulario de alta sigue angosto (es un
+    // formulario); el listado usa todo el ancho de la pantalla.
+    <main>
       <EncabezadoPagina titulo="Usuarios de staff" migas={['Usuarios']} />
       {error && <p className={BANNER_ERROR}>{error}</p>}
 
-      <form action={crearUsuarioStaff} className="mb-8 flex flex-col gap-3">
+      <form action={crearUsuarioStaff} className="mb-8 flex max-w-2xl flex-col gap-3">
         <label className="text-sm text-slate-600">
           Nombre completo
           <Obligatorio />
