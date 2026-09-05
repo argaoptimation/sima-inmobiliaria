@@ -26,6 +26,10 @@ async function crearLoteReservado(identificador: string, acreedorId: string, adm
     estado_civil: 'soltero',
     monto_sena: 500,
     moneda_sena: 'USD',
+    // Obligatorias desde el 04/09: sin ellas el formulario de edición no
+    // deja guardar, igual que le pasaría a una reserva real.
+    forma_pago: 'contado',
+    instrumentacion: 'escritura',
     comprobante_sena_path: 'reservas/seed/comprobante-original.pdf',
     dni_frente_path: 'reservas/seed/dni-frente-original.pdf',
     dni_dorso_path: 'reservas/seed/dni-dorso-original.pdf',
@@ -78,14 +82,23 @@ test.describe('Editar reserva ya cargada', () => {
     await login(page, fixtures.admin.email, fixtures.password)
     await page.goto(`/admin/lotes/${loteId}/reservar/editar`)
 
-    await page.setInputFiles('[data-testid="comprobante"]', {
-      name: `comprobante-nuevo-${Date.now()}.pdf`,
-      mimeType: 'application/pdf',
-      buffer: COMPROBANTE_BYTES,
-    })
-    // Sube directo a Storage en cuanto se elige -- esperar a que termine o
-    // el campo oculto todavía tiene el path viejo cuando se hace submit.
-    await expect(page.locator('[data-testid="comprobante"]')).toBeEnabled()
+    // La subida a Storage la dispara el onChange del componente, así que si
+    // se eligen los archivos ANTES de que la página termine de hidratarse no
+    // pasa absolutamente nada: el evento se pierde y el campo oculto sigue
+    // con el path viejo. Se reintenta hasta que el campo oculto cambie, que
+    // es la única señal de que la subida realmente ocurrió (esperar a que el
+    // input esté habilitado no sirve: ya lo está antes de empezar).
+    await expect(async () => {
+      await page.setInputFiles('[data-testid="comprobante"]', {
+        name: `comprobante-nuevo-${Date.now()}.pdf`,
+        mimeType: 'application/pdf',
+        buffer: COMPROBANTE_BYTES,
+      })
+      await expect(page.locator('input[type="hidden"][name="comprobante"]')).not.toHaveValue(
+        'reservas/seed/comprobante-original.pdf',
+        { timeout: 3000 }
+      )
+    }).toPass({ timeout: 30_000 })
     await page.getByRole('button', { name: 'Guardar cambios' }).click()
     await page.waitForURL(`**/admin/lotes/${loteId}`)
 

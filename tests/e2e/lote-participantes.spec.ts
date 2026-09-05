@@ -2,6 +2,22 @@ import { test, expect } from '@playwright/test'
 import { createAdminClient, ensureTestFixtures, TestFixtures } from './fixtures/test-data'
 import { login } from './utils/login'
 
+/**
+ * Abre el desplegable "+ Agregar participante" del detalle del lote.
+ *
+ * Desde el 05/09 la sección dejó de estar siempre desplegada: quedó como una
+ * línea debajo de "Cuenta de cobro actual" y el formulario aparece recién al
+ * apretar el "+", para que no haga tanto ruido.
+ */
+async function abrirFormularioParticipante(page: import('@playwright/test').Page) {
+  const resumen = page.getByText('+ Agregar participante', { exact: true })
+  if (await resumen.isVisible().catch(() => false)) {
+    await resumen.click()
+  }
+  await expect(page.locator('select[name="participanteId"]')).toBeVisible()
+}
+
+
 test.describe('Múltiples participantes por lote', () => {
   let fixtures: TestFixtures
 
@@ -18,6 +34,7 @@ test.describe('Múltiples participantes por lote', () => {
     await page.goto(`/admin/lotes/${fixtures.loteId}`)
 
     try {
+      await abrirFormularioParticipante(page)
       await page.selectOption('select[name="participanteId"]', { label: 'E2E Vendedor B (vendedor)' })
       await page.getByLabel('Etiqueta (opcional)').fill('Vendedor 2')
       await page.getByRole('button', { name: 'Agregar participante' }).click()
@@ -49,6 +66,7 @@ test.describe('Múltiples participantes por lote', () => {
 
     try {
       await page.goto(`/admin/lotes/${fixtures.loteId}`)
+      await abrirFormularioParticipante(page)
       await page.selectOption('select[name="participanteId"]', {
         label: `${nombreCuentaExterna} (cuenta externa)`,
       })
@@ -90,6 +108,7 @@ test.describe('Múltiples participantes por lote', () => {
     // Esto ejercita el mismo guard del lado servidor (comparación contra
     // admin_id/acreedor_id/vendedor_id) de forma realista, sin pelear con
     // el DOM manejado por React.
+    await abrirFormularioParticipante(page)
     await page.selectOption('select[name="participanteId"]', { label: 'E2E Vendedor B (vendedor)' })
 
     try {
@@ -129,12 +148,14 @@ test.describe('Múltiples participantes por lote', () => {
     await page.goto(`/admin/lotes/${fixtures.loteId}`)
 
     try {
+      await abrirFormularioParticipante(page)
       await page.selectOption('select[name="participanteId"]', { label: 'E2E Vendedor B (vendedor)' })
       await page.getByRole('button', { name: 'Agregar participante' }).click()
       // getByText matchearía también la opción homónima del <select> de
       // "Cuenta de cobro actual": se acota al <li> de la lista.
       await expect(page.locator('li', { hasText: 'E2E Vendedor B (vendedor)' })).toBeVisible()
 
+      await abrirFormularioParticipante(page)
       await page.selectOption('select[name="participanteId"]', { label: 'E2E Vendedor B (vendedor)' })
       await page.getByRole('button', { name: 'Agregar participante' }).click()
 
@@ -152,6 +173,7 @@ test.describe('Múltiples participantes por lote', () => {
     await login(page, fixtures.admin.email, fixtures.password)
     await page.goto(`/admin/lotes/${fixtures.loteSecundarioId}`)
 
+    await abrirFormularioParticipante(page)
     await page.selectOption('select[name="participanteId"]', { label: 'E2E Vendedor A (vendedor)' })
     await page.getByRole('button', { name: 'Agregar participante' }).click()
     // getByText matchearía también la opción homónima del <select> de
@@ -164,7 +186,7 @@ test.describe('Múltiples participantes por lote', () => {
     const fila = page.locator('li', { hasText: 'E2E Vendedor A (vendedor)' })
     await fila.getByRole('button', { name: 'Quitar' }).click()
 
-    await expect(page.getByText('Sin participantes adicionales todavía.')).toBeVisible()
+    await expect(page.getByText('Ninguno.')).toBeVisible()
   })
 
   test('quitar un participante que es la cuenta de cobro actual es rechazado', async ({ page }) => {
@@ -173,6 +195,7 @@ test.describe('Múltiples participantes por lote', () => {
     await login(page, fixtures.admin.email, fixtures.password)
     await page.goto(`/admin/lotes/${fixtures.loteSecundarioId}`)
 
+    await abrirFormularioParticipante(page)
     await page.selectOption('select[name="participanteId"]', {
       label: 'E2E Acreedor Con Datos (acreedor)',
     })
@@ -228,7 +251,7 @@ test.describe('Múltiples participantes por lote', () => {
     }
   })
 
-  test('un acreedor no puede ver la subsección "Participantes adicionales" ni sus acciones', async ({
+  test('un acreedor no puede ver la subsección de participantes ni sus acciones', async ({
     page,
   }) => {
     // Tiene que ser el acreedor REAL de este lote (fixtures.acreedorConDatos)
@@ -237,7 +260,7 @@ test.describe('Múltiples participantes por lote', () => {
     await login(page, fixtures.acreedorConDatos.email, fixtures.password)
     await page.goto(`/admin/lotes/${fixtures.loteId}`)
 
-    await expect(page.getByText('Participantes adicionales')).not.toBeVisible()
+    await expect(page.getByText('Otros participantes del cobro')).not.toBeVisible()
   })
 
   test('un participante adicional puede elegirse como cuenta de cobro; alguien no asociado, no', async ({
@@ -262,6 +285,7 @@ test.describe('Múltiples participantes por lote', () => {
     ).toBeVisible()
 
     try {
+      await abrirFormularioParticipante(page)
       await page.selectOption('select[name="participanteId"]', { label: 'E2E Vendedor A (vendedor)' })
       await page.getByRole('button', { name: 'Agregar participante' }).click()
       // getByText matchearía también las opciones homónimas de los <select>
