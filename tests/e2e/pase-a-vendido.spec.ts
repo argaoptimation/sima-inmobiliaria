@@ -164,8 +164,10 @@ test.describe('Pase a vendido (fase 2)', () => {
       .eq('lote_id', loteId)
       .order('numero', { ascending: true })
     expect(cuotas).toHaveLength(3)
+    // Precio 10.000 menos la seña de 500 ya cobrada: lo que se divide en
+    // cuotas son 9.500 (la seña no vuelve a descontarse después).
     const suma = (cuotas ?? []).reduce((acc, c) => acc + Number(c.monto_base), 0)
-    expect(Math.round(suma * 100) / 100).toBe(10000)
+    expect(Math.round(suma * 100) / 100).toBe(9500)
   })
 
   test('comprador distinto de quien reservó: se puede sobrescribir nombre y email', async ({
@@ -244,9 +246,12 @@ test.describe('Pase a vendido (fase 2)', () => {
     await expect(filaReservada.getByRole('link', { name: 'Vender / asignar cliente' })).toBeVisible()
   })
 
-  test('vender con seña menor a la primera cuota: se descuenta del saldo_pendiente', async ({
+  test('vender con seña: se descuenta del total a financiar, no de la primera cuota', async ({
     page,
   }) => {
+    // Desde el 05/09 la seña no se imputa contra las primeras cuotas: se
+    // resta del precio ANTES de dividir. Lote de 10.000 con seña 500 en 10
+    // cuotas da 10 cuotas de 950, no 10 de 1.000 con la primera comida.
     const loteId = await crearLoteDisponibleConPrecio(`E2E Seña Menor ${Date.now()}`, 10000)
 
     await login(page, fixtures.admin.email, fixtures.password)
@@ -278,9 +283,9 @@ test.describe('Pase a vendido (fase 2)', () => {
       .eq('lote_id', loteId)
       .order('numero', { ascending: true })
 
-    expect(cuotas?.[0].monto_base).toBe(1000)
-    expect(cuotas?.[0].saldo_pendiente).toBe(500)
-    expect(cuotas?.[1].saldo_pendiente).toBe(1000)
+    expect(cuotas).toHaveLength(10)
+    expect(cuotas!.every((cuota) => cuota.monto_base === 950)).toBe(true)
+    expect(cuotas!.every((cuota) => cuota.saldo_pendiente === 950)).toBe(true)
 
     const { data: pagos } = await admin
       .from('pagos')
@@ -290,16 +295,18 @@ test.describe('Pase a vendido (fase 2)', () => {
     expect(pagos![0].monto).toBe(500)
     expect(pagos![0].estado).toBe('confirmado')
 
+    // La seña ya está descontada del total financiado: imputarla además
+    // contra una cuota sería contar la misma plata dos veces.
     const { data: imputaciones } = await admin
       .from('pago_imputaciones')
       .select('cuota_id, monto_imputado')
       .eq('pago_id', pagos![0].id)
-    expect(imputaciones).toHaveLength(1)
-    expect(imputaciones?.[0].cuota_id).toBe(cuotas![0].id)
-    expect(imputaciones?.[0].monto_imputado).toBe(500)
+    expect(imputaciones).toHaveLength(0)
   })
 
-  test('vender con seña mayor a la primera cuota: cascadea a la segunda', async ({ page }) => {
+  test('vender con seña grande: se reparte parejo, sin cuotas en cero', async ({ page }) => {
+    // Antes una seña de 1.500 sobre cuotas de 1.000 dejaba la cuota 1 en 0 y
+    // la 2 a la mitad ("cascada" FIFO). Ahora las 10 cuotas quedan iguales.
     const loteId = await crearLoteDisponibleConPrecio(`E2E Seña Cascada ${Date.now()}`, 10000)
 
     await login(page, fixtures.admin.email, fixtures.password)
@@ -326,13 +333,12 @@ test.describe('Pase a vendido (fase 2)', () => {
     const admin = createAdminClient()
     const { data: cuotas } = await admin
       .from('cuotas')
-      .select('numero, saldo_pendiente')
+      .select('numero, monto_base, saldo_pendiente')
       .eq('lote_id', loteId)
       .order('numero', { ascending: true })
 
-    expect(cuotas?.[0].saldo_pendiente).toBe(0)
-    expect(cuotas?.[1].saldo_pendiente).toBe(500)
-    expect(cuotas?.[2].saldo_pendiente).toBe(1000)
+    expect(cuotas!.every((cuota) => cuota.monto_base === 850)).toBe(true)
+    expect(cuotas!.every((cuota) => cuota.saldo_pendiente === 850)).toBe(true)
   })
 
   test('vender con seña en moneda distinta a la del lote: no se descuenta nada', async ({

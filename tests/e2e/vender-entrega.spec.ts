@@ -147,7 +147,13 @@ test.describe('Vender — entrega (anticipo al boleto)', () => {
     expect(pagos).toHaveLength(0)
   })
 
-  test('venta con entrega + seña ya registrada: quedan como dos pagos separados', async ({ page }) => {
+  test('venta con entrega + seña: las cuotas se calculan sobre lo que queda a financiar', async ({
+    page,
+  }) => {
+    // Caso exacto que reportó Gabriel el 05/09 con "DEMO Prueba de 1ra
+    // entrega y resta FIFO": lote de 10.000, seña 500, entrega 5.000, 10
+    // cuotas. Antes generaba 10 cuotas de 1.000 (el precio de lista
+    // dividido 10) y la entrega no se descontaba de ningún lado.
     const admin = createAdminClient()
     const { data: adminProfile } = await admin
       .from('profiles')
@@ -159,13 +165,45 @@ test.describe('Vender — entrega (anticipo al boleto)', () => {
       10000,
       fixtures.acreedorConDatos.id
     )
-    await crearReservaConSena(loteId, 100, adminProfile!.id)
+    await crearReservaConSena(loteId, 500, adminProfile!.id)
     const email = `comprador.entrega.sena.${Date.now()}@sima-e2e.invalid`
 
     await login(page, fixtures.admin.email, fixtures.password)
-    await venderConEntrega(page, loteId, { email, fullName: 'Comprador Entrega Y Seña', entregaMonto: '1900' })
+    await page.goto(`/admin/lotes/${loteId}/vender`)
+    await page.getByPlaceholder('Nombre completo del comprador').fill('Comprador Entrega Y Seña')
+    await page.getByPlaceholder('Email del comprador').fill(email)
+    await page.locator('input[name="fechaPrimeraCuota"]').fill('2026-09-01')
+    await page.getByPlaceholder('Cantidad de cuotas (1 para venta al contado)').fill('10')
+    await page.getByPlaceholder('Entrega').fill('5000')
+
+    // El balance en pantalla ya tiene que mostrar la cuenta neta antes de
+    // confirmar, no el precio de lista dividido 10.
+    await expect(page.getByText('= Queda a financiar en cuotas: 4500 USD')).toBeVisible()
+    await expect(page.getByText('10 cuotas de 450')).toBeVisible()
+
+    await adjuntarDocumentoFirmado(page)
+    await page.getByRole('button', { name: 'Confirmar venta y enviar invitación' }).click()
     await page.waitForURL('**/admin/lotes')
 
+    const { data: cuotas } = await admin
+      .from('cuotas')
+      .select('numero, monto_base, saldo_pendiente')
+      .eq('lote_id', loteId)
+      .order('numero')
+
+    expect(cuotas).toHaveLength(10)
+    expect(cuotas!.every((cuota) => cuota.monto_base === 450)).toBe(true)
+    // Ninguna cuota quedó "comida" por la seña: todas arrancan con su
+    // saldo completo, que es justamente lo que Gabriel quería ver.
+    expect(cuotas!.every((cuota) => cuota.saldo_pendiente === 450)).toBe(true)
+
+    const suma = cuotas!.reduce((acc, cuota) => acc + cuota.monto_base, 0)
+    expect(suma).toBe(4500)
+    expect(suma + 500 + 5000).toBe(10000)
+
+    // Seña y entrega quedan como pagos confirmados del lote (aparecen en el
+    // historial y en la caja) pero sin imputar contra ninguna cuota: ya
+    // están descontados del total a financiar.
     const { data: pagoSena } = await admin
       .from('pagos')
       .select('id, monto')
@@ -179,20 +217,61 @@ test.describe('Vender — entrega (anticipo al boleto)', () => {
       .eq('motivo', 'entrega')
       .single()
 
-    expect(pagoSena!.monto).toBe(100)
-    expect(pagoEntrega!.monto).toBe(1900)
+    expect(pagoSena!.monto).toBe(500)
+    expect(pagoEntrega!.monto).toBe(5000)
 
-    const { data: imputacionesSena } = await admin
+    const { data: imputaciones } = await admin
       .from('pago_imputaciones')
       .select('id')
-      .eq('pago_id', pagoSena!.id)
-    expect(imputacionesSena!.length).toBeGreaterThan(0)
+      .in('pago_id', [pagoSena!.id, pagoEntrega!.id])
+    expect(imputaciones).toHaveLength(0)
+  })
 
-    const { data: imputacionesEntrega } = await admin
-      .from('pago_imputaciones')
-      .select('id')
-      .eq('pago_id', pagoEntrega!.id)
-    expect(imputacionesEntrega).toHaveLength(0)
+  test('el documento firmado se conserva al rebotar por cliente existente', async ({ page }) => {
+    // Bug reportado por Gabriel el 05/09: cuando el comprador ya tenía
+    // cuenta (segundo lote del mismo cliente), el aviso de "ya existe una
+    // cuenta" volvía al formulario perdiendo el documento ya adjuntado, y
+    // había que subirlo de nuevo para poder confirmar la venta.
+    const admin = createAdminClient()
+    const emailRepetido = `comprador.repetido.${Date.now()}@sima-e2e.invalid`
+
+    // Primera venta: crea la cuenta del cliente.
+    const primerLoteId = await crearLoteReservadoListoParaVender(
+      `E2E Doc Preservado A ${Date.now()}`,
+      5000,
+      fixtures.acreedorConDatos.id
+    )
+    await login(page, fixtures.admin.email, fixtures.password)
+    await venderConEntrega(page, primerLoteId, { email: emailRepetido, fullName: 'Comprador Repetido' })
+    await page.waitForURL('**/admin/lotes')
+
+    // Segunda venta con el MISMO email: acá aparece el aviso.
+    const segundoLoteId = await crearLoteReservadoListoParaVender(
+      `E2E Doc Preservado B ${Date.now()}`,
+      6000,
+      fixtures.acreedorConDatos.id
+    )
+    await venderConEntrega(page, segundoLoteId, { email: emailRepetido, fullName: 'Comprador Repetido' })
+
+    await expect(page.getByText('Ya existe una cuenta de cliente con ese email')).toBeVisible()
+
+    // El path del documento sigue en el formulario: se puede confirmar sin
+    // volver a adjuntar nada.
+    const pathConservado = await page
+      .locator('input[type="hidden"][name="documentoFirmado"]')
+      .inputValue()
+    expect(pathConservado).toContain(`ventas/${segundoLoteId}/`)
+
+    await page.getByRole('button', { name: 'Confirmar venta con esta cuenta existente' }).click()
+    await page.waitForURL('**/admin/lotes')
+
+    const { data: lote } = await admin
+      .from('lotes')
+      .select('estado, documento_firmado_path')
+      .eq('id', segundoLoteId)
+      .single()
+    expect(lote!.estado).toBe('vendido')
+    expect(lote!.documento_firmado_path).toBe(pathConservado)
   })
 
   test('entrega inválida (negativa) corta sin completar la venta, preservando el resto del formulario', async ({

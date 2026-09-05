@@ -27,6 +27,7 @@ export default async function VenderLotePage({
     modo?: string
     entregaMonto?: string
     interesMoratorioDiario?: string
+    documentoFirmado?: string
     [cuotaMontoKey: string]: string | undefined
   }>
 }) {
@@ -45,6 +46,7 @@ export default async function VenderLotePage({
     modo: modoPreservado,
     entregaMonto: entregaMontoPreservado,
     interesMoratorioDiario: interesMoratorioDiarioPreservado,
+    documentoFirmado: documentoFirmadoPreservado,
   } = sp
 
   await requireAdministrador()
@@ -53,7 +55,7 @@ export default async function VenderLotePage({
 
   const { data: lote } = await supabase
     .from('lotes')
-    .select('id, identificador, estado, precio_total')
+    .select('id, identificador, estado, precio_total, moneda')
     .eq('id', id)
     .single()
 
@@ -135,8 +137,8 @@ export default async function VenderLotePage({
               <p className="mt-1">
                 Si confirmás, este lote se va a asociar a esa cuenta ya existente (no se manda
                 ningún mail de invitación nuevo). Revisá que sea la persona correcta antes de
-                confirmar. Volvé a adjuntar el documento firmado, ya que no se conserva al volver
-                a esta pantalla.
+                confirmar. El documento firmado que ya adjuntaste se conserva: no hace falta
+                volver a subirlo.
               </p>
               {dniReserva && dniPerfil && (
                 <p className="mt-2">
@@ -183,6 +185,7 @@ export default async function VenderLotePage({
             <CuotasYDocumento
               loteId={id}
               precioTotal={lote!.precio_total}
+              monedaLote={lote!.moneda}
               montoSenaRegistrada={reserva?.monto_sena ?? null}
               monedaSena={reserva?.moneda_sena ?? null}
               cantidadCuotasInicial={cantidadCuotasPreservada ?? ''}
@@ -190,6 +193,7 @@ export default async function VenderLotePage({
               montosInicial={montosInicial}
               entregaInicial={entregaMontoPreservado ?? ''}
               interesMoratorioDiarioInicial={interesMoratorioDiarioPreservado ?? ''}
+              documentoInicial={documentoFirmadoPreservado ?? null}
             />
 
             <BotonEnvio className={`cursor-pointer ${BOTON_PRIMARIO}`}>

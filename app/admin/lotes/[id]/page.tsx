@@ -403,7 +403,7 @@ export default async function LoteDetallePage({
     // ya aplicada quede reflejada bien.
     const { data: pagosConfirmados } = await supabase
       .from('pagos')
-      .select('id')
+      .select('id, monto, motivo')
       .eq('lote_id', id)
       .eq('estado', 'confirmado')
 
@@ -411,13 +411,24 @@ export default async function LoteDetallePage({
 
     const { data: imputaciones } =
       pagoIdsConfirmados.length > 0
-        ? await supabase.from('pago_imputaciones').select('monto_imputado').in('pago_id', pagoIdsConfirmados)
+        ? await supabase
+            .from('pago_imputaciones')
+            .select('pago_id, monto_imputado')
+            .in('pago_id', pagoIdsConfirmados)
         : { data: [] }
 
-    totalCobradoHistorico = (imputaciones ?? []).reduce(
-      (acumulado, i) => acumulado + i.monto_imputado,
-      0
-    )
+    // La seña y la entrega son plata realmente cobrada pero, desde el
+    // 05/09, ya vienen descontadas del total a financiar y por eso no
+    // tienen filas en pago_imputaciones. Si solo sumáramos imputaciones,
+    // el "total cobrado" de un lote rescindido las dejaría afuera.
+    const pagoIdsConImputacion = new Set((imputaciones ?? []).map((i) => i.pago_id))
+    const cobradoSinImputar = (pagosConfirmados ?? [])
+      .filter((p) => !pagoIdsConImputacion.has(p.id) && (p.motivo === 'sena' || p.motivo === 'entrega'))
+      .reduce((acumulado, p) => acumulado + p.monto, 0)
+
+    totalCobradoHistorico =
+      (imputaciones ?? []).reduce((acumulado, i) => acumulado + i.monto_imputado, 0) +
+      cobradoSinImputar
   }
 
   // Destinos: a quién se le distribuyó cada cuota de este lote, según la

@@ -6,7 +6,7 @@ import { redirect } from 'next/navigation'
 import { requireAdministrador } from '@/lib/auth/require-admin'
 import { calcularMontoCuota } from '@/lib/lotes/calcular-monto-cuota'
 import { generarCuotas, generarCuotasManual, CuotaGenerada } from '@/lib/lotes/generar-cuotas'
-import { imputarPagoFIFO } from '@/lib/pagos/imputar-fifo'
+import { calcularMontoAFinanciar } from '@/lib/lotes/monto-a-financiar'
 import { mensajeDeError } from '@/lib/errores'
 import { obtenerSiteUrl } from '@/lib/config/site-url'
 
@@ -19,6 +19,13 @@ function construirParamsPreservados(formData: FormData): URLSearchParams {
     modo: (formData.get('modo') as string) || 'automatico',
     entregaMonto: (formData.get('entregaMonto') as string) || '',
     interesMoratorioDiario: (formData.get('interesMoratorioDiario') as string) || '',
+    // El documento firmado ya está subido a Storage (CampoArchivoDirecto
+    // sube directo del navegador y acá solo viaja el path), así que
+    // conservarlo es gratis. Antes no se preservaba y el admin tenía que
+    // volver a adjuntarlo cada vez que el formulario rebotaba -- sobre todo
+    // en el rebote de "ya existe una cuenta con ese email", que es
+    // obligatorio y le pasa a todo cliente que compra un segundo lote.
+    documentoFirmado: (formData.get('documentoFirmado') as string) || '',
   })
 
   const cantidadCuotas = Number(formData.get('cantidadCuotas')) || 0
@@ -185,6 +192,29 @@ export async function venderLote(loteId: string, formData: FormData) {
     }
   }
 
+  // Seña que se descuenta del total a financiar: solo si la reserva tiene
+  // seña en la MISMA moneda del lote (mismo criterio de "sin conversión de
+  // moneda" que el resto del proyecto). Si la moneda difiere, la seña queda
+  // registrada como pago pero no se descuenta de las cuotas.
+  const senaADescontar =
+    reserva && reserva.monto_sena > 0 && reserva.moneda_sena === loteActual!.moneda
+      ? reserva.monto_sena
+      : 0
+
+  const montoAFinanciar = calcularMontoAFinanciar({
+    precioTotal: loteActual!.precio_total as number,
+    montoSena: senaADescontar,
+    entrega: entregaMonto,
+  })
+
+  if (montoAFinanciar < 0) {
+    redirectVenderConError(
+      loteId,
+      `La seña (${senaADescontar}) más la entrega (${entregaMonto}) superan el precio del lote (${loteActual!.precio_total}). Revisá el monto de la entrega.`,
+      construirParamsPreservados(formData)
+    )
+  }
+
   const interesMoratorioDiarioRaw = ((formData.get('interesMoratorioDiario') as string) || '').trim()
   let interesMoratorioDiario: number | null = null
   if (interesMoratorioDiarioRaw !== '') {
@@ -322,9 +352,10 @@ export async function venderLote(loteId: string, formData: FormData) {
     montoCuotaBase = null
     cuotas = generarCuotasManual(montosManuales, fechaPrimeraCuota)
   } else {
-    const precioTotal = loteActual!.precio_total as number
-    montoCuotaBase = calcularMontoCuota(precioTotal, cantidadCuotas)
-    cuotas = generarCuotas(cantidadCuotas, montoCuotaBase, fechaPrimeraCuota, precioTotal)
+    // Sobre `montoAFinanciar`, NO sobre el precio de lista: lo que se
+    // divide en cuotas es lo que queda después de la seña y la entrega.
+    montoCuotaBase = calcularMontoCuota(montoAFinanciar, cantidadCuotas)
+    cuotas = generarCuotas(cantidadCuotas, montoCuotaBase, fechaPrimeraCuota, montoAFinanciar)
   }
 
   // Claim atomico: solo vende si el lote SIGUE reservado en este instante
@@ -385,74 +416,37 @@ export async function venderLote(loteId: string, formData: FormData) {
     )
   }
 
-  // Descuento de la seña de la reserva en las cuotas recien generadas: si
-  // hay una reserva activa con seña > 0 en la misma moneda del lote, se
-  // registra como un pago ya confirmado (la seña ya se verifico al
-  // reservar, con su propio comprobante) y se reparte en cascada con el
-  // mismo FIFO que un pago normal. Si la moneda de la seña difiere de la
-  // del lote, no se descuenta nada automatico -- mismo criterio de "sin
-  // conversion de moneda" que el resto del proyecto.
-  if (reserva && reserva.monto_sena > 0 && reserva.moneda_sena === loteActual!.moneda) {
-    const { data: pagoSena, error: errorPagoSena } = await admin
-      .from('pagos')
-      .insert({
-        cliente_id: clienteId,
-        lote_id: loteId,
-        monto: reserva.monto_sena,
-        moneda: reserva.moneda_sena,
-        comprobante_path: reserva.comprobante_sena_path,
-        motivo: 'sena',
-        estado: 'confirmado',
-        confirmado_admin_por: adminUser!.id,
-        confirmado_admin_at: new Date().toISOString(),
-      })
-      .select('id')
-      .single()
+  // La seña de la reserva queda registrada como un pago ya confirmado (se
+  // verificó al reservar, con su propio comprobante) pero NO se imputa
+  // contra ninguna cuota: desde el 05/09 ya viene descontada del total a
+  // financiar, así que imputarla sería descontar la misma plata dos veces.
+  // Si la seña está en otra moneda que el lote, `senaADescontar` es 0 y no
+  // se registra nada -- mismo criterio de siempre.
+  if (senaADescontar > 0) {
+    const { error: errorPagoSena } = await admin.from('pagos').insert({
+      cliente_id: clienteId,
+      lote_id: loteId,
+      monto: senaADescontar,
+      moneda: reserva!.moneda_sena,
+      comprobante_path: reserva!.comprobante_sena_path,
+      motivo: 'sena',
+      estado: 'confirmado',
+      confirmado_admin_por: adminUser!.id,
+      confirmado_admin_at: new Date().toISOString(),
+    })
 
-    if (errorPagoSena || !pagoSena) {
+    if (errorPagoSena) {
       redirect(
         `/admin/lotes/${loteId}/vender?error=${encodeURIComponent(
           `La venta se completó pero no se pudo registrar la seña como pago: ${mensajeDeError(errorPagoSena)}`
         )}`
       )
     }
-
-    const cuotasOrdenadas = [...cuotasCreadas]
-      .sort((a, b) => a.numero - b.numero)
-      .map((cuota) => ({ id: cuota.id, saldoPendiente: cuota.saldo_pendiente }))
-    const resultado = imputarPagoFIFO(reserva.monto_sena, cuotasOrdenadas)
-
-    for (const imputacion of resultado.imputaciones) {
-      const { error: errorImputacion } = await admin.from('pago_imputaciones').insert({
-        pago_id: pagoSena!.id,
-        cuota_id: imputacion.cuotaId,
-        monto_imputado: imputacion.montoImputado,
-      })
-
-      if (errorImputacion) {
-        redirect(
-          `/admin/lotes/${loteId}/vender?error=${encodeURIComponent(
-            `La venta y la seña se registraron, pero falló aplicar el descuento a una cuota: ${mensajeDeError(errorImputacion)}`
-          )}`
-        )
-      }
-
-      const cuota = cuotasOrdenadas.find((c) => c.id === imputacion.cuotaId)!
-      const { error: errorSaldo } = await admin
-        .from('cuotas')
-        .update({ saldo_pendiente: cuota.saldoPendiente - imputacion.montoImputado })
-        .eq('id', imputacion.cuotaId)
-
-      if (errorSaldo) {
-        redirect(
-          `/admin/lotes/${loteId}/vender?error=${encodeURIComponent(
-            `La venta y la seña se registraron, pero falló actualizar el saldo de una cuota: ${mensajeDeError(errorSaldo)}`
-          )}`
-        )
-      }
-    }
   }
 
+  // Ídem la entrega: es plata que el comprador ya puso, ya descontada del
+  // total a financiar. Se registra como pago confirmado para que aparezca
+  // en el historial del lote y en la caja, sin imputación contra cuotas.
   if (entregaMonto > 0) {
     const { error: errorPagoEntrega } = await admin.from('pagos').insert({
       cliente_id: clienteId,

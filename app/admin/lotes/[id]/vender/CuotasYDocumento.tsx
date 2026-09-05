@@ -3,12 +3,14 @@
 import { useState } from 'react'
 import { calcularMontoCuota } from '@/lib/lotes/calcular-monto-cuota'
 import { generarCuotas } from '@/lib/lotes/generar-cuotas'
+import { calcularMontoAFinanciar } from '@/lib/lotes/monto-a-financiar'
 import { CampoArchivoDirecto } from '@/components/CampoArchivoDirecto'
 import { ENTRADA } from '@/lib/ui/clases'
 
 interface Props {
   loteId: string
   precioTotal: number | null
+  monedaLote: string
   montoSenaRegistrada: number | null
   monedaSena: string | null
   cantidadCuotasInicial: string
@@ -16,22 +18,30 @@ interface Props {
   montosInicial: string[]
   entregaInicial: string
   interesMoratorioDiarioInicial: string
+  // Path del documento ya subido a Storage, cuando el formulario rebotó
+  // (por ejemplo por la confirmación de cliente existente). Se conserva
+  // para no obligar al admin a volver a adjuntarlo.
+  documentoInicial: string | null
 }
 
 const MAX_CUOTAS = 600
 
-function calcularMontosAutomaticos(precioTotal: number, cantidadCuotas: number): string[] {
-  const base = calcularMontoCuota(precioTotal, cantidadCuotas)
+// Se calcula sobre lo que queda por financiar (precio - seña - entrega), no
+// sobre el precio de lista: es la misma cuenta que hace venderLote() del
+// lado del servidor, para que lo que se ve acá sea lo que se va a guardar.
+function calcularMontosAutomaticos(montoAFinanciar: number, cantidadCuotas: number): string[] {
+  const base = calcularMontoCuota(montoAFinanciar, cantidadCuotas)
   // La fecha es un placeholder -- este componente solo usa los montos de
   // cada cuota, no las fechas de vencimiento que generarCuotas() también
   // calcula.
-  const cuotas = generarCuotas(cantidadCuotas, base, '2000-01-01', precioTotal)
+  const cuotas = generarCuotas(cantidadCuotas, base, '2000-01-01', montoAFinanciar)
   return cuotas.map((cuota) => String(cuota.montoBase))
 }
 
 export function CuotasYDocumento({
   loteId,
   precioTotal,
+  monedaLote,
   montoSenaRegistrada,
   monedaSena,
   cantidadCuotasInicial,
@@ -39,6 +49,7 @@ export function CuotasYDocumento({
   montosInicial,
   entregaInicial,
   interesMoratorioDiarioInicial,
+  documentoInicial,
 }: Props) {
   const [cantidadCuotasTexto, setCantidadCuotasTexto] = useState(cantidadCuotasInicial)
   const [modo, setModo] = useState<'automatico' | 'manual'>(modoInicial)
@@ -46,47 +57,64 @@ export function CuotasYDocumento({
   const [interesMoratorioDiarioTexto, setInteresMoratorioDiarioTexto] = useState(
     interesMoratorioDiarioInicial
   )
-  const [montos, setMontos] = useState<string[]>(() => {
-    const cantidadInicialNum = Math.min(Number(cantidadCuotasInicial) || 0, MAX_CUOTAS)
-    if (modoInicial === 'automatico' && precioTotal !== null && cantidadInicialNum > 0) {
-      return calcularMontosAutomaticos(precioTotal, cantidadInicialNum)
-    }
-    return montosInicial
-  })
+  // Solo se usa en modo manual: en automático los montos son derivados
+  // (dependen de la cantidad de cuotas Y de la entrega, que cambia mientras
+  // se tipea), así que tenerlos en estado obligaba a sincronizarlos a mano.
+  const [montosManuales, setMontosManuales] = useState<string[]>(montosInicial)
 
   const cantidadCuotas = Math.min(Number(cantidadCuotasTexto) || 0, MAX_CUOTAS)
+  const entrega = Number(entregaTexto) || 0
 
-  function recalcularMontos(nuevaCantidad: number, modoActual: 'automatico' | 'manual') {
-    if (modoActual === 'automatico' && precioTotal !== null && nuevaCantidad > 0) {
-      setMontos(calcularMontosAutomaticos(precioTotal, nuevaCantidad))
-      return
+  // La seña solo se descuenta si está en la misma moneda del lote -- mismo
+  // criterio que venderLote() del lado del servidor.
+  const senaADescontar =
+    montoSenaRegistrada !== null && montoSenaRegistrada > 0 && monedaSena === monedaLote
+      ? montoSenaRegistrada
+      : 0
+
+  const montoAFinanciar =
+    precioTotal === null
+      ? null
+      : calcularMontoAFinanciar({ precioTotal, montoSena: senaADescontar, entrega })
+
+  const montosAutomaticos =
+    montoAFinanciar !== null && montoAFinanciar >= 0 && cantidadCuotas > 0
+      ? calcularMontosAutomaticos(montoAFinanciar, cantidadCuotas)
+      : []
+
+  function manejarCambioModo(nuevoModo: 'automatico' | 'manual') {
+    setModo(nuevoModo)
+    // Al pasar a manual se arranca desde el reparto automático, que es lo
+    // que el admin viene viendo en pantalla -- después lo edita.
+    if (nuevoModo === 'manual' && cantidadCuotas > 0) {
+      setMontosManuales((anteriores) =>
+        Array.from({ length: cantidadCuotas }, (_, i) => anteriores[i] ?? montosAutomaticos[i] ?? '')
+      )
     }
-    setMontos((anteriores) => Array.from({ length: nuevaCantidad }, (_, i) => anteriores[i] ?? ''))
   }
 
   function manejarCambioCantidadCuotas(valor: string) {
     setCantidadCuotasTexto(valor)
-    recalcularMontos(Math.min(Number(valor) || 0, MAX_CUOTAS), modo)
-  }
-
-  function manejarCambioModo(nuevoModo: 'automatico' | 'manual') {
-    setModo(nuevoModo)
-    recalcularMontos(cantidadCuotas, nuevoModo)
+    const nuevaCantidad = Math.min(Number(valor) || 0, MAX_CUOTAS)
+    setMontosManuales((anteriores) =>
+      Array.from({ length: nuevaCantidad }, (_, i) => anteriores[i] ?? '')
+    )
   }
 
   function manejarCambioMonto(indice: number, valor: string) {
-    setMontos((anteriores) => {
+    setMontosManuales((anteriores) => {
       const nuevos = [...anteriores]
       nuevos[indice] = valor
       return nuevos
     })
   }
 
-  const entrega = Number(entregaTexto) || 0
-  const sumaManual = Math.round(montos.reduce((acc, valor) => acc + (Number(valor) || 0), 0) * 100) / 100
+  const montos = modo === 'manual' ? montosManuales : montosAutomaticos
+  const sumaManual =
+    Math.round(montosManuales.reduce((acc, valor) => acc + (Number(valor) || 0), 0) * 100) / 100
   const diferencia =
-    modo === 'manual' && precioTotal !== null
-      ? Math.round((sumaManual + entrega - precioTotal) * 100) / 100
+    modo === 'manual' && montoAFinanciar !== null
+      ? Math.round((sumaManual - montoAFinanciar) * 100) / 100
       : null
 
   return (
@@ -131,7 +159,8 @@ export function CuotasYDocumento({
       </fieldset>
 
       <label className="text-sm text-slate-600">
-        Entrega (opcional — monto entregado al firmar el boleto, además de la seña)
+        Entrega (opcional — monto entregado al firmar, además de la seña). Se descuenta del total
+        antes de dividir en cuotas.
         <input
           name="entregaMonto"
           type="number"
@@ -177,40 +206,47 @@ export function CuotasYDocumento({
           />
         ))}
 
-      {cantidadCuotas > 0 && precioTotal !== null && (
+      {cantidadCuotas > 0 && precioTotal !== null && montoAFinanciar !== null && (
         <div className="rounded-lg border border-blue-100 bg-blue-50/40 p-3 text-sm text-blue-900">
           <p className="font-semibold">Balance</p>
-          <p className="mt-1">Precio de lista del lote: {precioTotal}</p>
+          <p className="mt-1">
+            Precio de lista del lote: {precioTotal} {monedaLote}
+          </p>
+          {senaADescontar > 0 && <p>− Seña ya cobrada en la reserva: {senaADescontar}</p>}
+          {montoSenaRegistrada !== null && montoSenaRegistrada > 0 && senaADescontar === 0 && (
+            <p className="text-amber-800">
+              La seña registrada ({montoSenaRegistrada} {monedaSena}) está en otra moneda que el
+              lote ({monedaLote}): queda registrada como pago pero no se descuenta de las cuotas.
+            </p>
+          )}
+          {entrega > 0 && <p>− Entrega al firmar: {entrega}</p>}
+          <p className="mt-1 font-medium">
+            = Queda a financiar en cuotas: {montoAFinanciar} {monedaLote}
+          </p>
+          {montoAFinanciar < 0 && (
+            <p className="mt-1 font-medium text-red-700">
+              La seña y la entrega superan el precio del lote. Revisá el monto de la entrega antes
+              de confirmar.
+            </p>
+          )}
           {modo === 'automatico' ? (
-            <p>
+            <p className="mt-1">
               {cantidadCuotas} cuota{cantidadCuotas === 1 ? '' : 's'} de {montos[0] ?? ''}
               {montos.length > 1 && ` (la última: ${montos[montos.length - 1]})`}
             </p>
           ) : (
             <>
-              <p>Suma total de las cuotas cargadas: {sumaManual}</p>
-              {diferencia !== null && (
-                <p className="font-medium">
-                  Diferencia respecto al precio de lista: {diferencia > 0 ? '+' : ''}
+              <p className="mt-1">Suma total de las cuotas cargadas: {sumaManual}</p>
+              {diferencia !== null && diferencia !== 0 && (
+                <p className="font-medium text-amber-800">
+                  Diferencia respecto a lo que queda a financiar: {diferencia > 0 ? '+' : ''}
                   {diferencia}
                 </p>
               )}
             </>
           )}
-          {montoSenaRegistrada !== null && montoSenaRegistrada > 0 && (
-            <p>
-              Seña ya registrada: {montoSenaRegistrada} {monedaSena} (se descuenta de las primeras
-              cuotas al confirmar)
-            </p>
-          )}
-          {entrega > 0 && (
-            <p>
-              Entrega ingresada: {entrega} (no se descuenta de ninguna cuota, reduce el total
-              financiado)
-            </p>
-          )}
           {Number(interesMoratorioDiarioTexto) > 0 && (
-            <p>
+            <p className="mt-1">
               Interés moratorio: {interesMoratorioDiarioTexto}% diario sobre el saldo impago de
               una cuota, desde el día siguiente a su vencimiento
             </p>
@@ -225,6 +261,7 @@ export function CuotasYDocumento({
         tipoArchivo="documento"
         label="Documento firmado (boleto de compraventa o escritura)"
         nombreError="El documento firmado"
+        valorInicial={documentoInicial}
         required
       />
     </>
