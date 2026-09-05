@@ -7,8 +7,12 @@ import { Page } from '@playwright/test'
  */
 export async function login(page: Page, email: string, password: string) {
   await page.goto('/login')
-  await page.getByPlaceholder('Email').fill(email)
-  await page.getByPlaceholder('Contraseña').fill(password)
+  // Por `name`, no por placeholder: el rediseño del login (commit 2c9b9b5)
+  // cambió los placeholders a "tu@email.com" y "••••••••" y dejó a toda la
+  // suite sin poder loguearse. El atributo `name` es el que el form action
+  // realmente lee, así que es el selector estable.
+  await page.locator('input[name="email"]').fill(email)
+  await page.locator('input[name="password"]').fill(password)
   await page.getByRole('button', { name: 'Ingresar' }).click()
   await page.waitForURL(/\/(admin|portal-cliente)/)
 }

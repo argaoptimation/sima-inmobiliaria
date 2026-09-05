@@ -3,8 +3,15 @@ import { defineConfig, devices } from '@playwright/test'
 // Configuración de Playwright para el suite E2E de SIMA Inmobiliaria.
 //
 // La suite reutiliza el servidor de desarrollo si ya hay uno corriendo en el
-// puerto 3000 (reuseExistingServer: true) para no pelear con una sesión de
+// puerto elegido (reuseExistingServer: true) para no pelear con una sesión de
 // testeo manual, pero también puede levantar el suyo si hace falta.
+//
+// El puerto es configurable (05/09): con otra app ocupando el 3000, Playwright
+// se enganchaba a ESA y toda la suite fallaba con 404 en /login, que es un
+// síntoma muy poco obvio. `PORT=3001 npm run test:e2e` evita el choque.
+const PUERTO = process.env.PORT ?? '3000'
+const BASE_URL = process.env.PLAYWRIGHT_BASE_URL ?? `http://localhost:${PUERTO}`
+
 export default defineConfig({
   testDir: './tests/e2e',
   fullyParallel: false,
@@ -14,7 +21,7 @@ export default defineConfig({
   reporter: [['html', { open: 'never' }], ['list']],
   timeout: 60_000,
   use: {
-    baseURL: 'http://localhost:3000',
+    baseURL: BASE_URL,
     trace: 'retain-on-failure',
     screenshot: 'only-on-failure',
     video: 'retain-on-failure',
@@ -30,8 +37,8 @@ export default defineConfig({
     },
   ],
   webServer: {
-    command: 'npm run dev',
-    url: 'http://localhost:3000',
+    command: `npm run dev -- -p ${PUERTO}`,
+    url: BASE_URL,
     reuseExistingServer: true,
     timeout: 120_000,
   },

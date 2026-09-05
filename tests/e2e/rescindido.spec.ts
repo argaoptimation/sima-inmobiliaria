@@ -236,7 +236,7 @@ test.describe('Rescindido de lote (24/08)', () => {
     // el submit se bloquea en silencio (campo oculto todavía vacío).
     await expect(page.locator('[data-testid="documentoFirmado"]')).toBeEnabled()
     await page.getByRole('button', { name: 'Confirmar venta y enviar invitación' }).click()
-    await page.waitForURL('**/admin/lotes')
+    await page.waitForURL(/\/distribucion/)
 
     // Sin choque: la venta se completó y quedó vendido de nuevo.
     const { data: loteFinal } = await admin

@@ -468,5 +468,13 @@ export async function venderLote(loteId: string, formData: FormData) {
     }
   }
 
-  redirect('/admin/lotes')
+  // Directo a repartir las cuotas (05/09, pedido de Gabriel: "la
+  // distribución de cuotas la vamos a poner en el paso de reservado a
+  // vendido"). Las cuotas recién existen después de confirmar la venta,
+  // así que el momento natural para repartirlas es este, apenas se crean.
+  redirect(
+    `/admin/lotes/${loteId}/distribucion?ok=${encodeURIComponent(
+      'Venta confirmada. Repartí las cuotas y elegí a quién se le transfiere cada una.'
+    )}`
+  )
 }

@@ -132,5 +132,31 @@ export async function guardarDistribucionLote(loteId: string, formData: FormData
     )
   }
 
+  // Cuenta que cobra cada cuota (05/09). Va aparte del RPC de arriba porque
+  // no es una fila de distribución sino una columna de la propia cuota: es
+  // el alias que el cliente ve en su portal cuando va a pagar ESA cuota.
+  // Vacío = cae a la cuenta del lote, que es como funcionaba antes.
+  for (const cuota of cuotas) {
+    const clave = ((formData.get(`cuota${cuota.numero}CuentaCobro`) as string) || '').trim()
+    const destino = clave ? parseParticipanteKey(clave) : null
+
+    const { error: errorCuenta } = await supabase
+      .from('cuotas')
+      .update({
+        cuenta_cobro_id: destino?.profile_id ?? null,
+        cuenta_cobro_externa_id: destino?.cuenta_externa_id ?? null,
+      })
+      .eq('id', cuota.id)
+
+    if (errorCuenta) {
+      console.error('No se pudo guardar la cuenta de cobro de una cuota:', errorCuenta)
+      redirect(
+        `/admin/lotes/${loteId}/distribucion?error=${encodeURIComponent(
+          `La distribución se guardó, pero falló guardar a quién se le transfiere la cuota ${cuota.numero}. Probá de nuevo.`
+        )}`
+      )
+    }
+  }
+
   redirect(`/admin/lotes/${loteId}/distribucion?ok=1`)
 }

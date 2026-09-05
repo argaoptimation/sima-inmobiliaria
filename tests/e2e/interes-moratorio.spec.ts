@@ -88,7 +88,7 @@ test.describe('Interés moratorio diario por lote', () => {
       fullName: 'Comprador Con Interés',
       interesMoratorioDiario: '1.5',
     })
-    await page.waitForURL('**/admin/lotes')
+    await page.waitForURL(/\/distribucion/)
 
     const { data: lote } = await admin
       .from('lotes')
@@ -110,7 +110,7 @@ test.describe('Interés moratorio diario por lote', () => {
 
     await login(page, fixtures.admin.email, fixtures.password)
     await venderConInteres(page, loteId, { email, fullName: 'Comprador Sin Interés' })
-    await page.waitForURL('**/admin/lotes')
+    await page.waitForURL(/\/distribucion/)
 
     const { data: lote } = await admin
       .from('lotes')
@@ -162,7 +162,7 @@ test.describe('Interés moratorio diario por lote', () => {
       fullName: 'Comprador Interés Acumulado',
       interesMoratorioDiario: '1',
     })
-    await page.waitForURL('**/admin/lotes')
+    await page.waitForURL(/\/distribucion/)
 
     // Simula el ejemplo real de Nicolás: cuota de $100, vencida hace 4 días,
     // con $20 de saldo impago tras un pago parcial de $80 -- 1%/día sobre

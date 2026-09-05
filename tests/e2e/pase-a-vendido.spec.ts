@@ -147,7 +147,7 @@ test.describe('Pase a vendido (fase 2)', () => {
     // el submit se bloquea en silencio (campo oculto todavía vacío).
     await expect(page.locator('[data-testid="documentoFirmado"]')).toBeEnabled()
     await page.getByRole('button', { name: 'Confirmar venta y enviar invitación' }).click()
-    await page.waitForURL('**/admin/lotes')
+    await page.waitForURL(/\/distribucion/)
 
     const admin = createAdminClient()
     const { data: lote } = await admin
@@ -201,7 +201,7 @@ test.describe('Pase a vendido (fase 2)', () => {
     // el submit se bloquea en silencio (campo oculto todavía vacío).
     await expect(page.locator('[data-testid="documentoFirmado"]')).toBeEnabled()
     await page.getByRole('button', { name: 'Confirmar venta y enviar invitación' }).click()
-    await page.waitForURL('**/admin/lotes')
+    await page.waitForURL(/\/distribucion/)
 
     const admin = createAdminClient()
     const { data: lote } = await admin.from('lotes').select('cliente_id').eq('id', loteId).single()
@@ -273,7 +273,7 @@ test.describe('Pase a vendido (fase 2)', () => {
     // el submit se bloquea en silencio (campo oculto todavía vacío).
     await expect(page.locator('[data-testid="documentoFirmado"]')).toBeEnabled()
     await page.getByRole('button', { name: 'Confirmar venta y enviar invitación' }).click()
-    await page.waitForURL('**/admin/lotes')
+    await page.waitForURL(/\/distribucion/)
 
     const admin = createAdminClient()
     const { data: lote } = await admin.from('lotes').select('cliente_id').eq('id', loteId).single()
@@ -328,7 +328,7 @@ test.describe('Pase a vendido (fase 2)', () => {
     // el submit se bloquea en silencio (campo oculto todavía vacío).
     await expect(page.locator('[data-testid="documentoFirmado"]')).toBeEnabled()
     await page.getByRole('button', { name: 'Confirmar venta y enviar invitación' }).click()
-    await page.waitForURL('**/admin/lotes')
+    await page.waitForURL(/\/distribucion/)
 
     const admin = createAdminClient()
     const { data: cuotas } = await admin
@@ -366,7 +366,7 @@ test.describe('Pase a vendido (fase 2)', () => {
     // el submit se bloquea en silencio (campo oculto todavía vacío).
     await expect(page.locator('[data-testid="documentoFirmado"]')).toBeEnabled()
     await page.getByRole('button', { name: 'Confirmar venta y enviar invitación' }).click()
-    await page.waitForURL('**/admin/lotes')
+    await page.waitForURL(/\/distribucion/)
 
     const admin = createAdminClient()
     const { data: lote } = await admin.from('lotes').select('cliente_id').eq('id', loteId).single()
@@ -405,7 +405,7 @@ test.describe('Pase a vendido (fase 2)', () => {
     // el submit se bloquea en silencio (campo oculto todavía vacío).
     await expect(page.locator('[data-testid="documentoFirmado"]')).toBeEnabled()
     await page.getByRole('button', { name: 'Confirmar venta y enviar invitación' }).click()
-    await page.waitForURL('**/admin/lotes')
+    await page.waitForURL(/\/distribucion/)
 
     const admin = createAdminClient()
     const { data: lote } = await admin.from('lotes').select('cliente_id').eq('id', loteId).single()

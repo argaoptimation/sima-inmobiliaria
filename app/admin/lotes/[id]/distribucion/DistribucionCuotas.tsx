@@ -30,6 +30,13 @@ interface Props {
   participantesElegibles: Participante[]
   objetivosIniciales: { participanteKey: string; monto: string }[]
   distribucionesIniciales: Record<number, { participanteKey: string; monto: string }[]>
+  // A qué cuenta se transfiere cada cuota (clave de participante o ''
+  // cuando todavía no se eligió y hay que caer a la del lote).
+  cuentaCobroInicialPorCuota: Record<number, string>
+  cuentaCobroDelLote: string
+  // Saldo de cuenta corriente que ya tiene cada integrante, en la moneda
+  // del lote. Positivo = la empresa todavía le debe.
+  saldoActualPorClave: Record<string, number>
 }
 
 let contadorIds = 0
@@ -97,12 +104,18 @@ export function DistribucionCuotas({
   participantesElegibles,
   objetivosIniciales,
   distribucionesIniciales,
+  cuentaCobroInicialPorCuota,
+  cuentaCobroDelLote,
+  saldoActualPorClave,
 }: Props) {
   const [objetivos, setObjetivos] = useState<Fila[]>(() => objetivosIniciales.map(conId))
   const [distribuciones, setDistribuciones] = useState<Record<number, Fila[]>>(() =>
     Object.fromEntries(
       Object.entries(distribucionesIniciales).map(([numero, filas]) => [numero, filas.map(conId)])
     )
+  )
+  const [cuentasCobro, setCuentasCobro] = useState<Record<number, string>>(
+    () => cuentaCobroInicialPorCuota
   )
 
   function nombrePorClave(clave: string) {
@@ -142,6 +155,20 @@ export function DistribucionCuotas({
     }))
   }
 
+  // Cuánto le entra DIRECTO a cada integrante: la suma de las cuotas cuya
+  // cuenta de cobro es esa persona. Es la contracara de lo que le
+  // corresponde por distribución, y lo que permite decir "con este vendedor
+  // ya estoy al día" sin salir de la pantalla (05/09, pedido de Gabriel).
+  const cobraDirectoPorClave = (() => {
+    const acumulados = new Map<string, number>()
+    for (const cuota of cuotas) {
+      const clave = cuentasCobro[cuota.numero] || cuentaCobroDelLote
+      if (!clave) continue
+      acumulados.set(clave, Math.round(((acumulados.get(clave) ?? 0) + cuota.montoBase) * 100) / 100)
+    }
+    return acumulados
+  })()
+
   // Resumen recalculado en cada render a partir del estado local -- cruza
   // TODAS las cuotas ya editadas en esta sesión (no solo lo persistido),
   // sin ninguna llamada de red. Es lo que le permite a Nicolás ver bajar
@@ -166,14 +193,36 @@ export function DistribucionCuotas({
       objetivosPorClave.set(fila.participanteKey, (objetivosPorClave.get(fila.participanteKey) ?? 0) + monto)
     }
 
-    const claves = new Set<string>([...acumulados.keys(), ...objetivosPorClave.keys()])
+    const claves = new Set<string>([
+      ...acumulados.keys(),
+      ...objetivosPorClave.keys(),
+      ...cobraDirectoPorClave.keys(),
+    ])
 
     return Array.from(claves).map((clave) => {
       const acumulado = Math.round((acumulados.get(clave) ?? 0) * 100) / 100
       const objetivo = objetivosPorClave.has(clave) ? (objetivosPorClave.get(clave) as number) : null
-      return { clave, nombre: nombrePorClave(clave), acumulado, objetivo }
+      const cobraDirecto = Math.round((cobraDirectoPorClave.get(clave) ?? 0) * 100) / 100
+      const saldoActual = saldoActualPorClave[clave] ?? 0
+      // Positivo: la empresa le sigue debiendo. Negativo: cobró de más.
+      // Es el saldo de hoy MÁS lo que le va a corresponder por este lote
+      // MENOS lo que va a cobrar directo de las cuotas que le asignamos.
+      const saldoProyectado = Math.round((saldoActual + acumulado - cobraDirecto) * 100) / 100
+      return {
+        clave,
+        nombre: nombrePorClave(clave),
+        acumulado,
+        objetivo,
+        cobraDirecto,
+        saldoActual,
+        saldoProyectado,
+      }
     })
   })()
+
+  function resumenDe(clave: string) {
+    return resumen.find((fila) => fila.clave === clave) ?? null
+  }
 
   return (
     <>
@@ -227,54 +276,131 @@ export function DistribucionCuotas({
 
       <h2 className={`mb-2 ${TITULO_H2}`}>Cuotas — distribución</h2>
       <div className="mb-6 flex flex-col gap-4">
-        {cuotas.map((cuota) => (
-          <div key={cuota.numero} className="rounded-lg border border-blue-100 p-3">
-            <p className="mb-2 text-sm font-semibold text-blue-900">
-              Cuota {cuota.numero} — {cuota.montoBase} {moneda}
-            </p>
-            <div className="flex flex-col gap-2">
-              {(distribuciones[cuota.numero] ?? []).map((fila, indice) => (
-                <div key={fila.id} className="flex items-center gap-2">
-                  <SelectorParticipante
-                    name={`cuota${cuota.numero}Participante`}
-                    valor={fila.participanteKey}
-                    onChange={(valor) => modificarFilaCuota(cuota.numero, indice, 'participanteKey', valor)}
-                    opciones={participantesElegibles}
-                  />
-                  <input
-                    type="number"
-                    step="0.01"
-                    min="0"
-                    placeholder="Monto"
-                    value={fila.monto}
-                    onChange={(evento) =>
-                      modificarFilaCuota(cuota.numero, indice, 'monto', evento.target.value)
-                    }
-                    name={`cuota${cuota.numero}Monto`}
-                    className={`w-40 ${ENTRADA}`}
-                  />
+        {cuotas.map((cuota) => {
+          const claveQueCobra = cuentasCobro[cuota.numero] || cuentaCobroDelLote
+          const resumenQueCobra = claveQueCobra ? resumenDe(claveQueCobra) : null
+
+          return (
+            <div key={cuota.numero} className="rounded-lg border border-blue-100 p-3">
+              <p className="mb-2 text-sm font-semibold text-blue-900">
+                Cuota {cuota.numero} — {cuota.montoBase} {moneda}
+              </p>
+
+              {/* Dos columnas: a la izquierda cómo se reparte la comisión de
+                  esta cuota, a la derecha a quién se le transfiere y cómo le
+                  queda la cuenta a esa persona. Antes era todo un formulario
+                  vertical larguísimo (05/09, pedido de Gabriel: "empezar a
+                  utilizar más el ancho de la pantalla"). */}
+              <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(0,20rem)]">
+                <div className="flex flex-col gap-2">
+                  <p className="text-xs font-medium uppercase tracking-wide text-slate-500">
+                    Se reparte entre
+                  </p>
+                  {(distribuciones[cuota.numero] ?? []).map((fila, indice) => (
+                    <div key={fila.id} className="flex items-center gap-2">
+                      <SelectorParticipante
+                        name={`cuota${cuota.numero}Participante`}
+                        valor={fila.participanteKey}
+                        onChange={(valor) =>
+                          modificarFilaCuota(cuota.numero, indice, 'participanteKey', valor)
+                        }
+                        opciones={participantesElegibles}
+                      />
+                      <input
+                        type="number"
+                        step="0.01"
+                        min="0"
+                        placeholder="Monto"
+                        value={fila.monto}
+                        onChange={(evento) =>
+                          modificarFilaCuota(cuota.numero, indice, 'monto', evento.target.value)
+                        }
+                        name={`cuota${cuota.numero}Monto`}
+                        className={`w-40 ${ENTRADA}`}
+                      />
+                      <button
+                        type="button"
+                        onClick={() => quitarFilaCuota(cuota.numero, indice)}
+                        className="cursor-pointer text-sm text-red-700 underline-offset-2 hover:underline"
+                      >
+                        Quitar
+                      </button>
+                    </div>
+                  ))}
                   <button
                     type="button"
-                    onClick={() => quitarFilaCuota(cuota.numero, indice)}
-                    className="cursor-pointer text-sm text-red-700 underline-offset-2 hover:underline"
+                    onClick={() => agregarFilaCuota(cuota.numero)}
+                    className="cursor-pointer self-start text-sm font-medium text-blue-800 underline-offset-4 hover:text-blue-900 hover:underline"
                   >
-                    Quitar
+                    + Agregar participante a esta cuota
                   </button>
                 </div>
-              ))}
-              <button
-                type="button"
-                onClick={() => agregarFilaCuota(cuota.numero)}
-                className="cursor-pointer self-start text-sm font-medium text-blue-800 underline-offset-4 hover:text-blue-900 hover:underline"
-              >
-                + Agregar participante a esta cuota
-              </button>
+
+                <div className="rounded-lg bg-blue-50/50 p-3">
+                  <label className="block text-xs font-medium uppercase tracking-wide text-slate-500">
+                    Le transfieren esta cuota a
+                    <select
+                      name={`cuota${cuota.numero}CuentaCobro`}
+                      value={cuentasCobro[cuota.numero] ?? ''}
+                      onChange={(evento) =>
+                        setCuentasCobro((anteriores) => ({
+                          ...anteriores,
+                          [cuota.numero]: evento.target.value,
+                        }))
+                      }
+                      className={`mt-1 w-full ${ENTRADA}`}
+                    >
+                      <option value="">— la cuenta del lote —</option>
+                      {participantesElegibles.map((participante) => (
+                        <option key={participante.key} value={participante.key}>
+                          {participante.nombre}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+
+                  {resumenQueCobra ? (
+                    <div className="mt-2 text-xs text-slate-600">
+                      <p className="font-medium text-blue-900">{resumenQueCobra.nombre}</p>
+                      <p className="mt-1">
+                        Le corresponde de este lote: {resumenQueCobra.acumulado} {moneda}
+                      </p>
+                      <p>
+                        Cobra directo (cuotas asignadas): {resumenQueCobra.cobraDirecto} {moneda}
+                      </p>
+                      <p className="mt-1 font-semibold">
+                        {resumenQueCobra.saldoProyectado > 0
+                          ? `Le seguirías debiendo ${resumenQueCobra.saldoProyectado} ${moneda}`
+                          : resumenQueCobra.saldoProyectado < 0
+                            ? `Cobraría de más ${Math.abs(resumenQueCobra.saldoProyectado)} ${moneda}`
+                            : 'Quedarías al día con esta persona'}
+                      </p>
+                      {resumenQueCobra.saldoActual !== 0 && (
+                        <p className="mt-1 text-slate-500">
+                          (incluye su saldo de cuenta corriente de hoy:{' '}
+                          {resumenQueCobra.saldoActual} {moneda})
+                        </p>
+                      )}
+                    </div>
+                  ) : (
+                    <p className="mt-2 text-xs text-slate-500">
+                      Sin cuenta elegida acá y sin cuenta de cobro cargada en el lote: el cliente no
+                      va a ver ningún alias para pagar esta cuota.
+                    </p>
+                  )}
+                </div>
+              </div>
             </div>
-          </div>
-        ))}
+          )
+        })}
       </div>
 
       <h2 className={`mb-2 ${TITULO_H2}`}>Resumen del lote</h2>
+      <p className="mb-3 text-sm text-slate-600">
+        &quot;Le corresponde&quot; es lo que suma para esa persona en la distribución de las cuotas.
+        &quot;Cobra directo&quot; es lo que le entra a su cuenta por las cuotas que le asignaste.
+        La tercera columna cruza las dos con el saldo de cuenta corriente que ya tiene hoy.
+      </p>
       {resumen.length === 0 ? (
         <p className="mb-6 text-sm text-slate-600">Sin distribución cargada todavía.</p>
       ) : (
@@ -283,8 +409,10 @@ export function DistribucionCuotas({
           <thead>
             <tr className={TABLA_HEADER_FILA}>
               <th className={TABLA_HEADER_CELDA}>Participante</th>
-              <th className={TABLA_HEADER_CELDA}>Acumulado</th>
-              <th className={TABLA_HEADER_CELDA}>Estado</th>
+              <th className={TABLA_HEADER_CELDA}>Le corresponde</th>
+              <th className={TABLA_HEADER_CELDA}>Cobra directo</th>
+              <th className={TABLA_HEADER_CELDA}>Cómo queda la cuenta</th>
+              <th className={TABLA_HEADER_CELDA}>Objetivo</th>
             </tr>
           </thead>
           <tbody>
@@ -293,6 +421,16 @@ export function DistribucionCuotas({
                 <td className={TABLA_CELDA}>{fila.nombre}</td>
                 <td className={TABLA_CELDA}>
                   {fila.acumulado} {moneda}
+                </td>
+                <td className={TABLA_CELDA}>
+                  {fila.cobraDirecto} {moneda}
+                </td>
+                <td className={TABLA_CELDA}>
+                  {fila.saldoProyectado > 0
+                    ? `Le debés ${fila.saldoProyectado} ${moneda}`
+                    : fila.saldoProyectado < 0
+                      ? `Cobra de más ${Math.abs(fila.saldoProyectado)} ${moneda}`
+                      : 'Al día'}
                 </td>
                 <td className={TABLA_CELDA}>
                   {fila.objetivo === null

@@ -107,7 +107,7 @@ test.describe('Vender — entrega (anticipo al boleto)', () => {
 
     await login(page, fixtures.admin.email, fixtures.password)
     await venderConEntrega(page, loteId, { email, fullName: 'Comprador Con Entrega', entregaMonto: '2000' })
-    await page.waitForURL('**/admin/lotes')
+    await page.waitForURL(/\/distribucion/)
 
     const { data: pagos } = await admin
       .from('pagos')
@@ -137,7 +137,7 @@ test.describe('Vender — entrega (anticipo al boleto)', () => {
 
     await login(page, fixtures.admin.email, fixtures.password)
     await venderConEntrega(page, loteId, { email, fullName: 'Comprador Sin Entrega' })
-    await page.waitForURL('**/admin/lotes')
+    await page.waitForURL(/\/distribucion/)
 
     const { data: pagos } = await admin
       .from('pagos')
@@ -183,7 +183,7 @@ test.describe('Vender — entrega (anticipo al boleto)', () => {
 
     await adjuntarDocumentoFirmado(page)
     await page.getByRole('button', { name: 'Confirmar venta y enviar invitación' }).click()
-    await page.waitForURL('**/admin/lotes')
+    await page.waitForURL(/\/distribucion/)
 
     const { data: cuotas } = await admin
       .from('cuotas')
@@ -243,7 +243,7 @@ test.describe('Vender — entrega (anticipo al boleto)', () => {
     )
     await login(page, fixtures.admin.email, fixtures.password)
     await venderConEntrega(page, primerLoteId, { email: emailRepetido, fullName: 'Comprador Repetido' })
-    await page.waitForURL('**/admin/lotes')
+    await page.waitForURL(/\/distribucion/)
 
     // Segunda venta con el MISMO email: acá aparece el aviso.
     const segundoLoteId = await crearLoteReservadoListoParaVender(
@@ -263,7 +263,7 @@ test.describe('Vender — entrega (anticipo al boleto)', () => {
     expect(pathConservado).toContain(`ventas/${segundoLoteId}/`)
 
     await page.getByRole('button', { name: 'Confirmar venta con esta cuenta existente' }).click()
-    await page.waitForURL('**/admin/lotes')
+    await page.waitForURL(/\/distribucion/)
 
     const { data: lote } = await admin
       .from('lotes')

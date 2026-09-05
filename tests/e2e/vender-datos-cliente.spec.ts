@@ -118,7 +118,7 @@ test.describe('Datos del cliente al vender', () => {
     })
 
     await venderLotePorUI(page, loteId, { email, fullName: 'Cliente DNI Nuevo' })
-    await page.waitForURL('**/admin/lotes')
+    await page.waitForURL(/\/distribucion/)
 
     const { data: lote } = await admin.from('lotes').select('cliente_id').eq('id', loteId).single()
     const { data: cliente } = await admin
@@ -172,7 +172,7 @@ test.describe('Datos del cliente al vender', () => {
       await expect(page.locator('[data-testid="documentoFirmado"]')).toBeEnabled()
       await page.getByRole('button', { name: 'Confirmar venta con esta cuenta existente' }).click()
     }
-    await page.waitForURL('**/admin/lotes')
+    await page.waitForURL(/\/distribucion/)
 
     const { data: cliente } = await admin
       .from('profiles')
@@ -230,7 +230,7 @@ test.describe('Datos del cliente al vender', () => {
     // el submit se bloquea en silencio (campo oculto todavía vacío).
     await expect(page.locator('[data-testid="documentoFirmado"]')).toBeEnabled()
     await page.getByRole('button', { name: 'Confirmar venta con esta cuenta existente' }).click()
-    await page.waitForURL('**/admin/lotes')
+    await page.waitForURL(/\/distribucion/)
 
     const { data: cliente } = await admin.from('profiles').select('dni').eq('id', invited!.user.id).single()
     expect(cliente?.dni).toBe(dniOriginal)
@@ -266,7 +266,7 @@ test.describe('Datos del cliente al vender', () => {
     })
 
     await venderLotePorUI(page, loteId, { email: emailNuevo, fullName: 'Nuevo Con DNI Usado' })
-    await page.waitForURL('**/admin/lotes')
+    await page.waitForURL(/\/distribucion/)
 
     const { data: lote } = await admin.from('lotes').select('cliente_id, estado').eq('id', loteId).single()
     expect(lote?.estado).toBe('vendido')

@@ -5,6 +5,7 @@ import { createAdminClient } from '@/lib/supabase/admin'
 import { redirect } from 'next/navigation'
 import { requireAdministrador } from '@/lib/auth/require-admin'
 import { validarSeleccionAcreedorPorNombre } from '@/lib/lotes/validar-seleccion-acreedor'
+import { resolverAdminPorDefecto } from '@/lib/lotes/admin-por-defecto'
 import { mensajeDeError } from '@/lib/errores'
 import { obtenerSiteUrl } from '@/lib/config/site-url'
 
@@ -111,6 +112,17 @@ export async function crearLote(formData: FormData) {
     acreedorIdFinal = acreedorExistente!.id
   }
 
+  const { data: administradores } = await admin.from('profiles').select('id').eq('role', 'administrador')
+
+  const adminPorDefecto = resolverAdminPorDefecto({
+    adminIdActual: null,
+    administradores: administradores ?? [],
+    usuarioActualId: user?.id ?? null,
+    // crearLote ya pasó por requireAdministrador(): quien está acá es
+    // administrador sí o sí.
+    usuarioActualEsAdministrador: true,
+  })
+
   const { data: loteCreado, error: errorLote } = await supabase
     .from('lotes')
     .insert({
@@ -119,6 +131,9 @@ export async function crearLote(formData: FormData) {
       ubicacion,
       precio_total: precioTotal,
       acreedor_id: acreedorIdFinal,
+      // 05/09: el admin del lote queda prefijado (en la práctica, Nicolás)
+      // en vez de nacer vacío y tener que elegirlo a mano lote por lote.
+      admin_id: adminPorDefecto,
       loteo_id: loteoId,
       numero_lote: numeroLote,
       manzana,

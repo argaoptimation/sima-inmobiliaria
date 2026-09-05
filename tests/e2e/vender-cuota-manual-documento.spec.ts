@@ -69,7 +69,7 @@ test.describe('Vender — documento firmado y cuota manual', () => {
     await page.getByPlaceholder('Cantidad de cuotas (1 para venta al contado)').fill('3')
     await adjuntarDocumentoFirmado(page)
     await page.getByRole('button', { name: 'Confirmar venta y enviar invitación' }).click()
-    await page.waitForURL('**/admin/lotes')
+    await page.waitForURL(/\/distribucion/)
 
     const { data: lote } = await admin
       .from('lotes')
@@ -115,7 +115,7 @@ test.describe('Vender — documento firmado y cuota manual', () => {
 
     await adjuntarDocumentoFirmado(page)
     await page.getByRole('button', { name: 'Confirmar venta y enviar invitación' }).click()
-    await page.waitForURL('**/admin/lotes')
+    await page.waitForURL(/\/distribucion/)
 
     const { data: lote } = await admin
       .from('lotes')
@@ -178,7 +178,7 @@ test.describe('Vender — documento firmado y cuota manual', () => {
 
     await adjuntarDocumentoFirmado(page)
     await page.getByRole('button', { name: 'Confirmar venta con esta cuenta existente' }).click()
-    await page.waitForURL('**/admin/lotes')
+    await page.waitForURL(/\/distribucion/)
 
     const { data: lote } = await admin.from('lotes').select('cliente_id').eq('id', loteId).single()
     expect(lote?.cliente_id).toBe(invited!.user.id)
@@ -282,7 +282,7 @@ test.describe('Vender — documento firmado y cuota manual', () => {
     await page.getByPlaceholder('Cantidad de cuotas (1 para venta al contado)').fill('1')
     await adjuntarDocumentoFirmado(page)
     await page.getByRole('button', { name: 'Confirmar venta y enviar invitación' }).click()
-    await page.waitForURL('**/admin/lotes')
+    await page.waitForURL(/\/distribucion/)
 
     await page.goto(`/admin/lotes/${loteId}`)
     await expect(page.getByRole('link', { name: 'Ver documento firmado' })).toBeVisible()

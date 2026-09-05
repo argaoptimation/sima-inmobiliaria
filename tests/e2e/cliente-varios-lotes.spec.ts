@@ -57,19 +57,16 @@ async function venderLotePorUI(
   // la venta: vuelve a esta misma pantalla con el cartel de confirmación
   // (para que el admin vea el nombre real de la cuenta encontrada antes de
   // asociar el lote) y hace falta un segundo click para confirmar.
-  await page.waitForURL((url) => url.pathname === '/admin/lotes' || url.searchParams.has('confirmarClienteId'))
+  // Una venta completada termina en la distribución de cuotas (05/09).
+  await page.waitForURL(
+    (url) => url.pathname.endsWith('/distribucion') || url.searchParams.has('confirmarClienteId')
+  )
 
   if (page.url().includes('confirmarClienteId')) {
-    await page.setInputFiles('[data-testid="documentoFirmado"]', {
-      name: `e2e-documento-${Date.now()}.pdf`,
-      mimeType: 'application/pdf',
-      buffer: COMPROBANTE_BYTES,
-    })
-    // Sube directo a Storage en cuanto se elige -- esperar a que termine o
-    // el submit se bloquea en silencio (campo oculto todavía vacío).
-    await expect(page.locator('[data-testid="documentoFirmado"]')).toBeEnabled()
+    // El documento ya adjuntado se conserva al rebotar (05/09), así que
+    // acá solo hace falta confirmar.
     await page.getByRole('button', { name: 'Confirmar venta con esta cuenta existente' }).click()
-    await page.waitForURL('**/admin/lotes')
+    await page.waitForURL(/\/distribucion/)
   }
 }
 
@@ -196,7 +193,7 @@ test.describe('Cliente con varios lotes', () => {
     // el submit se bloquea en silencio (campo oculto todavía vacío).
     await expect(page.locator('[data-testid="documentoFirmado"]')).toBeEnabled()
     await page.getByRole('button', { name: 'Confirmar venta con esta cuenta existente' }).click()
-    await page.waitForURL('**/admin/lotes')
+    await page.waitForURL(/\/distribucion/)
 
     const { data: loteADespues } = await admin
       .from('lotes')

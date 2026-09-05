@@ -29,7 +29,7 @@ export default async function PagarCuotaPage({
 
   const { data: cuota } = await supabase
     .from('cuotas')
-    .select('lote_id, saldo_pendiente')
+    .select('lote_id, saldo_pendiente, cuenta_cobro_id, cuenta_cobro_externa_id')
     .eq('id', id)
     .maybeSingle()
 
@@ -39,7 +39,7 @@ export default async function PagarCuotaPage({
 
   const { data: lote } = await supabase
     .from('lotes')
-    .select('cliente_id, cuenta_cobro_id, moneda, interes_moratorio_diario')
+    .select('cliente_id, cuenta_cobro_id, cuenta_cobro_externa_id, moneda, interes_moratorio_diario')
     .eq('id', cuota!.lote_id)
     .single()
 
@@ -49,11 +49,27 @@ export default async function PagarCuotaPage({
 
   let cuentaCobro: { alias: string | null; banco: string | null; cbu: string | null; titular: string | null } | null = null
 
-  if (lote.cuenta_cobro_id) {
+  // Desde el 05/09 el destino puede ser de la CUOTA (Nicolás reparte cuota
+  // por cuota: la 1 al vendedor 1, la 2 al vendedor 2, etc.). Si esa cuota
+  // no tiene uno propio, se cae al del lote -- que es como funcionaba antes,
+  // así que ninguna cuota vieja se queda sin alias que mostrar.
+  const perfilQueCobraId = cuota!.cuenta_cobro_id ?? (cuota!.cuenta_cobro_externa_id ? null : lote.cuenta_cobro_id)
+  const cuentaExternaQueCobraId =
+    cuota!.cuenta_cobro_externa_id ?? (cuota!.cuenta_cobro_id ? null : lote.cuenta_cobro_externa_id)
+
+  if (perfilQueCobraId) {
     const { data } = await supabase
       .from('profiles')
       .select('alias, banco, cbu, titular')
-      .eq('id', lote.cuenta_cobro_id)
+      .eq('id', perfilQueCobraId)
+      .single()
+
+    cuentaCobro = data
+  } else if (cuentaExternaQueCobraId) {
+    const { data } = await supabase
+      .from('cuentas_externas')
+      .select('alias, banco, cbu, titular')
+      .eq('id', cuentaExternaQueCobraId)
       .single()
 
     cuentaCobro = data

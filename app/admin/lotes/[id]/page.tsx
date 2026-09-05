@@ -30,6 +30,7 @@ import { BotonVolverADisponible } from './BotonVolverADisponible'
 import { BotonMarcarPrejudicial, BotonDesmarcarPrejudicial } from './BotonPrejudicial'
 import { PanelSaldar } from './PanelSaldar'
 import { tieneDatosTransferencia } from '@/lib/lotes/validar-cuenta-cobro'
+import { resolverAdminPorDefecto } from '@/lib/lotes/admin-por-defecto'
 import { telefonoParaWhatsApp } from '@/lib/telefono/prefijos'
 import { mesDeFecha } from '@/lib/lotes/aplicar-indexacion'
 import { EVENTO_HISTORIAL_ETIQUETA } from '@/lib/lotes/eventos-historial'
@@ -271,6 +272,17 @@ export default async function LoteDetallePage({
     .order('full_name')
 
   const administradores = (staff ?? []).filter((persona) => persona.role === 'administrador')
+
+  // 05/09, pedido de Gabriel: el Admin del cobro tiene que venir
+  // preseleccionado (en la práctica, Nicolás) en vez de arrancar en "sin
+  // asignar" y tener que elegirlo lote por lote. El acreedor ya venía
+  // preseleccionado con el del lote.
+  const adminPorDefecto = resolverAdminPorDefecto({
+    adminIdActual: lote!.admin_id,
+    administradores,
+    usuarioActualId: user?.id ?? null,
+    usuarioActualEsAdministrador: perfilPropio!.role === 'administrador',
+  })
   const acreedores = (staff ?? []).filter((persona) => persona.role === 'acreedor')
   const vendedores = (staff ?? []).filter((persona) => persona.role === 'vendedor')
   const conDatos = (staff ?? []).filter(
@@ -1194,7 +1206,7 @@ export default async function LoteDetallePage({
           Admin
           <select
             name="adminId"
-            defaultValue={lote!.admin_id ?? ''}
+            defaultValue={adminPorDefecto ?? ''}
             className={`${ENTRADA} w-full`}
           >
             <option value="">— sin asignar —</option>
@@ -1272,68 +1284,81 @@ export default async function LoteDetallePage({
         </BotonEnvio>
           </form>
 
-          <h2 className={`mb-2 mt-8 ${TITULO_H2}`}>Participantes adicionales</h2>
-          <p className="mb-3 text-sm text-slate-600">
-            Gente que comparte la comisión de este lote sin ser el admin, el acreedor ni el vendedor
-            principal (ej. un segundo vendedor). Los montos que cobra cada uno se cargan cuota por
-            cuota en{' '}
-            {lote!.estado === 'vendido' ? (
-              <EnlaceBoton href={`/admin/lotes/${id}/distribucion`} className={ENLACE}>
-                la distribución de cuotas
-              </EnlaceBoton>
+          {/* 05/09, pedido de Gabriel: esta sección hacía mucho ruido
+              explicada en largo y en su propio bloque. Ahora va pegada
+              debajo de "Cuenta de cobro actual", listando en una línea
+              quién más participa, y el formulario recién aparece cuando se
+              aprieta el "+". */}
+          <div className="mt-4 border-t border-blue-100 pt-4">
+            <p className="text-sm font-medium text-blue-900">Otros participantes del cobro</p>
+            {(participantes ?? []).length === 0 ? (
+              <p className="mt-1 text-sm text-slate-600">Ninguno.</p>
             ) : (
-              'la distribución de cuotas'
+              <ul className="mt-2 flex flex-col gap-1">
+                {participantes!.map((participante) => (
+                  <li key={participante.id} className="flex items-center justify-between text-sm">
+                    <span>
+                      {nombreParticipante(participante)}
+                      {participante.etiqueta && ` — ${participante.etiqueta}`}
+                    </span>
+                    <form action={quitarParticipante.bind(null, id, participante.id)}>
+                      <BotonEnvio className="cursor-pointer text-red-700 underline-offset-2 hover:underline">
+                        Quitar
+                      </BotonEnvio>
+                    </form>
+                  </li>
+                ))}
+              </ul>
             )}
-            .
-          </p>
-          {(participantes ?? []).length === 0 ? (
-            <p className="mb-4 text-sm text-slate-600">Sin participantes adicionales todavía.</p>
-          ) : (
-            <ul className="mb-4 flex flex-col gap-2">
-              {participantes!.map((participante) => (
-                <li key={participante.id} className="flex items-center justify-between text-sm">
-                  <span>
-                    {nombreParticipante(participante)}
-                    {participante.etiqueta && ` — ${participante.etiqueta}`}
-                  </span>
-                  <form action={quitarParticipante.bind(null, id, participante.id)}>
-                    <BotonEnvio className="cursor-pointer text-red-700 underline-offset-2 hover:underline">
-                      Quitar
-                    </BotonEnvio>
-                  </form>
-                </li>
-              ))}
-            </ul>
-          )}
-          <form action={agregarParticipanteConId} className="flex max-w-sm flex-col gap-3">
-            <label className="text-sm">
-              Agregar participante
-              <select name="participanteId" className={`${ENTRADA} w-full`}>
-                <option value="">— elegir —</option>
-                {participantesElegibles.map((persona) => (
-                  <option key={persona.id} value={persona.id}>
-                    {persona.full_name} ({persona.role})
-                  </option>
-                ))}
-                {(cuentasExternas ?? []).map((cuentaExterna) => (
-                  <option key={cuentaExterna.id} value={`externa:${cuentaExterna.id}`}>
-                    {cuentaExterna.nombre} (cuenta externa)
-                  </option>
-                ))}
-              </select>
-            </label>
-            <label className="text-sm">
-              Etiqueta (opcional)
-              <input
-                name="etiqueta"
-                placeholder="Ej: Vendedor 2"
-                className={`${ENTRADA} w-full`}
-              />
-            </label>
-            <BotonEnvio className={`cursor-pointer self-start ${BOTON_PRIMARIO}`}>
-              Agregar participante
-            </BotonEnvio>
-          </form>
+
+            <details className="mt-3">
+              <summary className="cursor-pointer select-none text-sm font-medium text-blue-800 underline-offset-4 hover:underline">
+                + Agregar participante
+              </summary>
+              <p className="mt-2 text-xs text-slate-500">
+                Gente que comparte la comisión de este lote sin ser el admin, el acreedor ni el
+                vendedor principal (ej. un segundo vendedor). Cuánto cobra cada uno se carga cuota
+                por cuota en{' '}
+                {lote!.estado === 'vendido' ? (
+                  <EnlaceBoton href={`/admin/lotes/${id}/distribucion`} className={ENLACE}>
+                    la distribución de cuotas
+                  </EnlaceBoton>
+                ) : (
+                  'la distribución de cuotas'
+                )}
+                .
+              </p>
+              <form action={agregarParticipanteConId} className="mt-2 flex max-w-sm flex-col gap-3">
+                <label className="text-sm">
+                  Quién
+                  <select name="participanteId" className={`${ENTRADA} w-full`}>
+                    <option value="">— elegir —</option>
+                    {participantesElegibles.map((persona) => (
+                      <option key={persona.id} value={persona.id}>
+                        {persona.full_name} ({persona.role})
+                      </option>
+                    ))}
+                    {(cuentasExternas ?? []).map((cuentaExterna) => (
+                      <option key={cuentaExterna.id} value={`externa:${cuentaExterna.id}`}>
+                        {cuentaExterna.nombre} (cuenta externa)
+                      </option>
+                    ))}
+                  </select>
+                </label>
+                <label className="text-sm">
+                  Etiqueta (opcional)
+                  <input
+                    name="etiqueta"
+                    placeholder="Ej: Vendedor 2"
+                    className={`${ENTRADA} w-full`}
+                  />
+                </label>
+                <BotonEnvio className={`cursor-pointer self-start ${BOTON_PRIMARIO}`}>
+                  Agregar participante
+                </BotonEnvio>
+              </form>
+            </details>
+          </div>
         </>
       )}
 
