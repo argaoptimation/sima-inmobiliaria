@@ -44,7 +44,7 @@ export default async function SetPasswordPage({
               (bug reproducido 03/09). Además, forzar 64x64 en un logo
               horizontal (~3.5:1) lo deformaba -- h-16 w-auto lo respeta. */}
           {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src="/logo.png" alt="SIMA" className="h-16 w-auto" />
+          <img src="/logo.png" alt="SIMACOR" className="h-16 w-auto" />
           <h1 className="text-xl font-extrabold text-blue-900">
             {esStaff ? 'Completá tu cuenta' : 'Elegí tu contraseña'}
           </h1>

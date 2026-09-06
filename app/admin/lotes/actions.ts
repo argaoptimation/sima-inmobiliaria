@@ -7,7 +7,7 @@ import { requireAdministrador } from '@/lib/auth/require-admin'
 import { validarSeleccionAcreedorPorNombre } from '@/lib/lotes/validar-seleccion-acreedor'
 import { resolverAdminPorDefecto } from '@/lib/lotes/admin-por-defecto'
 import { mensajeDeError } from '@/lib/errores'
-import { obtenerSiteUrl } from '@/lib/config/site-url'
+import { invitarPorEmail } from '@/lib/auth/invitar-por-email'
 
 export async function crearLote(formData: FormData) {
   // Admin-only (04/09, pedido explícito de Gabriel): requireAdmin() dejaba
@@ -74,10 +74,7 @@ export async function crearLote(formData: FormData) {
   let acreedorIdFinal: string
 
   if (seleccion.tipo === 'nuevo') {
-    const { data: invited, error: errorInvite } = await admin.auth.admin.inviteUserByEmail(
-      seleccion.email,
-      { redirectTo: `${obtenerSiteUrl()}/auth/confirm` }
-    )
+    const { data: invited, error: errorInvite } = await invitarPorEmail(admin, seleccion.email)
 
     if (errorInvite || !invited.user) {
       redirect(

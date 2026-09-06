@@ -1,6 +1,8 @@
 import { solicitarRecuperacion } from './actions'
 import { EnlaceBoton } from '@/components/EnlaceBoton'
 import { BotonEnvio } from '@/components/BotonEnvio'
+import CampoCaptcha from '@/components/CampoCaptcha'
+import { obtenerSiteKeyTurnstile } from '@/lib/seguridad/turnstile'
 import { ENTRADA, BOTON_PRIMARIO, ENLACE, BANNER_ERROR, BANNER_OK } from '@/lib/ui/clases'
 
 export default async function RecuperarContrasenaPage({
@@ -9,6 +11,7 @@ export default async function RecuperarContrasenaPage({
   searchParams: Promise<{ error?: string; ok?: string }>
 }) {
   const { error, ok } = await searchParams
+  const siteKeyCaptcha = obtenerSiteKeyTurnstile()
 
   return (
     <main className="flex min-h-[100dvh] w-full">
@@ -33,7 +36,7 @@ export default async function RecuperarContrasenaPage({
                 perfecto servido directo). El resto de la app ya usa <img>
                 para este logo (NavAdmin, portal cliente) sin problema. */}
             {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src="/logo.png" alt="SIMA" className="h-[42px] w-auto brightness-0 invert" />
+            <img src="/logo.png" alt="SIMACOR" className="h-[42px] w-auto brightness-0 invert" />
           </div>
           <div className="max-w-md">
             <h2 className="mb-4 text-4xl font-extrabold tracking-tight">Gestión inmobiliaria inteligente.</h2>
@@ -51,7 +54,7 @@ export default async function RecuperarContrasenaPage({
             <div className="mb-2 flex justify-center lg:hidden">
               <div className="flex items-center justify-center rounded-xl bg-white p-2.5 shadow-sm border border-slate-100">
                 {/* eslint-disable-next-line @next/next/no-img-element -- ver comentario arriba */}
-                <img src="/logo.png" alt="SIMA" className="h-9 w-auto" />
+                <img src="/logo.png" alt="SIMACOR" className="h-9 w-auto" />
               </div>
             </div>
             <h1 className="text-2xl font-extrabold tracking-tight text-blue-950">Recuperar contraseña</h1>
@@ -63,7 +66,7 @@ export default async function RecuperarContrasenaPage({
           {ok ? (
             <div className="flex flex-col gap-4">
               <p className={BANNER_OK}>
-                Si ese email tiene una cuenta en SIMA, te va a llegar un mail con un link para elegir
+                Si ese email tiene una cuenta en SIMACOR, te va a llegar un mail con un link para elegir
                 una contraseña nueva.
               </p>
               <EnlaceBoton
@@ -87,6 +90,8 @@ export default async function RecuperarContrasenaPage({
                 />
               </label>
 
+              <CampoCaptcha siteKey={siteKeyCaptcha} />
+
               <BotonEnvio className={`mt-2 w-full cursor-pointer justify-center !py-3 text-base ${BOTON_PRIMARIO}`}>
                 Enviar link de recuperación
               </BotonEnvio>
@@ -106,7 +111,7 @@ export default async function RecuperarContrasenaPage({
         </div>
         
         <p className="mt-12 text-center text-xs font-medium text-slate-400">
-          SIMA Inmobiliaria · Sistema de Gestión
+          SIMACOR Inmobiliaria · Sistema de Gestión
         </p>
       </div>
     </main>

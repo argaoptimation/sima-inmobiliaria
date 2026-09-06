@@ -90,7 +90,7 @@ export const SIDEBAR_GRUPO_TITULO =
 // pago") alineadas al final del bloque de texto (items-end, no center).
 export const PAGINA_HEADER = 'flex items-end justify-between gap-5'
 
-// Breadcrumb chico arriba del h1 ("SIMA › Inicio"): gris slate-500 tal
+// Breadcrumb chico arriba del h1 ("SIMACOR › Inicio"): gris slate-500 tal
 // cual, el piso mínimo que permite la regla dura de contraste del PLAN.md
 // (nunca por debajo de slate-500 sobre fondo claro).
 export const BREADCRUMB = 'flex items-center gap-[7px] text-[12.5px] text-slate-500'

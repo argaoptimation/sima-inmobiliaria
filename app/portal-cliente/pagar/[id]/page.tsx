@@ -143,7 +143,7 @@ export default async function PagarCuotaPage({
             </dl>
           </>
         ) : (
-          <p className="text-sm text-slate-600">Consultá los datos de la cuenta con SIMA Inmobiliaria.</p>
+          <p className="text-sm text-slate-600">Consultá los datos de la cuenta con SIMACOR Inmobiliaria.</p>
         )}
       </div>
 

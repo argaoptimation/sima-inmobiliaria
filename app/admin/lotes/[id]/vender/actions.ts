@@ -8,7 +8,7 @@ import { calcularMontoCuota } from '@/lib/lotes/calcular-monto-cuota'
 import { generarCuotas, generarCuotasManual, CuotaGenerada } from '@/lib/lotes/generar-cuotas'
 import { calcularMontoAFinanciar } from '@/lib/lotes/monto-a-financiar'
 import { mensajeDeError } from '@/lib/errores'
-import { obtenerSiteUrl } from '@/lib/config/site-url'
+import { invitarPorEmail } from '@/lib/auth/invitar-por-email'
 
 function construirParamsPreservados(formData: FormData): URLSearchParams {
   const params = new URLSearchParams({
@@ -301,9 +301,7 @@ export async function venderLote(loteId: string, formData: FormData) {
       }
     }
 
-    const { data: invited, error: errorInvite } = await admin.auth.admin.inviteUserByEmail(email, {
-      redirectTo: `${obtenerSiteUrl()}/auth/confirm`,
-    })
+    const { data: invited, error: errorInvite } = await invitarPorEmail(admin, email)
 
     if (errorInvite || !invited.user) {
       redirect(

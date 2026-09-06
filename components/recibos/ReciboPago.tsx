@@ -49,7 +49,7 @@ export function ReciboPago({ datos }: { datos: DatosRecibo }) {
         {/* eslint-disable-next-line @next/next/no-img-element -- next/image
             achata la transparencia de este logo al reescalarlo (bug
             reproducido 03/09), acá va plano igual que en login/set-password. */}
-        <img src="/logo.png" alt="SIMA" className="h-16 w-auto" />
+        <img src="/logo.png" alt="SIMACOR" className="h-16 w-auto" />
         <div className="pt-1 text-right text-sm font-semibold text-slate-700">
           <p>{DIRECCION_EMPRESA}</p>
           <p>{TELEFONO_EMPRESA}</p>

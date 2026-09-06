@@ -5,11 +5,29 @@ import { createAdminClient } from '@/lib/supabase/admin'
 import { redirect } from 'next/navigation'
 import { mensajeDeError } from '@/lib/errores'
 import { verificarLimiteIntentos } from '@/lib/seguridad/rate-limit'
+import { MENSAJE_CAPTCHA_FALLIDO, verificarCaptcha } from '@/lib/seguridad/turnstile'
 
 export async function login(formData: FormData) {
   const email = ((formData.get('email') as string) || '').trim().toLowerCase()
   const password = (formData.get('password') as string) || ''
   const admin = createAdminClient()
+
+  // Captcha (06/09) -- antes que el rate limit y antes de tocar Supabase:
+  // si el pedido no es de un navegador real, no gasta ni un intento del
+  // contador ni una llamada a Auth. Apagado (siempre pasa) mientras no
+  // estén seteadas las dos variables de Turnstile.
+  const captchaOk = await verificarCaptcha(
+    (formData.get('cf-turnstile-response') as string) || null
+  )
+
+  if (!captchaOk) {
+    await admin.from('historial_ingresos').insert({
+      email,
+      exitoso: false,
+      motivo_error: 'Captcha no verificado',
+    })
+    redirect(`/login?error=${encodeURIComponent(MENSAJE_CAPTCHA_FALLIDO)}`)
+  }
 
   // Rate limit propio (04/09, pedido de Gabriel) -- además del que ya trae
   // Supabase Auth (over_request_rate_limit más abajo, por IP a nivel de todo

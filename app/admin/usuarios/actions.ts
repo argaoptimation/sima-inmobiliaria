@@ -6,7 +6,7 @@ import { redirect } from 'next/navigation'
 import { requireAdministrador } from '@/lib/auth/require-admin'
 import { tieneDatosTransferencia } from '@/lib/lotes/validar-cuenta-cobro'
 import { mensajeDeError } from '@/lib/errores'
-import { obtenerSiteUrl } from '@/lib/config/site-url'
+import { invitarPorEmail } from '@/lib/auth/invitar-por-email'
 
 const ROLES_STAFF = ['acreedor', 'vendedor', 'cobrador'] as const
 
@@ -23,9 +23,7 @@ export async function crearUsuarioStaff(formData: FormData) {
 
   const admin = createAdminClient()
 
-  const { data: invited, error: errorInvite } = await admin.auth.admin.inviteUserByEmail(email, {
-    redirectTo: `${obtenerSiteUrl()}/auth/confirm`,
-  })
+  const { data: invited, error: errorInvite } = await invitarPorEmail(admin, email)
 
   if (errorInvite || !invited.user) {
     redirect(`/admin/usuarios?error=${encodeURIComponent(mensajeDeError(errorInvite))}`)

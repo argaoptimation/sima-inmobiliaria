@@ -37,7 +37,7 @@ export default function PortalClienteLayout({ children }: { children: React.Reac
         <div className="mx-auto flex max-w-2xl items-center justify-between px-6 py-4">
           <EnlaceBoton href="/portal-cliente" className="flex items-center gap-2">
             {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src="/logo.png" alt="SIMA" className="h-9 w-auto" />
+            <img src="/logo.png" alt="SIMACOR" className="h-9 w-auto" />
           </EnlaceBoton>
           <nav className="flex items-center gap-4">
             <EnlaceBoton

@@ -198,7 +198,7 @@ export function NavAdmin({
         >
           <div className={`${SIDEBAR_LOGO} ${claseOcultarEnColapsada}`}>
             {/* eslint-disable-next-line @next/next/no-img-element -- mismo patrón que app/portal-cliente/layout.tsx: sin width/height fijo no se puede usar next/image sin arriesgar estirar el logo */}
-            <img src="/logo.png" alt="SIMA" className="block h-6 w-auto" />
+            <img src="/logo.png" alt="SIMACOR" className="block h-6 w-auto" />
           </div>
           <button
             type="button"

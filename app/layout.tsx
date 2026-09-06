@@ -9,8 +9,8 @@ const jakarta = Plus_Jakarta_Sans({
 });
 
 export const metadata: Metadata = {
-  title: "SIMA",
-  description: "SIMA Servicios Inmobiliarios",
+  title: "SIMACOR",
+  description: "SIMACOR Servicios Inmobiliarios",
 };
 
 export default function RootLayout({

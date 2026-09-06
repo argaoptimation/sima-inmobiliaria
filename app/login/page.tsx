@@ -2,6 +2,8 @@ import { login } from './actions'
 import { CampoPassword } from '@/components/CampoPassword'
 import { EnlaceBoton } from '@/components/EnlaceBoton'
 import { BotonEnvio } from '@/components/BotonEnvio'
+import CampoCaptcha from '@/components/CampoCaptcha'
+import { obtenerSiteKeyTurnstile } from '@/lib/seguridad/turnstile'
 import { ENTRADA, BOTON_PRIMARIO, ENLACE, BANNER_ERROR } from '@/lib/ui/clases'
 
 export default async function LoginPage({
@@ -10,6 +12,7 @@ export default async function LoginPage({
   searchParams: Promise<{ error?: string }>
 }) {
   const { error } = await searchParams
+  const siteKeyCaptcha = obtenerSiteKeyTurnstile()
 
   return (
     <main className="flex min-h-[100dvh] w-full">
@@ -35,7 +38,7 @@ export default async function LoginPage({
                 perfecto servido directo). El resto de la app ya usa <img>
                 para este logo (NavAdmin, portal cliente) sin problema. */}
             {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src="/logo.png" alt="SIMA" className="h-[42px] w-auto brightness-0 invert" />
+            <img src="/logo.png" alt="SIMACOR" className="h-[42px] w-auto brightness-0 invert" />
           </div>
           <div className="max-w-md">
             <h2 className="mb-4 text-4xl font-extrabold tracking-tight">Gestión inmobiliaria inteligente.</h2>
@@ -53,10 +56,10 @@ export default async function LoginPage({
             <div className="mb-2 flex justify-center lg:hidden">
               <div className="flex items-center justify-center rounded-xl bg-white p-2.5 shadow-sm border border-slate-100">
                 {/* eslint-disable-next-line @next/next/no-img-element -- ver comentario arriba */}
-                <img src="/logo.png" alt="SIMA" className="h-9 w-auto" />
+                <img src="/logo.png" alt="SIMACOR" className="h-9 w-auto" />
               </div>
             </div>
-            <h1 className="text-2xl font-extrabold tracking-tight text-blue-950">Ingresar a SIMA</h1>
+            <h1 className="text-2xl font-extrabold tracking-tight text-blue-950">Ingresar a SIMACOR</h1>
             <p className="text-sm font-medium text-slate-500">Completá tus datos para acceder a tu cuenta.</p>
           </div>
 
@@ -80,6 +83,8 @@ export default async function LoginPage({
               <CampoPassword name="password" placeholder="••••••••" required autoComplete="current-password" />
             </label>
 
+            <CampoCaptcha siteKey={siteKeyCaptcha} />
+
             <BotonEnvio className={`mt-2 w-full cursor-pointer justify-center !py-3 text-base ${BOTON_PRIMARIO}`}>
               Ingresar
             </BotonEnvio>
@@ -96,7 +101,7 @@ export default async function LoginPage({
         </div>
         
         <p className="mt-12 text-center text-xs font-medium text-slate-400">
-          SIMA Inmobiliaria · Sistema de Gestión
+          SIMACOR Inmobiliaria · Sistema de Gestión
         </p>
       </div>
     </main>

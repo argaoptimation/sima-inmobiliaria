@@ -196,7 +196,7 @@ export default async function PortalClientePage() {
           <div className={PORTAL_TOPBAR_FILA}>
             <div className={PORTAL_LOGO_WRAP}>
               {/* eslint-disable-next-line @next/next/no-img-element -- logo con proporción propia, ver components/NavAdmin.tsx */}
-              <img src="/logo.png" alt="SIMA" className="block h-[22px] w-auto" />
+              <img src="/logo.png" alt="SIMACOR" className="block h-[22px] w-auto" />
             </div>
 
             <div className={PORTAL_NAV}>
