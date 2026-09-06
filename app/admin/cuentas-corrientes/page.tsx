@@ -1,6 +1,9 @@
 import { createClient } from '@/lib/supabase/server'
 import { requireAdministrador } from '@/lib/auth/require-admin'
-import { calcularSaldoCuentaCorrientePorMoneda } from '@/lib/cuenta-corriente/calcular-saldo'
+import {
+  describirSituacion,
+  resumirCuentaCorrientePorMoneda,
+} from '@/lib/cuenta-corriente/situacion'
 import { obtenerCuotasSinDistribucion } from '@/lib/cuenta-corriente/cuotas-sin-distribucion'
 import { FiltroEnVivo } from '@/components/FiltroEnVivo'
 import { EnlaceBoton } from '@/components/EnlaceBoton'
@@ -16,6 +19,7 @@ import {
   TABLA_FILA,
   TABLA_CELDA,
   TABLA_CELDA_PRINCIPAL,
+  NUMERO_TABULAR,
 } from '@/lib/ui/clases'
 
 export default async function CuentasCorrientesPage({
@@ -100,13 +104,17 @@ export default async function CuentasCorrientesPage({
               <tr className={TABLA_HEADER_FILA}>
                 <th className={TABLA_HEADER_CELDA}>Nombre</th>
                 <th className={TABLA_HEADER_CELDA}>Rol</th>
-                <th className={TABLA_HEADER_CELDA}>Saldo</th>
+                <th className={TABLA_HEADER_CELDA}>Le corresponde</th>
+                <th className={TABLA_HEADER_CELDA}>Cobró directo</th>
+                <th className={TABLA_HEADER_CELDA}>Cómo queda</th>
               </tr>
             </thead>
             <tbody>
               {(personas ?? []).map((persona) => {
-                const saldos = calcularSaldoCuentaCorrientePorMoneda(movimientosPorPersona.get(persona.id) ?? [])
-                const entradasSaldo = Object.entries(saldos).filter(([, monto]) => monto !== 0)
+                const resumen = resumirCuentaCorrientePorMoneda(
+                  movimientosPorPersona.get(persona.id) ?? []
+                )
+                const monedas = Object.keys(resumen).sort()
 
                 return (
                   <tr key={persona.id} className={TABLA_FILA}>
@@ -116,10 +124,46 @@ export default async function CuentasCorrientesPage({
                       </EnlaceBoton>
                     </td>
                     <td className={TABLA_CELDA}>{persona.role}</td>
+                    <td className={`${TABLA_CELDA} ${NUMERO_TABULAR}`}>
+                      {monedas.length === 0
+                        ? '—'
+                        : monedas.map((moneda) => (
+                            <span key={moneda} className="block">
+                              {resumen[moneda].leCorresponde} {moneda}
+                            </span>
+                          ))}
+                    </td>
+                    <td className={`${TABLA_CELDA} ${NUMERO_TABULAR}`}>
+                      {monedas.length === 0
+                        ? '—'
+                        : monedas.map((moneda) => (
+                            <span key={moneda} className="block">
+                              {resumen[moneda].cobroDirecto} {moneda}
+                            </span>
+                          ))}
+                    </td>
                     <td className={TABLA_CELDA}>
-                      {entradasSaldo.length === 0
-                        ? 'Sin movimientos'
-                        : entradasSaldo.map(([moneda, monto]) => `${monto} ${moneda}`).join(' / ')}
+                      {monedas.length === 0 ? (
+                        <span className="text-slate-500">Sin movimientos</span>
+                      ) : (
+                        monedas.map((moneda) => {
+                          const saldo = resumen[moneda].saldo
+                          return (
+                            <span
+                              key={moneda}
+                              className={`block font-medium ${
+                                saldo > 0
+                                  ? 'text-amber-800'
+                                  : saldo < 0
+                                    ? 'text-blue-800'
+                                    : 'text-green-700'
+                              }`}
+                            >
+                              {describirSituacion(saldo, moneda)}
+                            </span>
+                          )
+                        })
+                      )}
                     </td>
                   </tr>
                 )
