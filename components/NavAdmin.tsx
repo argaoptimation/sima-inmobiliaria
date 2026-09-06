@@ -90,7 +90,12 @@ export function NavAdmin({
   // Pagos y Panel de cuotas: cobrador ve todo lo que ve admin acá (confirmado
   // con Nico 03/09) -- Usuarios queda aparte, admin/acreedor solamente, no es
   // parte de "toda la info de lotes/cobranza" que se le confirmó a cobrador.
-  const puedeVerPagos = esAdministrador || role === 'acreedor' || esCobrador
+  // El vendedor también entra a Pagos desde el 06/09: si una cuota se cobra
+  // en su cuenta, es él quien hace la primera confirmación. Ve solo los
+  // pagos de los lotes donde participa (RLS), y solo puede confirmar los
+  // que se cobran en su propia cuenta.
+  const puedeVerPagos =
+    esAdministrador || role === 'acreedor' || esCobrador || role === 'vendedor'
   const puedeVerUsuarios = esAdministrador || role === 'acreedor'
   const puedeVerPanelCuotas = esAdministrador || esCobrador
   const tieneCuentaPropia = role === 'acreedor' || role === 'vendedor' || esCobrador

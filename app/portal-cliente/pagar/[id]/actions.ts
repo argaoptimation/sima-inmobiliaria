@@ -53,6 +53,11 @@ export async function registrarPago(cuotaId: string, formData: FormData) {
       monto,
       moneda,
       motivo: 'cuota',
+      // De qué cuota salió este pago (06/09). La imputación sigue siendo
+      // FIFO y puede tocar otras cuotas, pero para saber QUIÉN confirma
+      // hace falta la cuota que el cliente estaba pagando: es la que le
+      // mostró el alias al que transfirió.
+      cuota_origen_id: cuotaId,
     })
     .select('id')
     .single()

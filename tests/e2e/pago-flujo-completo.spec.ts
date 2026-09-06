@@ -15,7 +15,18 @@ const COMPROBANTE_BYTES = readFileSync(COMPROBANTE_PATH)
 // por ese nombre (aparece en el href del link "Ver comprobante").
 const NOMBRE_COMPROBANTE = `e2e-comprobante-${Date.now()}.pdf`
 
+// El pago tal como lo ve el CLIENTE en su portal. Se acota a la fila de
+// escritorio (`pago-cliente`): el portal dibuja cada pago dos veces (tarjeta
+// mobile + fila desktop) y las dos están siempre en el DOM, así que sin
+// acotar el locator matchea dos elementos.
 function filaPorComprobante(page: Page) {
+  return page
+    .locator('[data-testid="pago-cliente"]')
+    .filter({ has: page.locator(`a[href*="${NOMBRE_COMPROBANTE}"]`) })
+}
+
+// El mismo pago tal como lo ve el staff en /admin/pagos.
+function tarjetaAdminPorComprobante(page: Page) {
   return page
     .locator('[data-testid="tarjeta-pago"]')
     .filter({ has: page.locator(`a[href*="${NOMBRE_COMPROBANTE}"]`) })
@@ -109,35 +120,38 @@ test.describe('Flujo completo de pago con confirmación cruzada', () => {
 
     // 5. Cambio de usuario: esta app no tiene logout explícito, así que
     // limpiamos cookies del contexto y volvemos a loguear (ver utils/login.ts).
-    await test.step('login como acreedor y confirmación de su parte', async () => {
+    await test.step('login como destinatario del cobro y confirmación de su parte', async () => {
       await logout(page)
       await login(page, fixtures.acreedorConDatos.email, fixtures.password)
       await page.goto('/admin/pagos')
 
-      const filaPago = filaPorComprobante(page)
-      await expect(filaPago.getByRole('link', { name: 'Ver comprobante' })).toBeVisible()
+      const tarjeta = tarjetaAdminPorComprobante(page)
+      await expect(tarjeta.getByRole('link', { name: 'Comprobante' })).toBeVisible()
 
-      await filaPago.getByRole('button', { name: 'Confirmar mi parte' }).click()
+      // Antes de firmar, la tarjeta dice que el pago lo está esperando a él.
+      await expect(tarjeta.getByText(/⏳ Espera a /)).toBeVisible()
 
-      // índice 9: Fecha, Lote, Cliente, Acreedor, Motivo, Medio, Monto,
-      // Comprobante, Estado, Confirmado acreedor.
-      await expect(filaPago.locator('td').nth(9)).toHaveText('Sí')
+      await tarjeta.getByRole('button', { name: 'Confirmar mi parte' }).click()
+
+      await expect(tarjetaAdminPorComprobante(page).getByText(/✓ .* confirmó/)).toBeVisible()
     })
 
-    // 6. Admin ve que el acreedor ya confirmó y confirma su propia parte, lo
+    // 6. Admin ve que el destinatario ya confirmó y hace el segundo check, lo
     // que dispara la imputación FIFO en el servidor.
-    await test.step('login como admin, ve confirmación del acreedor y confirma su parte', async () => {
+    await test.step('login como admin, ve la confirmación del destinatario y hace el doble check', async () => {
       await logout(page)
       await login(page, fixtures.admin.email, fixtures.password)
       await page.goto('/admin/pagos')
 
-      const filaPago = filaPorComprobante(page)
-      await expect(filaPago.locator('td').nth(9)).toHaveText('Sí') // Confirmado acreedor
+      const tarjeta = tarjetaAdminPorComprobante(page)
+      await expect(tarjeta.getByText(/✓ .* confirmó/)).toBeVisible()
+      await expect(tarjeta.getByText('⏳ Admin pendiente')).toBeVisible()
 
-      await filaPago.getByRole('button', { name: 'Confirmar mi parte' }).click()
+      await tarjeta.getByRole('button', { name: 'Confirmar mi parte' }).click()
 
-      // índice 8: Fecha, Lote, Cliente, Acreedor, Motivo, Medio, Monto, Comprobante, Estado.
-      await expect(filaPago.locator('td').nth(8)).toHaveText('confirmado')
+      // Ya confirmado del todo: el indicador de doble check solo se dibuja
+      // mientras el pago sigue pendiente, así que desaparece.
+      await expect(tarjetaAdminPorComprobante(page).getByText('⏳ Admin pendiente')).toHaveCount(0)
     })
 
     // 7. La aserción central del test: el FIFO de 1500 sobre cuota 1 (saldo

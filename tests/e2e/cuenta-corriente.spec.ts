@@ -84,14 +84,20 @@ test.describe('Cuenta corriente', () => {
       await page.goto('/admin/pagos')
       const filaAcreedor = filaPorComprobante(page, nombreArchivo)
       await filaAcreedor.getByRole('button', { name: 'Confirmar mi parte' }).click()
-      await expect(filaAcreedor.locator('td').nth(9)).toHaveText('Sí')
+      await expect(
+        filaPorComprobante(page, nombreArchivo).getByText(/✓ .* confirmó/)
+      ).toBeVisible()
 
       await logout(page)
       await login(page, fixtures.admin.email, fixtures.password)
       await page.goto('/admin/pagos')
       const fila = filaPorComprobante(page, nombreArchivo)
       await fila.getByRole('button', { name: 'Confirmar mi parte' }).click()
-      await expect(fila.locator('td').nth(8)).toHaveText('confirmado')
+      // Confirmado del todo: los indicadores del doble check solo se dibujan
+      // mientras el pago sigue pendiente.
+      await expect(
+        filaPorComprobante(page, nombreArchivo).getByText('⏳ Admin pendiente')
+      ).toHaveCount(0)
     })
 
     await test.step('se posteó el Debe automático de 800 USD para el acreedor', async () => {

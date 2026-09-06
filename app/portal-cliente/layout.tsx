@@ -39,13 +39,10 @@ export default function PortalClienteLayout({ children }: { children: React.Reac
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img src="/logo.png" alt="SIMACOR" className="h-9 w-auto" />
           </EnlaceBoton>
+          {/* Sin "Mi perfil" (06/09, pedido de Gabriel): el cliente no
+              edita sus propios datos -- nombre, teléfono y domicilio los
+              mantiene la inmobiliaria. El staff sí tiene su /mi-perfil. */}
           <nav className="flex items-center gap-4">
-            <EnlaceBoton
-              href="/portal-cliente/mi-perfil"
-              className="text-sm font-medium text-blue-900/70 underline-offset-4 hover:text-blue-900 hover:underline"
-            >
-              Mi perfil
-            </EnlaceBoton>
             <BotonCerrarSesion />
           </nav>
         </div>

@@ -366,7 +366,10 @@ test.describe('Cuentas externas', () => {
       const fila = page
         .locator('[data-testid="tarjeta-pago"]')
         .filter({ has: page.locator(`a[href*="${nombreComprobante}"]`) })
-      await expect(fila.getByText('— (cuenta externa)')).toBeVisible()
+      // El pago se cobra en una cuenta externa (sin login): nadie del otro
+      // lado puede hacer la primera confirmación, así que alcanza con el
+      // admin. La tarjeta lo dice explícitamente.
+      await expect(fila.getByText('Confirmación solo de Admin (Cuenta externa)')).toBeVisible()
       await fila.getByRole('button', { name: 'Confirmar mi parte' }).click()
 
       // Misma demora corta y real de lectura-después-de-escritura ya

@@ -1,6 +1,6 @@
 import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
-import { requireAdminAcreedorOCobrador } from '@/lib/auth/require-admin'
+import { requireStaffQueConfirmaPagos } from '@/lib/auth/require-admin'
 import { confirmarPago, editarMontoPago } from './actions'
 import { FiltroEnVivo } from '@/components/FiltroEnVivo'
 import { EnlaceBoton } from '@/components/EnlaceBoton'
@@ -22,6 +22,10 @@ import {
   PAGO_BANNER_ALERTA,
 } from '@/lib/ui/clases'
 import { FileImage, Banknote, ExternalLink, TriangleAlert, CheckCircle2, Clock } from 'lucide-react'
+import {
+  alcanzaConLaConfirmacionDelAdmin,
+  resolverDestinatariosDePagos,
+} from '@/lib/pagos/destinatario'
 
 type Pago = {
   id: string
@@ -37,6 +41,7 @@ type Pago = {
   monto_recibido: number | null
   moneda_recibida: string | null
   medio_pago: 'efectivo' | 'transferencia'
+  cuota_origen_id: string | null
   created_at: string
 }
 
@@ -93,7 +98,7 @@ export default async function PagosPage({
 
   // Cobrador ahora entra acá también (03/09, confirmado con Nico) -- ya
   // veía el link "Pagos" en el sidebar pero la página lo bloqueaba igual.
-  await requireAdminAcreedorOCobrador()
+  await requireStaffQueConfirmaPagos()
 
   // "Esperando mi confirmación" (05/09, pedido de Gabriel): "Pendientes"
   // mezcla dos cosas muy distintas -- el cliente que todavía no pagó y el
@@ -112,12 +117,12 @@ export default async function PagosPage({
 
   const { data: perfilPropio } = await supabase
     .from('profiles')
-    .select('role')
+    .select('id, role')
     .eq('id', user!.id)
     .single()
 
   const columnasPago =
-    'id, monto, moneda, comprobante_path, motivo, estado, confirmado_acreedor_por, confirmado_admin_por, cliente_id, lote_id, monto_recibido, moneda_recibida, medio_pago, created_at'
+    'id, monto, moneda, comprobante_path, motivo, estado, confirmado_acreedor_por, confirmado_admin_por, cliente_id, lote_id, monto_recibido, moneda_recibida, medio_pago, cuota_origen_id, created_at'
 
   let loteIdsBusqueda: string[] | null = null
 
@@ -284,6 +289,48 @@ export default async function PagosPage({
       ? await supabase.from('profiles').select('id, full_name').eq('role', 'acreedor').order('full_name')
       : { data: [] }
 
+  // A qué cuenta se cobra cada uno de estos pagos. Desde el 06/09 eso define
+  // quién hace la primera confirmación: el dueño del alias al que el cliente
+  // transfirió, no el acreedor del lote.
+  const destinatarioPorPago = await resolverDestinatariosDePagos(supabase, pagos)
+
+  const perfilesDestinatarios = [
+    ...new Set(
+      [...destinatarioPorPago.values()].map((d) => d.perfilId).filter(Boolean) as string[]
+    ),
+  ]
+  const cuentasDestinatarias = [
+    ...new Set(
+      [...destinatarioPorPago.values()].map((d) => d.cuentaExternaId).filter(Boolean) as string[]
+    ),
+  ]
+
+  const { data: perfilesQueCobran } =
+    perfilesDestinatarios.length > 0
+      ? await supabase.from('profiles').select('id, full_name').in('id', perfilesDestinatarios)
+      : { data: [] }
+
+  const { data: cuentasQueCobran } =
+    cuentasDestinatarias.length > 0
+      ? await supabase.from('cuentas_externas').select('id, titular, alias').in('id', cuentasDestinatarias)
+      : { data: [] }
+
+  const nombreQueCobraPorId = new Map<string, string>([
+    ...(perfilesQueCobran ?? []).map(
+      (p) => [p.id, p.full_name ?? 'Sin nombre'] as [string, string]
+    ),
+    ...(cuentasQueCobran ?? []).map(
+      (c) => [c.id, `${c.titular ?? c.alias ?? 'Cuenta externa'} (cuenta externa)`] as [string, string]
+    ),
+  ])
+
+  function nombreDelDestinatario(pagoId: string): string | null {
+    const destinatario = destinatarioPorPago.get(pagoId)
+    const clave = destinatario?.perfilId ?? destinatario?.cuentaExternaId
+
+    return clave ? (nombreQueCobraPorId.get(clave) ?? null) : null
+  }
+
   const pagosConLink = await Promise.all(
     pagos.map(async (pago) => {
       const lote = lotePorId.get(pago.lote_id)
@@ -309,7 +356,12 @@ export default async function PagosPage({
           nombreCliente,
           dniCliente,
           nombreAcreedor,
-          cuentaCobroExterna: Boolean(lote?.cuenta_cobro_externa_id),
+          cuentaCobroExterna: Boolean(destinatarioPorPago.get(pago.id)?.cuentaExternaId),
+          soloConfirmaAdmin: alcanzaConLaConfirmacionDelAdmin(
+            destinatarioPorPago.get(pago.id) ?? SIN_DESTINATARIO,
+            pago.medio_pago
+          ),
+          nombreDestinatario: nombreDelDestinatario(pago.id),
           montoEfectivo: montoEfectivoPorId.get(pago.id) ?? pago.monto,
         }
       }
@@ -327,7 +379,12 @@ export default async function PagosPage({
         identificadorLote,
         nombreCliente,
         dniCliente,
-        cuentaCobroExterna: Boolean(lote?.cuenta_cobro_externa_id),
+        cuentaCobroExterna: Boolean(destinatarioPorPago.get(pago.id)?.cuentaExternaId),
+        soloConfirmaAdmin: alcanzaConLaConfirmacionDelAdmin(
+          destinatarioPorPago.get(pago.id) ?? SIN_DESTINATARIO,
+          pago.medio_pago
+        ),
+        nombreDestinatario: nombreDelDestinatario(pago.id),
         montoEfectivo: montoEfectivoPorId.get(pago.id) ?? pago.monto,
       }
     })
@@ -335,16 +392,34 @@ export default async function PagosPage({
 
   const cantidadPendientes = pagos.filter((p) => p.estado === 'pendiente').length
 
+  // Un pago cuyo destino no se pudo resolver: se trata como si no hubiera
+  // nadie del otro lado, así que lo confirma solo el admin.
+  const SIN_DESTINATARIO = {
+    perfilId: null,
+    cuentaExternaId: null,
+    destinatarioEsAdministrador: false,
+    cobroDirecto: false,
+  }
+
+  const esAdministrador = perfilPropio!.role === 'administrador'
+
   // Un pago espera MI confirmación si está pendiente, ya hay evidencia que
   // mirar (comprobante, o efectivo que solo confirma el admin) y todavía no
   // lo firmé yo. Es exactamente lo que habilita el botón de abajo.
+  //
+  // Para el admin es el segundo check, y siempre le toca. Para el resto solo
+  // le toca si el pago se cobra en SU cuenta -- ver un pago de un lote donde
+  // participa no lo habilita a confirmar el cobro de otro.
   function esperaMiConfirmacion(pago: (typeof pagosConLink)[number]): boolean {
     if (pago.estado !== 'pendiente') return false
     if (!pago.comprobante_path && pago.medio_pago !== 'efectivo') return false
-    if (pago.medio_pago === 'efectivo' && perfilPropio!.role !== 'administrador') return false
-    return perfilPropio!.role === 'acreedor'
-      ? !pago.confirmado_acreedor_por
-      : !pago.confirmado_admin_por
+    if (pago.medio_pago === 'efectivo' && !esAdministrador) return false
+
+    if (esAdministrador) return !pago.confirmado_admin_por
+
+    const destinatario = destinatarioPorPago.get(pago.id)
+
+    return destinatario?.perfilId === perfilPropio!.id && !pago.confirmado_acreedor_por
   }
 
   const pagosVisibles = soloEsperandoMiConfirmacion
@@ -576,17 +651,29 @@ export default async function PagosPage({
                         <span className="text-slate-500"> · Acreedor: {pago.nombreAcreedor}</span>
                       )}
                     </div>
-                    {/* Indicadores de Doble Confirmación para pagos pendientes */}
+                    {/* Doble check: primero el destinatario del cobro (el
+                        dueño del alias al que el cliente transfirió), después
+                        el admin. Cuando del otro lado no hay nadie que pueda
+                        confirmar -- efectivo, cuenta externa sin login, o
+                        cobra el propio admin -- alcanza con el admin solo. */}
                     {pago.estado === 'pendiente' && (
                       <div className="flex items-center gap-3 pt-0.5 text-[11.5px]">
-                        {pago.medio_pago === 'efectivo' ? (
-                          <span className="text-slate-500">Confirmación solo de Admin (Efectivo)</span>
-                        ) : pago.cuentaCobroExterna ? (
-                          <span className="text-slate-500">Confirmación solo de Admin (Cuenta externa)</span>
+                        {pago.soloConfirmaAdmin ? (
+                          <span className="text-slate-500">
+                            Confirmación solo de Admin (
+                            {pago.medio_pago === 'efectivo'
+                              ? 'Efectivo'
+                              : pago.cuentaCobroExterna
+                                ? 'Cuenta externa'
+                                : 'cobra el admin'}
+                            )
+                          </span>
                         ) : (
                           <>
                             <span className={pago.confirmado_acreedor_por ? 'font-semibold text-green-700' : 'text-slate-500'}>
-                              {pago.confirmado_acreedor_por ? '✓ Acreedor confirmó' : '⏳ Acreedor pendiente'}
+                              {pago.confirmado_acreedor_por
+                                ? `✓ ${pago.nombreDestinatario ?? 'Destinatario'} confirmó`
+                                : `⏳ Espera a ${pago.nombreDestinatario ?? 'el destinatario'}`}
                             </span>
                             <span className="text-slate-300">·</span>
                             <span className={pago.confirmado_admin_por ? 'font-semibold text-green-700' : 'text-slate-500'}>

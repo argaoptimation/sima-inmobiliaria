@@ -1,6 +1,6 @@
 import { notFound } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
-import { requireAdminAcreedorOCobrador } from '@/lib/auth/require-admin'
+import { requireStaffQueConfirmaPagos } from '@/lib/auth/require-admin'
 import { obtenerDatosRecibo } from '@/lib/comprobantes/datos-recibo'
 import { ReciboPago } from '@/components/recibos/ReciboPago'
 import { BotonImprimirRecibo } from '@/components/recibos/BotonImprimirRecibo'
@@ -19,7 +19,7 @@ export default async function ReciboPagoAdminPage({
 }) {
   const { id } = await params
   const { desde } = await searchParams
-  await requireAdminAcreedorOCobrador()
+  await requireStaffQueConfirmaPagos()
 
   // El recibo se linkea desde /admin/pagos Y desde /admin/efectivo (04/09,
   // corrección de Gabriel: el "Volver" tenía que respetar de dónde vino,

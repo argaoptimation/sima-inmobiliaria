@@ -313,7 +313,11 @@ export default async function PortalClienteLotePage({
               const puedeEliminar = !pago.confirmado_acreedor_por && !pago.confirmado_admin_por
               const eliminarPagoConId = eliminarPago.bind(null, pago.id)
               return (
-                <div key={pago.id} className="rounded-xl border border-blue-100 bg-white p-4 shadow-sm">
+                <div
+                  key={pago.id}
+                  data-testid="pago-cliente-mobile"
+                  className="rounded-xl border border-blue-100 bg-white p-4 shadow-sm"
+                >
                   <div className="mb-2 flex items-center justify-between">
                     <span className="font-semibold text-blue-900">
                       {pago.monto} {pago.moneda}
@@ -382,7 +386,11 @@ export default async function PortalClienteLotePage({
                   const puedeEliminar = !pago.confirmado_acreedor_por && !pago.confirmado_admin_por
                   const eliminarPagoConId = eliminarPago.bind(null, pago.id)
                   return (
-                    <tr key={pago.id} className="border-t border-blue-100 hover:bg-blue-50/40">
+                    <tr
+                      key={pago.id}
+                      data-testid="pago-cliente"
+                      className="border-t border-blue-100 hover:bg-blue-50/40"
+                    >
                       <td className="px-4 py-3 font-medium text-slate-800">
                         {pago.monto} {pago.moneda}
                       </td>

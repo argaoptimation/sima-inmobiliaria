@@ -102,6 +102,40 @@ export async function requireAdminSobreLote(loteId: string) {
 // mantener dos copias identicas de la misma logica).
 export const requireAdminOAcreedor = requireAdmin
 
+// Pantalla de Pagos: cualquiera del staff que pueda ser destinatario de un
+// cobro tiene que poder entrar (06/09). Desde que cada cuota puede cobrarse
+// en la cuenta de otra persona, un vendedor puede ser quien recibe la
+// transferencia -- y es él quien hace la primera confirmación, antes del
+// doble check de Nicolás. Antes el vendedor rebotaba a /admin/lotes y no
+// tenía ninguna forma de confirmar lo que cobró.
+//
+// Qué pagos ve cada uno lo sigue acotando RLS (los lotes que puede ver), y
+// cuáles puede confirmar lo acota confirmarPago() (tiene que ser EL
+// destinatario de ese cobro).
+export async function requireStaffQueConfirmaPagos() {
+  const supabase = await createClient()
+
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
+
+  if (!user) {
+    redirect('/login')
+  }
+
+  const { data: profile } = await supabase
+    .from('profiles')
+    .select('role')
+    .eq('id', user.id)
+    .single()
+
+  const ROLES = ['administrador', 'acreedor', 'cobrador', 'vendedor']
+
+  if (!profile || !ROLES.includes(profile.role)) {
+    redirect('/admin/lotes')
+  }
+}
+
 // Detalle de lote: según Nicolás (25/08), el cobrador tiene que poder ver
 // todo lo relacionado a si el cliente pagó o no (historial, cuotas,
 // estado) -- lo único que NO tiene que ver es el reparto entre acreedores/

@@ -7,6 +7,10 @@ import { redirect } from 'next/navigation'
 import { requireAdministrador } from '@/lib/auth/require-admin'
 import { hoyArgentina } from '@/lib/fecha/hoy-argentina'
 import {
+  alcanzaConLaConfirmacionDelAdmin,
+  resolverDestinatarioDelPago,
+} from '@/lib/pagos/destinatario'
+import {
   generarDebeAutomaticoSiCorresponde,
   revertirDebeAutomaticoSiCorresponde,
 } from '@/lib/cuenta-corriente/generar-debe-automatico'
@@ -26,13 +30,20 @@ export async function confirmarPago(pagoId: string, formData: FormData) {
     .eq('id', user.id)
     .single()
 
-  if (!perfil || (perfil.role !== 'acreedor' && perfil.role !== 'administrador')) {
+  // Desde el 06/09 el que hace la primera confirmación es el DESTINATARIO
+  // del cobro, no el acreedor del lote: si la cuota 1 se cobra en la cuenta
+  // del vendedor 1, es el vendedor 1 quien verifica el comprobante y el
+  // monto, y recién después Nicolás hace el segundo check. Así que un
+  // vendedor o un cobrador también pueden llegar acá.
+  const ROLES_QUE_CONFIRMAN = ['administrador', 'acreedor', 'vendedor', 'cobrador']
+
+  if (!perfil || !ROLES_QUE_CONFIRMAN.includes(perfil.role)) {
     return
   }
 
   const { data: pago } = await supabase
     .from('pagos')
-    .select('comprobante_path, cliente_id, lote_id, moneda, motivo, medio_pago')
+    .select('comprobante_path, cliente_id, lote_id, moneda, motivo, medio_pago, cuota_origen_id')
     .eq('id', pagoId)
     .single()
 
@@ -56,15 +67,18 @@ export async function confirmarPago(pagoId: string, formData: FormData) {
     .eq('id', pago.lote_id)
     .single()
 
-  if (perfil.role === 'acreedor' && (!lote || lote.acreedor_id !== user.id)) {
-    // No es el acreedor de este lote -- ya sea porque el lote pertenece a
-    // otro acreedor, o porque todavia no tiene ninguno asignado. En ambos
-    // casos el rechazo debe ser visible (no un fallo silencioso): sin esta
-    // senal, un lote sin acreedor deja el pago trabado para siempre sin que
-    // nadie note que hay algo pendiente de resolver.
+  const destinatario = await resolverDestinatarioDelPago(supabase, pago)
+
+  if (perfil.role !== 'administrador' && destinatario.perfilId !== user.id) {
+    // No es el destinatario de este cobro -- ya sea porque la cuota se
+    // cobra en la cuenta de otra persona, o porque el lote todavia no tiene
+    // ninguna asignada. En ambos casos el rechazo debe ser visible (no un
+    // fallo silencioso): sin esta senal, un lote sin destinatario deja el
+    // pago trabado para siempre sin que nadie note que hay algo pendiente
+    // de resolver.
     redirect(
       `/admin/pagos?error=${encodeURIComponent(
-        'No sos el acreedor vinculado a este lote, o el lote todavía no tiene un acreedor asignado.'
+        'Este pago no se cobra en tu cuenta, así que no sos vos quien lo confirma. Si creés que sí, revisá con el administrador a qué cuenta está asignada esa cuota.'
       )}`
     )
   }
@@ -79,11 +93,14 @@ export async function confirmarPago(pagoId: string, formData: FormData) {
     return
   }
 
-  const campoPor = perfil.role === 'acreedor' ? 'confirmado_acreedor_por' : 'confirmado_admin_por'
-  const campoAt = perfil.role === 'acreedor' ? 'confirmado_acreedor_at' : 'confirmado_admin_at'
-  const campoOtroPor =
-    perfil.role === 'acreedor' ? 'confirmado_admin_por' : 'confirmado_acreedor_por'
-  const campoOtroAt = perfil.role === 'acreedor' ? 'confirmado_admin_at' : 'confirmado_acreedor_at'
+  // Las columnas se llaman "acreedor" por historia; hoy son las del
+  // destinatario del cobro, sea quien sea (ver migración 0055).
+  const firmaComoDestinatario = perfil.role !== 'administrador'
+
+  const campoPor = firmaComoDestinatario ? 'confirmado_acreedor_por' : 'confirmado_admin_por'
+  const campoAt = firmaComoDestinatario ? 'confirmado_acreedor_at' : 'confirmado_admin_at'
+  const campoOtroPor = firmaComoDestinatario ? 'confirmado_admin_por' : 'confirmado_acreedor_por'
+  const campoOtroAt = firmaComoDestinatario ? 'confirmado_admin_at' : 'confirmado_acreedor_at'
 
   const montoVisto = Number(formData.get('montoVisto'))
   const montoIngresado = Number(formData.get('monto'))
@@ -146,14 +163,16 @@ export async function confirmarPago(pagoId: string, formData: FormData) {
 
   // Claim atomico: solo un llamador puede ganar este UPDATE, ya sea contra
   // una carrera de doble click o contra un reintento tras una falla parcial.
-  // Alcanza con la confirmacion del admin sola (sin la cruzada del
-  // acreedor) en dos casos: el lote redirige el cobro a una cuenta externa
-  // (sin login, nadie del otro lado para confirmar), o el pago es en
-  // efectivo (la confirmación de Nicolás YA ES la evidencia, ver punto 22
-  // de Notas_Decisiones_SIMA.txt). Dos ramas explicitas (en vez de armar un
-  // solo query condicional) para que quede clara la diferencia exacta entre
-  // ambos casos, sin depender de como encadena internamente el builder.
-  const { data: pagoClaimado, error: errorClaim } = lote!.cuenta_cobro_externa_id || pago.medio_pago === 'efectivo'
+  // El doble check (destinatario + admin) es la regla; alcanza con el admin
+  // solo cuando del otro lado no hay nadie que pueda confirmar -- ver
+  // alcanzaConLaConfirmacionDelAdmin(). Dos ramas explicitas (en vez de
+  // armar un solo query condicional) para que quede clara la diferencia
+  // exacta entre ambos casos, sin depender de como encadena internamente el
+  // builder.
+  const { data: pagoClaimado, error: errorClaim } = alcanzaConLaConfirmacionDelAdmin(
+    destinatario,
+    pago.medio_pago
+  )
     ? await supabase
         .from('pagos')
         .update({ estado: 'confirmado' })
@@ -177,7 +196,10 @@ export async function confirmarPago(pagoId: string, formData: FormData) {
     return
   }
 
-  if (lote.cuenta_cobro_externa_id) {
+  // La plata le entro a alguien: se registra donde corresponda. El destino
+  // es el de la CUOTA que origino el pago (o el del lote, si esa cuota no
+  // tiene uno propio) -- el mismo alias que el cliente vio al transferir.
+  if (destinatario.cobroDirecto) {
     const { data: cliente } = await supabase
       .from('profiles')
       .select('full_name')
@@ -188,21 +210,49 @@ export async function confirmarPago(pagoId: string, formData: FormData) {
       lote.identificador
     } — ${cliente?.full_name ?? 'cliente'}`
 
-    const { error: errorMovimientoExterno } = await supabase.from('cuentas_externas_movimientos').insert({
-      cuenta_externa_id: lote.cuenta_cobro_externa_id,
-      tipo: 'credito',
-      monto: pagoClaimado.monto,
-      moneda: pago.moneda,
-      concepto: conceptoMovimiento,
-      pago_id: pagoClaimado.id,
-      cargado_por: user.id,
-    })
+    if (destinatario.cuentaExternaId) {
+      const { error: errorMovimientoExterno } = await supabase.from('cuentas_externas_movimientos').insert({
+        cuenta_externa_id: destinatario.cuentaExternaId,
+        tipo: 'credito',
+        monto: pagoClaimado.monto,
+        moneda: pago.moneda,
+        concepto: conceptoMovimiento,
+        pago_id: pagoClaimado.id,
+        cargado_por: user.id,
+      })
 
-    if (errorMovimientoExterno) {
-      // El pago ya quedo "confirmado" y el FIFO de abajo sigue corriendo --
-      // no revertimos nada, pero queda para revision manual el hecho de que
-      // no se registro el credito en la cuenta externa.
-      console.error('No se pudo registrar el crédito en la cuenta externa:', errorMovimientoExterno)
+      if (errorMovimientoExterno) {
+        // El pago ya quedo "confirmado" y el FIFO de abajo sigue corriendo --
+        // no revertimos nada, pero queda para revision manual el hecho de que
+        // no se registro el credito en la cuenta externa.
+        console.error('No se pudo registrar el crédito en la cuenta externa:', errorMovimientoExterno)
+      }
+    } else if (destinatario.perfilId) {
+      // Haber automatico (06/09): el cliente le transfirio DIRECTO a esta
+      // persona, salteando a la empresa. Es la contracara del Debe que la
+      // distribucion le postea por lo que le corresponde de esta cuota.
+      //
+      // Sin esto la cuenta corriente solo tenia la mitad de la historia
+      // (todo lo que se le debe, nada de lo que ya cobro), y habia que
+      // cargar cada Haber a mano. Con las dos mitades el saldo se salda
+      // solo: si un vendedor cobro 500 de mas en un lote y le corresponden
+      // 500 en otro, queda en cero sin que nadie transfiera nada.
+      const { error: errorHaber } = await supabase.from('movimientos_cuenta_corriente').insert({
+        profile_id: destinatario.perfilId,
+        tipo: 'haber',
+        monto: pagoClaimado.monto,
+        moneda: pago.moneda,
+        lote_id: lote.id,
+        cuota_id: pago.cuota_origen_id,
+        origen: 'pago_directo_cliente',
+        de_parte_de: cliente?.full_name ?? 'cliente',
+        detalle: conceptoMovimiento,
+        cargado_por: user.id,
+      })
+
+      if (errorHaber) {
+        console.error('No se pudo registrar el Haber automático de cuenta corriente:', errorHaber)
+      }
     }
   }
 
