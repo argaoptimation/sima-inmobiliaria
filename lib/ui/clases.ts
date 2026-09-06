@@ -243,3 +243,13 @@ export const PAGO_FORM_CONFIRMACION =
 export const PAGO_BANNER_ALERTA =
   'flex items-center gap-2 border-t border-red-100 bg-red-50/80 px-5 py-2.5 text-[12.5px] font-semibold text-red-700'
 
+
+// Ancho cómodo de lectura para formularios y fichas dentro de una pantalla
+// que por lo demás usa todo el ancho (06/09).
+//
+// La regla general que pidió Gabriel es "todo a ancho completo", y vale para
+// las tablas: son las que sufren cuando les falta lugar. Un formulario es al
+// revés -- un input de 1800px de ancho no le sirve a nadie y el ojo se pierde
+// yendo de la etiqueta al campo. Así que la pantalla es ancha y lo que se
+// acota es el bloque de formulario, no al revés.
+export const COLUMNA_LECTURA = 'max-w-3xl'

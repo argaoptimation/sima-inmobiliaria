@@ -8,6 +8,7 @@ import { EnlaceBoton } from '@/components/EnlaceBoton'
 import { BotonEnvio } from '@/components/BotonEnvio'
 import { ENTRADA, BOTON_PRIMARIO, ENLACE, TITULO_H1, BANNER_ERROR } from '@/lib/ui/clases'
 import { Obligatorio } from '@/components/Obligatorio'
+import { calcularSenaADescontar } from '@/lib/lotes/sena-a-descontar'
 
 export default async function VenderLotePage({
   params,
@@ -66,12 +67,23 @@ export default async function VenderLotePage({
   const { data: reserva } = await supabase
     .from('reservas')
     .select(
-      'nombre_completo, dni, domicilio, telefono_prefijo, telefono_numero, email, monto_sena, moneda_sena'
+      'nombre_completo, dni, domicilio, telefono_prefijo, telefono_numero, email, monto_sena, moneda_sena, created_at'
     )
     .eq('lote_id', id)
     .order('created_at', { ascending: false })
     .limit(1)
     .maybeSingle()
+
+  // Cuánto de la seña se descuenta, ya en la moneda del lote. Se calcula
+  // acá (y no en el componente) porque convertir una seña cobrada en otra
+  // moneda necesita la cotización del día de la reserva, que sale de la
+  // base. Es exactamente el mismo cálculo que hace venderLote() al guardar.
+  const sena = await calcularSenaADescontar(supabase, {
+    montoSena: reserva?.monto_sena ?? null,
+    monedaSena: reserva?.moneda_sena ?? null,
+    monedaLote: lote!.moneda as string,
+    fechaSena: reserva?.created_at ? String(reserva.created_at).slice(0, 10) : null,
+  })
 
   const venderLoteConId = venderLote.bind(null, id)
 
@@ -188,6 +200,7 @@ export default async function VenderLotePage({
               monedaLote={lote!.moneda}
               montoSenaRegistrada={reserva?.monto_sena ?? null}
               monedaSena={reserva?.moneda_sena ?? null}
+              sena={sena}
               cantidadCuotasInicial={cantidadCuotasPreservada ?? ''}
               modoInicial={modoInicial}
               montosInicial={montosInicial}

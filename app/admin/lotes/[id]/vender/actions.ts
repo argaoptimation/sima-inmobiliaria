@@ -7,6 +7,7 @@ import { requireAdministrador } from '@/lib/auth/require-admin'
 import { calcularMontoCuota } from '@/lib/lotes/calcular-monto-cuota'
 import { generarCuotas, generarCuotasManual, CuotaGenerada } from '@/lib/lotes/generar-cuotas'
 import { calcularMontoAFinanciar } from '@/lib/lotes/monto-a-financiar'
+import { calcularSenaADescontar } from '@/lib/lotes/sena-a-descontar'
 import { mensajeDeError } from '@/lib/errores'
 import { invitarPorEmail } from '@/lib/auth/invitar-por-email'
 
@@ -113,7 +114,9 @@ export async function venderLote(loteId: string, formData: FormData) {
   // descuento de la seña en las cuotas, al final de la función.
   const { data: reserva } = await admin
     .from('reservas')
-    .select('monto_sena, moneda_sena, comprobante_sena_path, dni, domicilio, telefono_prefijo, telefono_numero')
+    .select(
+      'monto_sena, moneda_sena, comprobante_sena_path, dni, domicilio, telefono_prefijo, telefono_numero, created_at'
+    )
     .eq('lote_id', loteId)
     .order('created_at', { ascending: false })
     .limit(1)
@@ -192,14 +195,19 @@ export async function venderLote(loteId: string, formData: FormData) {
     }
   }
 
-  // Seña que se descuenta del total a financiar: solo si la reserva tiene
-  // seña en la MISMA moneda del lote (mismo criterio de "sin conversión de
-  // moneda" que el resto del proyecto). Si la moneda difiere, la seña queda
-  // registrada como pago pero no se descuenta de las cuotas.
-  const senaADescontar =
-    reserva && reserva.monto_sena > 0 && reserva.moneda_sena === loteActual!.moneda
-      ? reserva.monto_sena
-      : 0
+  // Seña que se descuenta del total a financiar, siempre en la moneda del
+  // lote. Si se cobró en otra moneda (06/09: lote en ARS con seña en USD),
+  // se convierte con la cotización del día en que se cobró -- antes en ese
+  // caso no se descontaba nada y el cliente terminaba financiando un total
+  // que ya había empezado a pagar.
+  const sena = await calcularSenaADescontar(supabase, {
+    montoSena: reserva?.monto_sena ?? null,
+    monedaSena: reserva?.moneda_sena ?? null,
+    monedaLote: loteActual!.moneda as string,
+    fechaSena: reserva?.created_at ? String(reserva.created_at).slice(0, 10) : null,
+  })
+
+  const senaADescontar = sena.monto
 
   const montoAFinanciar = calcularMontoAFinanciar({
     precioTotal: loteActual!.precio_total as number,
@@ -418,13 +426,15 @@ export async function venderLote(loteId: string, formData: FormData) {
   // verificó al reservar, con su propio comprobante) pero NO se imputa
   // contra ninguna cuota: desde el 05/09 ya viene descontada del total a
   // financiar, así que imputarla sería descontar la misma plata dos veces.
-  // Si la seña está en otra moneda que el lote, `senaADescontar` es 0 y no
-  // se registra nada -- mismo criterio de siempre.
+  //
+  // El pago se guarda con el monto y la moneda que el comprador realmente
+  // pagó, no con el equivalente convertido: eso último es un número que
+  // solo sirve para calcular las cuotas, no es la plata que entró.
   if (senaADescontar > 0) {
     const { error: errorPagoSena } = await admin.from('pagos').insert({
       cliente_id: clienteId,
       lote_id: loteId,
-      monto: senaADescontar,
+      monto: reserva!.monto_sena,
       moneda: reserva!.moneda_sena,
       comprobante_path: reserva!.comprobante_sena_path,
       motivo: 'sena',

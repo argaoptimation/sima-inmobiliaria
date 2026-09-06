@@ -4,6 +4,7 @@ import path from 'node:path'
 import { ensureTestFixtures, createAdminClient, TestFixtures } from './fixtures/test-data'
 import { login, logout } from './utils/login'
 import { elegirFormaPago } from './utils/reserva'
+import { hoyArgentina } from '../../lib/fecha/hoy-argentina'
 
 const COMPROBANTE_PATH = path.join(__dirname, 'fixtures', 'comprobante-test.pdf')
 const COMPROBANTE_BYTES = readFileSync(COMPROBANTE_PATH)
@@ -353,16 +354,38 @@ test.describe('Pase a vendido (fase 2)', () => {
     expect(cuotas!.every((cuota) => cuota.saldo_pendiente === 850)).toBe(true)
   })
 
-  test('vender con seña en moneda distinta a la del lote: no se descuenta nada', async ({
+  test('vender con seña en moneda distinta a la del lote: se convierte con la cotización del día y se descuenta', async ({
     page,
   }) => {
+    const admin = createAdminClient()
+
+    // La conversión usa la cotización vigente el día de la reserva. La
+    // reserva se crea recién ahora, así que la de hoy es la que va a usar
+    // -- si no hay ninguna cargada hasta hoy, el test no tendría nada con
+    // qué convertir.
+    const { data: cotizacion } = await admin
+      .from('cotizaciones_dolar')
+      .select('valor')
+      .lte('fecha', hoyArgentina())
+      .order('fecha', { ascending: false })
+      .limit(1)
+      .maybeSingle()
+
+    if (!cotizacion) {
+      throw new Error('No hay ninguna cotización del dólar cargada: el test no puede convertir')
+    }
+
+    // Seña equivalente a exactamente 1000 USD al tipo de cambio de hoy, para
+    // que las cuotas den un número redondo con el que comparar.
+    const montoSenaEnPesos = Number(cotizacion.valor) * 1000
+
     const loteId = await crearLoteDisponibleConPrecio(`E2E Seña Moneda Distinta ${Date.now()}`, 10000)
 
     await login(page, fixtures.admin.email, fixtures.password)
     await reservarLotePorUI(page, loteId, {
       nombreCompleto: 'Comprador Seña Moneda Distinta',
       email: `sena.moneda.${Date.now()}@sima-e2e.invalid`,
-      montoSena: '500',
+      montoSena: String(montoSenaEnPesos),
       monedaSena: 'ARS',
     })
 
@@ -380,19 +403,35 @@ test.describe('Pase a vendido (fase 2)', () => {
     await page.getByRole('button', { name: 'Confirmar venta y enviar invitación' }).click()
     await page.waitForURL(/\/distribucion/)
 
-    const admin = createAdminClient()
     const { data: lote } = await admin.from('lotes').select('cliente_id').eq('id', loteId).single()
     const { data: cuotas } = await admin
       .from('cuotas')
       .select('monto_base, saldo_pendiente')
       .eq('lote_id', loteId)
 
+    // 10.000 USD de precio − 1.000 USD de seña convertida = 9.000 en 10 cuotas.
+    expect(cuotas).toHaveLength(10)
     for (const cuota of cuotas ?? []) {
+      expect(cuota.monto_base).toBe(900)
+      // La seña se descuenta del total a financiar, NO se imputa contra la
+      // cuota 1: todas arrancan con el saldo completo.
       expect(cuota.saldo_pendiente).toBe(cuota.monto_base)
     }
 
-    const { data: pagos } = await admin.from('pagos').select('id').eq('cliente_id', lote!.cliente_id)
-    expect(pagos).toHaveLength(0)
+    // La seña queda registrada como pago con lo que el comprador realmente
+    // pagó (pesos), no con el equivalente en dólares que se usó para las
+    // cuotas.
+    const { data: pagos } = await admin
+      .from('pagos')
+      .select('monto, moneda, motivo, estado')
+      .eq('cliente_id', lote!.cliente_id)
+    expect(pagos).toHaveLength(1)
+    expect(pagos![0]).toMatchObject({
+      monto: montoSenaEnPesos,
+      moneda: 'ARS',
+      motivo: 'sena',
+      estado: 'confirmado',
+    })
   })
 
   test('venta al contado (seña $0): no se crea ningún pago', async ({ page }) => {

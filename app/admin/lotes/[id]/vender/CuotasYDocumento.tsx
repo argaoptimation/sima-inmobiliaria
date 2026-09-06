@@ -4,6 +4,7 @@ import { useState } from 'react'
 import { calcularMontoCuota } from '@/lib/lotes/calcular-monto-cuota'
 import { generarCuotas } from '@/lib/lotes/generar-cuotas'
 import { calcularMontoAFinanciar } from '@/lib/lotes/monto-a-financiar'
+import type { SenaADescontar } from '@/lib/lotes/convertir-sena'
 import { CampoArchivoDirecto } from '@/components/CampoArchivoDirecto'
 import { ENTRADA } from '@/lib/ui/clases'
 
@@ -13,6 +14,9 @@ interface Props {
   monedaLote: string
   montoSenaRegistrada: number | null
   monedaSena: string | null
+  // Ya resuelta del lado del servidor: convertir una seña cobrada en
+  // otra moneda necesita la cotización del día, que sale de la base.
+  sena: SenaADescontar
   cantidadCuotasInicial: string
   modoInicial: 'automatico' | 'manual'
   montosInicial: string[]
@@ -22,6 +26,13 @@ interface Props {
   // (por ejemplo por la confirmación de cliente existente). Se conserva
   // para no obligar al admin a volver a adjuntarlo.
   documentoInicial: string | null
+}
+
+// dd/mm/aaaa a partir de un 'aaaa-mm-dd' -- sin pasar por Date, que
+// interpreta la fecha sola como UTC y en Argentina la corre un día.
+function formatearFecha(fecha: string): string {
+  const [anio, mes, dia] = fecha.split('-')
+  return `${dia}/${mes}/${anio}`
 }
 
 const MAX_CUOTAS = 600
@@ -44,6 +55,7 @@ export function CuotasYDocumento({
   monedaLote,
   montoSenaRegistrada,
   monedaSena,
+  sena,
   cantidadCuotasInicial,
   modoInicial,
   montosInicial,
@@ -65,12 +77,9 @@ export function CuotasYDocumento({
   const cantidadCuotas = Math.min(Number(cantidadCuotasTexto) || 0, MAX_CUOTAS)
   const entrega = Number(entregaTexto) || 0
 
-  // La seña solo se descuenta si está en la misma moneda del lote -- mismo
-  // criterio que venderLote() del lado del servidor.
-  const senaADescontar =
-    montoSenaRegistrada !== null && montoSenaRegistrada > 0 && monedaSena === monedaLote
-      ? montoSenaRegistrada
-      : 0
+  // La seña ya viene calculada en la moneda del lote (convertida si hizo
+  // falta) -- mismo número que usa venderLote() del lado del servidor.
+  const senaADescontar = sena.monto
 
   const montoAFinanciar =
     precioTotal === null
@@ -214,11 +223,23 @@ export function CuotasYDocumento({
           <p className="mt-1">
             Precio de lista del lote: {precioTotal} {monedaLote}
           </p>
-          {senaADescontar > 0 && <p>− Seña ya cobrada en la reserva: {senaADescontar}</p>}
-          {montoSenaRegistrada !== null && montoSenaRegistrada > 0 && senaADescontar === 0 && (
+          {senaADescontar > 0 && (
+            <p>
+              − Seña ya cobrada en la reserva: {senaADescontar}
+              {sena.convertida && (
+                <span className="block text-xs text-blue-800">
+                  Son {montoSenaRegistrada} {monedaSena} convertidos a {monedaLote} con la
+                  cotización de {sena.fechaCotizacion ? formatearFecha(sena.fechaCotizacion) : ''}
+                  {sena.cotizacion ? ` (${sena.cotizacion} ARS por dólar)` : ''}.
+                </span>
+              )}
+            </p>
+          )}
+          {sena.sinCotizacion && montoSenaRegistrada !== null && montoSenaRegistrada > 0 && (
             <p className="text-amber-800">
-              La seña registrada ({montoSenaRegistrada} {monedaSena}) está en otra moneda que el
-              lote ({monedaLote}): queda registrada como pago pero no se descuenta de las cuotas.
+              La seña ({montoSenaRegistrada} {monedaSena}) está en otra moneda que el lote (
+              {monedaLote}) y todavía no hay ninguna cotización del dólar cargada, así que no se
+              puede convertir. Cargá la cotización y volvé a esta pantalla para que se descuente.
             </p>
           )}
           {entrega > 0 && <p>− Entrega al firmar: {entrega}</p>}

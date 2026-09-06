@@ -39,7 +39,7 @@ import { FiltroEnVivo } from '@/components/FiltroEnVivo'
 import { RefinanciarCuotas } from './RefinanciarCuotas'
 import { EnlaceBoton } from '@/components/EnlaceBoton'
 import { BotonEnvio } from '@/components/BotonEnvio'
-import {
+import { COLUMNA_LECTURA,
   ENTRADA,
   BOTON_PRIMARIO,
   ENLACE,
@@ -536,7 +536,12 @@ export default async function LoteDetallePage({
     : { data: null }
 
   return (
-    <main className="max-w-2xl">
+    <main className="w-full">
+      {/* Las secciones de formularios y fichas siguen acotadas a un ancho
+          cómodo de lectura -- un input de 1800px no le sirve a nadie. Lo
+          que se despliega a todo el ancho es lo que son tablas: cuotas,
+          historial de pagos, índice y contratos. */}
+      <div className={COLUMNA_LECTURA}>
       <EnlaceBoton href="/admin/lotes" className={`mb-4 inline-block ${ENLACE}`}>
         ← Volver a Lotes
       </EnlaceBoton>
@@ -722,12 +727,22 @@ export default async function LoteDetallePage({
         </p>
       )}
 
+      </div>
+
       {/* Cuotas a la izquierda, historial de pagos a la derecha (05/09,
           pedido de Nico vía Gabriel): antes había que scrollear hasta
           abajo de la tabla de cuotas para ver qué se cobró, y desde ahí
           volver a subir. En pantallas angostas siguen uno debajo del
-          otro. */}
-      <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_minmax(0,30rem)] xl:items-start">
+          otro.
+
+          Medido, no estimado: la tabla de cuotas necesita 617px para no
+          cortar ninguna columna y la de pagos 515px. Al historial se le da
+          un ancho fijo cómodo (34rem = 544px) y las cuotas se quedan con
+          todo el resto, que siempre es más de lo que necesitan. Y el
+          reparto arranca recién en 2xl: abajo de eso no entran las dos sin
+          que alguna quede con scroll horizontal, así que van una debajo de
+          la otra usando el ancho completo. */}
+      <div className="grid gap-6 2xl:grid-cols-[minmax(0,1fr)_minmax(0,34rem)] 2xl:items-start">
         <div>
       <h2 className={`mb-2 mt-6 ${TITULO_H2}`}>Cuotas</h2>
       {perfilPropio!.role === 'administrador' && lote!.estado === 'vendido' && (
@@ -862,17 +877,19 @@ export default async function LoteDetallePage({
       {pagosConComprobante.length > 0 && (
         <>
           <h2 className={`mb-2 mt-6 ${TITULO_H2}`}>Historial de pagos</h2>
+          {/* Cuatro columnas, no siete (06/09): al lado de la tabla de
+              cuotas no entran Fecha + Motivo + Medio + Monto + Comprobante
+              + Estado + botón sin scroll horizontal, y una tabla con
+              scroll no se lee. El medio de pago y el motivo pasan a ser
+              renglones chicos dentro de las columnas que sí importan. */}
           <div className={`mb-2 ${TABLA_CONTENEDOR}`}>
           <table className="w-full text-sm">
             <thead>
               <tr className={TABLA_HEADER_FILA}>
                 <th className={TABLA_HEADER_CELDA}>Fecha</th>
-                <th className={TABLA_HEADER_CELDA}>Motivo</th>
-                <th className={TABLA_HEADER_CELDA}>Medio</th>
                 <th className={TABLA_HEADER_CELDA}>Monto</th>
                 <th className={TABLA_HEADER_CELDA}>Comprobante</th>
                 <th className={TABLA_HEADER_CELDA}>Estado</th>
-                {puedeConfirmarPagoDesdeLote && <th className={TABLA_HEADER_CELDA}></th>}
               </tr>
             </thead>
             <tbody>
@@ -880,11 +897,17 @@ export default async function LoteDetallePage({
                 const confirmarEstePago = confirmarPago.bind(null, pago.id)
                 return (
                   <tr key={pago.id} className={TABLA_FILA}>
-                    <td className={TABLA_CELDA}>{new Date(pago.created_at).toLocaleDateString('es-AR')}</td>
-                    <td className={TABLA_CELDA}>{MOTIVO_PAGO_ETIQUETA[pago.motivo] ?? pago.motivo}</td>
-                    <td className={TABLA_CELDA}>{pago.medio_pago === 'efectivo' ? 'Efectivo' : 'Transferencia'}</td>
-                    <td className={TABLA_CELDA}>
+                    <td className={`${TABLA_CELDA} whitespace-nowrap`}>
+                      {new Date(pago.created_at).toLocaleDateString('es-AR')}
+                      <span className="block text-xs text-slate-500">
+                        {pago.medio_pago === 'efectivo' ? 'Efectivo' : 'Transferencia'}
+                      </span>
+                    </td>
+                    <td className={`${TABLA_CELDA} whitespace-nowrap`}>
                       {pago.monto} {pago.moneda}
+                      <span className="block text-xs text-slate-500">
+                        {MOTIVO_PAGO_ETIQUETA[pago.motivo] ?? pago.motivo}
+                      </span>
                     </td>
                     <td className={TABLA_CELDA}>
                       {pago.comprobanteUrl ? (
@@ -902,18 +925,16 @@ export default async function LoteDetallePage({
                         <span className="text-slate-400">—</span>
                       )}
                     </td>
-                    <td className={TABLA_CELDA}>{pago.estado === 'confirmado' ? 'Confirmado' : 'Pendiente'}</td>
-                    {puedeConfirmarPagoDesdeLote && (
-                      <td className={TABLA_CELDA}>
-                        {pago.estado === 'pendiente' && (
-                          <form action={confirmarEstePago}>
-                            <input type="hidden" name="montoVisto" value={pago.monto} />
-                            <input type="hidden" name="monto" value={pago.monto} />
-                            <BotonEnvio className={ENLACE_TABLA}>Confirmar</BotonEnvio>
-                          </form>
-                        )}
-                      </td>
-                    )}
+                    <td className={`${TABLA_CELDA} whitespace-nowrap`}>
+                      {pago.estado === 'confirmado' ? 'Confirmado' : 'Pendiente'}
+                      {puedeConfirmarPagoDesdeLote && pago.estado === 'pendiente' && (
+                        <form action={confirmarEstePago}>
+                          <input type="hidden" name="montoVisto" value={pago.monto} />
+                          <input type="hidden" name="monto" value={pago.monto} />
+                          <BotonEnvio className={`block ${ENLACE_TABLA}`}>Confirmar</BotonEnvio>
+                        </form>
+                      )}
+                    </td>
                   </tr>
                 )
               })}
@@ -924,6 +945,8 @@ export default async function LoteDetallePage({
       )}
         </div>
       </div>
+
+      <div className={COLUMNA_LECTURA}>
 
       {(ajustesIndexacion ?? []).length > 0 && (
         <>
@@ -1466,6 +1489,7 @@ export default async function LoteDetallePage({
           </div>
         </details>
       )}
+      </div>
     </main>
   )
 }
