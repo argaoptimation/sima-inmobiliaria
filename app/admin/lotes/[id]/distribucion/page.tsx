@@ -7,16 +7,17 @@ import { guardarDistribucionLote } from './actions'
 import { DistribucionCuotas } from './DistribucionCuotas'
 import { EnlaceBoton } from '@/components/EnlaceBoton'
 import { ENLACE, TITULO_H1, BANNER_ERROR, BANNER_OK } from '@/lib/ui/clases'
+import { SeccionCobro } from '../SeccionCobro'
 
 export default async function DistribucionLotePage({
   params,
   searchParams,
 }: {
   params: Promise<{ id: string }>
-  searchParams: Promise<{ error?: string; ok?: string }>
+  searchParams: Promise<{ error?: string; ok?: string; editarUsuario?: string }>
 }) {
   const { id } = await params
-  const { error, ok } = await searchParams
+  const { error, ok, editarUsuario } = await searchParams
 
   await requireAdministrador()
 
@@ -283,45 +284,36 @@ export default async function DistribucionLotePage({
       {error && <p className={BANNER_ERROR}>{error}</p>}
       {ok && <p className={BANNER_OK}>{ok === '1' ? 'Distribución guardada.' : ok}</p>}
 
-      {/* 05/09, pedido de Gabriel: antes de repartir hay que saber quiénes
-          son los integrantes de este lote, porque son los únicos que
-          después aparecen para elegir cuota por cuota. Se editan en la
-          sección de cobro del lote. */}
-      <details className="mb-6 rounded-lg border border-blue-100 bg-blue-50/30 p-3 text-sm" open>
-        <summary className="cursor-pointer select-none font-semibold text-blue-900">
-          Integrantes de este lote ({participantesElegibles.length})
-        </summary>
+      {/* Quiénes cobran, arriba de cómo se reparte: son dos mitades de la
+          misma decisión (06/09, pedido de Gabriel). Antes esto vivía en el
+          detalle del lote y había que ir y volver entre dos pantallas. */}
+      <SeccionCobro loteId={id} editarUsuario={editarUsuario} />
+
+      {/* El resultado de lo de arriba: la lista final de quiénes pueden
+          recibir plata de este lote, ya resuelta (incluye admin, acreedor y
+          vendedor, no solo los participantes adicionales). */}
+      <div className="mb-6 rounded-lg border border-blue-100 bg-blue-50/30 p-3 text-sm">
+        <p className="font-semibold text-blue-900">
+          Entre estos se reparte cada cuota ({participantesElegibles.length})
+        </p>
         {participantesElegibles.length === 0 ? (
           <p className="mt-2 text-slate-600">
             Este lote todavía no tiene integrantes cargados, así que no hay a quién repartirle las
-            cuotas.{' '}
-            <EnlaceBoton href={`/admin/lotes/${id}`} className={ENLACE}>
-              Cargalos en la sección de cobro del lote
-            </EnlaceBoton>
-            .
+            cuotas. Cargalos en la sección de arriba.
           </p>
         ) : (
-          <>
-            <ul className="mt-2 flex flex-wrap gap-2">
-              {participantesElegibles.map((integrante) => (
-                <li
-                  key={integrante.key}
-                  className="rounded-full border border-blue-200 bg-white px-3 py-1 text-xs font-medium text-blue-900"
-                >
-                  {integrante.nombre}
-                </li>
-              ))}
-            </ul>
-            <p className="mt-2 text-xs text-slate-500">
-              Son los únicos que aparecen para elegir cuota por cuota. Para sumar o sacar gente,{' '}
-              <EnlaceBoton href={`/admin/lotes/${id}`} className={ENLACE}>
-                editá la sección de cobro del lote
-              </EnlaceBoton>
-              .
-            </p>
-          </>
+          <ul className="mt-2 flex flex-wrap gap-2">
+            {participantesElegibles.map((integrante) => (
+              <li
+                key={integrante.key}
+                className="rounded-full border border-blue-200 bg-white px-3 py-1 text-xs font-medium text-blue-900"
+              >
+                {integrante.nombre}
+              </li>
+            ))}
+          </ul>
         )}
-      </details>
+      </div>
 
       {cuotasSinDistribucion.length > 0 && (
         <p className="mb-4 rounded-lg bg-amber-50 p-3 text-sm text-amber-800">

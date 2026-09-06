@@ -268,7 +268,7 @@ test.describe('Cuentas externas', () => {
     await page.waitForURL(/\/admin\/cuentas-externas\/[0-9a-f-]{36}$/)
 
     try {
-      await page.goto(`/admin/lotes/${fixtures.loteId}`)
+      await page.goto(`/admin/lotes/${fixtures.loteId}/distribucion`)
       await page.selectOption('select[name="cuentaCobroId"]', {
         label: `${nombreCuentaExterna} (cuenta externa)`,
       })
@@ -313,7 +313,7 @@ test.describe('Cuentas externas', () => {
     const cuentaExternaId = page.url().split('/').pop()!
 
     try {
-      await page.goto(`/admin/lotes/${fixtures.loteId}`)
+      await page.goto(`/admin/lotes/${fixtures.loteId}/distribucion`)
       await page.selectOption('select[name="cuentaCobroId"]', {
         label: `${nombreCuentaExterna} (cuenta externa)`,
       })

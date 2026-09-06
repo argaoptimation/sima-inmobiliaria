@@ -18,11 +18,15 @@ test.describe('Cuenta de cobro por lote', () => {
   })
 
   test('admin asigna una cuenta de cobro y el cliente ve esos datos al pagar', async ({ page }) => {
-    await test.step('login como admin y entra al detalle del lote de prueba', async () => {
+    await test.step('login como admin y entra a la distribución del lote de prueba', async () => {
       await login(page, fixtures.admin.email, fixtures.password)
       await page.goto('/admin/lotes')
       await filaDelLoteDePrueba(page).getByRole('link', { name: 'Ver detalle' }).click()
       await page.waitForURL(/\/admin\/lotes\/.+$/)
+      // La sección de cobro se mudó a /distribucion el 06/09: definir quiénes
+      // cobran y repartir las cuotas entre ellos viven en la misma pantalla.
+      await page.getByRole('link', { name: 'Cobro y distribución de cuotas →' }).click()
+      await page.waitForURL((url) => url.pathname.endsWith('/distribucion'))
     })
 
     await test.step('asigna al acreedor con datos como cuenta de cobro', async () => {

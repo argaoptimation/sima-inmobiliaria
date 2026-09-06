@@ -402,6 +402,10 @@ export async function refinanciarLote(loteId: string, formData: FormData) {
   redirect(`/admin/lotes/${loteId}?ok=${encodeURIComponent('Refinanciación registrada')}`)
 }
 
+// Estas acciones devuelven a /distribucion, no al detalle del lote: desde el
+// 06/09 la sección de cobro y la de participantes viven ahí, junto al reparto
+// por cuota. Redirigir al detalle dejaba al admin en una pantalla donde el
+// formulario que acababa de usar ya no existe.
 export async function actualizarCobro(loteId: string, formData: FormData) {
   await requireAdministrador()
 
@@ -437,7 +441,7 @@ export async function actualizarCobro(loteId: string, formData: FormData) {
 
     if (rolInvalido) {
       redirect(
-        `/admin/lotes/${loteId}?error=${encodeURIComponent('Uno de los roles asignados no coincide')}`
+        `/admin/lotes/${loteId}/distribucion?error=${encodeURIComponent('Uno de los roles asignados no coincide')}`
       )
     }
   }
@@ -456,7 +460,7 @@ export async function actualizarCobro(loteId: string, formData: FormData) {
 
       if (!participanteCoincide) {
         redirect(
-          `/admin/lotes/${loteId}?error=${encodeURIComponent(
+          `/admin/lotes/${loteId}/distribucion?error=${encodeURIComponent(
             'La cuenta de cobro tiene que ser el admin, el acreedor, el vendedor o un participante adicional de este lote'
           )}`
         )
@@ -474,7 +478,7 @@ export async function actualizarCobro(loteId: string, formData: FormData) {
       !tieneDatosTransferencia({ alias: persona.alias, banco: persona.banco, titular: persona.titular })
     ) {
       redirect(
-        `/admin/lotes/${loteId}?error=${encodeURIComponent(
+        `/admin/lotes/${loteId}/distribucion?error=${encodeURIComponent(
           'Esa persona todavía no tiene datos de transferencia cargados'
         )}&editarUsuario=${cuentaCobroId}`
       )
@@ -498,7 +502,7 @@ export async function actualizarCobro(loteId: string, formData: FormData) {
       })
     ) {
       redirect(
-        `/admin/lotes/${loteId}?error=${encodeURIComponent(
+        `/admin/lotes/${loteId}/distribucion?error=${encodeURIComponent(
           'Esa cuenta externa todavía no tiene datos de transferencia completos'
         )}`
       )
@@ -518,10 +522,10 @@ export async function actualizarCobro(loteId: string, formData: FormData) {
     .eq('id', loteId)
 
   if (error) {
-    redirect(`/admin/lotes/${loteId}?error=${encodeURIComponent(mensajeDeError(error))}`)
+    redirect(`/admin/lotes/${loteId}/distribucion?error=${encodeURIComponent(mensajeDeError(error))}`)
   }
 
-  redirect(`/admin/lotes/${loteId}?ok=${encodeURIComponent('Datos de cobro guardados.')}`)
+  redirect(`/admin/lotes/${loteId}/distribucion?ok=${encodeURIComponent('Datos de cobro guardados.')}`)
 }
 
 export async function subirDocumentoLote(loteId: string, formData: FormData) {

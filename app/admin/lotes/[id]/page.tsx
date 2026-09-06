@@ -8,7 +8,6 @@ import { notFound, redirect } from 'next/navigation'
 import { requireAdminAcreedorOCobrador } from '@/lib/auth/require-admin'
 import {
   actualizarDatosGenerales,
-  actualizarCobro,
   eliminarLote,
   subirDocumentoLote,
   eliminarDocumentoLote,
@@ -20,7 +19,6 @@ import {
   generarContratoLote,
   saldarLote,
 } from './actions'
-import { agregarParticipante, quitarParticipante } from './participantes-actions'
 import { cancelarReserva } from '../actions'
 import { confirmarPago } from '../../pagos/actions'
 import { BotonEliminarLote } from './BotonEliminarLote'
@@ -29,8 +27,6 @@ import { BotonRescindir } from './BotonRescindir'
 import { BotonVolverADisponible } from './BotonVolverADisponible'
 import { BotonMarcarPrejudicial, BotonDesmarcarPrejudicial } from './BotonPrejudicial'
 import { PanelSaldar } from './PanelSaldar'
-import { tieneDatosTransferencia } from '@/lib/lotes/validar-cuenta-cobro'
-import { resolverAdminPorDefecto } from '@/lib/lotes/admin-por-defecto'
 import { telefonoParaWhatsApp } from '@/lib/telefono/prefijos'
 import { mesDeFecha } from '@/lib/lotes/aplicar-indexacion'
 import { EVENTO_HISTORIAL_ETIQUETA } from '@/lib/lotes/eventos-historial'
@@ -91,13 +87,12 @@ export default async function LoteDetallePage({
   searchParams: Promise<{
     error?: string
     ok?: string
-    editarUsuario?: string
     historialDesde?: string
     historialHasta?: string
   }>
 }) {
   const { id } = await params
-  const { error, ok, editarUsuario, historialDesde, historialHasta } = await searchParams
+  const { error, ok, historialDesde, historialHasta } = await searchParams
 
   await requireAdminAcreedorOCobrador()
 
@@ -278,81 +273,6 @@ export default async function LoteDetallePage({
     }
   }
 
-  const { data: staff } = await supabase
-    .from('profiles')
-    .select('id, full_name, role, alias, banco, titular')
-    .in('role', ['administrador', 'acreedor', 'vendedor'])
-    .order('full_name')
-
-  const administradores = (staff ?? []).filter((persona) => persona.role === 'administrador')
-
-  // 05/09, pedido de Gabriel: el Admin del cobro tiene que venir
-  // preseleccionado (en la práctica, Nicolás) en vez de arrancar en "sin
-  // asignar" y tener que elegirlo lote por lote. El acreedor ya venía
-  // preseleccionado con el del lote.
-  const adminPorDefecto = resolverAdminPorDefecto({
-    adminIdActual: lote!.admin_id,
-    administradores,
-    usuarioActualId: user?.id ?? null,
-    usuarioActualEsAdministrador: perfilPropio!.role === 'administrador',
-  })
-  const acreedores = (staff ?? []).filter((persona) => persona.role === 'acreedor')
-  const vendedores = (staff ?? []).filter((persona) => persona.role === 'vendedor')
-  const conDatos = (staff ?? []).filter(
-    (persona) =>
-      tieneDatosTransferencia({ alias: persona.alias, banco: persona.banco, titular: persona.titular }) ||
-      persona.id === lote!.cuenta_cobro_id
-  )
-
-  const { data: participantes } = await supabase
-    .from('lote_participantes')
-    .select('id, profile_id, cuenta_externa_id, etiqueta')
-    .eq('lote_id', id)
-    .order('created_at', { ascending: true })
-
-  const profileIdsParticipantes = (participantes ?? [])
-    .map((p) => p.profile_id)
-    .filter((pid): pid is string => pid !== null)
-  const cuentaExternaIdsParticipantes = (participantes ?? [])
-    .map((p) => p.cuenta_externa_id)
-    .filter((cid): cid is string => cid !== null)
-
-  const { data: profilesParticipantes } =
-    profileIdsParticipantes.length > 0
-      ? await supabase.from('profiles').select('id, full_name, role').in('id', profileIdsParticipantes)
-      : { data: [] }
-
-  const { data: cuentasExternasParticipantes } =
-    cuentaExternaIdsParticipantes.length > 0
-      ? await supabase.from('cuentas_externas').select('id, nombre').in('id', cuentaExternaIdsParticipantes)
-      : { data: [] }
-
-  function nombreParticipante(participante: {
-    profile_id: string | null
-    cuenta_externa_id: string | null
-  }) {
-    if (participante.profile_id) {
-      const persona = profilesParticipantes?.find((p) => p.id === participante.profile_id)
-      return persona ? `${persona.full_name} (${persona.role})` : 'Persona eliminada'
-    }
-    const cuentaExterna = cuentasExternasParticipantes?.find(
-      (c) => c.id === participante.cuenta_externa_id
-    )
-    return cuentaExterna ? `${cuentaExterna.nombre} (cuenta externa)` : 'Cuenta externa eliminada'
-  }
-
-  const participantesElegibles = (staff ?? []).filter(
-    (persona) =>
-      persona.id !== lote!.admin_id &&
-      persona.id !== lote!.acreedor_id &&
-      persona.id !== lote!.vendedor_id
-  )
-
-  const { data: cuentasExternas } = await supabase
-    .from('cuentas_externas')
-    .select('id, nombre')
-    .order('nombre')
-
   const { data: documentos } = await supabase
     .from('lote_documentos')
     .select('id, path, descripcion, subido_por, created_at')
@@ -511,8 +431,6 @@ export default async function LoteDetallePage({
       ? await supabase.from('indices_valores').select('nombre')
       : { data: [] }
   const nombresIndicesDisponibles = [...new Set((indicesDisponibles ?? []).map((v) => v.nombre))].sort()
-  const actualizarCobroConId = actualizarCobro.bind(null, id)
-  const agregarParticipanteConId = agregarParticipante.bind(null, id)
   const eliminarLoteConId = eliminarLote.bind(null, id)
   const cancelarReservaConId = cancelarReserva.bind(null, id)
   const subirDocumentoConId = subirDocumentoLote.bind(null, id)
@@ -745,10 +663,18 @@ export default async function LoteDetallePage({
       <div className="grid gap-6 2xl:grid-cols-[minmax(0,1fr)_minmax(0,34rem)] 2xl:items-start">
         <div>
       <h2 className={`mb-2 mt-6 ${TITULO_H2}`}>Cuotas</h2>
-      {perfilPropio!.role === 'administrador' && lote!.estado === 'vendido' && (
+      {/* El link va para cualquier estado, no solo 'vendido': desde el
+          06/09 esa pantalla también tiene la sección de cobro (quién es el
+          admin, el acreedor, el vendedor y qué cuenta cobra), que hace falta
+          poder editar en un lote reservado o disponible -- si no, quedaba sin
+          ninguna puerta de entrada desde la UI. El texto cambia según haya o
+          no cuotas que repartir. */}
+      {perfilPropio!.role === 'administrador' && (
         <p className="mb-2 text-sm">
           <EnlaceBoton href={`/admin/lotes/${id}/distribucion`} className={ENLACE}>
-            Ver / editar distribución de cuotas →
+            {lote!.estado === 'vendido'
+              ? 'Cobro y distribución de cuotas →'
+              : 'Cobro: quiénes participan de este lote →'}
           </EnlaceBoton>
         </p>
       )}
@@ -1247,184 +1173,10 @@ export default async function LoteDetallePage({
       </form>
       )}
 
-      {perfilPropio!.role === 'administrador' && (
-        <>
-          <h2 className={`mb-2 ${TITULO_H2}`}>Cobro</h2>
-          <p className="mb-3 text-sm text-slate-600">
-            Asigná quiénes son el admin, el acreedor y el vendedor de este lote, y cuál de ellos
-            recibe las transferencias actualmente. Solo se puede elegir como cuenta de cobro a
-            alguien que ya tenga datos de transferencia cargados
-            {editarUsuario && (
-              <>
-                {' '}
-                —{' '}
-                <EnlaceBoton href={`/admin/usuarios?editar=${editarUsuario}`} className={ENLACE}>
-                  cargarlos ahora
-                </EnlaceBoton>
-              </>
-            )}
-            .
-          </p>
-          <form action={actualizarCobroConId} className="flex flex-col gap-3">
-        <label className="text-sm">
-          Admin
-          <select
-            name="adminId"
-            defaultValue={adminPorDefecto ?? ''}
-            className={`${ENTRADA} w-full`}
-          >
-            <option value="">— sin asignar —</option>
-            {administradores.map((persona) => (
-              <option key={persona.id} value={persona.id}>
-                {persona.full_name}
-                {!tieneDatosTransferencia({ alias: persona.alias, banco: persona.banco, titular: persona.titular }) &&
-                  ' — sin datos de transferencia'}
-              </option>
-            ))}
-          </select>
-        </label>
-        <label className="text-sm">
-          Acreedor
-          <select
-            name="acreedorId"
-            defaultValue={lote!.acreedor_id ?? ''}
-            className={`${ENTRADA} w-full`}
-          >
-            <option value="">— sin asignar —</option>
-            {acreedores.map((persona) => (
-              <option key={persona.id} value={persona.id}>
-                {persona.full_name}
-                {!tieneDatosTransferencia({ alias: persona.alias, banco: persona.banco, titular: persona.titular }) &&
-                  ' — sin datos de transferencia'}
-              </option>
-            ))}
-          </select>
-        </label>
-        <label className="text-sm">
-          Vendedor
-          <select
-            name="vendedorId"
-            defaultValue={lote!.vendedor_id ?? ''}
-            className={`${ENTRADA} w-full`}
-          >
-            <option value="">— sin asignar —</option>
-            {vendedores.map((persona) => (
-              <option key={persona.id} value={persona.id}>
-                {persona.full_name}
-                {!tieneDatosTransferencia({ alias: persona.alias, banco: persona.banco, titular: persona.titular }) &&
-                  ' — sin datos de transferencia'}
-              </option>
-            ))}
-          </select>
-        </label>
-        <label className="text-sm">
-          Cuenta de cobro actual
-          <select
-            name="cuentaCobroId"
-            defaultValue={
-              lote!.cuenta_cobro_externa_id
-                ? `externa:${lote!.cuenta_cobro_externa_id}`
-                : (lote!.cuenta_cobro_id ?? '')
-            }
-            className={`${ENTRADA} w-full`}
-          >
-            <option value="">— sin asignar —</option>
-            {conDatos.map((persona) => (
-              <option key={persona.id} value={persona.id}>
-                {persona.full_name} ({persona.role})
-                {!tieneDatosTransferencia({ alias: persona.alias, banco: persona.banco, titular: persona.titular }) &&
-                  ' — sin datos de transferencia'}
-              </option>
-            ))}
-            {(cuentasExternas ?? []).map((cuentaExterna) => (
-              <option key={cuentaExterna.id} value={`externa:${cuentaExterna.id}`}>
-                {cuentaExterna.nombre} (cuenta externa)
-              </option>
-            ))}
-          </select>
-        </label>
-        <BotonEnvio className={`cursor-pointer self-start ${BOTON_PRIMARIO}`}>
-          Guardar cobro
-        </BotonEnvio>
-          </form>
-
-          {/* 05/09, pedido de Gabriel: esta sección hacía mucho ruido
-              explicada en largo y en su propio bloque. Ahora va pegada
-              debajo de "Cuenta de cobro actual", listando en una línea
-              quién más participa, y el formulario recién aparece cuando se
-              aprieta el "+". */}
-          <div className="mt-4 border-t border-blue-100 pt-4">
-            <p className="text-sm font-medium text-blue-900">Otros participantes del cobro</p>
-            {(participantes ?? []).length === 0 ? (
-              <p className="mt-1 text-sm text-slate-600">Ninguno.</p>
-            ) : (
-              <ul className="mt-2 flex flex-col gap-1">
-                {participantes!.map((participante) => (
-                  <li key={participante.id} className="flex items-center justify-between text-sm">
-                    <span>
-                      {nombreParticipante(participante)}
-                      {participante.etiqueta && ` — ${participante.etiqueta}`}
-                    </span>
-                    <form action={quitarParticipante.bind(null, id, participante.id)}>
-                      <BotonEnvio className="cursor-pointer text-red-700 underline-offset-2 hover:underline">
-                        Quitar
-                      </BotonEnvio>
-                    </form>
-                  </li>
-                ))}
-              </ul>
-            )}
-
-            <details className="mt-3">
-              <summary className="cursor-pointer select-none text-sm font-medium text-blue-800 underline-offset-4 hover:underline">
-                + Agregar participante
-              </summary>
-              <p className="mt-2 text-xs text-slate-500">
-                Gente que comparte la comisión de este lote sin ser el admin, el acreedor ni el
-                vendedor principal (ej. un segundo vendedor). Cuánto cobra cada uno se carga cuota
-                por cuota en{' '}
-                {lote!.estado === 'vendido' ? (
-                  <EnlaceBoton href={`/admin/lotes/${id}/distribucion`} className={ENLACE}>
-                    la distribución de cuotas
-                  </EnlaceBoton>
-                ) : (
-                  'la distribución de cuotas'
-                )}
-                .
-              </p>
-              <form action={agregarParticipanteConId} className="mt-2 flex max-w-sm flex-col gap-3">
-                <label className="text-sm">
-                  Quién
-                  <select name="participanteId" className={`${ENTRADA} w-full`}>
-                    <option value="">— elegir —</option>
-                    {participantesElegibles.map((persona) => (
-                      <option key={persona.id} value={persona.id}>
-                        {persona.full_name} ({persona.role})
-                      </option>
-                    ))}
-                    {(cuentasExternas ?? []).map((cuentaExterna) => (
-                      <option key={cuentaExterna.id} value={`externa:${cuentaExterna.id}`}>
-                        {cuentaExterna.nombre} (cuenta externa)
-                      </option>
-                    ))}
-                  </select>
-                </label>
-                <label className="text-sm">
-                  Etiqueta (opcional)
-                  <input
-                    name="etiqueta"
-                    placeholder="Ej: Vendedor 2"
-                    className={`${ENTRADA} w-full`}
-                  />
-                </label>
-                <BotonEnvio className={`cursor-pointer self-start ${BOTON_PRIMARIO}`}>
-                  Agregar participante
-                </BotonEnvio>
-              </form>
-            </details>
-          </div>
-        </>
-      )}
+      {/* La sección de Cobro (admin / acreedor / vendedor / cuenta que
+          cobra / participantes) se mudó a /distribucion el 06/09: definir
+          quiénes participan y repartir las cuotas entre ellos son dos
+          mitades de la misma decisión. Ver SeccionCobro.tsx. */}
 
       {(historialEstados ?? []).length > 0 && (
         <details className="mt-10 rounded border border-blue-100 text-sm text-slate-600" open={hayFiltroHistorial || undefined}>

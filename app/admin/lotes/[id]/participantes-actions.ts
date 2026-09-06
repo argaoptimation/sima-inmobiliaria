@@ -6,6 +6,10 @@ import { redirect } from 'next/navigation'
 import { requireAdministrador } from '@/lib/auth/require-admin'
 import { mensajeDeError } from '@/lib/errores'
 
+// Estas acciones devuelven a /distribucion, no al detalle del lote: desde el
+// 06/09 la sección de cobro y la de participantes viven ahí, junto al reparto
+// por cuota. Redirigir al detalle dejaba al admin en una pantalla donde el
+// formulario que acababa de usar ya no existe.
 export async function agregarParticipante(loteId: string, formData: FormData) {
   await requireAdministrador()
 
@@ -13,7 +17,7 @@ export async function agregarParticipante(loteId: string, formData: FormData) {
   const etiqueta = ((formData.get('etiqueta') as string) || '').trim() || null
 
   if (!participanteRaw) {
-    redirect(`/admin/lotes/${loteId}?error=${encodeURIComponent('Elegí a quién agregar')}`)
+    redirect(`/admin/lotes/${loteId}/distribucion?error=${encodeURIComponent('Elegí a quién agregar')}`)
   }
 
   const esExterna = participanteRaw!.startsWith('externa:')
@@ -33,7 +37,7 @@ export async function agregarParticipante(loteId: string, formData: FormData) {
     (profileId === lote?.admin_id || profileId === lote?.acreedor_id || profileId === lote?.vendedor_id)
   ) {
     redirect(
-      `/admin/lotes/${loteId}?error=${encodeURIComponent(
+      `/admin/lotes/${loteId}/distribucion?error=${encodeURIComponent(
         'Esa persona ya es admin, acreedor o vendedor de este lote'
       )}`
     )
@@ -48,7 +52,7 @@ export async function agregarParticipante(loteId: string, formData: FormData) {
 
     if (!persona || !['administrador', 'acreedor', 'vendedor'].includes(persona.role)) {
       redirect(
-        `/admin/lotes/${loteId}?error=${encodeURIComponent(
+        `/admin/lotes/${loteId}/distribucion?error=${encodeURIComponent(
           'Solo se pueden agregar administradores, acreedores o vendedores'
         )}`
       )
@@ -63,7 +67,7 @@ export async function agregarParticipante(loteId: string, formData: FormData) {
       .maybeSingle()
 
     if (!cuentaExterna) {
-      redirect(`/admin/lotes/${loteId}?error=${encodeURIComponent('Esa cuenta externa no existe')}`)
+      redirect(`/admin/lotes/${loteId}/distribucion?error=${encodeURIComponent('Esa cuenta externa no existe')}`)
     }
   }
 
@@ -79,10 +83,10 @@ export async function agregarParticipante(loteId: string, formData: FormData) {
     const mensaje = mensajeDeError(error, {
       '23505': 'Ese participante ya está agregado a este lote',
     })
-    redirect(`/admin/lotes/${loteId}?error=${encodeURIComponent(mensaje)}`)
+    redirect(`/admin/lotes/${loteId}/distribucion?error=${encodeURIComponent(mensaje)}`)
   }
 
-  redirect(`/admin/lotes/${loteId}`)
+  redirect(`/admin/lotes/${loteId}/distribucion`)
 }
 
 export async function quitarParticipante(loteId: string, participanteId: string) {
@@ -97,7 +101,7 @@ export async function quitarParticipante(loteId: string, participanteId: string)
     .maybeSingle()
 
   if (!participante) {
-    redirect(`/admin/lotes/${loteId}`)
+    redirect(`/admin/lotes/${loteId}/distribucion`)
   }
 
   const { data: lote } = await supabase
@@ -113,7 +117,7 @@ export async function quitarParticipante(loteId: string, participanteId: string)
 
   if (esLaCuentaDeCobroActual) {
     redirect(
-      `/admin/lotes/${loteId}?error=${encodeURIComponent(
+      `/admin/lotes/${loteId}/distribucion?error=${encodeURIComponent(
         'No se puede quitar: es la cuenta de cobro actual de este lote. Reasignala primero.'
       )}`
     )
@@ -122,8 +126,8 @@ export async function quitarParticipante(loteId: string, participanteId: string)
   const { error } = await supabase.from('lote_participantes').delete().eq('id', participanteId)
 
   if (error) {
-    redirect(`/admin/lotes/${loteId}?error=${encodeURIComponent(mensajeDeError(error))}`)
+    redirect(`/admin/lotes/${loteId}/distribucion?error=${encodeURIComponent(mensajeDeError(error))}`)
   }
 
-  redirect(`/admin/lotes/${loteId}`)
+  redirect(`/admin/lotes/${loteId}/distribucion`)
 }
