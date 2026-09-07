@@ -8,7 +8,8 @@
     "start": "next start",
     "lint": "eslint",
     "test": "vitest run",
-    "test:e2e": "playwright test"
+    "test:e2e": "playwright test",
+    "limpiar-datos-de-prueba": "node scripts/limpiar-datos-de-prueba.mjs"
   },
   "dependencies": {
     "@supabase/ssr": "^0.12.3",
