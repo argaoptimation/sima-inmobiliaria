@@ -9,7 +9,7 @@ export function BotonRescindir({ rescindirAction }: { rescindirAction: () => Pro
       onSubmit={(evento) => {
         if (
           !confirm(
-            '¿Seguro que querés rescindir este lote? Pasa a "rescindido" -- después vas a poder ponerlo disponible de nuevo para venderlo.'
+            '¿Seguro que querés rescindir este lote? Vuelve a quedar DISPONIBLE para vender, y se le saca el cliente. Las cuotas y los pagos de esta venta quedan guardados en el historial.'
           )
         ) {
           evento.preventDefault()

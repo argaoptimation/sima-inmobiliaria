@@ -522,7 +522,6 @@ export default async function LotesPage({
               <option value="disponible">Disponible</option>
               <option value="reservado">Reservado</option>
               <option value="vendido">Vendido</option>
-              <option value="rescindido">Rescindido</option>
             </select>
           </label>
         )}

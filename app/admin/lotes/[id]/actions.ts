@@ -116,9 +116,21 @@ export async function eliminarLote(loteId: string) {
   redirect('/admin/lotes')
 }
 
-// vendido -> rescindido: el lote deja de estar en cobranza activa, pero
-// conserva cliente_id y las cuotas/pagos tal cual quedaron (es el registro
-// histórico de ese ciclo -- ver historialDelLote / totalCobradoDelLote).
+// Rescindir: vendido -> DISPONIBLE, de una sola vez (06/09, pedido de
+// Gabriel: "una vez rescindido directamente queda disponible").
+//
+// Antes eran dos pasos y un estado intermedio: el lote quedaba "rescindido"
+// hasta que alguien se acordaba de apretar "Volver a disponible". Ese estado
+// no representaba nada del negocio -- un lote rescindido YA está libre para
+// venderse -- y lo único que lograba era que un lote vendible no apareciera
+// como disponible hasta que alguien hiciera un click extra.
+//
+// La rescisión queda en el historial, que es donde corresponde: el evento
+// dice que pasó de vendido a disponible, con el motivo.
+//
+// NO toca las cuotas ni los pagos viejos: quedan como historial del ciclo
+// anterior (ver historialDelLote / totalCobradoDelLote). Sí saca el cliente
+// asignado, porque en el resto de la app un lote disponible no tiene cliente.
 export async function rescindirLote(loteId: string) {
   await requireAdministrador()
 
@@ -127,7 +139,11 @@ export async function rescindirLote(loteId: string) {
     data: { user },
   } = await supabase.auth.getUser()
 
-  const { data: lote } = await supabase.from('lotes').select('estado').eq('id', loteId).single()
+  const { data: lote } = await supabase
+    .from('lotes')
+    .select('estado, ciclo_actual')
+    .eq('id', loteId)
+    .single()
 
   if (!lote || lote.estado !== 'vendido') {
     redirect(
@@ -135,21 +151,32 @@ export async function rescindirLote(loteId: string) {
     )
   }
 
-  const { error } = await supabase.from('lotes').update({ estado: 'rescindido' }).eq('id', loteId)
+  // Suma 1 al ciclo de venta: la próxima vez que este lote se venda, sus
+  // cuotas nuevas quedan marcadas con el ciclo nuevo -- así nunca chocan con
+  // las cuotas del ciclo anterior (unique es lote_id+ciclo+numero, no solo
+  // lote_id+numero) y el motor de índices tampoco las mezcla.
+  const { error } = await supabase
+    .from('lotes')
+    .update({ estado: 'disponible', cliente_id: null, ciclo_actual: lote!.ciclo_actual + 1 })
+    .eq('id', loteId)
 
   if (error) {
     redirect(`/admin/lotes/${loteId}?error=${encodeURIComponent(mensajeDeError(error))}`)
   }
 
+  // Un solo evento, no dos: el lote nunca estuvo "rescindido", pasó de
+  // vendido a disponible y el motivo fue la rescisión.
   await supabase.from('lote_historial_estados').insert({
     lote_id: loteId,
     evento: 'rescindido',
     estado_anterior: 'vendido',
-    estado_nuevo: 'rescindido',
+    estado_nuevo: 'disponible',
     cambiado_por: user!.id,
   })
 
-  redirect(`/admin/lotes/${loteId}?ok=${encodeURIComponent('Lote rescindido.')}`)
+  redirect(
+    `/admin/lotes/${loteId}?ok=${encodeURIComponent('Lote rescindido: vuelve a estar disponible para vender.')}`
+  )
 }
 
 // Prejudicial es un paso MANUAL del admin, no automático (Nicolás: "es un
@@ -212,50 +239,6 @@ export async function desmarcarPrejudicial(loteId: string) {
   })
 
   redirect(`/admin/lotes/${loteId}?ok=${encodeURIComponent('Lote sacado de Prejudicial')}`)
-}
-
-// rescindido -> disponible: deja el lote listo para venderse de nuevo.
-// Saca el cliente asignado (un lote "disponible" en el resto de la app
-// siempre asume que no tiene cliente) -- pero NO toca las cuotas/pagos
-// viejos, que quedan como historial de ese ciclo anterior.
-export async function volverADisponible(loteId: string) {
-  await requireAdministrador()
-
-  const supabase = await createClient()
-  const {
-    data: { user },
-  } = await supabase.auth.getUser()
-
-  const { data: lote } = await supabase.from('lotes').select('estado, ciclo_actual').eq('id', loteId).single()
-
-  if (!lote || lote.estado !== 'rescindido') {
-    redirect(
-      `/admin/lotes/${loteId}?error=${encodeURIComponent('Solo se puede volver a disponible un lote rescindido')}`
-    )
-  }
-
-  // Suma 1 al ciclo de venta: la próxima vez que este lote se venda, sus
-  // cuotas nuevas quedan marcadas con el ciclo nuevo -- así nunca chocan
-  // con las cuotas del ciclo anterior (unique es lote_id+ciclo+numero,
-  // no solo lote_id+numero) y el motor de índices tampoco las mezcla.
-  const { error } = await supabase
-    .from('lotes')
-    .update({ estado: 'disponible', cliente_id: null, ciclo_actual: lote!.ciclo_actual + 1 })
-    .eq('id', loteId)
-
-  if (error) {
-    redirect(`/admin/lotes/${loteId}?error=${encodeURIComponent(mensajeDeError(error))}`)
-  }
-
-  await supabase.from('lote_historial_estados').insert({
-    lote_id: loteId,
-    evento: 'vuelto_disponible',
-    estado_anterior: 'rescindido',
-    estado_nuevo: 'disponible',
-    cambiado_por: user!.id,
-  })
-
-  redirect(`/admin/lotes/${loteId}?ok=${encodeURIComponent('Lote devuelto a disponible.')}`)
 }
 
 // Refinanciación (spec confirmada por Nicolás, ver Notas_Decisiones_SIMA.txt

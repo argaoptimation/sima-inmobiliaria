@@ -12,7 +12,6 @@ import {
   subirDocumentoLote,
   eliminarDocumentoLote,
   rescindirLote,
-  volverADisponible,
   marcarPrejudicial,
   desmarcarPrejudicial,
   refinanciarLote,
@@ -24,7 +23,6 @@ import { confirmarPago } from '../../pagos/actions'
 import { BotonEliminarLote } from './BotonEliminarLote'
 import { BotonCancelarReserva } from '../BotonCancelarReserva'
 import { BotonRescindir } from './BotonRescindir'
-import { BotonVolverADisponible } from './BotonVolverADisponible'
 import { BotonMarcarPrejudicial, BotonDesmarcarPrejudicial } from './BotonPrejudicial'
 import { PanelSaldar } from './PanelSaldar'
 import { telefonoParaWhatsApp } from '@/lib/telefono/prefijos'
@@ -306,9 +304,10 @@ export default async function LoteDetallePage({
   const contratosGenerados = documentosConUrl.filter((d) => d.descripcion.startsWith('Contrato generado'))
   const documentosSinContrato = documentosConUrl.filter((d) => !d.descripcion.startsWith('Contrato generado'))
 
-  // Historial de rescindido/vuelta a disponible + cuánto se cobró mientras
-  // estuvo vendido -- solo tiene sentido pedirlo si el lote ya pasó por
-  // ese ciclo (rescindido ahora, o tuvo historial en algún momento).
+  // Historial de rescisiones + cuánto se cobró mientras estuvo vendido.
+  // Desde el 06/09 rescindir deja el lote directamente disponible, así que
+  // "rescindido" ya no es un estado en el que se lo pueda encontrar: es un
+  // evento del historial y nada más.
   const { data: historialEstados } = await supabase
     .from('lote_historial_estados')
     .select('evento, estado_anterior, estado_nuevo, cambiado_por, detalle, created_at')
@@ -435,7 +434,6 @@ export default async function LoteDetallePage({
   const cancelarReservaConId = cancelarReserva.bind(null, id)
   const subirDocumentoConId = subirDocumentoLote.bind(null, id)
   const rescindirConId = rescindirLote.bind(null, id)
-  const volverADisponibleConId = volverADisponible.bind(null, id)
   const marcarPrejudicialConId = marcarPrejudicial.bind(null, id, undefined)
   const desmarcarPrejudicialConId = desmarcarPrejudicial.bind(null, id)
   const refinanciarConId = refinanciarLote.bind(null, id)
@@ -486,9 +484,6 @@ export default async function LoteDetallePage({
               )}
               <BotonRescindir rescindirAction={rescindirConId} />
             </>
-          )}
-          {perfilPropio!.role === 'administrador' && lote!.estado === 'rescindido' && (
-            <BotonVolverADisponible volverADisponibleAction={volverADisponibleConId} />
           )}
           {perfilPropio!.role === 'administrador' && (
             <BotonEliminarLote eliminarLoteAction={eliminarLoteConId} />

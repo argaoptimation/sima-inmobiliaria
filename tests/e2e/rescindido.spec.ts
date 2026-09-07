@@ -76,7 +76,9 @@ test.describe('Rescindido de lote (24/08)', () => {
     fixtures = await ensureTestFixtures()
   })
 
-  test('vendido -> rescindido -> disponible, con historial y total cobrado', async ({ page }) => {
+  test('rescindir deja el lote disponible de una sola vez, con historial y total cobrado', async ({
+    page,
+  }) => {
     const { loteId } = await crearLoteVendidoConPagoConfirmado(
       `E2E Rescindido ${Date.now()}`,
       fixtures.cliente.id,
@@ -87,43 +89,39 @@ test.describe('Rescindido de lote (24/08)', () => {
     await page.goto(`/admin/lotes/${loteId}`)
 
     await expect(page.getByRole('button', { name: 'Rescindir' })).toBeVisible()
-    await expect(page.getByRole('button', { name: 'Volver a disponible' })).toHaveCount(0)
 
     page.once('dialog', (dialog) => dialog.accept())
     await page.getByRole('button', { name: 'Rescindir' }).click()
     await page.waitForURL(`**/admin/lotes/${loteId}`)
 
+    // Un solo paso: desde el 06/09 rescindir deja el lote DISPONIBLE, sin
+    // pasar por un estado intermedio ni pedir un click extra. También le
+    // saca el cliente y avanza el ciclo de venta.
     const admin = createAdminClient()
     await expect(async () => {
-      const { data: lote } = await admin.from('lotes').select('estado').eq('id', loteId).single()
-      expect(lote?.estado).toBe('rescindido')
-    }).toPass({ timeout: 5000 })
-
-    await page.reload()
-
-    await expect(page.getByText('Estado: rescindido')).toBeVisible()
-    // El historial de estados va colapsado dentro de un <details> (pedido
-    // de Gabriel 24/08: que no ocupe lugar visual salvo que se abra).
-    await page.getByText(/Historial de estados del lote/).click()
-    await expect(page.getByText('Total cobrado mientras estuvo vendido: 1000 USD')).toBeVisible()
-    await expect(page.getByText('vendido → rescindido')).toBeVisible()
-    await expect(page.getByRole('button', { name: 'Rescindir' })).toHaveCount(0)
-    await expect(page.getByRole('button', { name: 'Volver a disponible' })).toBeVisible()
-
-    page.once('dialog', (dialog) => dialog.accept())
-    await page.getByRole('button', { name: 'Volver a disponible' }).click()
-    await page.waitForURL(`**/admin/lotes/${loteId}`)
-
-    await expect(async () => {
-      const { data: lote } = await admin.from('lotes').select('estado, cliente_id').eq('id', loteId).single()
+      const { data: lote } = await admin
+        .from('lotes')
+        .select('estado, cliente_id')
+        .eq('id', loteId)
+        .single()
       expect(lote?.estado).toBe('disponible')
       expect(lote?.cliente_id).toBeNull()
     }).toPass({ timeout: 5000 })
 
     await page.reload()
+
+    await expect(page.getByText('Estado: disponible')).toBeVisible()
+    // Ya no hay ningún botón para "volver a disponible": no queda nada que
+    // volver.
+    await expect(page.getByRole('button', { name: 'Volver a disponible' })).toHaveCount(0)
+    // Y tampoco se puede rescindir de nuevo, porque ya no está vendido.
+    await expect(page.getByRole('button', { name: 'Rescindir' })).toHaveCount(0)
+
+    // La rescisión vive en el historial, que es lo único que la recuerda.
+    // Va colapsado dentro de un <details> (pedido de Gabriel 24/08: que no
+    // ocupe lugar visual salvo que se abra).
     await page.getByText(/Historial de estados del lote/).click()
-    await expect(page.getByText('vendido → rescindido')).toBeVisible()
-    await expect(page.getByText('rescindido → disponible')).toBeVisible()
+    await expect(page.getByText('vendido → disponible')).toBeVisible()
     // El total cobrado sigue mostrándose -- es el historial de ese ciclo,
     // no depende del estado actual.
     await expect(page.getByText('Total cobrado mientras estuvo vendido: 1000 USD')).toBeVisible()
@@ -201,18 +199,14 @@ test.describe('Rescindido de lote (24/08)', () => {
     await page.getByRole('button', { name: 'Rescindir' }).click()
     await page.waitForURL(`**/admin/lotes/${lote.id}`)
 
+    // Rescindir hace todo de una: disponible, sin cliente y con el ciclo
+    // de venta avanzado (06/09).
     await expect(async () => {
-      const { data: l } = await admin.from('lotes').select('estado').eq('id', lote.id).single()
-      expect(l?.estado).toBe('rescindido')
-    }).toPass({ timeout: 5000 })
-
-    await page.reload()
-    page.once('dialog', (dialog) => dialog.accept())
-    await page.getByRole('button', { name: 'Volver a disponible' }).click()
-    await page.waitForURL(`**/admin/lotes/${lote.id}`)
-
-    await expect(async () => {
-      const { data: l } = await admin.from('lotes').select('estado, ciclo_actual').eq('id', lote.id).single()
+      const { data: l } = await admin
+        .from('lotes')
+        .select('estado, ciclo_actual')
+        .eq('id', lote.id)
+        .single()
       expect(l?.estado).toBe('disponible')
       expect(l?.ciclo_actual).toBe(2)
     }).toPass({ timeout: 5000 })
@@ -348,7 +342,7 @@ test.describe('Rescindido de lote (24/08)', () => {
 
     await page.goto('/admin/historial-lotes')
     // Es una vista GLOBAL (todos los lotes) -- puede haber muchas otras
-    // filas "vendido → rescindido" de corridas anteriores, por eso se
+    // filas de rescisión de corridas anteriores, por eso se
     // acota a la fila de ESTE lote en vez de buscar el texto suelto.
     // toPass + reload: mismo quirk de lectura stale ya documentado en este
     // proyecto en otros specs (el insert ya está confirmado, pero la
@@ -358,11 +352,11 @@ test.describe('Rescindido de lote (24/08)', () => {
       await page.reload()
       await expect(filaDeEsteLote).toBeVisible({ timeout: 2000 })
     }).toPass({ timeout: 10000 })
-    await expect(filaDeEsteLote.getByText('vendido → rescindido')).toBeVisible()
+    await expect(filaDeEsteLote.getByText('vendido → disponible')).toBeVisible()
 
-    // Filtrar por estado "disponible" -- este lote pasó a "rescindido", no
-    // a "disponible", así que no debería aparecer.
-    await page.getByLabel('Pasó a estado').selectOption('disponible')
+    // Filtrar por estado "vendido": este lote pasó DE vendido A disponible
+    // (06/09), así que filtrando por el estado al que pasó no aparece.
+    await page.getByLabel('Pasó a estado').selectOption('vendido')
     await page.getByRole('button', { name: 'Filtrar' }).click()
     await expect(page.getByRole('link', { name: identificador })).toHaveCount(0)
   })
