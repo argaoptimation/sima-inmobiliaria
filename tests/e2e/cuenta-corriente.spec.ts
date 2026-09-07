@@ -13,6 +13,38 @@ function filaPorComprobante(page: Page, nombreArchivo: string) {
     .filter({ has: page.locator(`a[href*="${nombreArchivo}"]`) })
 }
 
+/**
+ * Aprieta "Confirmar mi parte" en la tarjeta de este comprobante y espera el
+ * resultado, reintentando el click.
+ *
+ * Un click que cae antes de que React hidrate la tarjeta se pierde sin ningún
+ * error visible. Reintentar es seguro: confirmarPago() reclama el pago con un
+ * UPDATE atómico contra `estado = 'pendiente'`, así que un segundo click no
+ * vuelve a confirmar nada.
+ *
+ * `esperado` es el texto que tiene que aparecer después de confirmar, o null
+ * si lo que se espera es que ya no quede nada pendiente por firmar.
+ */
+async function confirmarConReintento(page: Page, nombreArchivo: string, esperado: RegExp | null) {
+  await expect(async () => {
+    const boton = filaPorComprobante(page, nombreArchivo).getByRole('button', {
+      name: 'Confirmar mi parte',
+    })
+
+    if (await boton.isVisible().catch(() => false)) {
+      await boton.click()
+    }
+
+    if (esperado) {
+      await expect(filaPorComprobante(page, nombreArchivo).getByText(esperado)).toBeVisible()
+    } else {
+      await expect(
+        filaPorComprobante(page, nombreArchivo).getByText('⏳ Admin pendiente')
+      ).toHaveCount(0)
+    }
+  }).toPass({ timeout: 20000 })
+}
+
 test.describe('Cuenta corriente', () => {
   let fixtures: TestFixtures
 
@@ -82,22 +114,19 @@ test.describe('Cuenta corriente', () => {
       await logout(page)
       await login(page, fixtures.acreedorConDatos.email, fixtures.password)
       await page.goto('/admin/pagos')
-      const filaAcreedor = filaPorComprobante(page, nombreArchivo)
-      await filaAcreedor.getByRole('button', { name: 'Confirmar mi parte' }).click()
-      await expect(
-        filaPorComprobante(page, nombreArchivo).getByText(/✓ .* confirmó/)
-      ).toBeVisible()
+      // El click se reintenta hasta que el pago cambia de estado: si cae
+      // antes de que React hidrate la tarjeta, el onClick todavía no existe
+      // y se pierde en silencio (pasa cuando la máquina está cargada, no
+      // corriendo este test solo). Reintentar es seguro porque el server
+      // action tiene un claim atómico: el segundo click no hace nada.
+      await confirmarConReintento(page, nombreArchivo, /✓ .* confirmó/)
 
       await logout(page)
       await login(page, fixtures.admin.email, fixtures.password)
       await page.goto('/admin/pagos')
-      const fila = filaPorComprobante(page, nombreArchivo)
-      await fila.getByRole('button', { name: 'Confirmar mi parte' }).click()
       // Confirmado del todo: los indicadores del doble check solo se dibujan
-      // mientras el pago sigue pendiente.
-      await expect(
-        filaPorComprobante(page, nombreArchivo).getByText('⏳ Admin pendiente')
-      ).toHaveCount(0)
+      // mientras el pago sigue pendiente, así que desaparecen.
+      await confirmarConReintento(page, nombreArchivo, null)
     })
 
     await test.step('se posteó el Debe automático de 800 USD para el acreedor', async () => {
@@ -122,10 +151,19 @@ test.describe('Cuenta corriente', () => {
 
     await test.step('una corrección hacia abajo que deja la cuota sin cobrar revierte el Debe', async () => {
       await page.goto('/admin/pagos')
+      // Mismo reintento que al confirmar: un submit que cae antes de que la
+      // tarjeta hidrate se pierde sin error. Reenviar el mismo monto es
+      // inofensivo -- corregir a 0 dos veces deja el pago igual.
+      await expect(async () => {
+        const fila = filaPorComprobante(page, nombreArchivo)
+        await fila.locator('input[name="montoNuevo"]').fill('0')
+        await fila.getByRole('button', { name: 'Editar monto' }).click()
+        await expect(
+          filaPorComprobante(page, nombreArchivo).getByText('Corregir monto (actual: 0 USD)')
+        ).toBeVisible()
+      }).toPass({ timeout: 20000 })
+
       const fila = filaPorComprobante(page, nombreArchivo)
-      await fila.locator('input[name="montoNuevo"]').fill('0')
-      await fila.getByRole('button', { name: 'Editar monto' }).click()
-      await expect(fila.getByText('Corregir monto (actual: 0 USD)')).toBeVisible()
 
       const { data: cuota } = await admin
         .from('cuotas')

@@ -3,7 +3,7 @@ import { requireAdminOTitularCuenta } from '@/lib/auth/require-admin'
 import { notFound } from 'next/navigation'
 import { calcularSaldoCuentaCorrientePorMoneda } from '@/lib/cuenta-corriente/calcular-saldo'
 import { agregarMovimientoManual } from '../actions'
-import { FormularioMovimientoManual } from './FormularioMovimientoManual'
+import { FormularioMovimientoManual } from '@/components/FormularioMovimientoManual'
 import { FiltroEnVivo } from '@/components/FiltroEnVivo'
 import { EnlaceBoton } from '@/components/EnlaceBoton'
 import {
@@ -22,15 +22,7 @@ import {
   TABLA_CELDA,
   TABLA_CELDA_PRINCIPAL,
 } from '@/lib/ui/clases'
-
-const ETIQUETA_ORIGEN: Record<string, string> = {
-  cobro_cuota: 'Cobro de cuota (automático)',
-  transferencia_empresa: 'Transferencia de la empresa',
-  pago_directo_cliente: 'Pago directo del cliente',
-  reversion_cobro_cuota: 'Reversión (corrección de pago)',
-  ajuste_distribucion: 'Ajuste de distribución',
-  debe_manual: 'Debe manual (gasto/adelanto/descuento)',
-}
+import { ETIQUETA_ORIGEN } from '@/lib/cuenta-corriente/etiquetas'
 
 export default async function CuentaCorrienteDetallePage({
   params,

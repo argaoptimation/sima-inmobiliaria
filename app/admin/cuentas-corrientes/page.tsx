@@ -8,6 +8,7 @@ import { obtenerCuotasSinDistribucion } from '@/lib/cuenta-corriente/cuotas-sin-
 import { FiltroEnVivo } from '@/components/FiltroEnVivo'
 import { EnlaceBoton } from '@/components/EnlaceBoton'
 import { EncabezadoPagina } from '@/components/EncabezadoPagina'
+import { BotonVerDetalle } from '@/components/BotonVerDetalle'
 import {
   ENTRADA,
   BOTON_SECUNDARIO,
@@ -107,6 +108,7 @@ export default async function CuentasCorrientesPage({
                 <th className={TABLA_HEADER_CELDA}>Le corresponde</th>
                 <th className={TABLA_HEADER_CELDA}>Cobró directo</th>
                 <th className={TABLA_HEADER_CELDA}>Cómo queda</th>
+                <th className={TABLA_HEADER_CELDA}></th>
               </tr>
             </thead>
             <tbody>
@@ -164,6 +166,12 @@ export default async function CuentasCorrientesPage({
                           )
                         })
                       )}
+                    </td>
+                    <td className={TABLA_CELDA}>
+                      <BotonVerDetalle
+                        href={`/admin/cuentas-corrientes/${persona.id}`}
+                        titulo={`Ver la cuenta de ${persona.full_name}`}
+                      />
                     </td>
                   </tr>
                 )

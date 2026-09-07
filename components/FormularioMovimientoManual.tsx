@@ -1,20 +1,51 @@
 'use client'
 
 import { useState } from 'react'
-import { BuscadorLote } from '../BuscadorLote'
+import { BuscadorLote } from './BuscadorLote'
 import { hoyArgentina } from '@/lib/fecha/hoy-argentina'
 import { BotonEnvio } from '@/components/BotonEnvio'
 import { ENTRADA, BOTON_PRIMARIO } from '@/lib/ui/clases'
 import { Obligatorio } from '@/components/Obligatorio'
 
+// Cargar un movimiento a mano, igual para la cuenta corriente de una persona
+// y para una cuenta externa (06/09, pedido de Gabriel: "si al fin y al cabo es
+// lo mismo llevar las cuentas de acreedores o personas, replicá lo mismo").
+//
+// El formulario habla SIEMPRE en debe/haber, aunque la cuenta externa guarde
+// débito/crédito: son la misma idea con otro nombre (débito = le debemos =
+// debe; crédito = le entró plata = haber), y traducir en el server action deja
+// una sola pantalla que aprender en vez de dos vocabularios.
+//
+// `etiquetas` es lo único que cambia entre las dos: en una cuenta externa no
+// tiene sentido hablar de "su parte" de una distribución, porque no participa
+// de ninguna.
+export interface EtiquetasMovimiento {
+  haber: string
+  debe: string
+}
+
+export const ETIQUETAS_PERSONA: EtiquetasMovimiento = {
+  haber: 'Haber (plata que le llegó)',
+  debe: 'Debe manual (gasto, adelanto, descuento)',
+}
+
+export const ETIQUETAS_CUENTA_EXTERNA: EtiquetasMovimiento = {
+  haber: 'Crédito (plata que le llegó)',
+  debe: 'Débito (le debemos nosotros)',
+}
+
 export function FormularioMovimientoManual({
   agregarMovimientoManualAction,
   nombresUnicosParaSugerir,
   lotes,
+  etiquetas = ETIQUETAS_PERSONA,
+  idListaSugerencias = 'lista-personas-cuenta-corriente',
 }: {
   agregarMovimientoManualAction: (formData: FormData) => Promise<void>
   nombresUnicosParaSugerir: string[]
   lotes: { id: string; identificador: string }[]
+  etiquetas?: EtiquetasMovimiento
+  idListaSugerencias?: string
 }) {
   const [tipo, setTipo] = useState<'haber' | 'debe'>('haber')
 
@@ -28,8 +59,8 @@ export function FormularioMovimientoManual({
           onChange={(evento) => setTipo(evento.target.value === 'debe' ? 'debe' : 'haber')}
           className={`w-full ${ENTRADA}`}
         >
-          <option value="haber">Haber (plata que le llegó)</option>
-          <option value="debe">Debe manual (gasto, adelanto, descuento)</option>
+          <option value="haber">{etiquetas.haber}</option>
+          <option value="debe">{etiquetas.debe}</option>
         </select>
       </label>
       {tipo === 'debe' && (
@@ -64,11 +95,11 @@ export function FormularioMovimientoManual({
             De quién vino la plata (obligatorio si es pago directo del cliente)
             <input
               name="deParteDe"
-              list="lista-personas-cuenta-corriente"
+              list={idListaSugerencias}
               placeholder="Buscar o escribir un nombre..."
               className={`w-full ${ENTRADA}`}
             />
-            <datalist id="lista-personas-cuenta-corriente">
+            <datalist id={idListaSugerencias}>
               {nombresUnicosParaSugerir.map((nombre) => (
                 <option key={nombre} value={nombre} />
               ))}

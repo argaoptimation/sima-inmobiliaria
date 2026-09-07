@@ -1,6 +1,8 @@
 import { createClient } from '@/lib/supabase/server'
 import { requireAdministrador } from '@/lib/auth/require-admin'
-import { calcularSaldoPorMoneda } from '@/lib/cuentas-externas/calcular-saldo'
+import { resumirCuentaExternaPorMoneda } from '@/lib/cuentas-externas/situacion'
+import { describirSituacion } from '@/lib/cuenta-corriente/situacion'
+import { BotonVerDetalle } from '@/components/BotonVerDetalle'
 import { FiltroEnVivo } from '@/components/FiltroEnVivo'
 import { EnlaceBoton } from '@/components/EnlaceBoton'
 import { EncabezadoPagina } from '@/components/EncabezadoPagina'
@@ -9,13 +11,13 @@ import {
   BOTON_PRIMARIO,
   BOTON_SECUNDARIO,
   ENLACE,
-  ENLACE_TABLA,
   TABLA_CONTENEDOR,
   TABLA_HEADER_FILA,
   TABLA_HEADER_CELDA,
   TABLA_FILA,
   TABLA_CELDA,
   TABLA_CELDA_PRINCIPAL,
+  NUMERO_TABULAR,
 } from '@/lib/ui/clases'
 
 export default async function CuentasExternasPage({
@@ -49,14 +51,14 @@ export default async function CuentasExternasPage({
     movimientosPorCuenta.set(movimiento.cuenta_externa_id, lista)
   }
 
-  function formatearSaldo(cuentaExternaId: string) {
+  // Las mismas tres cifras que muestra /admin/cuentas-corrientes (06/09):
+  // una cuenta externa es una cuenta corriente con alguien que no tiene
+  // login, así que se lee igual.
+  function resumenDe(cuentaExternaId: string) {
     const propios = movimientosPorCuenta.get(cuentaExternaId) ?? []
-    const saldos = calcularSaldoPorMoneda(
+    return resumirCuentaExternaPorMoneda(
       propios.map((m) => ({ tipo: m.tipo as 'debito' | 'credito', monto: m.monto, moneda: m.moneda }))
     )
-    const entradas = Object.entries(saldos)
-    if (entradas.length === 0) return '—'
-    return entradas.map(([moneda, monto]) => `${monto} ${moneda}`).join(' / ')
   }
 
   return (
@@ -96,22 +98,70 @@ export default async function CuentasExternasPage({
             <thead>
               <tr className={TABLA_HEADER_FILA}>
                 <th className={TABLA_HEADER_CELDA}>Nombre</th>
-                <th className={TABLA_HEADER_CELDA}>Saldo</th>
+                <th className={TABLA_HEADER_CELDA}>Le corresponde</th>
+                <th className={TABLA_HEADER_CELDA}>Cobró directo</th>
+                <th className={TABLA_HEADER_CELDA}>Cómo queda</th>
                 <th className={TABLA_HEADER_CELDA}></th>
               </tr>
             </thead>
             <tbody>
-              {cuentasExternas!.map((cuentaExterna) => (
-                <tr key={cuentaExterna.id} className={TABLA_FILA}>
-                  <td className={TABLA_CELDA_PRINCIPAL}>{cuentaExterna.nombre}</td>
-                  <td className={TABLA_CELDA}>{formatearSaldo(cuentaExterna.id)}</td>
-                  <td className={TABLA_CELDA}>
-                    <EnlaceBoton href={`/admin/cuentas-externas/${cuentaExterna.id}`} className={ENLACE_TABLA}>
-                      Ver detalle
-                    </EnlaceBoton>
-                  </td>
-                </tr>
-              ))}
+              {cuentasExternas!.map((cuentaExterna) => {
+                const resumen = resumenDe(cuentaExterna.id)
+                const monedas = Object.keys(resumen).sort()
+
+                return (
+                  <tr key={cuentaExterna.id} className={TABLA_FILA}>
+                    <td className={TABLA_CELDA_PRINCIPAL}>{cuentaExterna.nombre}</td>
+                    <td className={`${TABLA_CELDA} ${NUMERO_TABULAR}`}>
+                      {monedas.length === 0
+                        ? '—'
+                        : monedas.map((moneda) => (
+                            <span key={moneda} className="block">
+                              {resumen[moneda].leCorresponde} {moneda}
+                            </span>
+                          ))}
+                    </td>
+                    <td className={`${TABLA_CELDA} ${NUMERO_TABULAR}`}>
+                      {monedas.length === 0
+                        ? '—'
+                        : monedas.map((moneda) => (
+                            <span key={moneda} className="block">
+                              {resumen[moneda].cobroDirecto} {moneda}
+                            </span>
+                          ))}
+                    </td>
+                    <td className={TABLA_CELDA}>
+                      {monedas.length === 0 ? (
+                        <span className="text-slate-500">Sin movimientos</span>
+                      ) : (
+                        monedas.map((moneda) => {
+                          const saldo = resumen[moneda].saldo
+                          return (
+                            <span
+                              key={moneda}
+                              className={`block font-medium ${
+                                saldo > 0
+                                  ? 'text-amber-800'
+                                  : saldo < 0
+                                    ? 'text-blue-800'
+                                    : 'text-green-700'
+                              }`}
+                            >
+                              {describirSituacion(saldo, moneda)}
+                            </span>
+                          )
+                        })
+                      )}
+                    </td>
+                    <td className={TABLA_CELDA}>
+                      <BotonVerDetalle
+                        href={`/admin/cuentas-externas/${cuentaExterna.id}`}
+                        titulo={`Ver la cuenta de ${cuentaExterna.nombre}`}
+                      />
+                    </td>
+                  </tr>
+                )
+              })}
             </tbody>
           </table>
         </div>

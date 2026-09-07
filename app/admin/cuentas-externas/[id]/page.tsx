@@ -2,7 +2,6 @@ import { createClient } from '@/lib/supabase/server'
 import { requireAdministrador } from '@/lib/auth/require-admin'
 import { notFound } from 'next/navigation'
 import { calcularSaldoPorMoneda } from '@/lib/cuentas-externas/calcular-saldo'
-import { fechaEnArgentina } from '@/lib/fecha/hoy-argentina'
 import { actualizarCuentaExterna, agregarMovimiento, eliminarCuentaExterna } from '../actions'
 import { BotonEliminarCuentaExterna } from '../BotonEliminarCuentaExterna'
 import { EnlaceBoton } from '@/components/EnlaceBoton'
@@ -24,7 +23,13 @@ import {
   TABLA_FILA,
   TABLA_CELDA,
   TABLA_CELDA_PRINCIPAL,
+  ENLACE_TABLA,
 } from '@/lib/ui/clases'
+import { ETIQUETA_ORIGEN } from '@/lib/cuenta-corriente/etiquetas'
+import {
+  FormularioMovimientoManual,
+  ETIQUETAS_CUENTA_EXTERNA,
+} from '@/components/FormularioMovimientoManual'
 
 export default async function CuentaExternaDetallePage({
   params,
@@ -54,28 +59,58 @@ export default async function CuentaExternaDetallePage({
     notFound()
   }
 
-  const { data: movimientos } = await supabase
+  const { data: movimientosData } = await supabase
     .from('cuentas_externas_movimientos')
-    .select('id, tipo, monto, moneda, concepto, created_at')
+    .select(
+      'id, tipo, monto, moneda, concepto, fecha_evento, lote_id, de_parte_de, origen, created_at, lotes(identificador)'
+    )
     .eq('cuenta_externa_id', id)
+    .order('fecha_evento', { ascending: false })
     .order('created_at', { ascending: false })
 
+  // Mismo cast que en la cuenta corriente de una persona: el tipo generado
+  // trata el join como un array aunque la FK sea a-uno.
+  const movimientos = (movimientosData ?? []) as unknown as Array<{
+    id: string
+    tipo: 'debito' | 'credito'
+    monto: number
+    moneda: string
+    concepto: string | null
+    fecha_evento: string
+    lote_id: string | null
+    de_parte_de: string | null
+    origen: string | null
+    created_at: string
+    lotes: { identificador: string } | null
+  }>
+
+  // Para el formulario compartido: el buscador de lotes y las sugerencias de
+  // "de quién vino la plata".
+  const { data: lotes } = await supabase.from('lotes').select('id, identificador').order('identificador')
+
+  const { data: personasParaSugerir } = await supabase
+    .from('profiles')
+    .select('full_name')
+    .order('full_name')
+
+  const nombresUnicosParaSugerir = [
+    ...new Set((personasParaSugerir ?? []).map((persona) => persona.full_name)),
+  ]
+
   const saldos = calcularSaldoPorMoneda(
-    (movimientos ?? []).map((m) => ({
-      tipo: m.tipo as 'debito' | 'credito',
-      monto: m.monto,
-      moneda: m.moneda,
-    }))
+    movimientos.map((m) => ({ tipo: m.tipo, monto: m.monto, moneda: m.moneda }))
   )
 
   // Filtro desde/hasta (04/09, pedido de Gabriel -- mismo patrón que
   // /admin/cuentas-corrientes): el saldo de arriba sigue calculado con TODOS
-  // los movimientos, el filtro solo acota qué se lista abajo. `created_at`
-  // es un timestamptz -- se compara por el día de calendario ARGENTINO
-  // (fechaEnArgentina), no por el string UTC crudo.
-  const movimientosFiltrados = (movimientos ?? []).filter((movimiento) => {
+  // los movimientos, el filtro solo acota qué se lista abajo.
+  //
+  // Desde el 06/09 se filtra por `fecha_evento` (cuándo PASÓ el movimiento) y
+  // no por `created_at` (cuándo se cargó): ya es un día de calendario, así que
+  // no hace falta la conversión de zona horaria que necesitaba el timestamp.
+  const movimientosFiltrados = movimientos.filter((movimiento) => {
     if (filtroDesde || filtroHasta) {
-      const fecha = fechaEnArgentina(movimiento.created_at)
+      const fecha = movimiento.fecha_evento
       if (filtroDesde && fecha < filtroDesde) return false
       if (filtroHasta && fecha > filtroHasta) return false
     }
@@ -132,42 +167,30 @@ export default async function CuentaExternaDetallePage({
         <BotonEnvio className={`cursor-pointer self-start ${BOTON_PRIMARIO}`}>Guardar</BotonEnvio>
       </form>
 
-      <h2 className={`mb-2 ${TITULO_H2}`}>Agregar movimiento</h2>
-      <form action={agregarMovimientoConId} className="mb-8 flex max-w-sm flex-col gap-3">
-        <label className="text-sm text-slate-600">
-          Tipo
-          <select name="tipo" defaultValue="debito" className={`w-full ${ENTRADA}`}>
-            <option value="debito">Débito — le debemos nosotros a esta cuenta</option>
-            <option value="credito">Crédito — esta cuenta nos debe a nosotros</option>
-          </select>
-        </label>
-        <label className="text-sm text-slate-600">
-          Monto
-          <Obligatorio />
-          <input name="monto" type="number" step="0.01" min="0" required className={`w-full ${ENTRADA}`} />
-        </label>
-        <label className="text-sm text-slate-600">
-          Moneda
-          <select name="moneda" defaultValue="USD" className={`w-full ${ENTRADA}`}>
-            <option value="USD">USD</option>
-            <option value="ARS">ARS</option>
-          </select>
-        </label>
-        <label className="text-sm text-slate-600">
-          Concepto
-          <Obligatorio />
-          <input
-            name="concepto"
-            required
-            placeholder="Ej: Materiales de construcción, agosto 2026"
-            className={`w-full ${ENTRADA}`}
-          />
-        </label>
-        <BotonEnvio className={`cursor-pointer self-start ${BOTON_PRIMARIO}`}>Agregar movimiento</BotonEnvio>
-      </form>
+      {/* Exactamente el mismo formulario que la cuenta corriente de una
+          persona (06/09, pedido de Gabriel). Habla en debe/haber y el server
+          action lo traduce a débito/crédito, que es lo que guarda esta
+          tabla. */}
+      <h2 className={`mb-2 ${TITULO_H2}`}>Registrar movimiento manual</h2>
+      <FormularioMovimientoManual
+        agregarMovimientoManualAction={agregarMovimientoConId}
+        nombresUnicosParaSugerir={nombresUnicosParaSugerir}
+        lotes={lotes ?? []}
+        etiquetas={ETIQUETAS_CUENTA_EXTERNA}
+        idListaSugerencias="lista-personas-cuenta-externa"
+      />
 
       <h2 className={`mb-2 ${TITULO_H2}`}>Movimientos</h2>
-      {(movimientos ?? []).length === 0 ? (
+      <a
+        href={`/admin/cuentas-externas/${id}/export?${new URLSearchParams({
+          ...(filtroDesde ? { desde: filtroDesde } : {}),
+          ...(filtroHasta ? { hasta: filtroHasta } : {}),
+        }).toString()}`}
+        className={`mb-3 inline-block ${ENLACE}`}
+      >
+        Descargar Excel →
+      </a>
+      {movimientos.length === 0 ? (
         <p className="mb-8 text-sm text-slate-600">Sin movimientos todavía.</p>
       ) : (
         <>
@@ -198,7 +221,9 @@ export default async function CuentaExternaDetallePage({
                   <tr className={`${TABLA_HEADER_FILA} sticky top-0 z-10`}>
                     <th className={TABLA_HEADER_CELDA}>Fecha</th>
                     <th className={TABLA_HEADER_CELDA}>Tipo</th>
-                    <th className={TABLA_HEADER_CELDA}>Concepto</th>
+                    <th className={TABLA_HEADER_CELDA}>Origen</th>
+                    <th className={TABLA_HEADER_CELDA}>Detalle</th>
+                    <th className={TABLA_HEADER_CELDA}>Lote</th>
                     <th className={TABLA_HEADER_CELDA}>Monto</th>
                   </tr>
                 </thead>
@@ -206,12 +231,29 @@ export default async function CuentaExternaDetallePage({
                   {movimientosFiltrados.map((movimiento) => (
                     <tr key={movimiento.id} className={TABLA_FILA}>
                       <td className={TABLA_CELDA_PRINCIPAL}>
-                        {new Date(movimiento.created_at).toLocaleDateString('es-AR')}
+                        {new Date(`${movimiento.fecha_evento}T00:00:00`).toLocaleDateString('es-AR')}
                       </td>
                       <td className={TABLA_CELDA}>
-                        {movimiento.tipo === 'debito' ? 'Débito (le debemos)' : 'Crédito (nos debe / le pagamos)'}
+                        {movimiento.tipo === 'debito' ? 'Débito' : 'Crédito'}
                       </td>
-                      <td className={TABLA_CELDA}>{movimiento.concepto}</td>
+                      <td className={TABLA_CELDA}>
+                        {movimiento.origen
+                          ? (ETIQUETA_ORIGEN[movimiento.origen] ?? movimiento.origen)
+                          : '—'}
+                      </td>
+                      <td className={TABLA_CELDA}>
+                        {movimiento.concepto ?? '—'}
+                        {movimiento.de_parte_de ? ` (de: ${movimiento.de_parte_de})` : ''}
+                      </td>
+                      <td className={TABLA_CELDA}>
+                        {movimiento.lote_id && movimiento.lotes ? (
+                          <EnlaceBoton href={`/admin/lotes/${movimiento.lote_id}`} className={ENLACE_TABLA}>
+                            {movimiento.lotes.identificador}
+                          </EnlaceBoton>
+                        ) : (
+                          '—'
+                        )}
+                      </td>
                       <td className={TABLA_CELDA}>
                         {movimiento.monto} {movimiento.moneda}
                       </td>

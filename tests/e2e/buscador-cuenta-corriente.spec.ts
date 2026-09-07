@@ -16,7 +16,12 @@ test.describe('Buscador en /admin/cuentas-corrientes', () => {
     await page.getByPlaceholder('Nombre').fill(TEST_USERS.acreedorConDatos.fullName)
     await page.getByRole('button', { name: 'Filtrar' }).click()
 
-    await expect(page.getByRole('link', { name: TEST_USERS.acreedorConDatos.fullName })).toBeVisible()
+    // `exact`: desde el 06/09 cada fila tiene además el ojito para entrar al
+    // detalle, cuyo aria-label ("Ver la cuenta de <nombre>") contiene el
+    // nombre -- sin exact, getByRole matchea los dos.
+    await expect(
+      page.getByRole('link', { name: TEST_USERS.acreedorConDatos.fullName, exact: true })
+    ).toBeVisible()
   })
 
   test('buscar un texto que no matchea a nadie muestra el mensaje vacío', async ({ page }) => {

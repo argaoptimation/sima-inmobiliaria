@@ -40,8 +40,8 @@ test.describe('Cuentas externas', () => {
     await page.getByLabel('Titular de la cuenta').fill('Materiales del Centro SRL')
     await page.getByLabel('Alias').fill('materiales.centro')
     await page.getByLabel('Banco').fill('Banco Test')
-    await page.getByLabel('Monto').fill('2000')
-    await page.getByLabel('Concepto').fill('Materiales de construcción')
+    await page.locator('input[name="deudaInicialMonto"]').fill('2000')
+    await page.locator('input[name="deudaInicialConcepto"]').fill('Materiales de construcción')
     await page.getByRole('button', { name: 'Crear cuenta externa' }).click()
 
     // Regex de UUID, no ".+$" -- ese matcheaba tambien la propia URL de
@@ -98,8 +98,12 @@ test.describe('Cuentas externas', () => {
     await page.waitForURL(/\/admin\/cuentas-externas\/[0-9a-f-]{36}$/)
     await page.waitForLoadState('networkidle')
 
-    await page.getByLabel('Monto', { exact: true }).fill('1000')
-    await page.getByLabel('Concepto').fill('Primera deuda')
+    // Desde el 06/09 el formulario es el mismo que el de la cuenta corriente
+    // de una persona y arranca en "haber" (crédito). Este test carga DEUDA,
+    // así que el tipo se elige explícitamente.
+    await page.selectOption('select[name="tipo"]', 'debe')
+    await page.locator('input[name="monto"]').fill('1000')
+    await page.locator('input[name="detalle"]').fill('Primera deuda')
     await page.getByRole('button', { name: 'Agregar movimiento' }).click()
 
     // Esperar a que el mensaje de guardado aparezca con reintentos por timing
@@ -107,8 +111,9 @@ test.describe('Cuentas externas', () => {
       await expect(page.getByText('Guardado.')).toBeVisible()
     }).toPass({ timeout: 10000 })
 
-    await page.getByLabel('Monto', { exact: true }).fill('500')
-    await page.getByLabel('Concepto').fill('Segunda deuda')
+    await page.selectOption('select[name="tipo"]', 'debe')
+    await page.locator('input[name="monto"]').fill('500')
+    await page.locator('input[name="detalle"]').fill('Segunda deuda')
     await page.getByRole('button', { name: 'Agregar movimiento' }).click()
 
     // Esperar y reintentar para el segundo agregado también
@@ -162,8 +167,8 @@ test.describe('Cuentas externas', () => {
     await page.getByLabel('Titular de la cuenta').fill('Alguien')
     await page.getByLabel('Alias').fill('alguien.alias')
     await page.getByLabel('Banco').fill('Banco Test')
-    await page.getByLabel('Monto').fill('100')
-    await page.getByLabel('Concepto').fill('Deuda que bloquea el borrado')
+    await page.locator('input[name="deudaInicialMonto"]').fill('100')
+    await page.locator('input[name="deudaInicialConcepto"]').fill('Deuda que bloquea el borrado')
     await page.getByRole('button', { name: 'Crear cuenta externa' }).click()
     // Regex de UUID, no ".+$" -- ese matcheaba tambien la propia URL de
     // origen "/admin/cuentas-externas/nuevo" (contiene "/admin/cuentas-
@@ -378,7 +383,7 @@ test.describe('Cuentas externas', () => {
       // la primera carga.
       await expect(async () => {
         await page.goto(`/admin/cuentas-externas/${cuentaExternaId}`)
-        await expect(page.getByText('Crédito (nos debe / le pagamos)')).toBeVisible()
+        await expect(page.getByText('Crédito', { exact: true }).first()).toBeVisible()
       }).toPass({ timeout: 10000 })
     } finally {
       // fixtures.loteId es compartido con otros specs -- se limpia la

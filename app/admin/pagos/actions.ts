@@ -217,6 +217,11 @@ export async function confirmarPago(pagoId: string, formData: FormData) {
         monto: pagoClaimado.monto,
         moneda: pago.moneda,
         concepto: conceptoMovimiento,
+        // Mismo vocabulario que la cuenta corriente de una persona (06/09):
+        // el cliente le transfirió directo a esta cuenta.
+        origen: 'pago_directo_cliente',
+        de_parte_de: cliente?.full_name ?? 'cliente',
+        lote_id: lote.id,
         pago_id: pagoClaimado.id,
         cargado_por: user.id,
       })
