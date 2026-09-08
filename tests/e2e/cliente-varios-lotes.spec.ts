@@ -410,12 +410,17 @@ test.describe('Cliente con varios lotes', () => {
 
     await expect(page.getByRole('heading', { name: 'Pagos' })).toBeVisible()
 
-    // acreedorConDatos ve la fila del pago de SU lote...
-    await expect(page.getByRole('cell', { name: identificadorPropio!.identificador })).toBeVisible()
+    // acreedorConDatos ve la tarjeta del pago de SU lote...
+    await expect(
+      page
+        .locator('[data-testid="tarjeta-pago"]')
+        .filter({ hasText: identificadorPropio!.identificador })
+        .first()
+    ).toBeVisible()
     // ...pero no la del pago del lote de acreedorSecundario, aunque sea del
     // mismo cliente.
     await expect(
-      page.getByRole('cell', { name: identificadorAjeno!.identificador })
+      page.locator('[data-testid="tarjeta-pago"]').filter({ hasText: identificadorAjeno!.identificador })
     ).toHaveCount(0)
   })
 

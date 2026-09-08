@@ -5,6 +5,15 @@ import { completarFormularioPagar } from './utils/pagar'
 
 const NOMBRE_COMPROBANTE = `e2e-pagos-acotados-${Date.now()}.pdf`
 
+// /admin/pagos dejó de ser una tabla y pasó a tarjetas (`tarjeta-pago`): la
+// "fila" de un pago se ubica por el link "Comprobante" que apunta a su
+// archivo (nombre único por corrida).
+function tarjetaPorComprobante(page: Page, nombreArchivo: string) {
+  return page
+    .locator('[data-testid="tarjeta-pago"]')
+    .filter({ has: page.locator(`a[href*="${nombreArchivo}"]`) })
+}
+
 /**
  * El cliente registra un pago nuevo (cuota 1, que siempre tiene el link
  * "Pagar cuota" mientras su saldo siga pendiente) con su comprobante en el
@@ -93,8 +102,8 @@ test.describe('Confirmación de pagos acotada al acreedor del lote', () => {
         await login(page, fixtures.admin.email, fixtures.password)
         await page.goto('/admin/pagos')
 
-        const fila = page.locator('tr', { has: page.locator(`a[href*="${nombreComprobante}"]`) })
-        await expect(fila.getByText('⚠ Lote sin acreedor vinculado')).toBeVisible()
+        const fila = tarjetaPorComprobante(page, nombreComprobante)
+        await expect(fila).toContainText('Este lote todavía no tiene acreedor vinculado')
       })
     } finally {
       // Restauramos el acreedor_id original del lote de prueba: otros specs
@@ -129,7 +138,7 @@ test.describe('Confirmación de pagos acotada al acreedor del lote', () => {
         await registrarPagoConComprobante(page, fixtures, nombreComprobante)
       })
 
-      const fila = page.locator('tr', { has: page.locator(`a[href*="${nombreComprobante}"]`) })
+      const fila = tarjetaPorComprobante(page, nombreComprobante)
 
       await test.step('acreedorSecundario ve el pago mientras es el acreedor vigente del lote', async () => {
         await logout(page)
@@ -176,10 +185,15 @@ test.describe('Confirmación de pagos acotada al acreedor del lote', () => {
         await login(page, fixtures.admin.email, fixtures.password)
         await page.goto('/admin/pagos')
 
-        const filaAdmin = page.locator('tr', { has: page.locator(`a[href*="${nombreComprobante}"]`) })
-        // índice 9: Fecha, Lote, Cliente, Acreedor, Motivo, Medio, Monto,
-        // Comprobante, Estado, antes de "Confirmado acreedor".
-        await expect(filaAdmin.locator('td').nth(9)).toHaveText('No')
+        await expect(tarjetaPorComprobante(page, nombreComprobante)).toBeVisible()
+
+        // El rechazo real: el pago sigue sin la confirmación del acreedor.
+        const { data: pagoDb } = await admin
+          .from('pagos')
+          .select('confirmado_acreedor_por')
+          .ilike('comprobante_path', `%${nombreComprobante}%`)
+          .single()
+        expect(pagoDb?.confirmado_acreedor_por).toBeNull()
       })
     } finally {
       // Probablemente ya quedó así por la maniobra de arriba, pero
