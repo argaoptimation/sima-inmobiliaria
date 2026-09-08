@@ -1,5 +1,18 @@
 import { createClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
+import {
+  ChevronRight,
+  Upload,
+  Plus,
+  FileSignature,
+  CheckCircle2,
+  TriangleAlert,
+  Search,
+  SlidersHorizontal,
+  Eye,
+  FileText,
+  BookmarkPlus,
+} from 'lucide-react'
 import { cancelarReserva } from './actions'
 import { BotonCancelarReserva } from './BotonCancelarReserva'
 import { eliminarLote } from './[id]/actions'
@@ -11,28 +24,35 @@ import { hoyArgentina } from '@/lib/fecha/hoy-argentina'
 import { formatearFechaCorta } from '@/lib/fecha/formatear-fecha-corta'
 import { EnlaceBoton } from '@/components/EnlaceBoton'
 import { BotonEnvio } from '@/components/BotonEnvio'
-import { EncabezadoPagina } from '@/components/EncabezadoPagina'
 import {
-  TARJETA,
-  ENTRADA,
-  BOTON_PRIMARIO,
-  BOTON_SECUNDARIO,
-  ENLACE,
-  ENLACE_TABLA,
-  TITULO_H2,
   BANNER_ERROR,
   BANNER_OK,
-  TABLA_CONTENEDOR,
-  TABLA_HEADER_FILA,
-  TABLA_HEADER_CELDA,
-  TABLA_FILA,
-  TABLA_CELDA,
-  TABLA_CELDA_PRINCIPAL,
-  BADGE_BASE,
-  BADGE_VERDE,
-  BADGE_AMARILLO,
-  BADGE_ROJO,
-  BADGE_GRIS,
+  PANEL,
+  PANEL_SIN_PADDING,
+  MIGAS_PANEL,
+  TITULO_PANTALLA,
+  CONTADOR_PILL,
+  BOTON_NEUTRO,
+  BOTON_ACCION,
+  TAB_FILTRO,
+  TAB_FILTRO_ACTIVO,
+  CAMPO_FILTRO,
+  TABLA_PANEL_HEADER,
+  TABLA_PANEL_TH,
+  TABLA_PANEL_TH_ORDEN,
+  TABLA_PANEL_TR,
+  TABLA_PANEL_TR_ALTERNA,
+  TABLA_PANEL_TD,
+  TABLA_PANEL_PIE,
+  BOTON_ICONO,
+  BOTON_FILA_VERDE,
+  BOTON_FILA_AZUL,
+  PILL_ESTADO,
+  PILL_ESTADO_NEUTRO,
+  PILL_MONEDA_ARS,
+  PILL_MONEDA_USD,
+  PILL_COBRANZA,
+  PUNTO_COBRANZA,
 } from '@/lib/ui/clases'
 
 const COLUMNAS_ORDENABLES = ['identificador', 'ubicacion', 'precio_total', 'moneda', 'estado'] as const
@@ -40,11 +60,21 @@ type ColumnaOrdenable = (typeof COLUMNAS_ORDENABLES)[number]
 
 const ETIQUETAS_COLUMNA: Record<ColumnaOrdenable, string> = {
   identificador: 'Identificador',
-  ubicacion: 'Ubicación',
+  ubicacion: 'Ubicación / Mz',
   precio_total: 'Precio total',
   moneda: 'Moneda',
   estado: 'Estado',
 }
+
+// Pestañas de estado (rediseño Stitch 2026-09, MOCKUP 1): reemplazan al
+// <select> "Estado" de la barra de filtros. El estado del lote es el corte
+// que Nicolás hace todo el tiempo -- vale un click, no dos.
+const PESTANIAS_ESTADO = [
+  { valor: 'disponible', etiqueta: 'Disponibles' },
+  { valor: 'reservado', etiqueta: 'Reservados' },
+  { valor: 'vendido', etiqueta: 'Vendidos' },
+  { valor: 'rescindido', etiqueta: 'Rescindidos' },
+] as const
 
 export default async function LotesPage({
   searchParams,
@@ -150,10 +180,11 @@ export default async function LotesPage({
     queryLotes = queryLotes.eq('loteo_id', filtroLoteoId)
   }
 
-  if (filtroEstado && !esVendedor) {
-    queryLotes = queryLotes.eq('estado', filtroEstado)
-  }
-
+  // El filtro de estado ya NO va en la consulta: las pestañas de arriba
+  // muestran cuántos lotes hay en cada estado, y ese número tiene que
+  // contar sobre el resto de los filtros ya aplicados. Si el estado se
+  // filtrara en SQL, la pestaña activa sería la única con número real y
+  // las otras dirían siempre cero.
   const { data: lotes } = await queryLotes
 
   const { data: todosLosAcreedores } =
@@ -254,7 +285,7 @@ export default async function LotesPage({
   // Cliente y Cobranza no son columnas de "lotes" (cliente ya viene resuelto
   // arriba, cobranza es calculada) -- se filtran en JS después de tener
   // clientePorId/cobranzaPorLote, en vez de en la consulta SQL.
-  const lotesFiltrados = (lotes ?? []).filter((lote) => {
+  const lotesSinFiltroEstado = (lotes ?? []).filter((lote) => {
     if (filtroCliente) {
       const nombreCliente = lote.cliente_id ? clientePorId.get(lote.cliente_id)?.full_name : null
       if (!nombreCliente || !nombreCliente.toLowerCase().includes(filtroCliente.toLowerCase())) {
@@ -281,6 +312,16 @@ export default async function LotesPage({
     return true
   })
 
+  const conteoPorEstado = new Map<string, number>()
+  for (const lote of lotesSinFiltroEstado) {
+    conteoPorEstado.set(lote.estado, (conteoPorEstado.get(lote.estado) ?? 0) + 1)
+  }
+
+  const lotesFiltrados =
+    filtroEstado && !esVendedor
+      ? lotesSinFiltroEstado.filter((lote) => lote.estado === filtroEstado)
+      : lotesSinFiltroEstado
+
   let reservasPropias: { lote_id: string }[] = []
 
   if (esVendedor) {
@@ -304,27 +345,51 @@ export default async function LotesPage({
           .order('created_at', { ascending: false })
       : { data: [] }
 
-  function urlOrden(columna: ColumnaOrdenable) {
+  function parametrosBase() {
     const params = new URLSearchParams()
     if (filtroMoneda) params.set('moneda', filtroMoneda)
     if (filtroAcreedorId) params.set('acreedor', filtroAcreedorId)
     if (filtroLoteoId) params.set('loteo', filtroLoteoId)
     if (filtroCliente) params.set('cliente', filtroCliente)
     if (filtroCobranza) params.set('cobranza', filtroCobranza)
-    if (filtroEstado) params.set('estado', filtroEstado)
     if (filtroTexto) params.set('q', filtroTexto)
+    return params
+  }
+
+  function urlOrden(columna: ColumnaOrdenable) {
+    const params = parametrosBase()
+    if (filtroEstado) params.set('estado', filtroEstado)
     params.set('sort', columna)
     params.set('dir', columnaOrden === columna && ordenAscendente ? 'desc' : 'asc')
     return `/admin/lotes?${params.toString()}`
   }
 
+  function urlEstado(estado: string | null) {
+    const params = parametrosBase()
+    if (estado) params.set('estado', estado)
+    if (sort) params.set('sort', sort)
+    if (dir) params.set('dir', dir)
+    const query = params.toString()
+    return query ? `/admin/lotes?${query}` : '/admin/lotes'
+  }
+
   function claseCobranza(cobranza: { saldoPendiente: number; marcadoPrejudicial: boolean; estadoCobranza: string }) {
-    if (cobranza.saldoPendiente === 0) return `${BADGE_BASE} ${BADGE_GRIS}`
-    if (cobranza.marcadoPrejudicial) return `${BADGE_BASE} ${BADGE_ROJO} font-bold`
-    if (cobranza.estadoCobranza === 'normal') return `${BADGE_BASE} ${BADGE_VERDE}`
-    if (cobranza.estadoCobranza === 'atrasado') return `${BADGE_BASE} ${BADGE_AMARILLO}`
-    if (cobranza.estadoCobranza === 'moroso') return `${BADGE_BASE} ${BADGE_ROJO}`
-    return `${BADGE_BASE} ${BADGE_ROJO} font-bold`
+    if (cobranza.saldoPendiente === 0) return PILL_COBRANZA.pagado
+    if (cobranza.marcadoPrejudicial) return PILL_COBRANZA.prejudicial
+    if (cobranza.estadoCobranza === 'normal') return PILL_COBRANZA.alDia
+    if (cobranza.estadoCobranza === 'atrasado') return PILL_COBRANZA.atrasado
+    return PILL_COBRANZA.moroso
+  }
+
+  function clasePuntoCobranza(cobranza: {
+    saldoPendiente: number
+    marcadoPrejudicial: boolean
+    estadoCobranza: string
+  }) {
+    if (cobranza.marcadoPrejudicial) return PUNTO_COBRANZA.prejudicial
+    if (cobranza.estadoCobranza === 'normal') return PUNTO_COBRANZA.alDia
+    if (cobranza.estadoCobranza === 'atrasado') return PUNTO_COBRANZA.atrasado
+    return PUNTO_COBRANZA.moroso
   }
 
   function etiquetaCobranza(cobranza: { saldoPendiente: number; marcadoPrejudicial: boolean; estadoCobranza: string }) {
@@ -336,118 +401,190 @@ export default async function LotesPage({
     return 'Posible prejudicial'
   }
 
+  function formatearPrecio(precio: number | null) {
+    if (!precio) return '—'
+    return precio.toLocaleString('es-AR')
+  }
+
   return (
-    <main>
-      <EncabezadoPagina
-        titulo="Lotes"
-        migas={['Lotes']}
-        acciones={
-          // Crear/importar lotes es admin-only (04/09, pedido explícito de
-          // Gabriel): antes esVendedor/esCobrador dejaban pasar a acreedor,
-          // que igual no debería poder dar de alta ni importar lotes -- ver
-          // memoria del backlog.
-          esAdministrador && (
-            <>
-              <EnlaceBoton href="/admin/lotes/importar" className={`cursor-pointer ${BOTON_SECUNDARIO}`}>
-                Importar varios
-              </EnlaceBoton>
-              {/* Alta de un lote que ya se vendio antes de usar el sistema
-                  (07/09). No pasa por reservar->vender porque reservar
-                  exige el comprobante de la sena y las fotos del DNI, que
-                  de una venta vieja nadie tiene. */}
-              <EnlaceBoton
-                href="/admin/lotes/cargar-en-curso"
-                className={`cursor-pointer ${BOTON_SECUNDARIO}`}
-              >
-                Cargar ya vendido
-              </EnlaceBoton>
-              <EnlaceBoton href="/admin/lotes/nuevo" className={`cursor-pointer ${BOTON_PRIMARIO}`}>
-                + Nuevo lote
-              </EnlaceBoton>
-            </>
-          )
-        }
-      />
+    <main className="mx-auto w-full max-w-[1600px] space-y-6">
+      {/* ENCABEZADO Y ACCIONES PRINCIPALES */}
+      <div className={`flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between ${PANEL}`}>
+        <div className="flex flex-col gap-1">
+          <nav aria-label="Ruta" className={MIGAS_PANEL}>
+            <span>SIMACOR</span>
+            <ChevronRight className="h-3.5 w-3.5 text-slate-400" />
+            <span className="text-blue-600">Lotes</span>
+          </nav>
+          <div className="flex flex-wrap items-center gap-3 pt-0.5">
+            <h1 className={TITULO_PANTALLA}>Gestión de Lotes</h1>
+            <span className={CONTADOR_PILL}>
+              {lotesSinFiltroEstado.length} {lotesSinFiltroEstado.length === 1 ? 'lote' : 'lotes'}
+            </span>
+          </div>
+        </div>
+        {/* Crear/importar lotes es admin-only (04/09, pedido explícito de
+            Gabriel): antes esVendedor/esCobrador dejaban pasar a acreedor,
+            que igual no debería poder dar de alta ni importar lotes -- ver
+            memoria del backlog. */}
+        {esAdministrador && (
+          <div className="flex shrink-0 flex-wrap items-center gap-2.5">
+            <EnlaceBoton href="/admin/lotes/importar" className={BOTON_NEUTRO}>
+              <Upload className="h-[18px] w-[18px] text-slate-500" />
+              Importar varios
+            </EnlaceBoton>
+            {/* Alta de un lote que ya se vendio antes de usar el sistema
+                (07/09). No pasa por reservar->vender porque reservar
+                exige el comprobante de la sena y las fotos del DNI, que
+                de una venta vieja nadie tiene. */}
+            <EnlaceBoton href="/admin/lotes/cargar-en-curso" className={BOTON_NEUTRO}>
+              <FileSignature className="h-[18px] w-[18px] text-slate-500" />
+              Cargar ya vendido
+            </EnlaceBoton>
+            <EnlaceBoton href="/admin/lotes/nuevo" className={BOTON_ACCION}>
+              <Plus className="h-[18px] w-[18px]" />
+              Nuevo lote
+            </EnlaceBoton>
+          </div>
+        )}
+      </div>
 
       {error && <p className={BANNER_ERROR}>{error}</p>}
       {ok && <p className={BANNER_OK}>{ok}</p>}
 
+      {/* TARJETA DE COTIZACIÓN DEL DÓLAR */}
       {puedeCargarCotizacion && (
-      <div className={`mb-6 ${TARJETA}`}>
-        {cotizacionHoy ? (
-          <p className="mb-3 text-sm text-green-700">
-            ✓ Cotización de hoy ({formatearFechaCorta(hoy)}) ya cargada:{' '}
-            <span className="font-semibold text-blue-900">{cotizacionHoy.valor}</span> ARS por USD — cargada por{' '}
-            {cargadorCotizacion?.full_name ?? '—'} a las{' '}
-            {new Date(cotizacionHoy.created_at).toLocaleTimeString('es-AR', {
-              hour: '2-digit',
-              minute: '2-digit',
-            })}
-            hs.
-          </p>
-        ) : (
-          <p className="mb-3 text-sm font-semibold text-amber-700">
-            ⚠ Todavía no cargaste la cotización del dólar de hoy ({formatearFechaCorta(hoy)}).
-          </p>
-        )}
-        <form action={guardarCotizacionDolar} className="flex flex-wrap items-end gap-2">
-          <label className="text-sm text-slate-600">
-            {cotizacionHoy ? 'Corregir cotización de hoy' : 'Cotización de hoy'} (ARS por USD)
-            <input
-              name="valor"
-              type="number"
-              step="0.01"
-              min="0.01"
-              placeholder="Ej: 1500"
-              defaultValue={cotizacionHoy?.valor ?? ''}
-              required
-              className={ENTRADA}
-            />
-          </label>
-          <BotonEnvio className={`cursor-pointer ${BOTON_PRIMARIO}`}>
-            {cotizacionHoy ? 'Corregir' : 'Cargar'}
-          </BotonEnvio>
-        </form>
-        <EnlaceBoton href="/admin/cotizacion-dolar" className={`mt-2 inline-block ${ENLACE}`}>
-          Ver historial completo →
-        </EnlaceBoton>
-      </div>
+        <div
+          className={`relative flex flex-col items-stretch justify-between gap-4 overflow-hidden lg:flex-row lg:items-center ${PANEL}`}
+        >
+          <span
+            className={`absolute top-0 bottom-0 left-0 w-1.5 ${cotizacionHoy ? 'bg-emerald-500' : 'bg-amber-500'}`}
+          />
+          <div className="flex items-start gap-3.5 pl-1.5 sm:items-center">
+            <div
+              className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border ${
+                cotizacionHoy
+                  ? 'border-emerald-200 bg-emerald-50 text-emerald-600'
+                  : 'border-amber-200 bg-amber-50 text-amber-600'
+              }`}
+            >
+              {cotizacionHoy ? <CheckCircle2 className="h-[22px] w-[22px]" /> : <TriangleAlert className="h-[22px] w-[22px]" />}
+            </div>
+            <div className="flex flex-col">
+              <div className="flex flex-wrap items-center gap-2">
+                {cotizacionHoy ? (
+                  <>
+                    <span className="font-heading text-sm font-semibold text-slate-900 sm:text-base">
+                      Cotización de hoy ({formatearFechaCorta(hoy)}) ya cargada: {cotizacionHoy.valor} ARS por USD
+                    </span>
+                    <span className="rounded-full bg-emerald-100/70 px-2 py-0.5 text-[11px] font-bold tracking-wider text-emerald-800 uppercase">
+                      Vigente
+                    </span>
+                  </>
+                ) : (
+                  <span className="font-heading text-sm font-semibold text-slate-900 sm:text-base">
+                    Todavía no cargaste la cotización del dólar de hoy ({formatearFechaCorta(hoy)}).
+                  </span>
+                )}
+              </div>
+              <p className="mt-0.5 text-xs text-slate-500 sm:text-sm">
+                {cotizacionHoy
+                  ? `Cargada por ${cargadorCotizacion?.full_name ?? '—'} a las ${new Date(
+                      cotizacionHoy.created_at
+                    ).toLocaleTimeString('es-AR', {
+                      hour: '2-digit',
+                      minute: '2-digit',
+                    })} hs para liquidación y cálculo de cuotas dolarizadas.`
+                  : 'Sin cotización del día no se pueden liquidar los pagos en pesos de las cuotas en dólares.'}
+              </p>
+            </div>
+          </div>
+          <div className="flex shrink-0 flex-wrap items-center gap-3 pt-2 pl-1.5 lg:pt-0 lg:pl-0">
+            <form action={guardarCotizacionDolar} className="flex items-center gap-2">
+              <div className="relative">
+                <span className="absolute top-1/2 left-3 -translate-y-1/2 text-sm font-semibold text-slate-400">$</span>
+                <input
+                  name="valor"
+                  type="number"
+                  step="0.01"
+                  min="0.01"
+                  placeholder="Ej: 1500"
+                  defaultValue={cotizacionHoy?.valor ?? ''}
+                  required
+                  aria-label={cotizacionHoy ? 'Corregir cotización de hoy (ARS por USD)' : 'Cotización de hoy (ARS por USD)'}
+                  className="w-32 rounded-xl border border-slate-200 bg-slate-50 py-1.5 pr-3 pl-7 text-sm font-semibold text-slate-900 tabular-nums transition-all focus:border-blue-600 focus:bg-white focus:outline-none"
+                />
+              </div>
+              <BotonEnvio
+                className={`cursor-pointer rounded-xl bg-gradient-to-r from-blue-600 to-blue-700 px-4 py-1.5 text-sm font-semibold text-white shadow-xs transition-all hover:from-blue-700 hover:to-blue-800`}
+              >
+                {cotizacionHoy ? 'Corregir' : 'Cargar'}
+              </BotonEnvio>
+            </form>
+            <EnlaceBoton
+              href="/admin/cotizacion-dolar"
+              className="inline-flex items-center gap-1 text-sm font-semibold text-blue-600 transition-colors hover:text-blue-800 hover:underline"
+            >
+              Ver historial completo →
+            </EnlaceBoton>
+          </div>
+        </div>
       )}
 
       {esVendedor && (
-        <>
-          <h2 className={`mb-2 ${TITULO_H2}`}>Lotes que reservaste</h2>
+        <div className={PANEL_SIN_PADDING}>
+          <div className="flex items-center justify-between border-b border-slate-100 px-5 py-3.5">
+            <h2 className="font-heading text-[15px] font-bold text-blue-900">Lotes que reservaste</h2>
+          </div>
           {(misLotesReservados ?? []).length === 0 ? (
-            <p className="mb-8 text-sm text-slate-600">Todavía no reservaste ningún lote.</p>
+            <p className="px-5 py-6 text-sm text-slate-500">Todavía no reservaste ningún lote.</p>
           ) : (
-            <div className={`mb-8 ${TABLA_CONTENEDOR}`}>
-              <table className="w-full text-sm">
+            <div className="w-full overflow-x-auto">
+              <table className="w-full border-collapse text-left">
                 <thead>
-                  <tr className={TABLA_HEADER_FILA}>
-                    <th className={TABLA_HEADER_CELDA}>Identificador</th>
-                    <th className={TABLA_HEADER_CELDA}>Ubicación</th>
-                    <th className={TABLA_HEADER_CELDA}>Precio total</th>
-                    <th className={TABLA_HEADER_CELDA}>Moneda</th>
-                    <th className={TABLA_HEADER_CELDA}>Estado</th>
-                    <th className={TABLA_HEADER_CELDA}></th>
+                  <tr className={TABLA_PANEL_HEADER}>
+                    <th className={TABLA_PANEL_TH}>Identificador</th>
+                    <th className={TABLA_PANEL_TH}>Ubicación / Mz</th>
+                    <th className={`${TABLA_PANEL_TH} text-right`}>Precio total</th>
+                    <th className={`${TABLA_PANEL_TH} text-center`}>Moneda</th>
+                    <th className={TABLA_PANEL_TH}>Estado</th>
+                    <th className={`${TABLA_PANEL_TH} text-right`}>Acciones</th>
                   </tr>
                 </thead>
-                <tbody>
-                  {misLotesReservados!.map((lote) => {
+                <tbody className="divide-y divide-slate-100 text-xs text-slate-700">
+                  {misLotesReservados!.map((lote, indice) => {
                     const cancelarReservaConId = cancelarReserva.bind(null, lote.id)
                     return (
-                      <tr key={lote.id} className={TABLA_FILA}>
-                        <td className={TABLA_CELDA_PRINCIPAL}>{lote.identificador}</td>
-                        <td className={TABLA_CELDA}>{lote.ubicacion ?? '—'}</td>
-                        <td className={TABLA_CELDA}>
-                          {lote.precio_total ? `${lote.precio_total} ${lote.moneda}` : '—'}
+                      <tr key={lote.id} className={indice % 2 === 1 ? TABLA_PANEL_TR_ALTERNA : TABLA_PANEL_TR}>
+                        <td className={`${TABLA_PANEL_TD} max-w-[230px] truncate font-semibold text-slate-900`}>
+                          {lote.identificador}
                         </td>
-                        <td className={TABLA_CELDA}>{lote.moneda}</td>
-                        <td className={TABLA_CELDA}>{lote.estado}</td>
-                        <td className={TABLA_CELDA}>
-                          <div className="flex flex-wrap items-center gap-3">
-                            <EnlaceBoton href={`/admin/lotes/${lote.id}/info`} className={ENLACE}>
-                              Ver documentación del lote →
+                        <td className={`${TABLA_PANEL_TD} max-w-[190px] truncate text-slate-500`}>
+                          {lote.ubicacion ?? '—'}
+                        </td>
+                        <td className={`${TABLA_PANEL_TD} text-right font-bold text-slate-900 tabular-nums`}>
+                          {formatearPrecio(lote.precio_total)}
+                        </td>
+                        <td className={`${TABLA_PANEL_TD} text-center`}>
+                          <span className={lote.moneda === 'ARS' ? PILL_MONEDA_ARS : PILL_MONEDA_USD}>
+                            {lote.moneda}
+                          </span>
+                        </td>
+                        <td className={TABLA_PANEL_TD}>
+                          <span className={PILL_ESTADO[lote.estado] ?? PILL_ESTADO_NEUTRO}>
+                            {lote.estado.charAt(0).toUpperCase() + lote.estado.slice(1)}
+                          </span>
+                        </td>
+                        <td className={`${TABLA_PANEL_TD} text-right`}>
+                          <div className="inline-flex items-center justify-end gap-1.5">
+                            <EnlaceBoton
+                              href={`/admin/lotes/${lote.id}/info`}
+                              className={BOTON_ICONO}
+                              claseInterna="inline-flex items-center"
+                              aria-label="Ver documentación del lote"
+                              title="Ver documentación del lote"
+                            >
+                              <FileText className="h-[17px] w-[17px]" />
                             </EnlaceBoton>
                             {lote.estado === 'reservado' && (
                               <BotonCancelarReserva cancelarReservaAction={cancelarReservaConId} />
@@ -461,85 +598,98 @@ export default async function LotesPage({
               </table>
             </div>
           )}
-          <h2 className={`mb-2 ${TITULO_H2}`}>Lotes disponibles y reservados</h2>
-        </>
+        </div>
       )}
 
-      <FiltroEnVivo className={`mb-4 flex flex-wrap items-end gap-3 ${TARJETA}`}>
-        <input type="hidden" name="sort" value={columnaOrden} />
-        <input type="hidden" name="dir" value={ordenAscendente ? 'asc' : 'desc'} />
-        <label className="text-sm text-slate-600">
-          Buscar
-          <input
-            type="text"
-            name="q"
-            placeholder="Buscar identificador"
-            defaultValue={filtroTexto ?? ''}
-            className={ENTRADA}
-          />
-        </label>
-        <label className="text-sm text-slate-600">
-          Moneda
-          <select name="moneda" defaultValue={filtroMoneda ?? ''} className={ENTRADA}>
-            <option value="">Todas</option>
-            <option value="USD">USD</option>
-            <option value="ARS">ARS</option>
-          </select>
-        </label>
-        {perfilPropio!.role !== 'acreedor' && (
-          <label className="text-sm text-slate-600">
-            Acreedor
-            <select name="acreedor" defaultValue={filtroAcreedorId ?? ''} className={ENTRADA}>
-              <option value="">Todos</option>
-              {(todosLosAcreedores ?? []).map((persona) => (
-                <option key={persona.id} value={persona.id}>
-                  {persona.full_name}
-                </option>
-              ))}
-            </select>
-          </label>
-        )}
-        {!esVendedor && (
-          <label className="text-sm text-slate-600">
-            Loteo
-            <select name="loteo" defaultValue={filtroLoteoId ?? ''} className={ENTRADA}>
-              <option value="">Todos</option>
+      {/* BARRA DE FILTROS EN VIVO */}
+      <div className={`space-y-4 ${PANEL}`}>
+        <div className="flex flex-col gap-3 border-b border-slate-100 pb-3 lg:flex-row lg:items-center lg:justify-between">
+          <div className="flex items-center gap-1.5 overflow-x-auto py-0.5">
+            {esVendedor ? (
+              <h2 className="font-heading text-[15px] font-bold text-blue-900">Lotes disponibles y reservados</h2>
+            ) : (
+              <>
+                <EnlaceBoton href={urlEstado(null)} className={filtroEstado ? TAB_FILTRO : TAB_FILTRO_ACTIVO}>
+                  Todos ({lotesSinFiltroEstado.length})
+                </EnlaceBoton>
+                {PESTANIAS_ESTADO.filter(
+                  (pestania) => pestania.valor !== 'rescindido' || (conteoPorEstado.get('rescindido') ?? 0) > 0
+                ).map((pestania) => (
+                  <EnlaceBoton
+                    key={pestania.valor}
+                    href={urlEstado(pestania.valor)}
+                    className={filtroEstado === pestania.valor ? TAB_FILTRO_ACTIVO : TAB_FILTRO}
+                  >
+                    {pestania.etiqueta} ({conteoPorEstado.get(pestania.valor) ?? 0})
+                  </EnlaceBoton>
+                ))}
+              </>
+            )}
+          </div>
+          {(filtroMoneda ||
+            filtroAcreedorId ||
+            filtroLoteoId ||
+            filtroCliente ||
+            filtroCobranza ||
+            filtroEstado ||
+            filtroTexto ||
+            sort ||
+            dir) && (
+            <EnlaceBoton
+              href="/admin/lotes"
+              className="shrink-0 text-xs font-semibold text-slate-500 transition-colors hover:text-rose-600"
+            >
+              Limpiar filtros y orden
+            </EnlaceBoton>
+          )}
+        </div>
+
+        <FiltroEnVivo className="grid grid-cols-1 gap-3 pt-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5">
+          <input type="hidden" name="sort" value={columnaOrden} />
+          <input type="hidden" name="dir" value={ordenAscendente ? 'asc' : 'desc'} />
+          {/* El estado lo manejan las pestañas de arriba, pero tiene que
+              viajar con el resto del formulario: FiltroEnVivo reconstruye la
+              URL entera desde el <form>, así que sin este campo cambiar
+              cualquier otro filtro apagaría la pestaña elegida. */}
+          <input type="hidden" name="estado" value={filtroEstado ?? ''} />
+
+          <div className="relative flex items-center lg:col-span-2">
+            <Search className="absolute left-3 h-[18px] w-[18px] text-slate-400" />
+            <input
+              type="text"
+              name="q"
+              placeholder="Buscar identificador"
+              aria-label="Buscar por identificador"
+              defaultValue={filtroTexto ?? ''}
+              className={`${CAMPO_FILTRO} pl-9`}
+            />
+          </div>
+
+          {!esVendedor && (
+            <select name="loteo" defaultValue={filtroLoteoId ?? ''} aria-label="Loteo" className={`${CAMPO_FILTRO} truncate`}>
+              <option value="">Loteo: todos</option>
               {(todosLosLoteos ?? []).map((loteo) => (
                 <option key={loteo.id} value={loteo.id}>
                   {loteo.nombre}
                 </option>
               ))}
             </select>
-          </label>
-        )}
-        {esAdministrador && (
-          <label className="text-sm text-slate-600">
-            Cliente
-            <input
-              type="text"
-              name="cliente"
-              placeholder="Nombre del cliente"
-              defaultValue={filtroCliente ?? ''}
-              className={ENTRADA}
-            />
-          </label>
-        )}
-        {!esVendedor && (
-          <label className="text-sm text-slate-600">
-            Estado
-            <select name="estado" defaultValue={filtroEstado ?? ''} className={ENTRADA}>
-              <option value="">Todos</option>
-              <option value="disponible">Disponible</option>
-              <option value="reservado">Reservado</option>
-              <option value="vendido">Vendido</option>
-            </select>
-          </label>
-        )}
-        {!esVendedor && (
-          <label className="text-sm text-slate-600">
-            Cobranza
-            <select name="cobranza" defaultValue={filtroCobranza ?? ''} className={ENTRADA}>
-              <option value="">Todas</option>
+          )}
+
+          <select name="moneda" defaultValue={filtroMoneda ?? ''} aria-label="Moneda" className={CAMPO_FILTRO}>
+            <option value="">Moneda: todas</option>
+            <option value="USD">USD</option>
+            <option value="ARS">ARS</option>
+          </select>
+
+          {!esVendedor && (
+            <select
+              name="cobranza"
+              defaultValue={filtroCobranza ?? ''}
+              aria-label="Cobranza"
+              className={`${CAMPO_FILTRO} truncate`}
+            >
+              <option value="">Cobranza: todas</option>
               <option value="pagado">Pagado</option>
               <option value="al_dia">Al día</option>
               <option value="atrasado">Atrasado</option>
@@ -547,144 +697,254 @@ export default async function LotesPage({
               <option value="posible_prejudicial">Posible prejudicial</option>
               <option value="prejudicial">Prejudicial</option>
             </select>
-          </label>
-        )}
-        <button type="submit" className={`cursor-pointer ${BOTON_SECUNDARIO}`}>
-          Filtrar
-        </button>
-        {(filtroMoneda ||
-          filtroAcreedorId ||
-          filtroLoteoId ||
-          filtroCliente ||
-          filtroCobranza ||
-          filtroEstado ||
-          filtroTexto ||
-          sort ||
-          dir) && (
-          <EnlaceBoton href="/admin/lotes" className={ENLACE}>
-            Limpiar filtros y orden
-          </EnlaceBoton>
-        )}
-      </FiltroEnVivo>
+          )}
 
+          {/* Acreedor y Cliente quedan detrás de "Filtros avanzados" (como en
+              el mockup): son los dos cortes que Nicolás usa de vez en cuando,
+              y tenerlos siempre desplegados le robaba una fila entera de
+              pantalla a la tabla. Siguen siendo campos del mismo formulario
+              aunque el bloque esté cerrado, así que un ?cliente= en la URL
+              se conserva igual al tocar cualquier otro filtro. */}
+          {!esVendedor && perfilPropio!.role !== 'acreedor' && (
+            <details
+              open={Boolean(filtroCliente || filtroAcreedorId)}
+              className="sm:col-span-2 md:col-span-3 lg:col-span-5"
+            >
+              <summary className="inline-flex w-fit cursor-pointer list-none items-center gap-1.5 text-xs font-semibold text-slate-500 transition-colors hover:text-slate-800">
+                <SlidersHorizontal className="h-4 w-4" />
+                Filtros avanzados
+              </summary>
+              <div className="grid grid-cols-1 gap-3 pt-3 sm:grid-cols-2 lg:grid-cols-5">
+                {perfilPropio!.role !== 'acreedor' && (
+                  <select
+                    name="acreedor"
+                    defaultValue={filtroAcreedorId ?? ''}
+                    aria-label="Acreedor"
+                    className={`${CAMPO_FILTRO} truncate`}
+                  >
+                    <option value="">Acreedor: todos</option>
+                    {(todosLosAcreedores ?? []).map((persona) => (
+                      <option key={persona.id} value={persona.id}>
+                        {persona.full_name}
+                      </option>
+                    ))}
+                  </select>
+                )}
+                {esAdministrador && (
+                  <input
+                    type="text"
+                    name="cliente"
+                    placeholder="Nombre del cliente"
+                    aria-label="Cliente"
+                    defaultValue={filtroCliente ?? ''}
+                    className={CAMPO_FILTRO}
+                  />
+                )}
+              </div>
+            </details>
+          )}
+        </FiltroEnVivo>
+      </div>
+
+      {/* TABLA MAESTRA DE LOTES */}
       {lotesFiltrados.length === 0 && (filtroCliente || filtroCobranza || filtroEstado) ? (
         <p className="text-sm text-slate-600">Ningún lote coincide con los filtros.</p>
       ) : (
-        <div className={TABLA_CONTENEDOR}>
-          <table className="w-full text-sm">
-            <thead>
-              <tr className={TABLA_HEADER_FILA}>
-                {!esVendedor && <th className={TABLA_HEADER_CELDA}>Loteo</th>}
-                {COLUMNAS_ORDENABLES.map((columna) => (
-                  <th key={columna} className={TABLA_HEADER_CELDA}>
-                    <EnlaceBoton href={urlOrden(columna)} className="text-white underline-offset-4 hover:underline">
-                      {ETIQUETAS_COLUMNA[columna]}
-                      {columnaOrden === columna ? (ordenAscendente ? ' ▲' : ' ▼') : ''}
-                    </EnlaceBoton>
-                  </th>
-                ))}
-                {!esVendedor && <th className={TABLA_HEADER_CELDA}>Acreedor</th>}
-                {!esVendedor && <th className={TABLA_HEADER_CELDA}>Cuotas</th>}
-                {esAdministrador && <th className={TABLA_HEADER_CELDA}>Cliente</th>}
-                {!esVendedor && <th className={TABLA_HEADER_CELDA}>Cobranza</th>}
-                <th className={TABLA_HEADER_CELDA}></th>
-              </tr>
-            </thead>
-            <tbody>
-              {lotesFiltrados.map((lote) => {
-                const eliminarLoteConId = eliminarLote.bind(null, lote.id)
-                const cobranza = cobranzaPorLote.get(lote.id)
-                return (
-                  <tr key={lote.id} className={TABLA_FILA}>
-                    {!esVendedor && (
-                      <td className={TABLA_CELDA}>
-                        {lote.loteo_id ? nombreLoteoPorId.get(lote.loteo_id) ?? '—' : '— sin asignar —'}
+        <div className={PANEL_SIN_PADDING}>
+          <div className="w-full overflow-x-auto">
+            <table className="w-full border-collapse text-left">
+              <thead className="border-b border-slate-200/80">
+                <tr className={TABLA_PANEL_HEADER}>
+                  {!esVendedor && <th className={TABLA_PANEL_TH}>Loteo</th>}
+                  {COLUMNAS_ORDENABLES.map((columna) => (
+                    <th
+                      key={columna}
+                      className={`${TABLA_PANEL_TH} ${
+                        columna === 'precio_total' ? 'text-right' : columna === 'moneda' ? 'text-center' : ''
+                      }`}
+                    >
+                      <EnlaceBoton
+                        href={urlOrden(columna)}
+                        className={
+                          columna === 'precio_total'
+                            ? 'flex justify-end'
+                            : columna === 'moneda'
+                              ? 'flex justify-center'
+                              : 'flex'
+                        }
+                        claseInterna={TABLA_PANEL_TH_ORDEN}
+                      >
+                        {ETIQUETAS_COLUMNA[columna]}
+                        <span className="text-[9px] opacity-70">
+                          {columnaOrden === columna ? (ordenAscendente ? '▲' : '▼') : ''}
+                        </span>
+                      </EnlaceBoton>
+                    </th>
+                  ))}
+                  {!esVendedor && <th className={TABLA_PANEL_TH}>Acreedor</th>}
+                  {!esVendedor && <th className={`${TABLA_PANEL_TH} text-center`}>Cuotas</th>}
+                  {esAdministrador && <th className={TABLA_PANEL_TH}>Cliente</th>}
+                  {!esVendedor && <th className={TABLA_PANEL_TH}>Cobranza</th>}
+                  <th className={`${TABLA_PANEL_TH} min-w-[180px] text-right`}>Acciones</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100 text-xs text-slate-700">
+                {lotesFiltrados.map((lote, indice) => {
+                  const eliminarLoteConId = eliminarLote.bind(null, lote.id)
+                  const cobranza = cobranzaPorLote.get(lote.id)
+                  return (
+                    <tr key={lote.id} className={indice % 2 === 1 ? TABLA_PANEL_TR_ALTERNA : TABLA_PANEL_TR}>
+                      {!esVendedor && (
+                        <td className={`${TABLA_PANEL_TD} max-w-[170px] truncate font-semibold text-slate-900`}>
+                          {lote.loteo_id ? (nombreLoteoPorId.get(lote.loteo_id) ?? '—') : '— sin asignar —'}
+                        </td>
+                      )}
+                      <td className={`${TABLA_PANEL_TD} max-w-[230px] truncate font-semibold`}>
+                        {esVendedor ? (
+                          <span className="text-slate-900">{lote.identificador}</span>
+                        ) : (
+                          <EnlaceBoton
+                            href={`/admin/lotes/${lote.id}`}
+                            className="text-blue-600 underline-offset-4 transition-colors hover:text-blue-800 hover:underline"
+                          >
+                            {lote.identificador}
+                          </EnlaceBoton>
+                        )}
                       </td>
-                    )}
-                    <td className={TABLA_CELDA_PRINCIPAL}>{lote.identificador}</td>
-                    <td className={TABLA_CELDA}>{lote.ubicacion ?? '—'}</td>
-                    <td className={TABLA_CELDA}>
-                      {lote.precio_total ? `${lote.precio_total} ${lote.moneda}` : '—'}
-                    </td>
-                    <td className={TABLA_CELDA}>{lote.moneda}</td>
-                    <td className={TABLA_CELDA}>{lote.estado}</td>
-                    {!esVendedor && (
-                      <td className={TABLA_CELDA}>
-                        {lote.acreedor_id ? (
-                          esAdministrador ? (
-                            <EnlaceBoton href={`/admin/usuarios?editar=${lote.acreedor_id}`} className={ENLACE_TABLA}>
-                              {nombreAcreedorPorId.get(lote.acreedor_id) ?? '—'}
+                      <td className={`${TABLA_PANEL_TD} max-w-[190px] truncate text-slate-500`}>
+                        {lote.ubicacion ?? '—'}
+                      </td>
+                      <td className={`${TABLA_PANEL_TD} text-right font-bold text-slate-900 tabular-nums`}>
+                        {formatearPrecio(lote.precio_total)}
+                      </td>
+                      <td className={`${TABLA_PANEL_TD} text-center`}>
+                        <span className={lote.moneda === 'ARS' ? PILL_MONEDA_ARS : PILL_MONEDA_USD}>
+                          {lote.moneda}
+                        </span>
+                      </td>
+                      <td className={TABLA_PANEL_TD}>
+                        <span className={PILL_ESTADO[lote.estado] ?? PILL_ESTADO_NEUTRO}>
+                          {lote.estado.charAt(0).toUpperCase() + lote.estado.slice(1)}
+                        </span>
+                      </td>
+                      {!esVendedor && (
+                        <td className={`${TABLA_PANEL_TD} max-w-[150px] truncate text-slate-600`}>
+                          {lote.acreedor_id ? (
+                            esAdministrador ? (
+                              <EnlaceBoton
+                                href={`/admin/usuarios?editar=${lote.acreedor_id}`}
+                                className="text-slate-600 underline-offset-4 transition-colors hover:text-blue-700 hover:underline"
+                              >
+                                {nombreAcreedorPorId.get(lote.acreedor_id) ?? '—'}
+                              </EnlaceBoton>
+                            ) : (
+                              <span>{nombreAcreedorPorId.get(lote.acreedor_id) ?? '—'}</span>
+                            )
+                          ) : (
+                            <span className="text-slate-400">— sin asignar —</span>
+                          )}
+                        </td>
+                      )}
+                      {!esVendedor && (
+                        <td className={`${TABLA_PANEL_TD} text-center font-medium tabular-nums`}>
+                          {lote.cantidad_cuotas ? (
+                            lote.cantidad_cuotas
+                          ) : (
+                            <span className="text-slate-400">—</span>
+                          )}
+                        </td>
+                      )}
+                      {esAdministrador && (
+                        <td className={`${TABLA_PANEL_TD} max-w-[190px] truncate font-medium text-slate-900`}>
+                          {lote.estado === 'vendido' && lote.cliente_id ? (
+                            <EnlaceBoton
+                              href={`/admin/clientes/${lote.cliente_id}`}
+                              className="underline-offset-4 transition-colors hover:text-blue-700 hover:underline"
+                            >
+                              {clientePorId.get(lote.cliente_id)?.full_name ?? '—'}
                             </EnlaceBoton>
                           ) : (
-                            <span className="text-slate-600">{nombreAcreedorPorId.get(lote.acreedor_id) ?? '—'}</span>
-                          )
-                        ) : (
-                          <span className="text-slate-500">— sin asignar —</span>
-                        )}
-                      </td>
-                    )}
-                    {!esVendedor && <td className={TABLA_CELDA}>{lote.cantidad_cuotas}</td>}
-                    {esAdministrador && (
-                      <td className={TABLA_CELDA}>
-                        {lote.estado === 'vendido' && lote.cliente_id ? (
-                          <EnlaceBoton href={`/admin/clientes/${lote.cliente_id}`} className={ENLACE_TABLA}>
-                            {clientePorId.get(lote.cliente_id)?.full_name ?? '—'}
-                          </EnlaceBoton>
-                        ) : (
-                          <span className="text-slate-500">—</span>
-                        )}
-                      </td>
-                    )}
-                    {!esVendedor && (
-                      <td className={TABLA_CELDA}>
-                        {cobranza ? (
-                          <span className={claseCobranza(cobranza)}>{etiquetaCobranza(cobranza)}</span>
-                        ) : (
-                          <span className="text-slate-500">—</span>
-                        )}
-                      </td>
-                    )}
-                    <td className={TABLA_CELDA}>
-                      {esVendedor ? (
-                        <div className="flex flex-wrap items-center gap-3">
-                          <EnlaceBoton href={`/admin/lotes/${lote.id}/info`} className={ENLACE}>
-                            Ver documentación del lote →
-                          </EnlaceBoton>
+                            <span className="text-slate-400">—</span>
+                          )}
+                        </td>
+                      )}
+                      {!esVendedor && (
+                        <td className={TABLA_PANEL_TD}>
+                          {cobranza ? (
+                            <span className={claseCobranza(cobranza)}>
+                              {cobranza.saldoPendiente > 0 && (
+                                <span className={clasePuntoCobranza(cobranza)} />
+                              )}
+                              {etiquetaCobranza(cobranza)}
+                            </span>
+                          ) : (
+                            <span className="text-slate-400">—</span>
+                          )}
+                        </td>
+                      )}
+                      <td className={`${TABLA_PANEL_TD} text-right`}>
+                        <div className="inline-flex items-center justify-end gap-1.5">
                           {lote.estado === 'disponible' && (
-                            <EnlaceBoton href={`/admin/lotes/${lote.id}/reservar`} className={ENLACE}>
+                            <EnlaceBoton href={`/admin/lotes/${lote.id}/reservar`} className={BOTON_FILA_VERDE}>
+                              <BookmarkPlus className="h-[15px] w-[15px]" />
                               Reservar
                             </EnlaceBoton>
                           )}
-                        </div>
-                      ) : (
-                        <div className="flex flex-wrap items-center gap-3">
-                          <EnlaceBoton href={`/admin/lotes/${lote.id}/info`} className={ENLACE}>
-                            Ver documentación del lote →
-                          </EnlaceBoton>
-                          <EnlaceBoton href={`/admin/lotes/${lote.id}`} className={ENLACE}>
-                            Ver detalle
-                          </EnlaceBoton>
-                          {lote.estado === 'disponible' && (
-                            <EnlaceBoton href={`/admin/lotes/${lote.id}/reservar`} className={ENLACE}>
-                              Reservar
+                          {esAdministrador && lote.estado === 'reservado' && (
+                            <EnlaceBoton
+                              href={`/admin/lotes/${lote.id}/vender`}
+                              className={BOTON_FILA_AZUL}
+                              aria-label="Vender / asignar cliente"
+                            >
+                              <FileSignature className="h-[15px] w-[15px]" />
+                              Vender
                             </EnlaceBoton>
                           )}
-                          {perfilPropio!.role === 'administrador' && lote.estado === 'reservado' && (
-                            <EnlaceBoton href={`/admin/lotes/${lote.id}/vender`} className={ENLACE}>
-                              Vender / asignar cliente
+                          {!esVendedor && (
+                            <EnlaceBoton
+                              href={`/admin/lotes/${lote.id}`}
+                              className={BOTON_ICONO}
+                              claseInterna="inline-flex items-center"
+                              aria-label="Ver detalle"
+                              title="Ver detalle"
+                            >
+                              <Eye className="h-[17px] w-[17px]" />
                             </EnlaceBoton>
                           )}
-                          {perfilPropio!.role === 'administrador' && (
+                          <EnlaceBoton
+                            href={`/admin/lotes/${lote.id}/info`}
+                            className={BOTON_ICONO}
+                            claseInterna="inline-flex items-center"
+                            aria-label="Ver documentación del lote"
+                            title="Ver documentación del lote"
+                          >
+                            <FileText className="h-[17px] w-[17px]" />
+                          </EnlaceBoton>
+                          {esAdministrador && (
                             <BotonEliminarLote eliminarLoteAction={eliminarLoteConId} compacto />
                           )}
                         </div>
-                      )}
-                    </td>
-                  </tr>
-                )
-              })}
-            </tbody>
-          </table>
+                      </td>
+                    </tr>
+                  )
+                })}
+              </tbody>
+            </table>
+          </div>
+          {/* El mockup dibuja acá un paginador (1 · 2 · 3 … 26). No lo puse:
+              la pantalla trae todos los lotes de una y filtra cliente/cobranza
+              en memoria, así que unos botones de página serían decorado que no
+              pagina nada. Queda anotado para cuando se corte de verdad por
+              rango en la consulta. */}
+          <div className={TABLA_PANEL_PIE}>
+            <div className="flex items-center gap-1.5">
+              <span>Mostrando</span>
+              <span className="font-bold text-slate-800 tabular-nums">{lotesFiltrados.length}</span>
+              <span>de</span>
+              <span className="font-bold text-slate-800 tabular-nums">{lotesSinFiltroEstado.length}</span>
+              <span>{lotesSinFiltroEstado.length === 1 ? 'lote registrado' : 'lotes registrados'}</span>
+            </div>
+          </div>
         </div>
       )}
     </main>

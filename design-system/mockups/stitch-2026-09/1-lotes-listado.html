@@ -1,0 +1,239 @@
+<!DOCTYPE html><html lang="es" style=""><head>
+<meta charset="utf-8">
+<meta content="width=device-width, initial-scale=1.0" name="viewport">
+<link href="https://fonts.googleapis.com" rel="preconnect">
+<link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&amp;family=Plus+Jakarta+Sans:wght@500;600;700;800&amp;display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet">
+<style>
+    @layer base {
+      html, body { margin: 0; padding: 0; }
+      body { overscroll-behavior: none; }
+    }
+    ::-webkit-scrollbar { display: none; }
+    .tabular-nums { font-variant-numeric: tabular-nums; }
+  </style>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<script id="tailwind-config">
+    tailwind.config = {
+      darkMode: "class",
+      theme: {
+        extend: {
+          colors: {
+            brand: {
+              navy: '#0b1736',
+              deep: '#0f2049',
+              dark: '#081026',
+              primary: '#0053db',
+              primaryHover: '#0042b3',
+              accent: '#2563eb',
+              lightBlue: '#eff6ff'
+            }
+          },
+          fontFamily: {
+            sans: ['Inter', 'sans-serif'],
+            heading: ['"Plus Jakarta Sans"', 'Inter', 'sans-serif']
+          }
+        }
+      }
+    };
+  </script>
+</head>
+<body class="bg-[#f8faff] font-sans text-slate-800 antialiased min-h-screen selection:bg-blue-600 selection:text-white">
+<!-- BARRA LATERAL (SIDEBAR) -->
+<aside class="fixed left-0 top-0 h-screen w-64 bg-[#0b1736] text-white z-50 flex flex-col justify-between border-r border-[#1e2f5d] shadow-[0_4px_24px_rgba(0,0,0,0.18)]">
+<div class="flex flex-col h-full overflow-hidden">
+<!-- SIDEBAR LOGO -->
+<div class="h-16 flex items-center px-5 border-b border-[#162752]/70 shrink-0"><div class="flex-1 rounded-[9px] bg-white px-3 py-1.5 flex items-center justify-center shadow-sm border border-white/10"><img src="https://lh3.googleusercontent.com/aida-public/AB6AXuAfO1N2rqs0ksLRidSOfY70fb7kCytUFZ5oiG9bypym7X3_wU6zW6GDifwUl7g7RpdB_-mA7546QX_-QCuQRKPNDA33tjhfyu5vwwy8JaHUJOqL-hfFT8pcvX7igqWCsrm0p0uuOSHqiyvYyOH2GzPhkexCcZmhC2wB4YVVRGo4NKoIWSBw4IolhzkOvx0jeBYLZAAVXZtU3d8iq3fSrQQNnzH0T4joPC0wzhQvJ87BVTr57hzmHcYt3WH7LykcoOsZSqA" alt="SIMACOR Desarrollos Inmobiliarios" class="h-7 w-auto object-contain"></div><button class="ml-2 p-1.5 text-slate-400 hover:text-white hover:bg-white/10 rounded-lg transition-colors" title="Colapsar menú" type="button"><span class="material-symbols-outlined text-[19px]">menu_open</span></button></div>
+<!-- NAVEGACIÓN -->
+<div class="flex-1 overflow-y-auto px-3 py-4 space-y-5">
+<nav class="space-y-1">
+<!-- Inicio -->
+<a class="flex items-center gap-3 px-3 py-2 rounded-lg text-white/75 hover:text-white hover:bg-white/[0.06] transition-all group font-medium text-sm" data-path="inicio" href="#">
+<span class="material-symbols-outlined text-[20px] text-white/60 group-hover:text-white transition-colors">dashboard</span>
+<span class="">Inicio</span>
+</a>
+<!-- Sección OPERACIÓN -->
+<div class="pt-3 pb-1">
+<span class="px-3 font-semibold text-[10px] uppercase tracking-wider text-slate-400/70">Operación</span>
+</div>
+<!-- Lotes (Activo) -->
+<a aria-current="page" class="relative flex items-center gap-3 px-3 py-2 rounded-lg bg-blue-500/[0.18] text-white font-semibold text-sm shadow-sm transition-all" data-path="lotes" href="#">
+<span class="absolute left-0 top-1.5 bottom-1.5 w-1 rounded-r-full bg-[#60a5fa]"></span>
+<span class="material-symbols-outlined text-[20px] text-[#60a5fa]">pin_drop</span>
+<span class="">Lotes</span>
+</a>
+<a class="flex items-center gap-3 px-3 py-2 rounded-lg text-white/75 hover:text-white hover:bg-white/[0.06] transition-all group font-medium text-sm" data-path="loteos" href="#">
+<span class="material-symbols-outlined text-[20px] text-white/60 group-hover:text-white transition-colors">layers</span>
+<span class="">Loteos</span>
+</a>
+<a class="flex items-center gap-3 px-3 py-2 rounded-lg text-white/75 hover:text-white hover:bg-white/[0.06] transition-all group font-medium text-sm" data-path="clientes" href="#">
+<span class="material-symbols-outlined text-[20px] text-white/60 group-hover:text-white transition-colors">group</span>
+<span class="">Clientes</span>
+</a>
+<a class="flex items-center gap-3 px-3 py-2 rounded-lg text-white/75 hover:text-white hover:bg-white/[0.06] transition-all group font-medium text-sm" data-path="boletos-de-compraventa" href="#">
+<span class="material-symbols-outlined text-[20px] text-white/60 group-hover:text-white transition-colors">draw</span>
+<span class="">Boletos de compraventa</span>
+</a>
+<!-- Sección COBRANZA -->
+<div class="pt-3 pb-1">
+<span class="px-3 font-semibold text-[10px] uppercase tracking-wider text-slate-400/70">Cobranza</span>
+</div>
+<a class="flex items-center justify-between px-3 py-2 rounded-lg text-white/75 hover:text-white hover:bg-white/[0.06] transition-all group font-medium text-sm" data-path="pagos" href="#">
+<div class="flex items-center gap-3">
+<span class="material-symbols-outlined text-[20px] text-white/60 group-hover:text-white transition-colors">payments</span>
+<span class="">Pagos</span>
+</div>
+<span class="bg-amber-500 text-[#3b1d02] font-bold text-xs rounded-full px-2 py-0.5 shadow-sm">12</span>
+</a>
+<a class="flex items-center gap-3 px-3 py-2 rounded-lg text-white/75 hover:text-white hover:bg-white/[0.06] transition-all group font-medium text-sm" data-path="panel-de-cuotas" href="#">
+<span class="material-symbols-outlined text-[20px] text-white/60 group-hover:text-white transition-colors">warning</span>
+<span class="">Panel de cuotas</span>
+</a>
+<a class="flex items-center gap-3 px-3 py-2 rounded-lg text-white/75 hover:text-white hover:bg-white/[0.06] transition-all group font-medium text-sm" data-path="efectivo" href="#">
+<span class="material-symbols-outlined text-[20px] text-white/60 group-hover:text-white transition-colors">account_balance_wallet</span>
+<span class="">Efectivo</span>
+</a>
+<a class="flex items-center gap-3 px-3 py-2 rounded-lg text-white/75 hover:text-white hover:bg-white/[0.06] transition-all group font-medium text-sm" data-path="cierre-de-caja" href="#">
+<span class="material-symbols-outlined text-[20px] text-white/60 group-hover:text-white transition-colors">calculate</span>
+<span class="">Cierre de caja</span>
+</a>
+<!-- Sección FINANZAS -->
+<div class="pt-3 pb-1">
+<span class="px-3 font-semibold text-[10px] uppercase tracking-wider text-slate-400/70">Finanzas</span>
+</div>
+<a class="flex items-center gap-3 px-3 py-2 rounded-lg text-white/75 hover:text-white hover:bg-white/[0.06] transition-all group font-medium text-sm" data-path="cuentas-corrientes" href="#">
+<span class="material-symbols-outlined text-[20px] text-white/60 group-hover:text-white transition-colors">menu_book</span>
+<span class="">Cuentas corrientes</span>
+</a>
+<a class="flex items-center gap-3 px-3 py-2 rounded-lg text-white/75 hover:text-white hover:bg-white/[0.06] transition-all group font-medium text-sm" data-path="cuentas-externas" href="#">
+<span class="material-symbols-outlined text-[20px] text-white/60 group-hover:text-white transition-colors">domain</span>
+<span class="">Cuentas externas</span>
+</a>
+<a class="flex items-center gap-3 px-3 py-2 rounded-lg text-white/75 hover:text-white hover:bg-white/[0.06] transition-all group font-medium text-sm" data-path="indices" href="#">
+<span class="material-symbols-outlined text-[20px] text-white/60 group-hover:text-white transition-colors">trending_up</span>
+<span class="">Índices</span>
+</a>
+<!-- Sección SISTEMA -->
+<div class="pt-3 pb-1">
+<span class="px-3 font-semibold text-[10px] uppercase tracking-wider text-slate-400/70">Sistema</span>
+</div>
+<a class="flex items-center gap-3 px-3 py-2 rounded-lg text-white/75 hover:text-white hover:bg-white/[0.06] transition-all group font-medium text-sm" data-path="mi-perfil" href="#">
+<span class="material-symbols-outlined text-[20px] text-white/60 group-hover:text-white transition-colors">badge</span>
+<span class="">Mi perfil</span>
+</a>
+<a class="flex items-center gap-3 px-3 py-2 rounded-lg text-white/75 hover:text-white hover:bg-white/[0.06] transition-all group font-medium text-sm" data-path="usuarios" href="#">
+<span class="material-symbols-outlined text-[20px] text-white/60 group-hover:text-white transition-colors">manage_accounts</span>
+<span class="">Usuarios</span>
+</a>
+<a class="flex items-center gap-3 px-3 py-2 rounded-lg text-white/75 hover:text-white hover:bg-white/[0.06] transition-all group font-medium text-sm" data-path="historial" href="#">
+<span class="material-symbols-outlined text-[20px] text-white/60 group-hover:text-white transition-colors">history</span>
+<span class="">Historial</span>
+</a>
+</nav>
+</div>
+<!-- BLOQUE INFERIOR DE USUARIO -->
+<div class="p-3 border-t border-[#162752]/80 shrink-0 bg-[#081026]/60">
+<div class="flex items-center justify-between gap-2 p-2 rounded-lg bg-white/[0.04] hover:bg-white/[0.08] transition-colors">
+<div class="flex items-center gap-2.5 min-w-0">
+<div class="w-8 h-8 rounded-full bg-blue-600 text-white font-heading text-sm font-bold flex items-center justify-center shrink-0 shadow-sm border border-blue-400/30">
+              N
+            </div>
+<div class="flex flex-col truncate leading-tight">
+<span class="text-xs font-semibold text-white truncate">Nicolás</span>
+<span class="text-[11px] text-slate-400 truncate">Administrador</span>
+</div>
+</div>
+<button class="p-1.5 text-slate-400 hover:text-rose-400 hover:bg-white/10 rounded-md transition-colors shrink-0" title="Cerrar sesión" type="button">
+<span class="material-symbols-outlined text-[19px]">logout</span>
+</button>
+</div>
+</div>
+</div>
+</aside>
+<!-- CONTENEDOR PRINCIPAL CON HEADER SUPERIOR -->
+<div class="pl-64">
+<!-- TOPBAR Y BARRA SUPERIOR -->
+<header class="fixed top-0 left-64 right-0 h-16 bg-white z-40 flex items-center justify-between px-8 border-b border-slate-200/90 shadow-sm">
+<div class="flex items-center gap-3 w-96">
+<div class="relative w-full flex items-center">
+
+
+</div>
+</div>
+<div class="flex items-center gap-4"><div class="flex items-center gap-2 bg-emerald-50 text-emerald-800 border border-emerald-200/80 rounded-lg px-3 py-1.5 text-xs font-semibold shadow-xs"><span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span><span class="">Dólar $1.420 ARS</span></div><button type="button" class="relative p-1.5 text-slate-500 hover:text-slate-800 hover:bg-slate-100 rounded-lg transition-colors" title="Notificaciones"><span class="material-symbols-outlined text-[20px]">notifications</span><span class="absolute top-1.5 right-1.5 w-2 h-2 rounded-full bg-rose-500 border border-white"></span></button></div>
+</header>
+<!-- CONTENIDO PRINCIPAL -->
+<main class="w-full pt-16 bg-[#f8faff] min-h-screen">
+<div class="w-full max-w-[1600px] mx-auto p-6 md:p-8 space-y-6">
+<!-- ENCABEZADO Y ACCIONES PRINCIPALES -->
+<div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white p-5 rounded-2xl border border-slate-200/80 shadow-sm">
+<div class="flex flex-col space-y-1">
+<nav class="flex items-center space-x-1.5 text-slate-500 text-xs uppercase tracking-wider font-semibold">
+<a class="hover:text-blue-600 transition-colors" href="#">Inicio</a>
+<span class="material-symbols-outlined text-[14px] text-slate-400">chevron_right</span>
+<span class="text-blue-600">Lotes</span>
+</nav>
+<div class="flex items-center gap-3 pt-0.5">
+<h1 class="font-heading text-2xl font-bold text-[#0b1736] tracking-tight">Gestión de Lotes</h1>
+<span class="bg-blue-50 text-blue-700 border border-blue-200/70 px-2.5 py-0.5 rounded-full text-xs font-semibold">180 activos</span>
+</div>
+</div>
+<div class="flex items-center gap-2.5 shrink-0">
+<button class="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-slate-50 hover:bg-slate-100 border border-slate-200 text-slate-700 font-semibold text-sm transition-all shadow-xs" type="button">
+<span class="material-symbols-outlined text-[18px] text-slate-500">file_upload</span>
+<span class="">Importar varios</span>
+</button>
+<button class="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white font-semibold text-sm transition-all shadow-sm hover:shadow-md" type="button">
+<span class="material-symbols-outlined text-[18px]">add</span>
+<span class="">+ Nuevo lote</span>
+</button>
+</div>
+</div>
+<!-- TARJETA DE COTIZACIÓN DEL DÓLAR -->
+<div class="rounded-2xl border border-slate-200/80 bg-white p-5 shadow-sm flex flex-col lg:flex-row items-stretch lg:items-center justify-between gap-4 relative overflow-hidden">
+<div class="absolute left-0 top-0 bottom-0 w-1.5 bg-emerald-500"></div>
+<div class="flex items-start sm:items-center gap-3.5 pl-1.5">
+<div class="w-9 h-9 rounded-xl bg-emerald-50 border border-emerald-200 flex items-center justify-center text-emerald-600 shrink-0">
+<span class="material-symbols-outlined text-[22px]">check_circle</span>
+</div>
+<div class="flex flex-col">
+<div class="flex items-center gap-2 flex-wrap">
+<span class="font-heading font-semibold text-slate-900 text-sm sm:text-base">Cotización de hoy (24/10/2024) ya cargada: 1.420 ARS por USD</span>
+<span class="px-2 py-0.5 rounded-full bg-emerald-100/70 text-emerald-800 text-[11px] font-bold uppercase tracking-wider">Vigente</span>
+</div>
+<p class="text-xs sm:text-sm text-slate-500 mt-0.5">Cargada por Nicolás a las 09:15 hs para liquidación y cálculo de cuotas dolarizadas.</p>
+</div>
+</div>
+<div class="flex flex-wrap items-center gap-3 shrink-0 pt-2 lg:pt-0 pl-1.5 lg:pl-0">
+<form class="flex items-center gap-2" onsubmit="event.preventDefault();">
+<div class="relative">
+<span class="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 font-semibold text-sm">$</span>
+<input class="w-32 pl-7 pr-3 py-1.5 rounded-xl bg-slate-50 border border-slate-200 text-slate-900 tabular-nums font-semibold text-sm focus:outline-none focus:border-blue-600 focus:bg-white transition-all" step="10" type="number" value="1420">
+</div>
+<button class="px-4 py-1.5 rounded-xl bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white text-xs sm:text-sm font-semibold transition-all shadow-xs" type="submit">
+                Corregir
+              </button>
+</form>
+<a class="inline-flex items-center gap-1 text-xs sm:text-sm font-semibold text-blue-600 hover:text-blue-800 hover:underline ml-1" href="#">
+<span class="">Ver historial completo</span>
+<span class="material-symbols-outlined text-[16px]">arrow_forward</span>
+</a>
+</div>
+</div>
+<!-- BARRA DE FILTROS EN VIVO -->
+<div class="bg-white rounded-2xl border border-slate-200/80 shadow-sm p-5 space-y-4"><div class="flex flex-col lg:flex-row lg:items-center justify-between gap-3 pb-3 border-b border-slate-100"><div class="flex items-center gap-1.5 overflow-x-auto py-0.5"><button class="px-3 py-1.5 rounded-lg text-xs font-semibold bg-[#0b1736] text-white shadow-xs shrink-0" type="button">Todos (180)</button><button class="px-3 py-1.5 rounded-lg text-xs font-semibold text-slate-600 hover:bg-slate-100 hover:text-slate-900 transition-colors shrink-0" type="button">Disponibles (54)</button><button class="px-3 py-1.5 rounded-lg text-xs font-semibold text-slate-600 hover:bg-slate-100 hover:text-slate-900 transition-colors shrink-0" type="button">Reservados (12)</button><button class="px-3 py-1.5 rounded-lg text-xs font-semibold text-slate-600 hover:bg-slate-100 hover:text-slate-900 transition-colors shrink-0" type="button">Vendidos (91)</button></div><div class="flex items-center gap-2"><button class="inline-flex items-center gap-1.5 text-xs font-semibold text-slate-500 hover:text-slate-800 transition-colors" type="button"><span class="material-symbols-outlined text-[16px]">filter_list</span><span class="">Filtros avanzados</span></button><div class="h-3.5 w-px bg-slate-200"></div><button class="text-xs font-semibold text-slate-500 hover:text-rose-600 transition-colors" type="reset">Limpiar</button></div></div><div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3 pt-1"><div class="relative flex items-center lg:col-span-2"><span class="material-symbols-outlined absolute left-3 text-slate-400 text-[18px]">search</span><input class="w-full pl-9 pr-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-slate-800 text-xs placeholder:text-slate-400 focus:outline-none focus:border-blue-600 focus:bg-white transition-all shadow-none" placeholder="Buscar por lote, manzana o cliente..." type="text"></div><div class="relative"><select class="w-full pl-3 pr-8 py-2 bg-slate-50 border border-slate-200 rounded-xl text-slate-800 text-xs font-medium focus:outline-none focus:border-blue-600 focus:bg-white transition-all truncate"><option selected="">Loteo: Todos</option><option>Altos de la Ribera</option><option>Valle Verde Country</option><option>La Ensenada</option><option>Prados del Molino</option></select></div><div class="relative"><select class="w-full pl-3 pr-8 py-2 bg-slate-50 border border-slate-200 rounded-xl text-slate-800 text-xs font-medium focus:outline-none focus:border-blue-600 focus:bg-white transition-all"><option selected="">Moneda: Todas</option><option>USD</option><option>ARS</option></select></div><div class="relative"><select class="w-full pl-3 pr-8 py-2 bg-slate-50 border border-slate-200 rounded-xl text-slate-800 text-xs font-medium focus:outline-none focus:border-blue-600 focus:bg-white transition-all truncate"><option selected="">Cobranza: Todas</option><option>Al día</option><option>Atrasado</option><option>Moroso</option><option>Pagado</option><option>Prejudicial</option></select></div></div></div>
+<!-- TABLA MAESTRA DE LOTES -->
+<div class="bg-white rounded-2xl border border-slate-200/80 shadow-sm overflow-hidden"><div class="w-full overflow-x-auto"><table class="w-full text-left border-collapse"><thead class="border-b border-slate-200/80"><tr class="bg-gradient-to-r from-blue-900 to-blue-800 text-white text-[11px] font-bold uppercase tracking-wider select-none"><th class="py-3.5 px-4 whitespace-nowrap"><div class="flex items-center gap-1 cursor-pointer hover:text-blue-200"><span class="">Loteo</span><span class="text-[9px] opacity-70">▲</span></div></th><th class="py-3.5 px-4 whitespace-nowrap"><div class="flex items-center gap-1 cursor-pointer hover:text-blue-200"><span class="">Identificador</span><span class="text-[9px] opacity-70">▼</span></div></th><th class="py-3.5 px-4 whitespace-nowrap">Ubicación / Mz</th><th class="py-3.5 px-4 text-right whitespace-nowrap"><div class="flex items-center justify-end gap-1 cursor-pointer hover:text-blue-200"><span class="">Precio Total</span><span class="text-[9px] opacity-70">▲</span></div></th><th class="py-3.5 px-4 text-center whitespace-nowrap">Moneda</th><th class="py-3.5 px-4 whitespace-nowrap">Estado</th><th class="py-3.5 px-4 whitespace-nowrap">Acreedor</th><th class="py-3.5 px-4 text-center whitespace-nowrap">Cuotas</th><th class="py-3.5 px-4 whitespace-nowrap">Cliente</th><th class="py-3.5 px-4 whitespace-nowrap">Cobranza</th><th class="py-3.5 px-4 text-right whitespace-nowrap min-w-[200px]">Acciones</th></tr></thead><tbody class="divide-y divide-slate-100 text-slate-700 text-xs"><tr class="hover:bg-blue-50/50 transition-colors group"><td class="py-3.5 px-4 font-semibold text-slate-900 whitespace-nowrap">Altos de la Ribera</td><td class="py-3.5 px-4 font-semibold text-blue-600 whitespace-nowrap">Lote 01 · Mz A</td><td class="py-3.5 px-4 text-slate-500 whitespace-nowrap">Mz A · Parc. 01</td><td class="py-3.5 px-4 tabular-nums text-right font-bold text-slate-900 whitespace-nowrap">24.500</td><td class="py-3.5 px-4 text-center whitespace-nowrap"><span class="px-2 py-0.5 rounded text-[10px] font-bold bg-slate-100 text-slate-700 border border-slate-200/80">USD</span></td><td class="py-3.5 px-4 whitespace-nowrap"><span class="bg-blue-50 text-blue-700 border border-blue-200/60 font-semibold px-2.5 py-0.5 text-xs rounded-full">Vendido</span></td><td class="py-3.5 px-4 text-slate-600 truncate max-w-[150px]">Fideicomiso Balcarce</td><td class="py-3.5 px-4 text-center tabular-nums font-medium whitespace-nowrap">36</td><td class="py-3.5 px-4 whitespace-nowrap font-medium text-slate-900">Federico Benítez</td><td class="py-3.5 px-4 whitespace-nowrap"><span class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200/60"><span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>Al día</span></td><td class="py-3.5 px-4 text-right whitespace-nowrap"><div class="inline-flex items-center justify-end gap-1.5"><button class="p-1.5 rounded-lg bg-slate-50 hover:bg-slate-200 text-slate-600 hover:text-blue-700 border border-slate-200 transition-colors" title="Ver detalle" type="button"><span class="material-symbols-outlined text-[17px]">visibility</span></button><button class="p-1.5 rounded-lg bg-slate-50 hover:bg-slate-200 text-slate-600 hover:text-blue-700 border border-slate-200 transition-colors" title="Ver documentación" type="button"><span class="material-symbols-outlined text-[17px]">description</span></button><button class="p-1.5 rounded-lg bg-slate-50 hover:bg-rose-50 text-slate-400 hover:text-rose-600 border border-slate-200 transition-colors" title="Eliminar lote" type="button"><span class="material-symbols-outlined text-[17px]">delete</span></button></div></td></tr><tr class="hover:bg-blue-50/50 transition-colors bg-slate-50/30 group"><td class="py-3.5 px-4 font-semibold text-slate-900 whitespace-nowrap">Valle Verde Country</td><td class="py-3.5 px-4 font-semibold text-blue-600 whitespace-nowrap">Lote 14 · Mz B</td><td class="py-3.5 px-4 text-slate-500 whitespace-nowrap">Mz B · Parc. 14</td><td class="py-3.5 px-4 tabular-nums text-right font-bold text-slate-900 whitespace-nowrap">32.000</td><td class="py-3.5 px-4 text-center whitespace-nowrap"><span class="px-2 py-0.5 rounded text-[10px] font-bold bg-slate-100 text-slate-700 border border-slate-200/80">USD</span></td><td class="py-3.5 px-4 whitespace-nowrap"><span class="bg-emerald-50 text-emerald-700 border border-emerald-200/60 font-semibold px-2.5 py-0.5 text-xs rounded-full">Disponible</span></td><td class="py-3.5 px-4 text-slate-600 truncate max-w-[150px]">Desarrollos del Norte</td><td class="py-3.5 px-4 text-center tabular-nums text-slate-400 whitespace-nowrap">—</td><td class="py-3.5 px-4 whitespace-nowrap text-slate-400">—</td><td class="py-3.5 px-4 whitespace-nowrap text-slate-400">—</td><td class="py-3.5 px-4 text-right whitespace-nowrap"><div class="inline-flex items-center justify-end gap-1.5"><button class="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white font-semibold text-xs transition-colors shadow-xs" type="button"><span class="material-symbols-outlined text-[15px]">bookmark_add</span><span class="">Reservar</span></button><button class="p-1.5 rounded-lg bg-slate-50 hover:bg-slate-200 text-slate-600 hover:text-blue-700 border border-slate-200 transition-colors" title="Ver detalle" type="button"><span class="material-symbols-outlined text-[17px]">visibility</span></button><button class="p-1.5 rounded-lg bg-slate-50 hover:bg-rose-50 text-slate-400 hover:text-rose-600 border border-slate-200 transition-colors" title="Eliminar lote" type="button"><span class="material-symbols-outlined text-[17px]">delete</span></button></div></td></tr><tr class="hover:bg-blue-50/50 transition-colors group"><td class="py-3.5 px-4 font-semibold text-slate-900 whitespace-nowrap">La Ensenada</td><td class="py-3.5 px-4 font-semibold text-blue-600 whitespace-nowrap">Lote 08 · Mz D</td><td class="py-3.5 px-4 text-slate-500 whitespace-nowrap">Mz D · Parc. 08</td><td class="py-3.5 px-4 tabular-nums text-right font-bold text-slate-900 whitespace-nowrap">38.000.000</td><td class="py-3.5 px-4 text-center whitespace-nowrap"><span class="px-2 py-0.5 rounded text-[10px] font-bold bg-amber-50 text-amber-800 border border-amber-200/80">ARS</span></td><td class="py-3.5 px-4 whitespace-nowrap"><span class="bg-blue-50 text-blue-700 border border-blue-200/60 font-semibold px-2.5 py-0.5 text-xs rounded-full">Vendido</span></td><td class="py-3.5 px-4 text-slate-600 truncate max-w-[150px]">Grupo Inmobiliario Paraná</td><td class="py-3.5 px-4 text-center tabular-nums font-medium whitespace-nowrap">48</td><td class="py-3.5 px-4 whitespace-nowrap font-medium text-slate-900">Mariana Gómez V.</td><td class="py-3.5 px-4 whitespace-nowrap"><span class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-amber-50 text-amber-800 border border-amber-200/70"><span class="w-1.5 h-1.5 rounded-full bg-amber-500"></span>Atrasado (1)</span></td><td class="py-3.5 px-4 text-right whitespace-nowrap"><div class="inline-flex items-center justify-end gap-1.5"><button class="p-1.5 rounded-lg bg-slate-50 hover:bg-slate-200 text-slate-600 hover:text-blue-700 border border-slate-200 transition-colors" title="Ver detalle" type="button"><span class="material-symbols-outlined text-[17px]">visibility</span></button><button class="p-1.5 rounded-lg bg-slate-50 hover:bg-slate-200 text-slate-600 hover:text-blue-700 border border-slate-200 transition-colors" title="Ver documentación" type="button"><span class="material-symbols-outlined text-[17px]">description</span></button><button class="p-1.5 rounded-lg bg-slate-50 hover:bg-rose-50 text-slate-400 hover:text-rose-600 border border-slate-200 transition-colors" title="Eliminar lote" type="button"><span class="material-symbols-outlined text-[17px]">delete</span></button></div></td></tr><tr class="hover:bg-blue-50/50 transition-colors bg-slate-50/30 group"><td class="py-3.5 px-4 font-semibold text-slate-900 whitespace-nowrap">Prados del Molino</td><td class="py-3.5 px-4 font-semibold text-blue-600 whitespace-nowrap">Lote 22 · Mz C</td><td class="py-3.5 px-4 text-slate-500 whitespace-nowrap">Mz C · Parc. 22</td><td class="py-3.5 px-4 tabular-nums text-right font-bold text-slate-900 whitespace-nowrap">19.800</td><td class="py-3.5 px-4 text-center whitespace-nowrap"><span class="px-2 py-0.5 rounded text-[10px] font-bold bg-slate-100 text-slate-700 border border-slate-200/80">USD</span></td><td class="py-3.5 px-4 whitespace-nowrap"><span class="bg-amber-50 text-amber-800 border border-amber-200/60 font-semibold px-2.5 py-0.5 text-xs rounded-full">Reservado</span></td><td class="py-3.5 px-4 text-slate-600 truncate max-w-[150px]">Fideicomiso Balcarce</td><td class="py-3.5 px-4 text-center tabular-nums text-slate-400 whitespace-nowrap">—</td><td class="py-3.5 px-4 whitespace-nowrap text-slate-700">Claudio Herrera</td><td class="py-3.5 px-4 whitespace-nowrap"><span class="px-2.5 py-0.5 rounded-full text-xs font-semibold bg-slate-100 text-slate-700 border border-slate-200">En seña</span></td><td class="py-3.5 px-4 text-right whitespace-nowrap"><div class="inline-flex items-center justify-end gap-1.5"><button class="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-blue-600 hover:bg-blue-700 text-white font-semibold text-xs transition-colors shadow-xs" type="button"><span class="material-symbols-outlined text-[15px]">contract_edit</span><span class="">Vender</span></button><button class="p-1.5 rounded-lg bg-slate-50 hover:bg-slate-200 text-slate-600 hover:text-blue-700 border border-slate-200 transition-colors" title="Ver detalle" type="button"><span class="material-symbols-outlined text-[17px]">visibility</span></button><button class="p-1.5 rounded-lg bg-slate-50 hover:bg-slate-200 text-slate-600 hover:text-blue-700 border border-slate-200 transition-colors" title="Ver documentación" type="button"><span class="material-symbols-outlined text-[17px]">description</span></button><button class="p-1.5 rounded-lg bg-slate-50 hover:bg-rose-50 text-slate-400 hover:text-rose-600 border border-slate-200 transition-colors" title="Eliminar lote" type="button"><span class="material-symbols-outlined text-[17px]">delete</span></button></div></td></tr><tr class="hover:bg-blue-50/50 transition-colors group"><td class="py-3.5 px-4 font-semibold text-slate-900 whitespace-nowrap">Altos de la Ribera</td><td class="py-3.5 px-4 font-semibold text-blue-600 whitespace-nowrap">Lote 03 · Mz A</td><td class="py-3.5 px-4 text-slate-500 whitespace-nowrap">Mz A · Parc. 03</td><td class="py-3.5 px-4 tabular-nums text-right font-bold text-slate-900 whitespace-nowrap">26.000</td><td class="py-3.5 px-4 text-center whitespace-nowrap"><span class="px-2 py-0.5 rounded text-[10px] font-bold bg-slate-100 text-slate-700 border border-slate-200/80">USD</span></td><td class="py-3.5 px-4 whitespace-nowrap"><span class="bg-blue-50 text-blue-700 border border-blue-200/60 font-semibold px-2.5 py-0.5 text-xs rounded-full">Vendido</span></td><td class="py-3.5 px-4 text-slate-600 truncate max-w-[150px]">Fideicomiso Balcarce</td><td class="py-3.5 px-4 text-center tabular-nums font-medium whitespace-nowrap">36</td><td class="py-3.5 px-4 whitespace-nowrap font-medium text-slate-900">Roberto Santillán</td><td class="py-3.5 px-4 whitespace-nowrap"><span class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-rose-50 text-rose-700 border border-rose-200/60"><span class="w-1.5 h-1.5 rounded-full bg-rose-500"></span>Moroso (3)</span></td><td class="py-3.5 px-4 text-right whitespace-nowrap"><div class="inline-flex items-center justify-end gap-1.5"><button class="p-1.5 rounded-lg bg-slate-50 hover:bg-slate-200 text-slate-600 hover:text-blue-700 border border-slate-200 transition-colors" title="Ver detalle" type="button"><span class="material-symbols-outlined text-[17px]">visibility</span></button><button class="p-1.5 rounded-lg bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 transition-colors" title="Enviar intimación" type="button"><span class="material-symbols-outlined text-[17px]">gavel</span></button><button class="p-1.5 rounded-lg bg-slate-50 hover:bg-slate-200 text-slate-600 hover:text-blue-700 border border-slate-200 transition-colors" title="Ver documentación" type="button"><span class="material-symbols-outlined text-[17px]">description</span></button><button class="p-1.5 rounded-lg bg-slate-50 hover:bg-rose-50 text-slate-400 hover:text-rose-600 border border-slate-200 transition-colors" title="Eliminar lote" type="button"><span class="material-symbols-outlined text-[17px]">delete</span></button></div></td></tr><tr class="hover:bg-blue-50/50 transition-colors bg-slate-50/30 group"><td class="py-3.5 px-4 font-semibold text-slate-900 whitespace-nowrap">Valle Verde Country</td><td class="py-3.5 px-4 font-semibold text-blue-600 whitespace-nowrap">Lote 05 · Mz A</td><td class="py-3.5 px-4 text-slate-500 whitespace-nowrap">Mz A · Parc. 05</td><td class="py-3.5 px-4 tabular-nums text-right font-bold text-slate-900 whitespace-nowrap">42.500.000</td><td class="py-3.5 px-4 text-center whitespace-nowrap"><span class="px-2 py-0.5 rounded text-[10px] font-bold bg-amber-50 text-amber-800 border border-amber-200/80">ARS</span></td><td class="py-3.5 px-4 whitespace-nowrap"><span class="bg-blue-50 text-blue-700 border border-blue-200/60 font-semibold px-2.5 py-0.5 text-xs rounded-full">Vendido</span></td><td class="py-3.5 px-4 text-slate-600 truncate max-w-[150px]">Desarrollos del Norte</td><td class="py-3.5 px-4 text-center tabular-nums font-medium whitespace-nowrap">24</td><td class="py-3.5 px-4 whitespace-nowrap font-medium text-slate-900">Silvia M. Carrizo</td><td class="py-3.5 px-4 whitespace-nowrap"><span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200">Pagado</span></td><td class="py-3.5 px-4 text-right whitespace-nowrap"><div class="inline-flex items-center justify-end gap-1.5"><button class="p-1.5 rounded-lg bg-slate-50 hover:bg-slate-200 text-slate-600 hover:text-blue-700 border border-slate-200 transition-colors" title="Ver detalle" type="button"><span class="material-symbols-outlined text-[17px]">visibility</span></button><button class="p-1.5 rounded-lg bg-slate-50 hover:bg-slate-200 text-slate-600 hover:text-blue-700 border border-slate-200 transition-colors" title="Ver documentación" type="button"><span class="material-symbols-outlined text-[17px]">description</span></button><button class="p-1.5 rounded-lg bg-slate-50 hover:bg-rose-50 text-slate-400 hover:text-rose-600 border border-slate-200 transition-colors" title="Eliminar lote" type="button"><span class="material-symbols-outlined text-[17px]">delete</span></button></div></td></tr><tr class="hover:bg-blue-50/50 transition-colors group"><td class="py-3.5 px-4 font-semibold text-slate-900 whitespace-nowrap">La Ensenada</td><td class="py-3.5 px-4 font-semibold text-blue-600 whitespace-nowrap">Lote 19 · Mz F</td><td class="py-3.5 px-4 text-slate-500 whitespace-nowrap">Mz F · Parc. 19</td><td class="py-3.5 px-4 tabular-nums text-right font-bold text-slate-900 whitespace-nowrap">21.000</td><td class="py-3.5 px-4 text-center whitespace-nowrap"><span class="px-2 py-0.5 rounded text-[10px] font-bold bg-slate-100 text-slate-700 border border-slate-200/80">USD</span></td><td class="py-3.5 px-4 whitespace-nowrap"><span class="bg-purple-50 text-purple-700 border border-purple-200/60 font-semibold px-2.5 py-0.5 text-xs rounded-full">Rescindido</span></td><td class="py-3.5 px-4 text-slate-600 truncate max-w-[150px]">Grupo Inmobiliario Paraná</td><td class="py-3.5 px-4 text-center tabular-nums font-medium whitespace-nowrap">36</td><td class="py-3.5 px-4 whitespace-nowrap font-medium text-slate-900">Esteban Morales</td><td class="py-3.5 px-4 whitespace-nowrap"><span class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-rose-600 text-white shadow-xs"><span class="w-1.5 h-1.5 rounded-full bg-rose-200"></span>Prejudicial</span></td><td class="py-3.5 px-4 text-right whitespace-nowrap"><div class="inline-flex items-center justify-end gap-1.5"><button class="p-1.5 rounded-lg bg-slate-50 hover:bg-slate-200 text-slate-600 hover:text-blue-700 border border-slate-200 transition-colors" title="Ver detalle" type="button"><span class="material-symbols-outlined text-[17px]">visibility</span></button><button class="p-1.5 rounded-lg bg-slate-50 hover:bg-slate-200 text-slate-600 hover:text-blue-700 border border-slate-200 transition-colors" title="Ver documentación legal" type="button"><span class="material-symbols-outlined text-[17px]">folder_special</span></button><button class="p-1.5 rounded-lg bg-slate-50 hover:bg-rose-50 text-slate-400 hover:text-rose-600 border border-slate-200 transition-colors" title="Eliminar lote" type="button"><span class="material-symbols-outlined text-[17px]">delete</span></button></div></td></tr></tbody></table></div><div class="flex flex-col sm:flex-row items-center justify-between gap-4 px-5 py-4 bg-slate-50/60 border-t border-slate-100"><div class="flex items-center gap-1.5 text-xs text-slate-500"><span class="">Mostrando</span><span class="font-bold text-slate-800">1 a 7</span><span class="">de</span><span class="font-bold text-slate-800">180</span><span class="">lotes registrados</span></div><div class="flex items-center gap-1.5"><button class="p-1.5 rounded-lg border border-slate-200 text-slate-400 hover:bg-white transition-colors cursor-not-allowed opacity-50" disabled="" type="button"><span class="material-symbols-outlined text-[18px]">chevron_left</span></button><button class="w-8 h-8 rounded-lg bg-[#0b1736] text-white font-bold text-xs flex items-center justify-center shadow-xs" type="button">1</button><button class="w-8 h-8 rounded-lg bg-white border border-slate-200 hover:bg-slate-100 text-slate-700 font-semibold text-xs flex items-center justify-center transition-colors" type="button">2</button><button class="w-8 h-8 rounded-lg bg-white border border-slate-200 hover:bg-slate-100 text-slate-700 font-semibold text-xs flex items-center justify-center transition-colors" type="button">3</button><span class="px-1 text-slate-400 font-semibold text-xs">...</span><button class="w-8 h-8 rounded-lg bg-white border border-slate-200 hover:bg-slate-100 text-slate-700 font-semibold text-xs flex items-center justify-center transition-colors" type="button">26</button><button class="p-1.5 rounded-lg border border-slate-200 text-slate-600 hover:bg-white transition-colors shadow-xs" type="button"><span class="material-symbols-outlined text-[18px]">chevron_right</span></button></div></div></div>
+<!-- RESUMEN DE MÉTRICAS OPERATIVAS AL PIE -->
+
+</div>
+</main>
+</div>
+
+
+
+
+
+
+</body></html>

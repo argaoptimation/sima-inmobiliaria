@@ -61,6 +61,14 @@ async function completarDatosBasicosDeReserva(page: Page) {
   await expect(page.locator('[data-testid="dniDorso"]')).toBeEnabled()
 }
 
+// El menú de la izquierda se pide por su nombre y con `exact`: desde el
+// rediseño Stitch 2026-09 el identificador del lote es un link dentro de
+// la tabla, así que un lote llamado "E2E Multi Pagos A" también matchea
+// `link "Pagos"` y el locator suelto se vuelve ambiguo. Falló de verdad en
+// el suite completo (no en la corrida acotada), que es justo donde ese
+// lote existe.
+const MENU_LATERAL = (page: Page) => page.getByRole('navigation', { name: 'Menú principal' })
+
 test.describe('Reserva de lote (fase 1: texto + comprobante de seña)', () => {
   let fixtures: TestFixtures
 
@@ -178,9 +186,13 @@ test.describe('Reserva de lote (fase 1: texto + comprobante de seña)', () => {
       // Pagos SÍ, desde el 06/09: si una cuota se cobra a nombre del
       // vendedor, tiene que poder confirmarla. Lo que ve ahí está acotado
       // por RLS a los lotes donde participa (se verifica más abajo).
-      await expect(page.getByRole('link', { name: 'Pagos' })).toBeVisible()
-      await expect(page.getByRole('link', { name: 'Usuarios' })).toHaveCount(0)
-      await expect(page.getByRole('link', { name: 'Mi perfil' })).toBeVisible()
+      await expect(MENU_LATERAL(page).getByRole('link', { name: 'Pagos', exact: true })).toBeVisible()
+      await expect(
+        MENU_LATERAL(page).getByRole('link', { name: 'Usuarios', exact: true })
+      ).toHaveCount(0)
+      await expect(
+        MENU_LATERAL(page).getByRole('link', { name: 'Mi perfil', exact: true })
+      ).toBeVisible()
     })
   })
 
@@ -206,9 +218,13 @@ test.describe('Reserva de lote (fase 1: texto + comprobante de seña)', () => {
     // El cobrador SÍ entra a Pagos desde el 03/09 (confirmado con Nico): ya
     // veía el link en el menú y la página lo bloqueaba igual, y se resolvió
     // dejándolo entrar. Lo que sigue sin ver es Usuarios.
-    await expect(page.getByRole('link', { name: 'Pagos' })).toBeVisible()
-    await expect(page.getByRole('link', { name: 'Usuarios' })).toHaveCount(0)
-    await expect(page.getByRole('link', { name: 'Mi perfil' })).toBeVisible()
+    await expect(MENU_LATERAL(page).getByRole('link', { name: 'Pagos', exact: true })).toBeVisible()
+    await expect(
+      MENU_LATERAL(page).getByRole('link', { name: 'Usuarios', exact: true })
+    ).toHaveCount(0)
+    await expect(
+      MENU_LATERAL(page).getByRole('link', { name: 'Mi perfil', exact: true })
+    ).toBeVisible()
   })
 
   test('el listado de lotes de un vendedor muestra disponibles y reservados (por cualquiera), pero "Reservar" solo aparece en los disponibles', async ({

@@ -1,6 +1,22 @@
-import { test, expect } from '@playwright/test'
+import { test, expect, type Page } from '@playwright/test'
 import { ensureTestFixtures, createAdminClient, TestFixtures } from './fixtures/test-data'
 import { login } from './utils/login'
+
+// Acreedor y Cliente viven detrás de "Filtros avanzados" desde el rediseño
+// Stitch 2026-09 (MOCKUP 1): son cortes ocasionales y tenerlos siempre
+// desplegados le comía una fila entera a la tabla. El <details> abre solo
+// cuando el filtro ya viene puesto en la URL, así que en un /admin/lotes
+// limpio hay que abrirlo. Reintenta porque un <summary> a veces se come el
+// primer click si la página todavía está hidratando.
+async function abrirFiltrosAvanzados(page: Page) {
+  const campoCliente = page.getByPlaceholder('Nombre del cliente')
+  await expect(async () => {
+    if (!(await campoCliente.isVisible())) {
+      await page.locator('summary', { hasText: 'Filtros avanzados' }).click()
+    }
+    await expect(campoCliente).toBeVisible()
+  }).toPass({ timeout: 15_000 })
+}
 
 // Los filtros se aplican solos mientras se tipea (FiltroEnVivo, 25/08): el
 // botón "Filtrar" dejó de existir, así que los tests solo llenan el campo y
@@ -16,6 +32,7 @@ test.describe('Filtros de Cliente, Loteo y Cobranza en /admin/lotes', () => {
     await login(page, fixtures.admin.email, fixtures.password)
     await page.goto('/admin/lotes')
 
+    await abrirFiltrosAvanzados(page)
     await page.getByPlaceholder('Nombre del cliente').fill('E2E Cliente')
 
     await expect(page.getByRole('row', { name: /E2E Test Lote/ })).toBeVisible()
@@ -41,6 +58,7 @@ test.describe('Filtros de Cliente, Loteo y Cobranza en /admin/lotes', () => {
     await login(page, fixtures.admin.email, fixtures.password)
     await page.goto('/admin/lotes')
 
+    await abrirFiltrosAvanzados(page)
     await page.getByPlaceholder('Nombre del cliente').fill('Zzzznadie Existe Zzzz')
 
     await expect(page.getByText('Ningún lote coincide con los filtros.')).toBeVisible()

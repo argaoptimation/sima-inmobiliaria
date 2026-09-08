@@ -119,8 +119,11 @@ export const SIDEBAR_AVATAR =
 export const TOPBAR = 'flex h-16 shrink-0 items-center gap-4 border-b border-blue-100 bg-white px-7'
 export const BUSCADOR_GLOBAL =
   'w-full rounded-[9px] border border-blue-100 bg-slate-50 py-[9px] pr-3 pl-9 text-[13.5px] text-slate-800 outline-none placeholder:text-slate-500 focus:border-blue-500 focus:bg-white focus:ring-[3px] focus:ring-blue-100'
+// Píldora de la cotización del día en la topbar. Revisión Stitch 2026-09
+// (MOCKUP 1): verde esmeralda con borde marcado y el punto latiendo, para
+// que se lea como "dato vivo de hoy" y no como una etiqueta decorativa.
 export const DOLAR_PILL =
-  'flex items-center gap-[7px] rounded-lg border border-green-100 bg-green-50 px-[11px] py-[6px] text-[12.5px] font-semibold text-green-700'
+  'flex items-center gap-2 rounded-lg border border-emerald-200/80 bg-emerald-50 px-3 py-1.5 text-xs font-semibold text-emerald-800 shadow-xs'
 
 // Tarjetas KPI del dashboard ya tienen KPI_TARJETA (PR1); estos son los
 // textos internos reutilizados en las 4 tarjetas de /admin/inicio.
@@ -253,3 +256,105 @@ export const PAGO_BANNER_ALERTA =
 // yendo de la etiqueta al campo. Así que la pantalla es ancha y lo que se
 // acota es el bloque de formulario, no al revés.
 export const COLUMNA_LECTURA = 'max-w-3xl'
+
+// ---------------------------------------------------------------------------
+// Rediseño Stitch 2026-09 -- MOCKUP 1 (/admin/lotes)
+// Fuente: design-system/mockups/stitch-2026-09/1-lotes-listado.html + DESIGN.md
+// ("SIMA Core ERP"). Los valores salen del mockup, no están inventados.
+//
+// Por qué convive con las clases de arriba en vez de reemplazarlas: el
+// rediseño entra pantalla por pantalla (pedido de Gabriel: "andá de a uno
+// por vez"). Si TARJETA/TABLA_* cambiaran acá, cambiarían de golpe las ~30
+// pantallas que todavía no se rediseñaron y quedarían a mitad de camino
+// entre dos lenguajes. Cuando las tres pasadas estén hechas, estas clases
+// absorben a las viejas y aquellas se borran.
+// ---------------------------------------------------------------------------
+
+// Contenedor base de todo bloque de contenido. Ojo con la diferencia
+// respecto de TARJETA: el mockup baja la sombra a `shadow-sm` y afina el
+// borde a slate-200/80 -- el DESIGN.md es explícito en que la jerarquía se
+// arma con líneas de 1px y contraste de superficie, NO con sombras
+// difusas ("minimizes optical shadow simulation").
+export const PANEL = 'rounded-2xl border border-slate-200/80 bg-white p-5 shadow-sm'
+export const PANEL_SIN_PADDING = 'overflow-hidden rounded-2xl border border-slate-200/80 bg-white shadow-sm'
+
+// Encabezado de pantalla: el breadcrumb pasa a versalitas ("INICIO › LOTES")
+// y el h1 vuelve a Jakarta, ahora que el cuerpo es Inter.
+export const MIGAS_PANEL = 'flex items-center gap-1.5 text-xs font-semibold tracking-wider text-slate-500 uppercase'
+export const TITULO_PANTALLA = 'font-heading text-2xl font-bold tracking-tight text-[#0b1736]'
+export const CONTADOR_PILL =
+  'rounded-full border border-blue-200/70 bg-blue-50 px-2.5 py-0.5 text-xs font-semibold text-blue-700'
+
+// Botones de acción del encabezado. `rounded-xl` (12px) es del mockup:
+// más redondeado que los controles de formulario, que van en 4-8px.
+export const BOTON_NEUTRO =
+  'inline-flex cursor-pointer items-center gap-2 rounded-xl border border-slate-200 bg-slate-50 px-4 py-2 text-sm font-semibold text-slate-700 shadow-xs transition-all hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-60'
+export const BOTON_ACCION =
+  'inline-flex cursor-pointer items-center gap-2 rounded-xl bg-gradient-to-r from-blue-600 to-blue-700 px-4 py-2 text-sm font-semibold text-white shadow-sm transition-all hover:from-blue-700 hover:to-blue-800 hover:shadow-md disabled:cursor-not-allowed disabled:opacity-60'
+
+// Pestañas de estado arriba de la barra de filtros ("Todos (180)").
+export const TAB_FILTRO =
+  'shrink-0 rounded-lg px-3 py-1.5 text-xs font-semibold text-slate-600 transition-colors hover:bg-slate-100 hover:text-slate-900'
+export const TAB_FILTRO_ACTIVO =
+  'shrink-0 rounded-lg bg-[#0b1736] px-3 py-1.5 text-xs font-semibold text-white shadow-xs'
+
+// Campos de la barra de filtros: más chicos y más apagados que ENTRADA --
+// son controles secundarios, no el contenido de la pantalla.
+export const CAMPO_FILTRO =
+  'w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-xs font-medium text-slate-800 transition-all placeholder:text-slate-400 focus:border-blue-600 focus:bg-white focus:outline-none'
+
+// Tabla densa. Fila de 42px, 13px de tipografía, rayado alterno tenue: el
+// objetivo declarado del DESIGN.md es meter la mayor cantidad de registros
+// por pantalla sin perder legibilidad.
+export const TABLA_PANEL_HEADER =
+  'bg-gradient-to-r from-blue-900 to-blue-800 text-left text-[11px] font-bold tracking-wider text-white uppercase select-none'
+export const TABLA_PANEL_TH = 'px-4 py-3.5 whitespace-nowrap'
+export const TABLA_PANEL_TH_ORDEN = 'flex items-center gap-1 transition-colors hover:text-blue-200'
+export const TABLA_PANEL_TR = 'transition-colors hover:bg-blue-50/50'
+export const TABLA_PANEL_TR_ALTERNA = 'bg-slate-50/30 transition-colors hover:bg-blue-50/50'
+export const TABLA_PANEL_TD = 'px-4 py-3.5 whitespace-nowrap'
+export const TABLA_PANEL_PIE =
+  'flex flex-col items-center justify-between gap-4 border-t border-slate-100 bg-slate-50/60 px-5 py-4 text-xs text-slate-500 sm:flex-row'
+
+// Acciones por fila: íconos cuadrados de 28px con tooltip, para que la
+// columna no crezca con cada acción nueva.
+export const BOTON_ICONO =
+  'inline-flex cursor-pointer items-center justify-center rounded-lg border border-slate-200 bg-slate-50 p-1.5 text-slate-600 transition-colors hover:bg-slate-200 hover:text-blue-700'
+export const BOTON_ICONO_PELIGRO =
+  'inline-flex cursor-pointer items-center justify-center rounded-lg border border-slate-200 bg-slate-50 p-1.5 text-slate-400 transition-colors hover:bg-rose-50 hover:text-rose-600'
+export const BOTON_FILA_VERDE =
+  'inline-flex cursor-pointer items-center gap-1 rounded-lg bg-emerald-600 px-2.5 py-1 text-xs font-semibold text-white shadow-xs transition-colors hover:bg-emerald-700'
+export const BOTON_FILA_AZUL =
+  'inline-flex cursor-pointer items-center gap-1 rounded-lg bg-blue-600 px-2.5 py-1 text-xs font-semibold text-white shadow-xs transition-colors hover:bg-blue-700'
+
+// Badges semánticos. El DESIGN.md reserva el color para estados operativos
+// (cobranza, contrato, caja) y prohíbe usarlo de adorno -- por eso son
+// tablas cerradas y no clases sueltas que cada pantalla pueda mezclar.
+const PILL_ESTADO_BASE = 'rounded-full border px-2.5 py-0.5 text-xs font-semibold'
+export const PILL_ESTADO: Record<string, string> = {
+  disponible: `${PILL_ESTADO_BASE} border-emerald-200/60 bg-emerald-50 text-emerald-700`,
+  reservado: `${PILL_ESTADO_BASE} border-amber-200/60 bg-amber-50 text-amber-800`,
+  vendido: `${PILL_ESTADO_BASE} border-blue-200/60 bg-blue-50 text-blue-700`,
+  rescindido: `${PILL_ESTADO_BASE} border-purple-200/60 bg-purple-50 text-purple-700`,
+}
+export const PILL_ESTADO_NEUTRO = `${PILL_ESTADO_BASE} border-slate-200 bg-slate-100 text-slate-700`
+
+export const PILL_MONEDA_USD =
+  'rounded border border-slate-200/80 bg-slate-100 px-2 py-0.5 text-[10px] font-bold text-slate-700'
+export const PILL_MONEDA_ARS =
+  'rounded border border-amber-200/80 bg-amber-50 px-2 py-0.5 text-[10px] font-bold text-amber-800'
+
+const PILL_COBRANZA_BASE = 'inline-flex items-center gap-1.5 rounded-full border px-2.5 py-0.5 text-xs font-semibold'
+export const PILL_COBRANZA = {
+  pagado: `${PILL_COBRANZA_BASE} border-emerald-200 bg-emerald-50 text-emerald-700`,
+  alDia: `${PILL_COBRANZA_BASE} border-emerald-200/60 bg-emerald-50 text-emerald-700`,
+  atrasado: `${PILL_COBRANZA_BASE} border-amber-200/70 bg-amber-50 text-amber-800`,
+  moroso: `${PILL_COBRANZA_BASE} border-rose-200/60 bg-rose-50 text-rose-700`,
+  prejudicial: `${PILL_COBRANZA_BASE} border-rose-600 bg-rose-600 text-white shadow-xs`,
+}
+export const PUNTO_COBRANZA = {
+  alDia: 'h-1.5 w-1.5 rounded-full bg-emerald-500',
+  atrasado: 'h-1.5 w-1.5 rounded-full bg-amber-500',
+  moroso: 'h-1.5 w-1.5 rounded-full bg-rose-500',
+  prejudicial: 'h-1.5 w-1.5 rounded-full bg-rose-200',
+}

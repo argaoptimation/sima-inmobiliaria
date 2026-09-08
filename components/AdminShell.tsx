@@ -111,8 +111,8 @@ export function AdminShell({
           <div className="ml-auto flex items-center gap-3.5">
             {cotizacion !== null && (
               <div className={DOLAR_PILL}>
-                <span className="h-1.5 w-1.5 rounded-full bg-green-600" />
-                <span className="tabular-nums">Dólar ${cotizacion.toLocaleString('es-AR')}</span>
+                <span className="h-2 w-2 animate-pulse rounded-full bg-emerald-500" />
+                <span className="tabular-nums">Dólar ${cotizacion.toLocaleString('es-AR')} ARS</span>
               </div>
             )}
             <CentroNotificaciones notificaciones={notificaciones} />

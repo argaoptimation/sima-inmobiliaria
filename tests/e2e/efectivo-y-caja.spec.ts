@@ -1,4 +1,4 @@
-import { test, expect } from '@playwright/test'
+import { test, expect, Page } from '@playwright/test'
 import ExcelJS from 'exceljs'
 import { ensureTestFixtures, createAdminClient, TestFixtures } from './fixtures/test-data'
 import { login, logout } from './utils/login'
@@ -53,6 +53,14 @@ async function crearLoteVendidoConCuotaPendiente(
 
   return { loteId: lote.id as string, cuotaId: cuota.id as string }
 }
+
+// El menú de la izquierda se pide por su nombre y con `exact`: desde el
+// rediseño Stitch 2026-09 el identificador del lote es un link dentro de
+// la tabla, así que un lote llamado "E2E Multi Pagos A" también matchea
+// `link "Pagos"` y el locator suelto se vuelve ambiguo. Falló de verdad en
+// el suite completo (no en la corrida acotada), que es justo donde ese
+// lote existe.
+const MENU_LATERAL = (page: Page) => page.getByRole('navigation', { name: 'Menú principal' })
 
 test.describe('Efectivo y cierre de caja (25/08)', () => {
   let fixtures: TestFixtures
@@ -135,8 +143,12 @@ test.describe('Efectivo y cierre de caja (25/08)', () => {
     page,
   }) => {
     await login(page, fixtures.vendedorSinLotes.email, fixtures.password)
-    await expect(page.getByRole('link', { name: 'Efectivo' })).toHaveCount(0)
-    await expect(page.getByRole('link', { name: 'Cierre de caja' })).toHaveCount(0)
+    await expect(
+      MENU_LATERAL(page).getByRole('link', { name: 'Efectivo', exact: true })
+    ).toHaveCount(0)
+    await expect(
+      MENU_LATERAL(page).getByRole('link', { name: 'Cierre de caja', exact: true })
+    ).toHaveCount(0)
     await page.goto('/admin/efectivo')
     await expect(page).toHaveURL(/\/admin\/lotes/)
     await page.goto('/admin/cierre-caja')

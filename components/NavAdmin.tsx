@@ -191,7 +191,12 @@ export function NavAdmin({
         />
       )}
 
+      {/* aria-label propio: desde el rediseño Stitch 2026-09 la pantalla de
+          lotes tiene su propio <nav> (la miga de pan), así que "el nav" a
+          secas dejó de ser único. Con el nombre, tanto un lector de
+          pantalla como un test pueden pedir ESTE menú y no el otro. */}
       <nav
+        aria-label="Menú principal"
         className={`fixed inset-y-0 left-0 z-40 flex h-full w-[248px] shrink-0 flex-col bg-[var(--sima-sidebar)] transition-transform duration-200 md:relative md:z-auto md:translate-x-0 md:transition-[width] ${
           abiertaMobile ? 'translate-x-0' : '-translate-x-full'
         } ${colapsada ? 'md:w-[76px]' : 'md:w-[248px]'}`}

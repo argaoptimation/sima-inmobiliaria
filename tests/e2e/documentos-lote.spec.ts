@@ -175,11 +175,14 @@ test.describe('Documentos del lote', () => {
     await expect(page).toHaveURL(/\/portal-cliente/)
   })
 
-  test('el link "Ver documentación del lote →" aparece en /admin/lotes para un vendedor', async ({ page }) => {
+  // El link pasó a ser un botón de ícono con tooltip (rediseño Stitch
+  // 2026-09, MOCKUP 1): mismo destino, mismo permiso, y el nombre accesible
+  // ya no arrastra la flecha que tenía cuando era texto.
+  test('el acceso a "Ver documentación del lote" aparece en /admin/lotes para un vendedor', async ({ page }) => {
     await login(page, fixtures.vendedorLoteA.email, fixtures.password)
     await page.goto('/admin/lotes')
 
     const fila = page.locator('tr', { has: page.getByText('E2E Lote Secundario') })
-    await expect(fila.getByRole('link', { name: 'Ver documentación del lote →' })).toBeVisible()
+    await expect(fila.getByRole('link', { name: 'Ver documentación del lote' })).toBeVisible()
   })
 })
