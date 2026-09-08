@@ -133,7 +133,7 @@ export default async function LoteDetallePage({
 
   const { data: cuotas } = await supabase
     .from('cuotas')
-    .select('id, numero, monto_base, monto_ajustado, saldo_pendiente, fecha_vencimiento, refinanciada')
+    .select('id, numero, monto_base, monto_ajustado, saldo_pendiente, fecha_vencimiento, refinanciada, migrada')
     .eq('lote_id', id)
     .eq('ciclo', lote!.ciclo_actual)
     .order('numero', { ascending: true })
@@ -741,6 +741,12 @@ export default async function LoteDetallePage({
                 <td className={TABLA_CELDA}>
                   {cuota.refinanciada ? (
                     <span className="italic text-slate-500">Refinanció</span>
+                  ) : cuota.migrada ? (
+                    /* Cobrada antes de usar la plataforma: no hay pago ni
+                       reparto detras, y el monto es el de hoy. Decirlo acá
+                       evita que se lea como una cobranza del sistema que
+                       "no aparece" en el historial de pagos. */
+                    <span className="italic text-slate-500">Pagada antes del sistema</span>
                   ) : (
                     <>
                       {cuota.saldo_pendiente} {lote!.moneda}

@@ -351,6 +351,16 @@ export default async function LotesPage({
               <EnlaceBoton href="/admin/lotes/importar" className={`cursor-pointer ${BOTON_SECUNDARIO}`}>
                 Importar varios
               </EnlaceBoton>
+              {/* Alta de un lote que ya se vendio antes de usar el sistema
+                  (07/09). No pasa por reservar->vender porque reservar
+                  exige el comprobante de la sena y las fotos del DNI, que
+                  de una venta vieja nadie tiene. */}
+              <EnlaceBoton
+                href="/admin/lotes/cargar-en-curso"
+                className={`cursor-pointer ${BOTON_SECUNDARIO}`}
+              >
+                Cargar ya vendido
+              </EnlaceBoton>
               <EnlaceBoton href="/admin/lotes/nuevo" className={`cursor-pointer ${BOTON_PRIMARIO}`}>
                 + Nuevo lote
               </EnlaceBoton>

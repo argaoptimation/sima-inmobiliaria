@@ -11,4 +11,5 @@ export const EVENTO_HISTORIAL_ETIQUETA: Record<string, string> = {
   marcado_prejudicial: 'Pasó a Prejudicial',
   desmarcado_prejudicial: 'Salió de Prejudicial',
   saldado: 'Pago total anticipado',
+  cargado_en_curso: 'Cargado ya vendido',
 }

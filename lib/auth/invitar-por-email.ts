@@ -54,11 +54,12 @@ export async function hayCupoDeEmailDePrueba(email: string): Promise<boolean> {
   )
 }
 
-// Contraseña de descarte para las cuentas de prueba que se crean sin mandar
-// invitación: nadie la usa (los tests setean la suya con el Admin API),
-// pero `createUser` necesita alguna y dejarla en blanco sería una cuenta
-// sin credencial.
-function contrasenaDeDescarte(): string {
+// Contraseña de descarte para las cuentas que se crean sin mandar
+// invitación: nadie la usa, pero `createUser` necesita alguna y dejarla en
+// blanco sería una cuenta sin credencial. La usan las cuentas de prueba
+// (los tests setean la suya con el Admin API) y el alta de compradores de
+// lotes ya vendidos, a los que el acceso se les da después a mano.
+export function contrasenaDeDescarte(): string {
   return `prueba-${crypto.randomUUID()}`
 }
 

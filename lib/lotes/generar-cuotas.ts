@@ -4,7 +4,9 @@ export interface CuotaGenerada {
   fechaVencimiento: string
 }
 
-function sumarMeses(fechaISO: string, meses: number): string {
+// Exportado para generar-cuotas-en-curso.ts, que la usa con meses
+// negativos para deducir las fechas de las cuotas ya pagadas.
+export function sumarMeses(fechaISO: string, meses: number): string {
   const [anio, mes, dia] = fechaISO.split('-').map(Number)
   const fecha = new Date(Date.UTC(anio, mes - 1 + meses, dia))
   return fecha.toISOString().slice(0, 10)
