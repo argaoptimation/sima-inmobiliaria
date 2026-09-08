@@ -65,5 +65,12 @@ Referencia: MOCKUP 5 (plano interactivo, sin video/imágenes) y MOCKUP 6 (mismo 
 2. El formulario mantiene la Server Action `login`, `CampoPassword` y `BotonEnvio` tal cual están — solo cambia el envoltorio visual.
 3. Aplicar el mismo layout a `app/set-password/page.tsx` y `app/login/recuperar-contrasena/page.tsx`.
 
+## PR 6 — Portal cliente: detalle de lote, pago y comprobante
+Referencia: MOCKUP 7 (detalle de lote) y MOCKUP 8 (pagar + comprobante) del HTML.
+
+1. `app/portal-cliente/lotes/[id]/page.tsx`: reemplazar la tabla de 6 columnas de cuotas por una línea de tiempo (pagada = check verde, actual = reloj azul con botón "Pagar cuota" con ícono de tarjeta, futura = punto gris apagado). Columnas de monto (USD + conversión a ARS debajo, `≈ X ARS` en gris chico) y de acción con ancho fijo (150px / 130px) para que nunca se desalineen entre filas. Reemplazar la tabla de pagos por tarjetas (monto, motivo+medio+fecha, badge Confirmado/Pendiente, link a comprobante o recibo). NO tocar `cuotasConDatos`, `pagosConLink`, `puedeEliminar`, ni el filtro por `ciclo_actual` — es el mismo dato, otro contenedor. La conversión a ARS ya se calcula en la página (mismo patrón de `convertirUsdAPesos` que usa el detalle actual) — mostrarla en cada fila, no solo en el total.
+2. `app/portal-cliente/pagar/[id]/page.tsx` — **HECHO (07/09)**: tarjetas para cotización del dólar y datos de transferencia, botón de copiar (ícono solo) junto al alias bancario (`components/BotonCopiarValor.tsx`, `navigator.clipboard.writeText`). `MontoYMoneda.tsx` no se tocó en su lógica.
+3. **Unificado (07/09, decisión de Gabriel):** el comprobante se sube en el MISMO formulario de "Ya transferí" y sigue siendo obligatorio — sin comprobante no hay `insert` en `pagos`. `registrarPago` (`pagar/[id]/actions.ts`) recibe el path del comprobante (ya subido directo a Storage por `CampoArchivoDirecto`), lo valida (prefijo `user.id/`) y lo guarda en el mismo insert; redirige al detalle del lote con `?ok=`. La pantalla separada `/portal-cliente/pagos/[id]/comprobante` queda solo como camino de recuperación para un pago que por lo que sea no tenga comprobante (datos viejos); ya no es parte del flujo normal. Helper de e2e nuevo: `tests/e2e/utils/pagar.ts`.
+
 ## Pendiente / fuera de esta entrega
 Mapa de loteos (2 niveles), listado de lotes. Se entregan en próximas rondas — no implementar todavía.

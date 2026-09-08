@@ -1,17 +1,14 @@
 import { test, expect, Page } from '@playwright/test'
-import { readFileSync } from 'node:fs'
-import path from 'node:path'
 import { createAdminClient, ensureTestFixtures, TestFixtures } from './fixtures/test-data'
 import { login, logout } from './utils/login'
+import { completarFormularioPagar } from './utils/pagar'
 
-const COMPROBANTE_PATH = path.join(__dirname, 'fixtures', 'comprobante-test.pdf')
-const COMPROBANTE_BYTES = readFileSync(COMPROBANTE_PATH)
 const NOMBRE_COMPROBANTE = `e2e-pagos-acotados-${Date.now()}.pdf`
 
 /**
  * El cliente registra un pago nuevo (cuota 1, que siempre tiene el link
- * "Pagar cuota" mientras su saldo siga pendiente) y sube un comprobante con
- * nombre único. Extraído para reusar entre los tests de este archivo que
+ * "Pagar cuota" mientras su saldo siga pendiente) con su comprobante en el
+ * mismo formulario. Extraído para reusar entre los tests de este archivo que
  * necesitan un pago fresco propio.
  */
 async function registrarPagoConComprobante(page: Page, fixtures: TestFixtures, nombreArchivo: string) {
@@ -22,19 +19,7 @@ async function registrarPagoConComprobante(page: Page, fixtures: TestFixtures, n
   await filaCuota1.getByRole('link', { name: 'Pagar cuota' }).click()
   await page.waitForURL(/\/portal-cliente\/pagar\//)
 
-  await page.getByPlaceholder('Monto transferido').fill('1')
-  await page.selectOption('select[name="moneda"]', 'USD')
-  await page.getByRole('button', { name: 'Ya transferí' }).click()
-  await page.waitForURL(/\/portal-cliente\/pagos\/.+\/comprobante$/)
-
-  await page.setInputFiles('[data-testid="comprobante"]', {
-    name: nombreArchivo,
-    mimeType: 'application/pdf',
-    buffer: COMPROBANTE_BYTES,
-  })
-  await expect(page.locator('[data-testid="comprobante"]')).toBeEnabled()
-  await page.getByRole('button', { name: 'Finalizar' }).click()
-  await page.waitForURL(/\/portal-cliente$/)
+  await completarFormularioPagar(page, { monto: '1', moneda: 'USD', nombreComprobante: nombreArchivo })
 }
 
 // "E2E Test Lote" tiene acreedor_id = acreedorConDatos (ver test-data.ts).
@@ -63,26 +48,7 @@ test.describe('Confirmación de pagos acotada al acreedor del lote', () => {
     page,
   }) => {
     await test.step('el cliente registra un pago y sube comprobante', async () => {
-      await login(page, fixtures.cliente.email, fixtures.password)
-      await page.goto(`/portal-cliente/lotes/${fixtures.loteId}`)
-
-      const filaCuota1 = page.locator('main table').nth(0).locator('tbody tr').nth(0)
-      await filaCuota1.getByRole('link', { name: 'Pagar cuota' }).click()
-      await page.waitForURL(/\/portal-cliente\/pagar\//)
-
-      await page.getByPlaceholder('Monto transferido').fill('1')
-      await page.selectOption('select[name="moneda"]', 'USD')
-      await page.getByRole('button', { name: 'Ya transferí' }).click()
-      await page.waitForURL(/\/portal-cliente\/pagos\/.+\/comprobante$/)
-
-      await page.setInputFiles('[data-testid="comprobante"]', {
-        name: NOMBRE_COMPROBANTE,
-        mimeType: 'application/pdf',
-        buffer: COMPROBANTE_BYTES,
-      })
-      await expect(page.locator('[data-testid="comprobante"]')).toBeEnabled()
-      await page.getByRole('button', { name: 'Finalizar' }).click()
-      await page.waitForURL(/\/portal-cliente$/)
+      await registrarPagoConComprobante(page, fixtures, NOMBRE_COMPROBANTE)
     })
 
     await test.step('acreedorConDatos (dueño real del lote) SÍ ve el pago', async () => {

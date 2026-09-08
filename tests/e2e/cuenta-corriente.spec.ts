@@ -3,6 +3,7 @@ import path from 'node:path'
 import { readFileSync } from 'node:fs'
 import { ensureTestFixtures, createAdminClient, TestFixtures } from './fixtures/test-data'
 import { login, logout } from './utils/login'
+import { completarFormularioPagar } from './utils/pagar'
 
 const COMPROBANTE_PATH = path.join(__dirname, 'fixtures', 'comprobante-test.pdf')
 const COMPROBANTE_BYTES = readFileSync(COMPROBANTE_PATH)
@@ -95,19 +96,11 @@ test.describe('Cuenta corriente', () => {
       await filaCuota1.getByRole('link', { name: 'Pagar cuota' }).click()
       await page.waitForURL(/\/portal-cliente\/pagar\//)
 
-      await page.getByPlaceholder('Monto transferido').fill('1000')
-      await page.selectOption('select[name="moneda"]', 'USD')
-      await page.getByRole('button', { name: 'Ya transferí' }).click()
-      await page.waitForURL(/\/portal-cliente\/pagos\/.+\/comprobante$/)
-
-      await page.setInputFiles('[data-testid="comprobante"]', {
-        name: nombreArchivo,
-        mimeType: 'application/pdf',
-        buffer: COMPROBANTE_BYTES,
+      await completarFormularioPagar(page, {
+        monto: 1000,
+        moneda: 'USD',
+        nombreComprobante: nombreArchivo,
       })
-      await expect(page.locator('[data-testid="comprobante"]')).toBeEnabled()
-      await page.getByRole('button', { name: 'Finalizar' }).click()
-      await page.waitForURL(/\/portal-cliente$/)
     })
 
     await test.step('acreedor y admin confirman su parte', async () => {

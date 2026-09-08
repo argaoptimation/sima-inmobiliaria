@@ -1,11 +1,7 @@
 import { test, expect } from '@playwright/test'
-import path from 'node:path'
-import { readFileSync } from 'node:fs'
 import { createAdminClient, ensureTestFixtures, TestFixtures } from './fixtures/test-data'
 import { login } from './utils/login'
-
-const COMPROBANTE_PATH = path.join(__dirname, 'fixtures', 'comprobante-test.pdf')
-const COMPROBANTE_BYTES = readFileSync(COMPROBANTE_PATH)
+import { completarFormularioPagar } from './utils/pagar'
 
 test.describe('Cuentas externas', () => {
   let fixtures: TestFixtures
@@ -337,10 +333,8 @@ test.describe('Cuentas externas', () => {
       }).toPass({ timeout: 10000 })
 
       // El flujo exacto de "pagar una cuota" (nombres de botones/links) sigue
-      // el mismo patrón verificado en pago-flujo-completo.spec.ts: el link
-      // "Pagar" de la brief no existe tal cual en la UI real -- hay un paso
-      // intermedio de "Monto transferido" + moneda + "Ya transferí" antes de
-      // llegar a la pantalla de subir el comprobante.
+      // el mismo patrón verificado en pago-flujo-completo.spec.ts: monto +
+      // moneda + comprobante + "Ya transferí", todo en el mismo formulario.
       const nombreComprobante = `e2e-credito-auto-${Date.now()}.pdf`
 
       await page.context().clearCookies()
@@ -351,19 +345,11 @@ test.describe('Cuentas externas', () => {
       await filaCuota1.getByRole('link', { name: 'Pagar cuota' }).click()
       await page.waitForURL(/\/portal-cliente\/pagar\//)
 
-      await page.getByPlaceholder('Monto transferido').fill('1000')
-      await page.selectOption('select[name="moneda"]', 'USD')
-      await page.getByRole('button', { name: 'Ya transferí' }).click()
-      await page.waitForURL(/\/portal-cliente\/pagos\/.+\/comprobante$/)
-
-      await page.setInputFiles('[data-testid="comprobante"]', {
-        name: nombreComprobante,
-        mimeType: 'application/pdf',
-        buffer: COMPROBANTE_BYTES,
+      await completarFormularioPagar(page, {
+        monto: 1000,
+        moneda: 'USD',
+        nombreComprobante,
       })
-      await expect(page.locator('[data-testid="comprobante"]')).toBeEnabled()
-      await page.getByRole('button', { name: 'Finalizar' }).click()
-      await page.waitForURL(/\/portal-cliente$/)
 
       await page.context().clearCookies()
       await login(page, fixtures.admin.email, fixtures.password)

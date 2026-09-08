@@ -3,6 +3,7 @@ import { readFileSync } from 'node:fs'
 import path from 'node:path'
 import { ensureTestFixtures, createAdminClient, TestFixtures } from './fixtures/test-data'
 import { login } from './utils/login'
+import { pagarCuotaPorUI as pagarCuotaPorUICompartido } from './utils/pagar'
 
 const COMPROBANTE_PATH = path.join(__dirname, 'fixtures', 'comprobante-test.pdf')
 const COMPROBANTE_BYTES = readFileSync(COMPROBANTE_PATH)
@@ -72,15 +73,13 @@ async function venderLotePorUI(
 
 /**
  * El cliente paga la (única) cuota de un lote vendido al contado (1 cuota).
- * Reusa el flujo real de `/portal-cliente/pagar/[id]` y espera el redirect a
- * la pantalla de comprobante -- eso confirma que el `insert` en `pagos` (con
- * su `lote_id`) ya terminó antes de que el test siga.
+ * Reusa el flujo real de `/portal-cliente/pagar/[id]` (monto + moneda +
+ * comprobante + "Ya transferí", todo un formulario) y espera el redirect al
+ * detalle del lote -- eso confirma que el `insert` en `pagos` (con su
+ * `lote_id`) ya terminó antes de que el test siga.
  */
 async function pagarCuotaPorUI(page: import('@playwright/test').Page, cuotaId: string, monto: number) {
-  await page.goto(`/portal-cliente/pagar/${cuotaId}`)
-  await page.getByPlaceholder('Monto transferido').fill(String(monto))
-  await page.getByRole('button', { name: 'Ya transferí' }).click()
-  await page.waitForURL('**/portal-cliente/pagos/**/comprobante')
+  await pagarCuotaPorUICompartido(page, cuotaId, { monto, moneda: 'USD' })
 }
 
 test.describe('Cliente con varios lotes', () => {

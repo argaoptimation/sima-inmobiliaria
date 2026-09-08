@@ -112,32 +112,27 @@ test.describe('Límite de tamaño de archivo en subidas', () => {
     const cuotaId = fixtures.cuotaIds[0]
     await page.goto(`/portal-cliente/pagar/${cuotaId}`)
     await page.getByPlaceholder('Monto transferido').fill('1000')
-    await page.getByRole('button', { name: 'Ya transferí' }).click()
-    await page.waitForURL('**/portal-cliente/pagos/**/comprobante')
-
-    const pagoId = new URL(page.url()).pathname.match(/\/pagos\/([^/]+)\/comprobante/)?.[1]
-    if (!pagoId) {
-      throw new Error(`No se pudo extraer el id del pago de la URL: ${page.url()}`)
-    }
+    await page.selectOption('select[name="moneda"]', 'USD')
 
     await page.setInputFiles('[data-testid="comprobante"]', {
       name: 'comprobante-pago-grande.pdf',
       mimeType: 'application/pdf',
       buffer: ARCHIVO_GRANDE,
     })
-    // Rechazado del lado del cliente apenas se elige -- "Finalizar" queda
-    // bloqueado en silencio por el navegador (campo oculto vacío/required).
+    // Rechazado del lado del cliente apenas se elige -- el campo oculto del
+    // path queda vacío y el navegador bloquea el submit en silencio
+    // (required). Desde el 06/09 "Ya transferí" y el comprobante son el mismo
+    // formulario: sin comprobante válido no se llega a crear el pago.
     await expect(page.getByText('El comprobante pesa más de 15 MB')).toBeVisible()
-    await page.getByRole('button', { name: 'Finalizar' }).click()
-    await expect(page).toHaveURL(new RegExp(`/portal-cliente/pagos/${pagoId}/comprobante$`))
+    await page.getByRole('button', { name: 'Ya transferí' }).click()
+    await expect(page).toHaveURL(new RegExp(`/portal-cliente/pagar/${cuotaId}$`))
 
     const admin = createAdminClient()
-    const { data: pago } = await admin
+    const { data: pagos } = await admin
       .from('pagos')
-      .select('comprobante_path')
-      .eq('id', pagoId)
-      .single()
-    expect(pago?.comprobante_path).toBeNull()
+      .select('id')
+      .eq('cuota_origen_id', cuotaId)
+    expect(pagos ?? []).toHaveLength(0)
   })
 
   test('un comprobante de seña de 5 MB (por debajo del límite) se acepta y la reserva se completa', async ({

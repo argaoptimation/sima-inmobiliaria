@@ -261,7 +261,7 @@ test.describe('Cotización del dólar', () => {
     // forma de volver salvo el botón "atrás" del navegador).
     await filaCuota.getByRole('link', { name: 'Pagar cuota' }).click()
     await page.waitForURL(new RegExp(`/portal-cliente/pagar/${cuota.id}`))
-    await expect(page.getByRole('link', { name: '← Volver al lote' })).toHaveAttribute(
+    await expect(page.getByRole('link', { name: 'Volver al lote' })).toHaveAttribute(
       'href',
       `/portal-cliente/lotes/${lote.id}`
     )

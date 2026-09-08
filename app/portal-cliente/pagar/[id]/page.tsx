@@ -6,6 +6,10 @@ import { hoyArgentina } from '@/lib/fecha/hoy-argentina'
 import { MontoYMoneda } from './MontoYMoneda'
 import { EnlaceBoton } from '@/components/EnlaceBoton'
 import { BotonEnvio } from '@/components/BotonEnvio'
+import { CampoArchivoDirecto } from '@/components/CampoArchivoDirecto'
+import { BotonCopiarValor } from '@/components/BotonCopiarValor'
+import { Obligatorio } from '@/components/Obligatorio'
+import { ArrowLeft, Landmark } from 'lucide-react'
 
 export default async function PagarCuotaPage({
   params,
@@ -102,42 +106,51 @@ export default async function PagarCuotaPage({
     <div className="mx-auto max-w-lg px-6 py-10">
       <EnlaceBoton
         href={`/portal-cliente/lotes/${cuota!.lote_id}`}
-        className="mb-4 inline-block text-sm font-medium text-blue-800 underline-offset-4 hover:text-blue-900 hover:underline"
+        className="mb-4 inline-flex items-center gap-1.5 text-sm font-semibold text-blue-700 underline-offset-4 hover:text-blue-900 hover:underline"
       >
-        ← Volver al lote
+        <ArrowLeft className="h-4 w-4" />
+        Volver al lote
       </EnlaceBoton>
-      <h1 className="mb-6 text-2xl font-extrabold text-blue-900">Registrar pago</h1>
+      <h1 className="mb-6 text-2xl font-extrabold tracking-tight text-blue-950">Registrar pago</h1>
 
       {lote!.moneda === 'USD' && cotizacionVigente && (
-        <div className="mb-4 rounded-xl border border-blue-100 bg-white p-4 shadow-sm">
-          <p className="text-xs font-medium uppercase tracking-wide text-slate-500">Cotización del dólar hoy</p>
-          <p className="mt-1 text-lg font-bold text-blue-900">
+        <div className="mb-4 flex items-center justify-between rounded-xl border border-blue-100 bg-white p-4 shadow-sm">
+          <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+            Cotización del dólar hoy
+          </p>
+          <p className="text-lg font-bold text-blue-900 tabular-nums">
             {cotizacionVigente.valor} <span className="text-sm font-semibold text-slate-500">ARS</span>
           </p>
         </div>
       )}
 
-      <div className="mb-6 rounded-xl border border-blue-100 bg-white p-5 shadow-sm">
+      <div className="mb-4 rounded-xl border border-blue-100 bg-white p-5 shadow-sm">
         {datosCompletos ? (
           <>
-            <p className="mb-3 text-sm font-semibold text-blue-900">Transferí a:</p>
-            <dl className="space-y-1.5 text-sm text-slate-700">
-              <div className="flex gap-2">
-                <dt className="font-medium text-slate-500">Titular:</dt>
-                <dd>{cuentaCobro!.titular}</dd>
+            <p className="mb-3 flex items-center gap-2 text-sm font-bold text-blue-900">
+              <Landmark className="h-4 w-4 text-blue-700" />
+              Transferí a
+            </p>
+            <dl className="flex flex-col gap-2 text-sm text-slate-700">
+              <div className="flex items-center justify-between gap-3">
+                <dt className="font-medium text-slate-500">Titular</dt>
+                <dd className="text-right font-semibold text-slate-800">{cuentaCobro!.titular}</dd>
               </div>
-              <div className="flex gap-2">
-                <dt className="font-medium text-slate-500">Alias:</dt>
-                <dd className="font-semibold text-blue-900">{cuentaCobro!.alias}</dd>
+              <div className="flex items-center justify-between gap-3">
+                <dt className="font-medium text-slate-500">Alias</dt>
+                <dd className="flex items-center gap-2">
+                  <span className="font-bold text-blue-800">{cuentaCobro!.alias}</span>
+                  <BotonCopiarValor valor={cuentaCobro!.alias ?? ''} titulo="Copiar alias" />
+                </dd>
               </div>
-              <div className="flex gap-2">
-                <dt className="font-medium text-slate-500">Banco:</dt>
-                <dd>{cuentaCobro!.banco}</dd>
+              <div className="flex items-center justify-between gap-3">
+                <dt className="font-medium text-slate-500">Banco</dt>
+                <dd className="text-right font-semibold text-slate-800">{cuentaCobro!.banco}</dd>
               </div>
               {cuentaCobro!.cbu?.trim() && (
-                <div className="flex gap-2">
-                  <dt className="font-medium text-slate-500">CBU:</dt>
-                  <dd>{cuentaCobro!.cbu}</dd>
+                <div className="flex items-center justify-between gap-3">
+                  <dt className="font-medium text-slate-500">CBU</dt>
+                  <dd className="text-right font-semibold tabular-nums text-slate-800">{cuentaCobro!.cbu}</dd>
                 </div>
               )}
             </dl>
@@ -147,15 +160,40 @@ export default async function PagarCuotaPage({
         )}
       </div>
 
-      {error && <p className="mb-4 rounded-lg bg-red-50 p-3 text-sm text-red-700">{error}</p>}
+      {error && (
+        <p className="mb-4 rounded-lg border-l-4 border-red-600 bg-red-50 p-3 text-sm font-medium text-red-800">
+          {error}
+        </p>
+      )}
 
-      <form action={registrarPagoConId} className="flex flex-col gap-4">
+      <form action={registrarPagoConId} className="flex flex-col gap-4 rounded-xl border border-blue-100 bg-white p-5 shadow-sm">
         <MontoYMoneda
           saldoPendiente={cuota!.saldo_pendiente}
           monedaLote={lote!.moneda}
           interesMoratorioDiario={lote!.interes_moratorio_diario}
           cotizacionVigente={cotizacionVigente}
         />
+
+        {/* El comprobante va acá mismo (06/09): antes era una pantalla
+            aparte después de "Ya transferí". Sigue siendo obligatorio -- sin
+            prueba de la transferencia el pago no se puede confirmar. */}
+        <div>
+          <span className="text-sm text-slate-600">
+            Comprobante de la transferencia
+            <Obligatorio />
+          </span>
+          <CampoArchivoDirecto
+            name="comprobante"
+            bucket="comprobantes"
+            carpeta={user!.id}
+            tipoArchivo="comprobante"
+            label="Arrastrá el comprobante o elegí el archivo"
+            ayuda="JPG, PNG o PDF · hasta 15 MB"
+            nombreError="El comprobante"
+            required
+          />
+        </div>
+
         <BotonEnvio className="rounded-lg bg-blue-800 px-4 py-2.5 font-semibold text-white transition-colors hover:bg-blue-900 cursor-pointer">
           Ya transferí
         </BotonEnvio>

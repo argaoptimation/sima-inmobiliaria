@@ -1,11 +1,7 @@
 import { test, expect, Page } from '@playwright/test'
-import path from 'node:path'
-import { readFileSync } from 'node:fs'
 import { createAdminClient, ensureTestFixtures, TestFixtures } from './fixtures/test-data'
 import { login, logout } from './utils/login'
-
-const COMPROBANTE_PATH = path.join(__dirname, 'fixtures', 'comprobante-test.pdf')
-const COMPROBANTE_BYTES = readFileSync(COMPROBANTE_PATH)
+import { completarFormularioPagar } from './utils/pagar'
 
 // Esta app corre contra una base compartida con datos reales de otros tests
 // manuales (¡ya vimos un pago real de 1500 USD confirmado en /admin/pagos al
@@ -76,35 +72,18 @@ test.describe('Flujo completo de pago con confirmación cruzada', () => {
     })
 
     // 2. Pagar la cuota 1 con un monto mayor al de la cuota (1500 > 1000) para
-    // ejercitar el derrame FIFO hacia la cuota 2.
-    await test.step('cliente registra un pago de 1500 USD sobre la cuota 1', async () => {
+    // ejercitar el derrame FIFO hacia la cuota 2. "Ya transferí" y el
+    // comprobante son el mismo formulario (06/09).
+    await test.step('cliente registra un pago de 1500 USD sobre la cuota 1, con su comprobante', async () => {
       const filaCuota1 = page.locator('main table').nth(0).locator('tbody tr').nth(0)
       await filaCuota1.getByRole('link', { name: 'Pagar cuota' }).click()
       await page.waitForURL(/\/portal-cliente\/pagar\//)
 
-      await page.getByPlaceholder('Monto transferido').fill('1500')
-      await page.selectOption('select[name="moneda"]', 'USD')
-      await page.getByRole('button', { name: 'Ya transferí' }).click()
-
-      await page.waitForURL(/\/portal-cliente\/pagos\/.+\/comprobante$/)
-    })
-
-    // 3. Subir el comprobante (fixture local, no hace falta que sea un PDF
-    // "real" - solo bytes válidos en disco para setInputFiles).
-    await test.step('cliente sube el comprobante', async () => {
-      await page.setInputFiles('[data-testid="comprobante"]', {
-        name: NOMBRE_COMPROBANTE,
-        mimeType: 'application/pdf',
-        buffer: COMPROBANTE_BYTES,
+      await completarFormularioPagar(page, {
+        monto: 1500,
+        moneda: 'USD',
+        nombreComprobante: NOMBRE_COMPROBANTE,
       })
-      // La subida directa a Storage ocurre en cuanto se elige el archivo
-      // (CampoArchivoDirecto), antes de tocar "Finalizar" -- hay que
-      // esperar a que termine (el input queda deshabilitado mientras sube)
-      // o el submit se bloquea en silencio por el campo oculto requerido
-      // que todavía está vacío.
-      await expect(page.locator('[data-testid="comprobante"]')).toBeEnabled()
-      await page.getByRole('button', { name: 'Finalizar' }).click()
-      await page.waitForURL(/\/portal-cliente$/)
     })
 
     // 4. El pago recién creado debe verse en "Mis pagos" sin advertencia de
