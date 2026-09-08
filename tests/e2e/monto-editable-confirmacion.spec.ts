@@ -155,7 +155,14 @@ test.describe('Monto editable al confirmar un pago', () => {
     await expect(filaAcreedor).toContainText('USD 500')
     await contextoAcreedor.close()
 
-    // El admin, sin refrescar, intenta confirmar con el 50 viejo que sigue en su pantalla.
+    // El admin, sin refrescar, intenta confirmar con el 50 viejo que sigue en
+    // su pantalla. El monto "visto" se fuerza a mano: si no, basta con que
+    // Next revalide la pantalla del admin mientras el acreedor confirma para
+    // que el hidden llegue ya en 500 y la guarda no tenga nada que rechazar
+    // -- fallaba así de a ratos, sin que hubiera nada roto.
+    await fila.locator('input[name="montoVisto"]').evaluate((campo: HTMLInputElement) => {
+      campo.value = '50'
+    })
     await fila.getByRole('button', { name: 'Confirmar mi parte' }).click()
     await expect(
       page.getByText(/El monto cambió desde que abriste esta pantalla/)
