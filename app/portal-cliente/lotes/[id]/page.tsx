@@ -9,6 +9,7 @@ import { notFound, redirect } from 'next/navigation'
 import { eliminarPago } from './actions'
 import { BotonEliminarPago } from './BotonEliminarPago'
 import { EnlaceBoton } from '@/components/EnlaceBoton'
+import { ArrowLeft, Check, Clock, Circle, CreditCard, Banknote } from 'lucide-react'
 
 const ETIQUETA_ESTADO: Record<string, string> = {
   normal: 'Al día',
@@ -37,6 +38,47 @@ const ETIQUETA_ESTADO_PAGO: Record<string, string> = {
   confirmado: 'Confirmado',
 }
 
+const ETIQUETA_MOTIVO: Record<string, string> = {
+  sena: 'Seña',
+  ajuste: 'Corrección',
+  saldar: 'Pago total anticipado',
+  entrega: 'Entrega',
+  cuota: 'Cuota',
+}
+
+// Línea de tiempo de cuotas (PR6 del rediseño, MOCKUP 7): el ícono de estado
+// reemplaza tener que leer la columna de saldo para saber en qué cuota está
+// parado el cliente. El acento de color a la izquierda de la fila es el mismo
+// criterio verde/azul/gris de pagada/actual/futura.
+const ACENTO_FILA: Record<string, string> = {
+  pagada: 'border-l-[3px] border-l-green-300',
+  refinanciada: 'border-l-[3px] border-l-slate-200',
+  actual: 'border-l-[3px] border-l-blue-700 bg-blue-50/60',
+  futura: 'border-l-[3px] border-l-transparent',
+}
+
+function IconoEstadoCuota({ estado }: { estado: string }) {
+  if (estado === 'pagada') {
+    return (
+      <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full border border-green-300 bg-green-50">
+        <Check className="h-[15px] w-[15px] text-green-700" />
+      </span>
+    )
+  }
+  if (estado === 'actual') {
+    return (
+      <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full border border-blue-300 bg-blue-100">
+        <Clock className="h-[15px] w-[15px] text-blue-700" />
+      </span>
+    )
+  }
+  return (
+    <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full border border-slate-200 bg-slate-50">
+      <Circle className="h-2.5 w-2.5 text-slate-300" fill="currentColor" />
+    </span>
+  )
+}
+
 export default async function PortalClienteLotePage({
   params,
   searchParams,
@@ -58,13 +100,25 @@ export default async function PortalClienteLotePage({
 
   const { data: lote } = await supabase
     .from('lotes')
-    .select('id, identificador, moneda, cliente_id, interes_moratorio_diario, ciclo_actual')
+    .select('id, identificador, moneda, cliente_id, interes_moratorio_diario, ciclo_actual, manzana, numero_lote, loteo_id')
     .eq('id', id)
     .single()
 
   if (!lote || lote.cliente_id !== user!.id) {
     notFound()
   }
+
+  const { data: loteo } = lote!.loteo_id
+    ? await supabase.from('loteos').select('nombre').eq('id', lote!.loteo_id).maybeSingle()
+    : { data: null }
+
+  const tieneDatosDeLote = Boolean(lote!.manzana && lote!.numero_lote)
+  const tituloLote = tieneDatosDeLote
+    ? `Manzana ${lote!.manzana} · Lote ${lote!.numero_lote}`
+    : lote!.identificador
+  // Sin loteo cargado no repetir el identificador arriba Y como título -- mismo
+  // criterio que la home del portal.
+  const etiquetaLoteo = loteo?.nombre ?? (tieneDatosDeLote ? lote!.identificador : null)
 
   // Acotado al ciclo VIGENTE (26/08, bug real encontrado): sin este filtro,
   // un lote que se rescindió y se revendió a otro cliente mezclaba acá la
@@ -101,7 +155,14 @@ export default async function PortalClienteLotePage({
           hoy
         )
       : 0
-    return { ...cuota, interesMoratorio }
+    const estadoCuota = cuota.refinanciada
+      ? 'refinanciada'
+      : cuota.saldo_pendiente <= 0
+        ? 'pagada'
+        : primeraImpaga?.id === cuota.id
+          ? 'actual'
+          : 'futura'
+    return { ...cuota, interesMoratorio, vencida, estadoCuota }
   })
 
   const totalPendiente = (cuotas ?? []).reduce(
@@ -123,12 +184,16 @@ export default async function PortalClienteLotePage({
           .maybeSingle()
       : { data: null }
 
+  const mostrarPesos = lote!.moneda === 'USD' && Boolean(cotizacionVigente)
+  const enPesos = (montoUsd: number) =>
+    cotizacionVigente ? convertirUsdAPesos(montoUsd, cotizacionVigente.valor) : null
+
   // .eq('cliente_id', ...) además de lote_id -- mismo motivo que el filtro
   // de ciclo en cuotas: si el lote se rescindió y se revendió, los pagos
   // del dueño anterior también cuelgan de este lote_id.
   const { data: pagos } = await supabase
     .from('pagos')
-    .select('id, monto, moneda, estado, comprobante_path, confirmado_acreedor_por, confirmado_admin_por')
+    .select('id, monto, moneda, estado, comprobante_path, confirmado_acreedor_por, confirmado_admin_por, motivo, medio_pago, created_at')
     .eq('lote_id', lote!.id)
     .eq('cliente_id', user!.id)
     .order('created_at', { ascending: false })
@@ -153,17 +218,25 @@ export default async function PortalClienteLotePage({
     <div className="mx-auto max-w-3xl px-6 py-10">
       <EnlaceBoton
         href="/portal-cliente"
-        className="mb-4 inline-block text-sm font-medium text-blue-800 underline-offset-4 hover:text-blue-900 hover:underline"
+        className="mb-4 inline-flex items-center gap-1.5 text-sm font-semibold text-blue-700 underline-offset-4 hover:text-blue-900 hover:underline"
       >
-        ← Volver a tus lotes
+        <ArrowLeft className="h-4 w-4" />
+        Volver a tus lotes
       </EnlaceBoton>
 
-      {error && <p className="mb-4 rounded-lg bg-red-50 p-3 text-sm text-red-700">{error}</p>}
-      {ok && <p className="mb-4 rounded-lg bg-green-50 p-3 text-sm text-green-700">{ok}</p>}
+      {error && <p className="mb-4 rounded-lg border-l-4 border-red-600 bg-red-50 p-3 text-sm font-medium text-red-800">{error}</p>}
+      {ok && <p className="mb-4 rounded-lg border-l-4 border-green-600 bg-green-50 p-3 text-sm font-medium text-green-800">{ok}</p>}
 
-      <div className="mb-6 flex flex-wrap items-center gap-3">
-        <h1 className="text-2xl font-extrabold text-blue-900">{lote!.identificador}</h1>
-        <span className={`rounded-full px-2.5 py-1 text-xs ${CLASE_ESTADO[estado]}`}>
+      <div className="mb-6 flex flex-wrap items-start justify-between gap-3">
+        <div className="flex flex-col gap-1">
+          {etiquetaLoteo && (
+            <span className="text-[11.5px] font-bold uppercase tracking-[0.11em] text-slate-500">
+              {etiquetaLoteo}
+            </span>
+          )}
+          <h1 className="text-2xl font-extrabold tracking-tight text-blue-950">{tituloLote}</h1>
+        </div>
+        <span className={`shrink-0 rounded-full px-3.5 py-1.5 text-[13px] font-semibold ${CLASE_ESTADO[estado]}`}>
           {ETIQUETA_ESTADO[estado]}
         </span>
       </div>
@@ -171,39 +244,51 @@ export default async function PortalClienteLotePage({
       <div className="mb-6 grid gap-4 sm:grid-cols-2">
         <div className="rounded-xl border border-blue-100 bg-white p-5 shadow-sm">
           <p className="text-xs font-medium uppercase tracking-wide text-slate-500">Total pendiente</p>
-          <p className="mt-1 text-2xl font-bold text-blue-900">
+          <p className="mt-1 text-2xl font-bold tabular-nums text-blue-900">
             {totalPendiente} <span className="text-base font-semibold text-slate-500">{lote!.moneda}</span>
           </p>
         </div>
-        {lote!.moneda === 'USD' && cotizacionVigente && (
+        {mostrarPesos && (
           <div className="rounded-xl border border-blue-100 bg-white p-5 shadow-sm">
             <p className="text-xs font-medium uppercase tracking-wide text-slate-500">Cotización del dólar hoy</p>
-            <p className="mt-1 text-2xl font-bold text-blue-900">{cotizacionVigente.valor} <span className="text-base font-semibold text-slate-500">ARS</span></p>
+            <p className="mt-1 text-2xl font-bold tabular-nums text-blue-900">
+              {cotizacionVigente!.valor} <span className="text-base font-semibold text-slate-500">ARS</span>
+            </p>
           </div>
         )}
       </div>
 
       <h2 className="mb-3 text-lg font-bold text-blue-900">Cuotas</h2>
 
-      {/* Mobile: tarjetas apiladas -- la tabla de 6 columnas no entra en
-          375px sin scroll horizontal (checklist del design system lo pide
-          evitar). Desktop sigue con la tabla, oculta acá con `md:hidden`. */}
-      <div className="mb-10 space-y-3 md:hidden">
+      {/* Mobile: tarjetas apiladas -- la tabla de columnas no entra en 375px
+          sin scroll horizontal (checklist del design system lo pide evitar).
+          Desktop sigue con la tabla, oculta acá con `md:hidden`. */}
+      <div className="mb-10 space-y-2.5 md:hidden">
         {cuotasConDatos.map((cuota) => (
-          <div key={cuota.id} className="rounded-xl border border-blue-100 bg-white p-4 shadow-sm">
-            <div className="mb-2 flex items-center justify-between">
+          <div
+            key={cuota.id}
+            className={`rounded-xl border border-blue-100 bg-white p-4 shadow-sm ${ACENTO_FILA[cuota.estadoCuota]}`}
+          >
+            <div className="mb-2 flex items-center gap-3">
+              <IconoEstadoCuota estado={cuota.estadoCuota} />
               <span className="font-semibold text-blue-900">Cuota {cuota.numero}</span>
-              {primeraImpaga?.id === cuota.id && (
-                <EnlaceBoton
-                  href={`/portal-cliente/pagar/${cuota.id}`}
-                  className="inline-block whitespace-nowrap rounded-lg bg-blue-800 px-3 py-1.5 text-center text-xs font-semibold text-white transition-colors hover:bg-blue-900"
-                >
-                  Pagar cuota
-                </EnlaceBoton>
-              )}
+              <span className="ml-auto">
+                {cuota.estadoCuota === 'actual' ? (
+                  <EnlaceBoton
+                    href={`/portal-cliente/pagar/${cuota.id}`}
+                    className="inline-flex items-center gap-1.5 whitespace-nowrap rounded-lg bg-blue-800 px-3 py-1.5 text-center text-xs font-semibold text-white transition-colors hover:bg-blue-900"
+                    claseInterna="inline-flex items-center gap-1.5"
+                  >
+                    <CreditCard className="h-3.5 w-3.5" />
+                    Pagar cuota
+                  </EnlaceBoton>
+                ) : cuota.estadoCuota === 'pagada' ? (
+                  <span className="text-xs font-bold text-green-700">Pagada</span>
+                ) : null}
+              </span>
             </div>
-            <dl className="grid grid-cols-[auto_1fr] gap-x-3 gap-y-1.5 text-sm">
-              <dt className="text-slate-500">Vencimiento</dt>
+            <dl className="grid grid-cols-[auto_1fr] gap-x-3 gap-y-1.5 pl-10 text-sm">
+              <dt className="text-slate-500">{cuota.vencida ? 'Venció' : 'Vence'}</dt>
               <dd className="text-right text-slate-700">{formatearFechaCorta(cuota.fecha_vencimiento)}</dd>
               <dt className="text-slate-500">Monto base</dt>
               <dd className="text-right text-slate-700">
@@ -218,9 +303,9 @@ export default async function PortalClienteLotePage({
                     <span className="font-medium text-slate-800">
                       {cuota.saldo_pendiente} {lote!.moneda}
                     </span>
-                    {lote!.moneda === 'USD' && cotizacionVigente && (
-                      <span className="mt-1 block w-fit rounded bg-blue-50 px-1.5 py-0.5 text-xs text-blue-800 ml-auto">
-                        ≈ {convertirUsdAPesos(cuota.saldo_pendiente, cotizacionVigente.valor)} ARS
+                    {mostrarPesos && (
+                      <span className="ml-auto mt-1 block w-fit rounded bg-blue-50 px-1.5 py-0.5 text-xs text-blue-800">
+                        ≈ {enPesos(cuota.saldo_pendiente)} ARS
                       </span>
                     )}
                   </>
@@ -255,8 +340,16 @@ export default async function PortalClienteLotePage({
           </thead>
           <tbody>
             {cuotasConDatos.map((cuota) => (
-              <tr key={cuota.id} className="border-t border-blue-100 hover:bg-blue-50/40">
-                <td className="px-4 py-3 font-medium text-slate-800">{cuota.numero}</td>
+              <tr
+                key={cuota.id}
+                className={`border-t border-blue-100 hover:bg-blue-50/40 ${ACENTO_FILA[cuota.estadoCuota]}`}
+              >
+                <td className="px-4 py-3">
+                  <span className="flex items-center gap-2.5 font-medium text-slate-800">
+                    <IconoEstadoCuota estado={cuota.estadoCuota} />
+                    {cuota.numero}
+                  </span>
+                </td>
                 <td className="px-4 py-3 text-slate-600">{formatearFechaCorta(cuota.fecha_vencimiento)}</td>
                 <td className="px-4 py-3 text-slate-600">
                   {cuota.monto_base} {lote!.moneda}
@@ -269,9 +362,9 @@ export default async function PortalClienteLotePage({
                       <span className="font-medium text-slate-800">
                         {cuota.saldo_pendiente} {lote!.moneda}
                       </span>
-                      {lote!.moneda === 'USD' && cotizacionVigente && (
+                      {mostrarPesos && (
                         <span className="mt-1 block w-fit rounded bg-blue-50 px-1.5 py-0.5 text-xs text-blue-800">
-                          ≈ {convertirUsdAPesos(cuota.saldo_pendiente, cotizacionVigente.valor)} ARS
+                          ≈ {enPesos(cuota.saldo_pendiente)} ARS
                         </span>
                       )}
                     </>
@@ -285,14 +378,18 @@ export default async function PortalClienteLotePage({
                   )}
                 </td>
                 <td className="px-4 py-3 text-right">
-                  {primeraImpaga?.id === cuota.id && (
+                  {cuota.estadoCuota === 'actual' ? (
                     <EnlaceBoton
                       href={`/portal-cliente/pagar/${cuota.id}`}
-                      className="inline-block whitespace-nowrap rounded-lg bg-blue-800 px-3 py-1.5 text-center text-xs font-semibold text-white transition-colors hover:bg-blue-900"
+                      className="inline-flex items-center gap-1.5 whitespace-nowrap rounded-lg bg-blue-800 px-3 py-1.5 text-center text-xs font-semibold text-white transition-colors hover:bg-blue-900"
+                      claseInterna="inline-flex items-center gap-1.5"
                     >
+                      <CreditCard className="h-3.5 w-3.5" />
                       Pagar cuota
                     </EnlaceBoton>
-                  )}
+                  ) : cuota.estadoCuota === 'pagada' ? (
+                    <span className="text-xs font-bold text-green-700">Pagada</span>
+                  ) : null}
                 </td>
               </tr>
             ))}
@@ -306,148 +403,84 @@ export default async function PortalClienteLotePage({
           Todavía no registraste ningún pago.
         </div>
       ) : (
-        <>
-          {/* Mobile: misma lógica que Cuotas -- tarjetas en vez de tabla. */}
-          <div className="space-y-3 md:hidden">
-            {pagosConLink.map((pago) => {
-              const puedeEliminar = !pago.confirmado_acreedor_por && !pago.confirmado_admin_por
-              const eliminarPagoConId = eliminarPago.bind(null, pago.id)
-              return (
+        <div className="space-y-3">
+          {pagosConLink.map((pago) => {
+            const puedeEliminar = !pago.confirmado_acreedor_por && !pago.confirmado_admin_por
+            const eliminarPagoConId = eliminarPago.bind(null, pago.id)
+            const confirmado = pago.estado === 'confirmado'
+            const medioTexto = pago.medio_pago === 'efectivo' ? 'efectivo' : 'transferencia'
+            const fechaTexto = new Date(pago.created_at).toLocaleDateString('es-AR')
+            return (
+              <div
+                key={pago.id}
+                data-testid="pago-cliente"
+                className={`flex flex-wrap items-center gap-x-4 gap-y-2 rounded-xl border bg-white p-4 shadow-sm ${
+                  confirmado ? 'border-blue-100' : 'border-red-100'
+                }`}
+              >
                 <div
-                  key={pago.id}
-                  data-testid="pago-cliente-mobile"
-                  className="rounded-xl border border-blue-100 bg-white p-4 shadow-sm"
+                  className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-lg ${
+                    confirmado ? 'bg-green-50' : 'bg-red-50'
+                  }`}
                 >
-                  <div className="mb-2 flex items-center justify-between">
-                    <span className="font-semibold text-blue-900">
-                      {pago.monto} {pago.moneda}
-                    </span>
-                    <div className="flex items-center gap-2">
-                      <span
-                        className={`rounded-full px-2.5 py-1 text-xs font-semibold ${
-                          CLASE_ESTADO_PAGO[pago.estado] ?? 'bg-slate-100 text-slate-700'
-                        }`}
-                      >
-                        {ETIQUETA_ESTADO_PAGO[pago.estado] ?? pago.estado}
-                      </span>
-                      {puedeEliminar && <BotonEliminarPago eliminarPagoAction={eliminarPagoConId} />}
-                    </div>
-                  </div>
-                  <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
-                    {!pago.comprobante_path ? (
-                      <div className="flex flex-wrap items-center gap-2 text-sm text-amber-700">
-                        <span className="rounded-full bg-amber-50 px-2 py-1 text-xs font-semibold">
-                          ⚠ Falta subir comprobante
-                        </span>
-                        <EnlaceBoton
-                          href={`/portal-cliente/pagos/${pago.id}/comprobante`}
-                          className="font-medium text-blue-800 underline-offset-4 hover:text-blue-900 hover:underline"
-                        >
-                          Subir
-                        </EnlaceBoton>
-                      </div>
-                    ) : pago.comprobanteUrl ? (
-                      <a
-                        href={pago.comprobanteUrl}
-                        target="_blank"
-                        className="text-sm font-medium text-blue-800 underline-offset-4 hover:text-blue-900 hover:underline"
-                      >
-                        Ver comprobante
-                      </a>
-                    ) : (
-                      <span className="text-sm text-slate-500">Comprobante no disponible</span>
-                    )}
-                    {pago.estado === 'confirmado' && (
-                      <EnlaceBoton
-                        href={`/portal-cliente/pagos/${pago.id}/recibo`}
-                        className="text-sm font-medium text-blue-800 underline-offset-4 hover:text-blue-900 hover:underline"
-                      >
-                        Ver recibo
-                      </EnlaceBoton>
-                    )}
-                  </div>
+                  <Banknote className={`h-[18px] w-[18px] ${confirmado ? 'text-green-700' : 'text-red-700'}`} />
                 </div>
-              )
-            })}
-          </div>
 
-          <div className="hidden overflow-hidden rounded-xl border border-blue-100 bg-white shadow-sm md:block">
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="bg-blue-50 text-left text-blue-900">
-                  <th className="px-4 py-3 font-semibold">Monto</th>
-                  <th className="px-4 py-3 font-semibold">Estado</th>
-                  <th className="px-4 py-3 font-semibold">Comprobante</th>
-                  <th className="px-4 py-3"></th>
-                </tr>
-              </thead>
-              <tbody>
-                {pagosConLink.map((pago) => {
-                  const puedeEliminar = !pago.confirmado_acreedor_por && !pago.confirmado_admin_por
-                  const eliminarPagoConId = eliminarPago.bind(null, pago.id)
-                  return (
-                    <tr
-                      key={pago.id}
-                      data-testid="pago-cliente"
-                      className="border-t border-blue-100 hover:bg-blue-50/40"
+                <div className="flex min-w-0 flex-1 flex-col gap-0.5">
+                  <span className="font-bold tabular-nums text-blue-900">
+                    {pago.monto} {pago.moneda}
+                  </span>
+                  <span className="text-xs text-slate-500">
+                    {ETIQUETA_MOTIVO[pago.motivo] ?? 'Cuota'} · {medioTexto} · {fechaTexto}
+                  </span>
+                </div>
+
+                <span
+                  className={`rounded-full px-2.5 py-1 text-xs font-semibold ${
+                    CLASE_ESTADO_PAGO[pago.estado] ?? 'bg-slate-100 text-slate-700'
+                  }`}
+                >
+                  {ETIQUETA_ESTADO_PAGO[pago.estado] ?? pago.estado}
+                </span>
+
+                <div className="flex items-center gap-3">
+                  {!pago.comprobante_path ? (
+                    <span className="inline-flex items-center gap-2 text-amber-700">
+                      <span className="rounded-full bg-amber-50 px-2 py-1 text-xs font-semibold">
+                        ⚠ Falta subir comprobante
+                      </span>
+                      <EnlaceBoton
+                        href={`/portal-cliente/pagos/${pago.id}/comprobante`}
+                        className="text-sm font-medium text-blue-800 underline-offset-4 hover:text-blue-900 hover:underline"
+                      >
+                        Subir
+                      </EnlaceBoton>
+                    </span>
+                  ) : pago.comprobanteUrl ? (
+                    <a
+                      href={pago.comprobanteUrl}
+                      target="_blank"
+                      className="text-sm font-medium text-blue-800 underline-offset-4 hover:text-blue-900 hover:underline"
                     >
-                      <td className="px-4 py-3 font-medium text-slate-800">
-                        {pago.monto} {pago.moneda}
-                      </td>
-                      <td className="px-4 py-3">
-                        <span
-                          className={`rounded-full px-2.5 py-1 text-xs font-semibold ${
-                            CLASE_ESTADO_PAGO[pago.estado] ?? 'bg-slate-100 text-slate-700'
-                          }`}
-                        >
-                          {ETIQUETA_ESTADO_PAGO[pago.estado] ?? pago.estado}
-                        </span>
-                      </td>
-                      <td className="px-4 py-3">
-                        <span className="flex flex-wrap items-center gap-x-3 gap-y-1">
-                          {!pago.comprobante_path ? (
-                            <span className="inline-flex items-center gap-2 text-amber-700">
-                              <span className="rounded-full bg-amber-50 px-2 py-1 text-xs font-semibold">
-                                ⚠ Falta subir comprobante
-                              </span>
-                              <EnlaceBoton
-                                href={`/portal-cliente/pagos/${pago.id}/comprobante`}
-                                className="font-medium text-blue-800 underline-offset-4 hover:text-blue-900 hover:underline"
-                              >
-                                Subir
-                              </EnlaceBoton>
-                            </span>
-                          ) : pago.comprobanteUrl ? (
-                            <a
-                              href={pago.comprobanteUrl}
-                              target="_blank"
-                              className="font-medium text-blue-800 underline-offset-4 hover:text-blue-900 hover:underline"
-                            >
-                              Ver comprobante
-                            </a>
-                          ) : (
-                            <span className="text-slate-500">Comprobante no disponible</span>
-                          )}
-                          {pago.estado === 'confirmado' && (
-                            <EnlaceBoton
-                              href={`/portal-cliente/pagos/${pago.id}/recibo`}
-                              className="font-medium text-blue-800 underline-offset-4 hover:text-blue-900 hover:underline"
-                            >
-                              Ver recibo
-                            </EnlaceBoton>
-                          )}
-                        </span>
-                      </td>
-                      <td className="px-4 py-3 text-right">
-                        {puedeEliminar && <BotonEliminarPago eliminarPagoAction={eliminarPagoConId} />}
-                      </td>
-                    </tr>
-                  )
-                })}
-              </tbody>
-            </table>
-          </div>
-        </>
+                      Ver comprobante
+                    </a>
+                  ) : (
+                    <span className="text-sm text-slate-500">Comprobante no disponible</span>
+                  )}
+                  {confirmado && (
+                    <EnlaceBoton
+                      href={`/portal-cliente/pagos/${pago.id}/recibo`}
+                      className="text-sm font-medium text-blue-800 underline-offset-4 hover:text-blue-900 hover:underline"
+                    >
+                      Ver recibo
+                    </EnlaceBoton>
+                  )}
+                  {puedeEliminar && <BotonEliminarPago eliminarPagoAction={eliminarPagoConId} />}
+                </div>
+              </div>
+            )
+          })}
+        </div>
       )}
     </div>
   )
