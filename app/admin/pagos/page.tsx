@@ -449,7 +449,7 @@ export default async function PagosPage({
 
           {perfilPropio!.role !== 'acreedor' && (
             <select
-              key={filtroAcreedorId ?? 'empty'}
+              key={`acreedor-${filtroAcreedorId ?? 'todos'}`}
               name="acreedor"
               defaultValue={filtroAcreedorId ?? ''}
               className={`${ENTRADA} !mt-0 !py-2 !text-[13.5px]`}
@@ -468,7 +468,7 @@ export default async function PagosPage({
               poder acotar). Filtra sobre created_at -- el mismo campo que
               ya se muestra como "fecha" en cada tarjeta. */}
           <select
-            key={filtroMotivo ?? 'empty'}
+            key={`motivo-${filtroMotivo ?? 'todos'}`}
             name="motivo"
             defaultValue={filtroMotivo ?? ''}
             className={`${ENTRADA} !mt-0 !py-2 !text-[13.5px]`}
