@@ -310,15 +310,28 @@ test.describe('Cuentas externas', () => {
       })
       await page.getByRole('button', { name: 'Guardar distribución' }).click()
 
-      // Mismo fenómeno de lectura-después-de-escritura ya documentado en
-      // este spec: el update puede no estar visible todavía en la primera
-      // recarga inmediatamente después del redirect.
-      await expect(async () => {
-        await page.reload()
-        await expect(page.locator('select[name="cuota1CuentaCobro"]')).toHaveValue(
-          new RegExp(`^externa:`)
+      // Se verifica contra la base y contra lo que ve una persona en
+      // pantalla, no contra el `value` del <select>: ese <select> es un
+      // componente controlado y su value depende de que React ya haya
+      // hidratado, así que en una corrida larga leía "" con la cuota
+      // igualmente bien guardada (visto el 08/09 en el suite completo).
+      await expect
+        .poll(
+          async () => {
+            const { data: cuota } = await createAdminClient()
+              .from('cuotas')
+              .select('cuenta_cobro_externa_id')
+              .eq('lote_id', fixtures.loteId)
+              .eq('numero', 1)
+              .single()
+            return cuota?.cuenta_cobro_externa_id ?? null
+          },
+          { timeout: 10000 }
         )
-      }).toPass({ timeout: 10000 })
+        .not.toBeNull()
+
+      await page.reload()
+      await expect(page.getByText(`${nombreCuentaExterna} (cuenta externa)`).first()).toBeVisible()
     } finally {
       // fixtures.loteId es compartido con otros specs (cuenta-cobro.spec.ts,
       // pase-a-vendido.spec.ts, etc.) -- se limpia la asignación para no
@@ -361,17 +374,25 @@ test.describe('Cuentas externas', () => {
       })
       await page.getByRole('button', { name: 'Guardar distribución' }).click()
 
-      // Hay que esperar a que el guardado se confirme (mismo patrón que el
-      // test de más arriba de esta misma suite) ANTES de limpiar cookies y
-      // cambiar de usuario: si se navega a /login mientras el submit del
-      // form todavía está en curso, esa navegación cancela la anterior y la
-      // asignación de cuenta_cobro_externa_id nunca llega a persistirse.
-      await expect(async () => {
-        await page.reload()
-        await expect(page.locator('select[name="cuota1CuentaCobro"]')).toHaveValue(
-          new RegExp(`^externa:`)
+      // Hay que esperar a que el guardado se confirme ANTES de limpiar
+      // cookies y cambiar de usuario: si se navega a /login mientras el
+      // submit del form todavía está en curso, esa navegación cancela la
+      // anterior y la asignación nunca llega a persistirse. Se espera contra
+      // la base por la razón documentada en el test de más arriba.
+      await expect
+        .poll(
+          async () => {
+            const { data: cuota } = await createAdminClient()
+              .from('cuotas')
+              .select('cuenta_cobro_externa_id')
+              .eq('lote_id', fixtures.loteId)
+              .eq('numero', 1)
+              .single()
+            return cuota?.cuenta_cobro_externa_id ?? null
+          },
+          { timeout: 10000 }
         )
-      }).toPass({ timeout: 10000 })
+        .toBe(cuentaExternaId)
 
       // El flujo exacto de "pagar una cuota" (nombres de botones/links) sigue
       // el mismo patrón verificado en pago-flujo-completo.spec.ts: monto +

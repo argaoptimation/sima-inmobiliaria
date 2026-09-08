@@ -156,26 +156,30 @@ test.describe('Filtros de Pagos: fecha, estado y acreedor (25/08)', () => {
 
     await login(page, fixtures.admin.email, fixtures.password)
 
+    // /admin/pagos dejó de ser una tabla el 06/09: cada pago es una tarjeta
+    // con data-testid propio. Los `tbody tr` de antes no matcheaban nada, así
+    // que este test pasó a no verificar nada real hasta ahora.
+    const tarjetasDelLote = page
+      .locator('[data-testid="tarjeta-pago"]')
+      .filter({ hasText: 'E2E Test Lote' })
+
     // Filtro por estado "confirmado" no debería mostrar este pago pendiente.
     await page.goto('/admin/pagos?estado=confirmado')
-    await expect(page.locator('tbody tr', { hasText: nombreArchivo })).toHaveCount(0)
+    await expect(
+      page.locator('[data-testid="tarjeta-pago"]').filter({ hasText: nombreArchivo })
+    ).toHaveCount(0)
 
-    // Sin filtro (o filtrando "pendiente"), sí aparece, con Fecha y Acreedor.
+    // Sin filtro (o filtrando "pendiente"), sí aparece, con fecha y acreedor.
     await page.goto('/admin/pagos?estado=pendiente')
-    const fila = page.locator('tbody tr').filter({ has: page.locator(`a[href*="${nombreArchivo}"]`) })
-    // El comprobante apunta a un path que no existe de verdad en el bucket,
-    // así que la celda de comprobante no tiene link -- se ubica la fila por
-    // el nombre del cliente en cambio.
-    const filaPorCliente = page.locator('tbody tr', { hasText: 'E2E Test Lote' })
-    await expect(filaPorCliente.first()).toBeVisible()
-    await expect(filaPorCliente.first().getByText('E2E Acreedor Con Datos')).toBeVisible()
+    await expect(tarjetasDelLote.first()).toBeVisible()
+    await expect(tarjetasDelLote.first()).toContainText('Acreedor: E2E Acreedor Con Datos')
 
     // Filtro por acreedor: elegir uno DISTINTO no debería traer este pago.
     await page.goto(`/admin/pagos?acreedor=${fixtures.acreedorSecundario.id}`)
-    await expect(page.locator('tbody tr', { hasText: 'E2E Test Lote' })).toHaveCount(0)
+    await expect(tarjetasDelLote).toHaveCount(0)
 
     await page.goto(`/admin/pagos?acreedor=${fixtures.acreedorConDatos.id}`)
-    await expect(page.locator('tbody tr', { hasText: 'E2E Test Lote' }).first()).toBeVisible()
+    await expect(tarjetasDelLote.first()).toBeVisible()
 
     await admin.from('pagos').delete().eq('id', pago!.id)
   })

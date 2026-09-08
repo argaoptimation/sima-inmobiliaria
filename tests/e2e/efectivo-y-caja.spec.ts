@@ -125,8 +125,10 @@ test.describe('Efectivo y cierre de caja (25/08)', () => {
       .locator('h2:has-text("Historial de pagos") ~ div table tbody tr')
       .filter({ hasText: '1000 USD' })
     await expect(filaHistorialPago).toBeVisible()
-    await expect(filaHistorialPago.getByText('Efectivo', { exact: true })).toBeVisible()
-    await expect(filaHistorialPago.getByText('Confirmado', { exact: true })).toBeVisible()
+    // La fila muestra "Efectivo" dos veces desde el rediseño (el medio de
+    // pago y su etiqueta), así que alcanza con la primera.
+    await expect(filaHistorialPago.getByText('Efectivo', { exact: true }).first()).toBeVisible()
+    await expect(filaHistorialPago.getByText('Confirmado', { exact: true }).first()).toBeVisible()
   })
 
   test('un vendedor o un acreedor NO pueden acceder a /admin/efectivo ni a /admin/cierre-caja (solo admin o cobrador)', async ({

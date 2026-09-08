@@ -162,7 +162,7 @@ test.describe('Reserva de lote (fase 1: texto + comprobante de seña)', () => {
     await expect(page.locator('main form')).toHaveCount(0)
   })
 
-  test('vendedor no puede abrir el detalle del lote ni ve Pagos/Usuarios', async ({ page }) => {
+  test('vendedor no puede abrir el detalle del lote ni ve Usuarios', async ({ page }) => {
     const loteId = await crearLoteDisponible(`E2E Lote Detalle Bloqueado Vendedor ${Date.now()}`)
 
     await login(page, fixtures.vendedorSinLotes.email, fixtures.password)
@@ -173,9 +173,12 @@ test.describe('Reserva de lote (fase 1: texto + comprobante de seña)', () => {
       await expect(page).toHaveURL(/\/admin\/lotes$/)
     })
 
-    await test.step('no ve Pagos ni Usuarios en la nav', async () => {
+    await test.step('ve Pagos pero no Usuarios en la nav', async () => {
       await page.goto('/admin/lotes')
-      await expect(page.getByRole('link', { name: 'Pagos' })).toHaveCount(0)
+      // Pagos SÍ, desde el 06/09: si una cuota se cobra a nombre del
+      // vendedor, tiene que poder confirmarla. Lo que ve ahí está acotado
+      // por RLS a los lotes donde participa (se verifica más abajo).
+      await expect(page.getByRole('link', { name: 'Pagos' })).toBeVisible()
       await expect(page.getByRole('link', { name: 'Usuarios' })).toHaveCount(0)
       await expect(page.getByRole('link', { name: 'Mi perfil' })).toBeVisible()
     })
@@ -231,11 +234,22 @@ test.describe('Reserva de lote (fase 1: texto + comprobante de seña)', () => {
     await expect(filaReservada.getByRole('link', { name: 'Reservar' })).toHaveCount(0)
   })
 
-  test('vendedor no puede abrir /admin/pagos navegando directo por URL', async ({ page }) => {
+  test('un vendedor entra a /admin/pagos, pero no ve los pagos de lotes ajenos', async ({
+    page,
+  }) => {
+    // Cambió el 06/09: antes /admin/pagos lo rebotaba a /admin/lotes. Ahora
+    // entra, porque puede tocarle cobrar una cuota, y ve únicamente los
+    // pagos de los lotes donde participa. "E2E Test Lote" es del otro
+    // vendedor (vendedorLoteA, ver fixtures/test-data.ts), así que no tiene
+    // que aparecerle -- no se asume una lista vacía, porque otros tests de
+    // este mismo archivo le dejan lotes propios a este vendedor.
     await login(page, fixtures.vendedorSinLotes.email, fixtures.password)
     await page.goto('/admin/pagos')
-    await page.waitForURL((url) => url.pathname === '/admin/lotes')
-    await expect(page).toHaveURL(/\/admin\/lotes$/)
+
+    await expect(page).toHaveURL(/\/admin\/pagos/)
+    await expect(
+      page.locator('[data-testid="tarjeta-pago"]').filter({ hasText: 'E2E Test Lote' })
+    ).toHaveCount(0)
   })
 
   test('vendedor no puede abrir /admin/lotes/nuevo navegando directo por URL', async ({ page }) => {

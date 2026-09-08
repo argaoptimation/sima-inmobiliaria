@@ -9,7 +9,7 @@ test.describe('Estado de cobranza en /admin/lotes', () => {
     fixtures = await ensureTestFixtures()
   })
 
-  test('lote vendido con deuda muestra el estado y el botón de WhatsApp en la misma fila', async ({
+  test('lote vendido con deuda muestra el estado, y el WhatsApp vive en el Panel de cuotas', async ({
     page,
   }) => {
     const admin = createAdminClient()
@@ -26,7 +26,18 @@ test.describe('Estado de cobranza en /admin/lotes', () => {
     const fila = page.getByRole('row', { name: /E2E Test Lote/ })
     await expect(fila.getByText('Al día')).toBeVisible()
 
-    const link = fila.getByRole('link', { name: 'WhatsApp' })
+    // El botón de WhatsApp se sacó de esta pantalla el 03/09 y vive solo en
+    // el Panel de cuotas (pedido de Nicolás: un solo lugar, no un botón
+    // repetido en cada fila de lotes). Acá se verifica que efectivamente no
+    // está, y en el panel que sí, con el número bien armado.
+    await expect(fila.getByRole('link', { name: 'WhatsApp' })).toHaveCount(0)
+
+    await page.goto('/admin/panel-morosos')
+    const filaPanel = page
+      .getByTestId('fila-moroso')
+      .filter({ hasText: 'E2E Test Lote' })
+      .first()
+    const link = filaPanel.getByRole('link', { name: 'WhatsApp' })
     await expect(link).toBeVisible()
     const href = await link.getAttribute('href')
     expect(href).toContain('https://wa.me/5493511234567')

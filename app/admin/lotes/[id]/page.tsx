@@ -379,15 +379,42 @@ export default async function LoteDetallePage({
   // distribución ya configurada por cuota (cuota_distribuciones) -- pedido
   // de Gabriel para poder ver esto directo en el lote rescindido, sin
   // tener que ir a la pantalla aparte de "Ver / editar distribución".
-  // Acotado al ciclo VIGENTE (mismo motivo que el resto: no mezclar la
-  // distribución de un ciclo de venta anterior).
-  const cuotaIdsDelCicloActual = (cuotas ?? []).map((cuota) => cuota.id)
+  //
+  // Se toma el ÚLTIMO ciclo que tenga cuotas, no el ciclo vigente a secas
+  // (08/09). Rescindir suma 1 al ciclo y deja el nuevo sin cuotas, así que
+  // acotarlo al vigente dejaba la sección vacía justo en el lote rescindido,
+  // que es el caso para el que se pidió. Sigue sin mezclar ciclos: si el
+  // lote se revendió, el ciclo nuevo ya tiene sus cuotas y manda ese. Mismo
+  // criterio que "Total cobrado mientras estuvo vendido", que también sigue
+  // mostrando lo del ciclo anterior.
+  let cuotaIdsParaDestinos = (cuotas ?? []).map((cuota) => cuota.id)
+
+  if (cuotaIdsParaDestinos.length === 0) {
+    const { data: ultimaCuota } = await supabase
+      .from('cuotas')
+      .select('ciclo')
+      .eq('lote_id', id)
+      .order('ciclo', { ascending: false })
+      .limit(1)
+      .maybeSingle()
+
+    if (ultimaCuota) {
+      const { data: cuotasDelUltimoCiclo } = await supabase
+        .from('cuotas')
+        .select('id')
+        .eq('lote_id', id)
+        .eq('ciclo', ultimaCuota.ciclo)
+
+      cuotaIdsParaDestinos = (cuotasDelUltimoCiclo ?? []).map((cuota) => cuota.id)
+    }
+  }
+
   const { data: distribucionesDelLote } =
-    cuotaIdsDelCicloActual.length > 0
+    cuotaIdsParaDestinos.length > 0
       ? await supabase
           .from('cuota_distribuciones')
           .select('profile_id, cuenta_externa_id, monto')
-          .in('cuota_id', cuotaIdsDelCicloActual)
+          .in('cuota_id', cuotaIdsParaDestinos)
       : { data: [] }
 
   const destinoPorClave = new Map<string, { nombre: string; monto: number }>()

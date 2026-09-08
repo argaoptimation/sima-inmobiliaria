@@ -83,6 +83,10 @@ async function crearPagoConfirmado(fixtures: TestFixtures, nombreArchivo: string
   return pago.id as string
 }
 
+// El monto de "Corregir monto (actual: ...)" se muestra con
+// toLocaleString('es-AR'), así que a partir de mil lleva punto de miles
+// ("1.100 USD", no "1100 USD"). Los tests de montos de cuatro cifras venían
+// esperando el formato sin separador y no podían pasar.
 test.describe('Editar el monto de un pago ya confirmado', () => {
   let fixtures: TestFixtures
 
@@ -105,7 +109,7 @@ test.describe('Editar el monto de un pago ya confirmado', () => {
     // El submit exitoso no redirige (solo revalida la misma ruta), así que
     // esperar la URL no alcanza -- se espera a que la etiqueta refleje el
     // monto efectivo nuevo, señal de que el server action ya terminó.
-    await expect(fila.getByText('Corregir monto (actual: 1100 USD)')).toBeVisible()
+    await expect(fila.getByText('Corregir monto (actual: 1.100 USD)')).toBeVisible()
 
     const admin = createAdminClient()
 
@@ -217,7 +221,7 @@ test.describe('Editar el monto de un pago ya confirmado', () => {
     let fila = filaPorComprobante(page, nombreArchivo)
     await fila.locator('input[name="montoNuevo"]').fill('1200') // delta +200, cae en cuota 2
     await fila.getByRole('button', { name: 'Editar monto' }).click()
-    await expect(fila.getByText('Corregir monto (actual: 1200 USD)')).toBeVisible()
+    await expect(fila.getByText('Corregir monto (actual: 1.200 USD)')).toBeVisible()
 
     // Corrección hacia abajo (-150) sobre el mismo pago original. Tiene que
     // revertir la imputación de 200 que dejó el AJUSTE anterior en cuota 2
@@ -226,7 +230,7 @@ test.describe('Editar el monto de un pago ya confirmado', () => {
     fila = filaPorComprobante(page, nombreArchivo)
     await fila.locator('input[name="montoNuevo"]').fill('1050') // delta -150 sobre el efectivo (1200)
     await fila.getByRole('button', { name: 'Editar monto' }).click()
-    await expect(fila.getByText('Corregir monto (actual: 1050 USD)')).toBeVisible()
+    await expect(fila.getByText('Corregir monto (actual: 1.050 USD)')).toBeVisible()
 
     const admin = createAdminClient()
 
@@ -275,7 +279,7 @@ test.describe('Editar el monto de un pago ya confirmado', () => {
     let fila = filaPorComprobante(page, nombreArchivo)
     await fila.locator('input[name="montoNuevo"]').fill('1100')
     await fila.getByRole('button', { name: 'Editar monto' }).click()
-    await expect(fila.getByText('Corregir monto (actual: 1100 USD)')).toBeVisible()
+    await expect(fila.getByText('Corregir monto (actual: 1.100 USD)')).toBeVisible()
 
     await page.goto('/admin/pagos')
     fila = filaPorComprobante(page, nombreArchivo)
@@ -284,7 +288,7 @@ test.describe('Editar el monto de un pago ya confirmado', () => {
 
     await fila.locator('input[name="montoNuevo"]').fill('1150')
     await fila.getByRole('button', { name: 'Editar monto' }).click()
-    await expect(fila.getByText('Corregir monto (actual: 1150 USD)')).toBeVisible()
+    await expect(fila.getByText('Corregir monto (actual: 1.150 USD)')).toBeVisible()
 
     const admin = createAdminClient()
     const { data: ajustes } = await admin
@@ -388,6 +392,16 @@ test.describe('Editar el monto de un pago ya confirmado', () => {
         confirmado_admin_por: fixtures.admin.id,
         confirmado_admin_at: new Date().toISOString(),
         corrige_pago_id: pagoId,
+      })
+
+    // El monto que la pantalla "vio" se fuerza a mano al valor viejo: si no,
+    // basta con que Next revalide la página entre el insert de arriba y el
+    // click para que el hidden llegue ya actualizado y la guarda no tenga
+    // nada que rechazar (así fallaba, de a ratos, sin que hubiera nada roto).
+    await fila
+      .locator('input[name="montoEfectivoVisto"]')
+      .evaluate((campo: HTMLInputElement) => {
+        campo.value = '1000'
       })
 
     await fila.getByRole('button', { name: 'Editar monto' }).click()
