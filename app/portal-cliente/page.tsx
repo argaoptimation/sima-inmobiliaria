@@ -21,6 +21,7 @@ import {
   PORTAL_LOGO_WRAP,
   PORTAL_NAV,
   PORTAL_NAV_LINK_ACTIVO,
+  PORTAL_NAV_LINK,
   PORTAL_AVATAR,
   PORTAL_SALUDO_WRAP,
   PORTAL_SALUDO_TITULO,
@@ -200,6 +201,9 @@ export default async function PortalClientePage() {
 
             <div className={PORTAL_NAV}>
               <span className={PORTAL_NAV_LINK_ACTIVO}>Mis lotes</span>
+              <EnlaceBoton href="/portal-cliente/contrasena" className={PORTAL_NAV_LINK}>
+                Mi contraseña
+              </EnlaceBoton>
               <div className={PORTAL_AVATAR}>{inicialesDeNombre(nombreCompleto)}</div>
               <form action={logout}>
                 <BotonEnvio

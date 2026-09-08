@@ -9,7 +9,8 @@ import { resolverAdminPorDefecto } from '@/lib/lotes/admin-por-defecto'
 import { generarPlanEnCurso } from '@/lib/lotes/generar-cuotas-en-curso'
 import { telefonoParaGuardar } from '@/lib/telefono/prefijos'
 import { mensajeDeError } from '@/lib/errores'
-import { invitarPorEmail, contrasenaDeDescarte } from '@/lib/auth/invitar-por-email'
+import { invitarPorEmail } from '@/lib/auth/invitar-por-email'
+import { generarContrasenaInicial } from '@/lib/auth/contrasena-inicial'
 
 // Todo lo que el admin tipeó vuelve en la URL cuando el formulario rebota.
 // Acá importa más que en cualquier otra pantalla: son ~200 lotes a cargar a
@@ -38,9 +39,10 @@ const CAMPOS_A_PRESERVAR = [
   'telefonoNumero',
   'cuotasYaPagadas',
   'cuotasPendientes',
-  'montoCuota',
+  'modoMontos',
   'fechaProximaCuota',
   'interesMoratorioDiario',
+  'indiceTipo',
   'confirmarClienteExistente',
 ]
 
@@ -50,7 +52,21 @@ function paramsPreservados(formData: FormData): URLSearchParams {
     const valor = formData.get(campo)
     if (valor !== null) params.set(campo, valor as string)
   }
+
+  // Los montos van uno por cuota pendiente. Con veinte o cincuenta cuotas
+  // cargadas a mano, perderlas por un email repetido sería lo más caro que
+  // puede pasar en esta pantalla.
+  for (let numero = 1; numero <= leerCantidadPendientes(formData); numero++) {
+    const monto = formData.get(`cuotaMonto${numero}`)
+    if (monto !== null) params.set(`cuotaMonto${numero}`, monto as string)
+  }
+
   return params
+}
+
+function leerCantidadPendientes(formData: FormData): number {
+  const cantidad = Number(((formData.get('cuotasPendientes') as string) || '').trim())
+  return Number.isInteger(cantidad) && cantidad > 0 ? Math.min(cantidad, 600) : 0
 }
 
 function volverConError(formData: FormData, mensaje: string): never {
@@ -109,10 +125,17 @@ export async function cargarLoteEnCurso(formData: FormData) {
   // --- Plan de cuotas: se valida ANTES de crear nada -------------------
   // Si el plan está mal, no tiene sentido haber dado de alta un lote y un
   // comprador que después hay que borrar a mano.
+  const cantidadPendientes = leerCantidadPendientes(formData)
+
+  if (cantidadPendientes === 0) {
+    volverConError(formData, 'Tiene que quedar al menos una cuota pendiente')
+  }
+
   const plan = generarPlanEnCurso({
     cuotasYaPagadas: Number(texto('cuotasYaPagadas') || '0'),
-    cuotasPendientes: Number(texto('cuotasPendientes')),
-    montoCuota: Number(texto('montoCuota')),
+    montosPendientes: Array.from({ length: cantidadPendientes }, (_, indice) =>
+      Number(texto(`cuotaMonto${indice + 1}`))
+    ),
     fechaProximaCuota: texto('fechaProximaCuota'),
   })
 
@@ -196,18 +219,22 @@ export async function cargarLoteEnCurso(formData: FormData) {
   }
 
   let clienteId: string
+  // Solo cuando la cuenta se crea acá: si el comprador ya existía, su
+  // contraseña es la que ya tenga y no se toca.
+  let contrasenaInicial: string | null = null
 
   if (clienteExistente) {
     clienteId = clienteExistente.id
   } else {
-    // createUser, no inviteUserByEmail: el comprador no se entera de nada.
-    // La contraseña es de descarte -- nadie la conoce ni la necesita; el
-    // acceso se le da desde la ficha del cliente ("Cambiar contraseña")
-    // cuando lo pida.
+    // createUser, no inviteUserByEmail: el comprador no se entera de nada
+    // por mail. La contraseña se genera acá y se le muestra a quien está
+    // cargando, para que se la pueda dictar al comprador.
+    contrasenaInicial = generarContrasenaInicial()
+
     const { data: creado, error: errorCrear } = await admin.auth.admin.createUser({
       email: clienteEmail,
       email_confirm: true,
-      password: contrasenaDeDescarte(),
+      password: contrasenaInicial,
     })
 
     if (errorCrear || !creado.user) volverConError(formData, mensajeDeError(errorCrear))
@@ -277,9 +304,16 @@ export async function cargarLoteEnCurso(formData: FormData) {
       nomenclatura_catastral: textoONulo('nomenclaturaCatastral'),
       matricula: textoONulo('matricula'),
       cantidad_cuotas: plan.cuotas.length,
-      monto_cuota_base: Number(texto('montoCuota')),
+      // Null si las cuotas que quedan no son todas iguales, igual que en
+      // una venta cargada en modo manual: el lote no tiene un "monto de
+      // cuota" único que guardar.
+      monto_cuota_base: plan.montoCuotaBase,
       fecha_primera_cuota: plan.fechaPrimeraCuota,
       interes_moratorio_diario: interesMoratorioDiario,
+      // Solo aplica a lotes en pesos; en dólares no hay nada que indexar y
+      // el formulario lo aclara. Sin esto había que entrar al detalle del
+      // lote a cargarlo aparte, lote por lote.
+      indice_tipo: moneda === 'ARS' ? textoONulo('indiceTipo') : null,
     })
     .select('id')
     .single()
@@ -330,9 +364,11 @@ export async function cargarLoteEnCurso(formData: FormData) {
         : 'Venta anterior al sistema, sin cuotas pagadas todavía.',
   })
 
-  redirect(
-    `/admin/lotes/${loteCreado!.id}/distribucion?ok=${encodeURIComponent(
-      'Lote cargado. Repartí las cuotas que quedan y elegí a quién se le transfiere cada una.'
-    )}`
-  )
+  // La contraseña se muestra una sola vez, acá. No queda guardada en
+  // ningún lado: si se pierde, se genera otra desde la ficha del cliente.
+  const aviso = contrasenaInicial
+    ? `Lote cargado. La contraseña de ${clienteNombre} para entrar al portal es ${contrasenaInicial} — anotala ahora, no se vuelve a mostrar. Repartí las cuotas que quedan y elegí a quién se le transfiere cada una.`
+    : 'Lote cargado. El comprador ya tenía cuenta, así que entra con la contraseña de siempre. Repartí las cuotas que quedan y elegí a quién se le transfiere cada una.'
+
+  redirect(`/admin/lotes/${loteCreado!.id}/distribucion?ok=${encodeURIComponent(aviso)}`)
 }

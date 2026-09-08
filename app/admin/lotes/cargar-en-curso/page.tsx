@@ -1,6 +1,7 @@
 import { createClient } from '@/lib/supabase/server'
 import { requireAdministrador } from '@/lib/auth/require-admin'
 import { cargarLoteEnCurso } from './actions'
+import { CuotasQueQuedan } from './CuotasQueQuedan'
 import { EnlaceBoton } from '@/components/EnlaceBoton'
 import { BotonEnvio } from '@/components/BotonEnvio'
 import { BuscadorPersona } from '@/components/BuscadorPersona'
@@ -33,6 +34,12 @@ export default async function CargarLoteEnCursoPage({
   const params = await searchParams
   const previo = (campo: string) => params[campo] ?? ''
 
+  // Los montos vuelven como cuotaMonto1..N cuando el formulario rebota.
+  const montosPrevios = Array.from(
+    { length: Math.min(Number(previo('cuotasPendientes')) || 0, 600) },
+    (_, indice) => previo(`cuotaMonto${indice + 1}`)
+  )
+
   const supabase = await createClient()
 
   const { data: acreedores } = await supabase
@@ -42,6 +49,13 @@ export default async function CargarLoteEnCursoPage({
     .order('full_name')
 
   const { data: loteos } = await supabase.from('loteos').select('id, nombre').order('nombre')
+
+  // Mismos índices que ofrece el detalle del lote: los que ya se cargaron
+  // al menos una vez en /admin/indices.
+  const { data: valoresIndice } = await supabase.from('indices_valores').select('indice_nombre')
+  const nombresIndicesDisponibles = [
+    ...new Set((valoresIndice ?? []).map((fila) => fila.indice_nombre as string)),
+  ].sort()
 
   return (
     <main className="max-w-3xl">
@@ -166,8 +180,9 @@ export default async function CargarLoteEnCursoPage({
         <section className="flex flex-col gap-3">
           <h2 className={TITULO_H2}>El comprador</h2>
           <p className="text-sm text-slate-600">
-            No se le manda ninguna invitación por email. Cuando pida entrar al portal, le generás
-            la contraseña desde su ficha en Clientes.
+            No se le manda ninguna invitación por email. Al terminar de cargar el lote se muestra
+            una vez la contraseña con la que puede entrar al portal, para que se la pases vos. Si
+            se pierde, se genera otra desde su ficha en Clientes.
           </p>
           <div className="grid gap-3 sm:grid-cols-2">
             <label className="text-sm text-slate-600">
@@ -223,64 +238,13 @@ export default async function CargarLoteEnCursoPage({
             que ya le pagaste. El monto que cargues abajo vale para las cuotas que quedan; en las
             viejas queda como referencia.
           </p>
-          <div className="grid gap-3 sm:grid-cols-2">
-            <label className="text-sm text-slate-600">
-              Cuotas que ya pagó
-              <Obligatorio />
-              <input
-                name="cuotasYaPagadas"
-                type="number"
-                min="0"
-                step="1"
-                defaultValue={previo('cuotasYaPagadas') || '0'}
-                required
-                className={`w-full ${ENTRADA}`}
-              />
-            </label>
-            <label className="text-sm text-slate-600">
-              Cuotas que le quedan
-              <Obligatorio />
-              <input
-                name="cuotasPendientes"
-                type="number"
-                min="1"
-                step="1"
-                defaultValue={previo('cuotasPendientes')}
-                required
-                className={`w-full ${ENTRADA}`}
-              />
-            </label>
-            <label className="text-sm text-slate-600">
-              Monto de cada cuota que queda
-              <Obligatorio />
-              <input
-                name="montoCuota"
-                type="number"
-                step="0.01"
-                min="0"
-                defaultValue={previo('montoCuota')}
-                required
-                className={`w-full ${ENTRADA}`}
-              />
-              <span className="mt-1 block text-xs text-slate-500">
-                El valor de hoy, ya refinanciado e indexado. No el del boleto original.
-              </span>
-            </label>
-            <label className="text-sm text-slate-600">
-              Vencimiento de la próxima cuota
-              <Obligatorio />
-              <input
-                name="fechaProximaCuota"
-                type="date"
-                defaultValue={previo('fechaProximaCuota')}
-                required
-                className={`w-full ${ENTRADA}`}
-              />
-              <span className="mt-1 block text-xs text-slate-500">
-                Las cuotas viejas se fechan hacia atrás desde acá, una por mes.
-              </span>
-            </label>
-          </div>
+          <CuotasQueQuedan
+            cuotasYaPagadasInicial={previo('cuotasYaPagadas') || '0'}
+            cantidadInicial={previo('cuotasPendientes')}
+            fechaInicial={previo('fechaProximaCuota')}
+            montosIniciales={montosPrevios}
+            modoInicial={previo('modoMontos') === 'distintas' ? 'distintas' : 'iguales'}
+          />
           <label className="text-sm text-slate-600 sm:max-w-xs">
             Interés moratorio diario (%) — opcional
             <input
@@ -291,6 +255,21 @@ export default async function CargarLoteEnCursoPage({
               defaultValue={previo('interesMoratorioDiario')}
               className={`w-full ${ENTRADA}`}
             />
+          </label>
+          <label className="text-sm text-slate-600">
+            Índice de ajuste (opcional — solo se aplica si el lote está en pesos)
+            <select name="indiceTipo" defaultValue={previo('indiceTipo')} className={`w-full ${ENTRADA}`}>
+              <option value="">— sin índice —</option>
+              {nombresIndicesDisponibles.map((nombre) => (
+                <option key={nombre} value={nombre}>
+                  {nombre}
+                </option>
+              ))}
+            </select>
+            <span className="mt-1 block text-xs text-slate-500">
+              Si el lote se ajusta por índice, elegilo acá: las cuotas que quedan se van a ajustar
+              solas de acá en adelante. En un lote en dólares se ignora.
+            </span>
           </label>
         </section>
 

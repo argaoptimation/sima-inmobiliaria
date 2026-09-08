@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { generarPlanEnCurso } from './generar-cuotas-en-curso'
+import { generarPlanEnCurso, vencimientosPendientes } from './generar-cuotas-en-curso'
 
 function exito(plan: Parameters<typeof generarPlanEnCurso>[0]) {
   const resultado = generarPlanEnCurso(plan)
@@ -7,11 +7,14 @@ function exito(plan: Parameters<typeof generarPlanEnCurso>[0]) {
   return resultado
 }
 
+function repetido(monto: number, veces: number) {
+  return Array.from({ length: veces }, () => monto)
+}
+
 describe('generarPlanEnCurso', () => {
   const planTipico = {
     cuotasYaPagadas: 18,
-    cuotasPendientes: 42,
-    montoCuota: 500,
+    montosPendientes: repetido(500, 42),
     fechaProximaCuota: '2026-10-10',
   }
 
@@ -32,16 +35,12 @@ describe('generarPlanEnCurso', () => {
   })
 
   it('le pone a la primera pendiente la fecha que cargó el admin', () => {
-    const { cuotas } = exito(planTipico)
-
-    // Cuota 19 (índice 18): la primera que todavía se debe.
-    expect(cuotas[18].fechaVencimiento).toBe('2026-10-10')
+    expect(exito(planTipico).cuotas[18].fechaVencimiento).toBe('2026-10-10')
   })
 
   it('deduce las fechas viejas hacia atrás, un mes por cuota', () => {
     const { cuotas } = exito(planTipico)
 
-    // La 18 venció un mes antes de la 19; la 1, dieciocho meses antes.
     expect(cuotas[17].fechaVencimiento).toBe('2026-09-10')
     expect(cuotas[0].fechaVencimiento).toBe('2025-04-10')
   })
@@ -58,27 +57,70 @@ describe('generarPlanEnCurso', () => {
   })
 
   it('acepta un lote sin ninguna cuota pagada todavía', () => {
-    const { cuotas, fechaPrimeraCuota } = exito({ ...planTipico, cuotasYaPagadas: 0, cuotasPendientes: 10 })
+    const { cuotas, fechaPrimeraCuota } = exito({
+      ...planTipico,
+      cuotasYaPagadas: 0,
+      montosPendientes: repetido(500, 10),
+    })
 
     expect(cuotas).toHaveLength(10)
     expect(cuotas.every((cuota) => !cuota.yaPagada)).toBe(true)
     expect(fechaPrimeraCuota).toBe('2026-10-10')
   })
 
+  describe('cuotas de montos distintos', () => {
+    const planEscalonado = {
+      cuotasYaPagadas: 2,
+      montosPendientes: [100, 250.5, 300],
+      fechaProximaCuota: '2026-10-10',
+    }
+
+    it('respeta el monto de cada cuota pendiente en su orden', () => {
+      const { cuotas } = exito(planEscalonado)
+
+      expect(cuotas.filter((c) => !c.yaPagada).map((c) => c.montoBase)).toEqual([100, 250.5, 300])
+    })
+
+    it('a las cuotas viejas les pone el monto de la primera pendiente, como referencia', () => {
+      const { cuotas } = exito(planEscalonado)
+
+      expect(cuotas.filter((c) => c.yaPagada).map((c) => c.montoBase)).toEqual([100, 100])
+    })
+
+    it('deja el lote sin monto de cuota único cuando los montos difieren', () => {
+      expect(exito(planEscalonado).montoCuotaBase).toBeNull()
+    })
+
+    it('guarda el monto único cuando todas las pendientes son iguales', () => {
+      expect(exito(planTipico).montoCuotaBase).toBe(500)
+    })
+
+    it('señala cuál es la cuota mal cargada, con su número real', () => {
+      const resultado = generarPlanEnCurso({
+        ...planEscalonado,
+        montosPendientes: [100, 0, 300],
+      })
+
+      // Dos pagadas + la segunda pendiente = cuota 4.
+      expect(resultado).toEqual({ valido: false, error: expect.stringContaining('cuota 4') })
+    })
+  })
+
   it('rechaza un plan sin cuotas pendientes: eso ya no es un lote en curso', () => {
-    const resultado = generarPlanEnCurso({ ...planTipico, cuotasPendientes: 0 })
+    const resultado = generarPlanEnCurso({ ...planTipico, montosPendientes: [] })
 
     expect(resultado).toEqual({ valido: false, error: expect.stringContaining('al menos una cuota') })
   })
 
-  it('rechaza cantidades que no son enteras', () => {
+  it('rechaza cantidades de pagadas que no son enteras', () => {
     expect(generarPlanEnCurso({ ...planTipico, cuotasYaPagadas: 1.5 }).valido).toBe(false)
     expect(generarPlanEnCurso({ ...planTipico, cuotasYaPagadas: -1 }).valido).toBe(false)
   })
 
-  it('rechaza un monto de cuota vacío o negativo', () => {
-    expect(generarPlanEnCurso({ ...planTipico, montoCuota: 0 }).valido).toBe(false)
-    expect(generarPlanEnCurso({ ...planTipico, montoCuota: -10 }).valido).toBe(false)
+  it('rechaza un monto vacío o negativo', () => {
+    expect(generarPlanEnCurso({ ...planTipico, montosPendientes: [0] }).valido).toBe(false)
+    expect(generarPlanEnCurso({ ...planTipico, montosPendientes: [-10] }).valido).toBe(false)
+    expect(generarPlanEnCurso({ ...planTipico, montosPendientes: [NaN] }).valido).toBe(false)
   })
 
   it('rechaza una fecha mal escrita en vez de inventar cuotas', () => {
@@ -88,7 +130,26 @@ describe('generarPlanEnCurso', () => {
 
   it('corta los planes absurdamente largos, igual que la venta normal', () => {
     expect(
-      generarPlanEnCurso({ ...planTipico, cuotasYaPagadas: 300, cuotasPendientes: 301 }).valido
+      generarPlanEnCurso({
+        ...planTipico,
+        cuotasYaPagadas: 300,
+        montosPendientes: repetido(500, 301),
+      }).valido
     ).toBe(false)
+  })
+})
+
+describe('vencimientosPendientes', () => {
+  it('rotula cada casillero con el número de cuota real y su vencimiento', () => {
+    expect(vencimientosPendientes(18, 3, '2026-10-10')).toEqual([
+      { numero: 19, fechaVencimiento: '2026-10-10' },
+      { numero: 20, fechaVencimiento: '2026-11-10' },
+      { numero: 21, fechaVencimiento: '2026-12-10' },
+    ])
+  })
+
+  it('no rotula nada mientras la fecha esté a medio escribir', () => {
+    expect(vencimientosPendientes(18, 3, '')).toEqual([])
+    expect(vencimientosPendientes(18, 3, '2026-10')).toEqual([])
   })
 })

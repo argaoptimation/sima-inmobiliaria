@@ -43,6 +43,8 @@ test.describe('Cargar un lote ya vendido', () => {
       cuotasYaPagadas: string
       cuotasPendientes: string
       montoCuota?: string
+      // Numero de cuota real -> monto, para los planes escalonados.
+      montosPorCuota?: Record<string, string>
       fechaProximaCuota?: string
     }
   ) {
@@ -55,8 +57,17 @@ test.describe('Cargar un lote ya vendido', () => {
     await page.locator('input[name="clienteEmail"]').fill(datos.clienteEmail)
     await page.locator('input[name="cuotasYaPagadas"]').fill(datos.cuotasYaPagadas)
     await page.locator('input[name="cuotasPendientes"]').fill(datos.cuotasPendientes)
-    await page.locator('input[name="montoCuota"]').fill(datos.montoCuota ?? '500')
     await page.locator('input[name="fechaProximaCuota"]').fill(datos.fechaProximaCuota ?? '2026-10-10')
+
+    if (datos.montosPorCuota) {
+      await page.getByRole('radio', { name: 'No, cargo una por una' }).check()
+      for (const [numero, monto] of Object.entries(datos.montosPorCuota)) {
+        await page.getByTestId(`monto-cuota-${numero}`).fill(monto)
+      }
+    } else {
+      await page.getByTestId('monto-unico').fill(datos.montoCuota ?? '500')
+    }
+
     await page.getByRole('button', { name: 'Cargar lote vendido' }).click()
   }
 
@@ -214,6 +225,80 @@ test.describe('Cargar un lote ya vendido', () => {
     expect(await page.getByText('Pagada antes del sistema').count()).toBe(2)
   })
 
+  test('las cuotas que quedan pueden tener cada una su propio monto', async ({ page }) => {
+    const identificador = `E2E En Curso Escalonado ${Date.now()}`
+    const clienteEmail = `comprador.escalonado.${Date.now()}@sima-e2e.invalid`
+    lotesCreados.push(identificador)
+    clientesCreados.push(clienteEmail)
+
+    await login(page, fixtures.admin.email, fixtures.password)
+    // Pagó 2, le quedan 3, y las tres valen distinto: el caso real de la
+    // cartera de Nicolás, con planes escalonados y refinanciaciones a
+    // mitad de camino.
+    await cargarLote(page, {
+      identificador,
+      clienteEmail,
+      cuotasYaPagadas: '2',
+      cuotasPendientes: '3',
+      montosPorCuota: { '3': '100', '4': '250.5', '5': '300' },
+    })
+    await page.waitForURL(/\/distribucion/)
+
+    const admin = createAdminClient()
+    const { data: lote } = await admin
+      .from('lotes')
+      .select('id, monto_cuota_base')
+      .eq('identificador', identificador)
+      .single()
+
+    // Sin monto de cuota único: el lote no tiene uno, igual que una venta
+    // cargada en modo manual.
+    expect(lote!.monto_cuota_base).toBeNull()
+
+    const { data: cuotas } = await admin
+      .from('cuotas')
+      .select('numero, monto_base, saldo_pendiente, migrada')
+      .eq('lote_id', lote!.id)
+      .order('numero')
+
+    expect(cuotas!.map((c) => Number(c.monto_base))).toEqual([100, 100, 100, 250.5, 300])
+    expect(cuotas!.map((c) => Number(c.saldo_pendiente))).toEqual([0, 0, 100, 250.5, 300])
+    expect(cuotas!.map((c) => c.migrada)).toEqual([true, true, false, false, false])
+  })
+
+  test('muestra una vez la contraseña con la que el comprador puede entrar', async ({ page }) => {
+    const identificador = `E2E En Curso Contrasena ${Date.now()}`
+    const clienteEmail = `comprador.contrasena.${Date.now()}@sima-e2e.invalid`
+    lotesCreados.push(identificador)
+    clientesCreados.push(clienteEmail)
+
+    await login(page, fixtures.admin.email, fixtures.password)
+    await cargarLote(page, {
+      identificador,
+      clienteEmail,
+      cuotasYaPagadas: '1',
+      cuotasPendientes: '2',
+    })
+    await page.waitForURL(/\/distribucion/)
+
+    const aviso = page.getByText('para entrar al portal es')
+    await expect(aviso).toBeVisible()
+
+    // Cuatro letras, guion, cuatro números y un signo: pensada para
+    // dictarla por teléfono.
+    const texto = (await aviso.textContent()) ?? ''
+    const contrasena = /([A-Z]{4}-[2-9]{4}!)/.exec(texto)?.[1]
+    expect(contrasena).toBeTruthy()
+
+    // Y sirve de verdad: el comprador entra con ella.
+    await page.context().clearCookies()
+    await page.goto('/login')
+    await page.locator('input[name="email"]').fill(clienteEmail)
+    await page.locator('input[name="password"]').fill(contrasena!)
+    await page.getByRole('button', { name: 'Ingresar' }).click()
+    await page.waitForURL(/\/portal-cliente/)
+  })
+
   test('rechaza un plan imposible sin perder lo ya tipeado', async ({ page }) => {
     const identificador = `E2E En Curso Invalido ${Date.now()}`
 
@@ -242,5 +327,69 @@ test.describe('Cargar un lote ya vendido', () => {
       .maybeSingle()
     // Nada se creó a medias.
     expect(lote).toBeNull()
+  })
+})
+
+// El cliente cambiándose la contraseña. Vive en este archivo y no en uno
+// aparte porque la pantalla existe por esto: el comprador cargado a mano
+// entra con una contraseña que le dictaron y tiene que poder cambiarla.
+test.describe('El cliente cambia su propia contraseña', () => {
+  let fixtures: TestFixtures
+
+  test.beforeAll(async () => {
+    fixtures = await ensureTestFixtures()
+  })
+
+  // Después de CADA test, no al final del bloque: el primero le cambia la
+  // contraseña de verdad, y sin restaurarla acá el siguiente ya no puede
+  // loguearse -- ni el resto de la suite, que usa esta misma cuenta.
+  test.afterEach(async () => {
+    const admin = createAdminClient()
+    await admin.auth.admin.updateUserById(fixtures.cliente.id, { password: fixtures.password })
+  })
+
+  test('la cambia desde el portal y entra con la nueva', async ({ page }) => {
+    const nueva = `E2E-nueva-${Date.now()}!`
+
+    await login(page, fixtures.cliente.email, fixtures.password)
+    await page.goto('/portal-cliente/contrasena')
+
+    await page.locator('input[name="nuevaContrasena"]').fill(nueva)
+    await page.locator('input[name="repetirContrasena"]').fill(nueva)
+    await page.getByRole('button', { name: 'Guardar contraseña' }).click()
+
+    await expect(page.getByText('tu contraseña quedó cambiada')).toBeVisible()
+
+    await page.context().clearCookies()
+    await login(page, fixtures.cliente.email, nueva)
+    await expect(page).toHaveURL(/\/portal-cliente/)
+  })
+
+  test('no la cambia si las dos no coinciden', async ({ page }) => {
+    await login(page, fixtures.cliente.email, fixtures.password)
+    await page.goto('/portal-cliente/contrasena')
+
+    await page.locator('input[name="nuevaContrasena"]').fill('E2E-una-valida!')
+    await page.locator('input[name="repetirContrasena"]').fill('E2E-otra-distinta!')
+    await page.getByRole('button', { name: 'Guardar contraseña' }).click()
+
+    await expect(page.getByText('no coinciden')).toBeVisible()
+
+    // Y la de siempre sigue funcionando.
+    await page.context().clearCookies()
+    await login(page, fixtures.cliente.email, fixtures.password)
+    await expect(page).toHaveURL(/\/portal-cliente/)
+  })
+
+  test('rechaza una contraseña que no cumple el mínimo', async ({ page }) => {
+    await login(page, fixtures.cliente.email, fixtures.password)
+    await page.goto('/portal-cliente/contrasena')
+
+    // Ocho caracteres pero sin ningún signo.
+    await page.locator('input[name="nuevaContrasena"]').fill('abcdefgh')
+    await page.locator('input[name="repetirContrasena"]').fill('abcdefgh')
+    await page.getByRole('button', { name: 'Guardar contraseña' }).click()
+
+    await expect(page.getByText('incluyendo un signo')).toBeVisible()
   })
 })

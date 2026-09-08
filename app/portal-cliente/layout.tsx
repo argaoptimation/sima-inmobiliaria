@@ -41,8 +41,17 @@ export default function PortalClienteLayout({ children }: { children: React.Reac
           </EnlaceBoton>
           {/* Sin "Mi perfil" (06/09, pedido de Gabriel): el cliente no
               edita sus propios datos -- nombre, teléfono y domicilio los
-              mantiene la inmobiliaria. El staff sí tiene su /mi-perfil. */}
+              mantiene la inmobiliaria. El staff sí tiene su /mi-perfil.
+              Lo único suyo que puede cambiar es la contraseña (08/09), que
+              hace falta desde que hay compradores que entran con una que
+              les dictaron. */}
           <nav className="flex items-center gap-4">
+            <EnlaceBoton
+              href="/portal-cliente/contrasena"
+              className="text-sm font-medium text-blue-900/70 underline-offset-4 hover:text-blue-900 hover:underline"
+            >
+              Mi contraseña
+            </EnlaceBoton>
             <BotonCerrarSesion />
           </nav>
         </div>
