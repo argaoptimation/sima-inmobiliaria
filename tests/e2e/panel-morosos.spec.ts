@@ -21,18 +21,40 @@ test.describe('Panel de Morosos (26/08)', () => {
     }
   })
 
+  // El panel dejó de ser una tabla con el rediseño del 03/09: son 6 KPIs
+  // que filtran y una lista agrupada de <div>. Los selectores van por
+  // data-testid, no por role=row ni por headings, que ya no existen.
+  function kpi(page: import('@playwright/test').Page, tab: string) {
+    return page.getByTestId(`kpi-${tab}`)
+  }
+
+  // El KPI son dos <span>: la etiqueta y el número. Se lee el último.
+  async function contadorKpi(page: import('@playwright/test').Page, tab: string) {
+    const texto = await kpi(page, tab).locator('span').last().innerText()
+    return Number(texto.trim())
+  }
+
+  function filaDelLote(page: import('@playwright/test').Page, grupo: string) {
+    return page
+      .getByTestId(`grupo-${grupo}`)
+      .getByTestId('fila-moroso')
+      .filter({ hasText: 'E2E Test Lote' })
+  }
+
   test('el lote con 3 cuotas vencidas aparece en "Posible prejudicial" y se puede marcar desde ahí', async ({
     page,
   }) => {
     await login(page, fixtures.admin.email, fixtures.password)
     await page.goto('/admin/panel-morosos')
 
-    const seccionPosiblePrejudicial = page.getByRole('heading', { name: /Posible prejudicial/ })
-    await expect(seccionPosiblePrejudicial).toContainText('(1)')
-
-    const fila = page.getByRole('row', { name: /E2E Test Lote/ })
+    // La base es compartida y tiene lotes DEMO en varios tramos, así que no
+    // se puede asumir un total: se comparan deltas del propio lote.
+    const fila = filaDelLote(page, 'posible')
     await expect(fila).toBeVisible()
-    await expect(fila).toContainText('3')
+    await expect(fila).toContainText('3 cuotas')
+
+    const posiblesAntes = await contadorKpi(page, 'posible')
+    const oficialesAntes = await contadorKpi(page, 'prejudicial')
 
     page.once('dialog', (dialog) => dialog.accept())
     await fila.getByRole('button', { name: 'Marcar Prejudicial' }).click()
@@ -40,12 +62,12 @@ test.describe('Panel de Morosos (26/08)', () => {
     await expect(page.getByText('Lote marcado como Prejudicial')).toBeVisible()
 
     // Se queda en el panel (no navega al detalle del lote) para poder marcar
-    // varios candidatos seguidos.
-    // Ya marcado: sale de "Posible prejudicial" y entra a "Prejudicial (ya marcado)".
-    await expect(page.getByRole('heading', { name: /Posible prejudicial/ })).toContainText('(0)')
-    const seccionPrejudicialOficial = page.getByRole('heading', { name: /Prejudicial \(ya marcado\)/ })
-    await expect(seccionPrejudicialOficial).toContainText('(1)')
-    await expect(page.getByRole('row', { name: /E2E Test Lote/ })).toBeVisible()
+    // varios candidatos seguidos. El lote pasa de un tramo al otro.
+    await expect(filaDelLote(page, 'prejudicial')).toBeVisible()
+    await expect(filaDelLote(page, 'posible')).toHaveCount(0)
+
+    await expect.poll(() => contadorKpi(page, 'posible')).toBe(posiblesAntes - 1)
+    expect(await contadorKpi(page, 'prejudicial')).toBe(oficialesAntes + 1)
 
     // Se limpia la marca para no dejar el fixture en un estado distinto al
     // que esperan otros archivos de test (mismo criterio que
@@ -53,5 +75,16 @@ test.describe('Panel de Morosos (26/08)', () => {
     // sí hace falta desmarcar porque esta marca persiste entre archivos).
     const admin = createAdminClient()
     await admin.from('lotes').update({ marcado_prejudicial: false }).eq('id', fixtures.loteId)
+  })
+
+  test('los KPI filtran la lista al tramo elegido', async ({ page }) => {
+    await login(page, fixtures.admin.email, fixtures.password)
+    await page.goto('/admin/panel-morosos')
+
+    await kpi(page, 'posible').click()
+
+    await expect(page.getByTestId('grupo-posible')).toBeVisible()
+    await expect(page.getByTestId('grupo-alDia')).toHaveCount(0)
+    await expect(filaDelLote(page, 'posible')).toBeVisible()
   })
 })

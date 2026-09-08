@@ -91,14 +91,21 @@ test.describe('Nombre de cliente y búsqueda en /admin/pagos', () => {
     const fila = page
       .locator('[data-testid="tarjeta-pago"]')
       .filter({ has: page.locator(`a[href*="${nombreArchivo}"]`) })
-    // índice 2: Fecha, Lote, Cliente (se agregaron Fecha y Acreedor 25/08).
-    await expect(fila.locator('td').nth(2)).toHaveText(cliente.id ? (await (async () => {
-      const admin = createAdminClient()
-      const { data } = await admin.from('profiles').select('full_name').eq('id', cliente.id).single()
-      return data!.full_name as string
-    })()) : '')
+    // El nombre del cliente es el link que encabeza la tarjeta (antes era la
+    // columna 2 de la tabla, que dejó de existir con el rediseño).
+    const admin = createAdminClient()
+    const { data: perfilCliente } = await admin
+      .from('profiles')
+      .select('full_name')
+      .eq('id', cliente.id)
+      .single()
+
+    await expect(fila.getByRole('link', { name: perfilCliente!.full_name as string })).toBeVisible()
   })
 
+  // El filtro de /admin/pagos se aplica solo mientras se tipea (FiltroEnVivo,
+  // 25/08): ya no hay botón "Filtrar" que apretar, y las aserciones de abajo
+  // esperan a que la lista se actualice sola.
   test('buscar por nombre de cliente encuentra su pago', async ({ page }) => {
     const nombreArchivo = `e2e-buscar-cliente-${Date.now()}.pdf`
     const nombreCliente = `E2E Cliente Buscar ${Date.now()}`
@@ -113,7 +120,6 @@ test.describe('Nombre de cliente y búsqueda en /admin/pagos', () => {
     await login(page, fixtures.admin.email, fixtures.password)
     await page.goto('/admin/pagos')
     await page.getByPlaceholder('Cliente, DNI o lote').fill(nombreCliente)
-    await page.getByRole('button', { name: 'Filtrar' }).click()
 
     await expect(page.locator(`a[href*="${nombreArchivo}"]`)).toBeVisible()
   })
@@ -132,7 +138,6 @@ test.describe('Nombre de cliente y búsqueda en /admin/pagos', () => {
     await login(page, fixtures.admin.email, fixtures.password)
     await page.goto('/admin/pagos')
     await page.getByPlaceholder('Cliente, DNI o lote').fill(identificadorLote)
-    await page.getByRole('button', { name: 'Filtrar' }).click()
 
     await expect(page.locator(`a[href*="${nombreArchivo}"]`)).toBeVisible()
   })
@@ -153,7 +158,6 @@ test.describe('Nombre de cliente y búsqueda en /admin/pagos', () => {
     await login(page, fixtures.admin.email, fixtures.password)
     await page.goto('/admin/pagos')
     await page.getByPlaceholder('Cliente, DNI o lote').fill(dniCliente)
-    await page.getByRole('button', { name: 'Filtrar' }).click()
 
     const fila = page
       .locator('[data-testid="tarjeta-pago"]')
@@ -166,7 +170,6 @@ test.describe('Nombre de cliente y búsqueda en /admin/pagos', () => {
     await login(page, fixtures.admin.email, fixtures.password)
     await page.goto('/admin/pagos')
     await page.getByPlaceholder('Cliente, DNI o lote').fill(`Texto Que No Existe ${Date.now()}`)
-    await page.getByRole('button', { name: 'Filtrar' }).click()
 
     await expect(page.locator('[data-testid="tarjeta-pago"]')).toHaveCount(0)
   })
@@ -186,7 +189,6 @@ test.describe('Nombre de cliente y búsqueda en /admin/pagos', () => {
     await login(page, fixtures.acreedorConDatos.email, fixtures.password)
     await page.goto('/admin/pagos')
     await page.getByPlaceholder('Cliente, DNI o lote').fill(nombreCliente)
-    await page.getByRole('button', { name: 'Filtrar' }).click()
 
     await expect(page.locator(`a[href*="${nombreArchivo}"]`)).toHaveCount(0)
   })

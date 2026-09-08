@@ -2,6 +2,9 @@ import { test, expect } from '@playwright/test'
 import { createAdminClient, ensureTestFixtures, TestFixtures } from './fixtures/test-data'
 import { login } from './utils/login'
 
+// Los filtros se aplican solos mientras se tipea (FiltroEnVivo, 25/08): el
+// botón "Filtrar" dejó de existir, así que los tests solo llenan el campo y
+// dejan que la aserción siguiente espere a que la lista se actualice.
 test.describe('Búsqueda por identificador en /admin/lotes', () => {
   let fixtures: TestFixtures
 
@@ -34,7 +37,6 @@ test.describe('Búsqueda por identificador en /admin/lotes', () => {
     await page.goto('/admin/lotes')
 
     await page.getByPlaceholder('Buscar identificador').fill('E2E Busqueda')
-    await page.getByRole('button', { name: 'Filtrar' }).click()
 
     await expect(page.getByRole('row', { name: identificadorUnico })).toBeVisible()
     // "E2E Test Lote" no matchea el texto buscado -- confirma que sí filtra,
@@ -60,7 +62,6 @@ test.describe('Búsqueda por identificador en /admin/lotes', () => {
 
     await page.getByPlaceholder('Buscar identificador').fill('E2E Busqueda ARS')
     await page.selectOption('select[name="moneda"]', 'USD')
-    await page.getByRole('button', { name: 'Filtrar' }).click()
 
     // El lote es ARS, se buscó texto que matchea pero moneda USD -- no aparece.
     await expect(page.getByRole('row', { name: identificadorUnico })).toHaveCount(0)

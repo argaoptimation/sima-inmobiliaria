@@ -119,6 +119,7 @@ export function PanelMorososVista({
       <div className="grid grid-cols-2 gap-3 md:grid-cols-3 lg:grid-cols-6">
         <button
           type="button"
+          data-testid="kpi-todos"
           onClick={() => setTabActivo('todos')}
           className={`flex flex-col gap-1.5 rounded-xl border p-[14px_16px] text-left shadow-sm transition-all hover:border-blue-300 ${
             tabActivo === 'todos'
@@ -136,6 +137,7 @@ export function PanelMorososVista({
 
         <button
           type="button"
+          data-testid="kpi-debe1"
           onClick={() => setTabActivo('debe1')}
           className={`flex flex-col gap-1.5 rounded-xl border p-[14px_16px] text-left shadow-sm transition-all hover:border-amber-300 ${
             tabActivo === 'debe1'
@@ -153,6 +155,7 @@ export function PanelMorososVista({
 
         <button
           type="button"
+          data-testid="kpi-debe2"
           onClick={() => setTabActivo('debe2')}
           className={`flex flex-col gap-1.5 rounded-xl border p-[14px_16px] text-left shadow-sm transition-all hover:border-amber-400 ${
             tabActivo === 'debe2'
@@ -170,6 +173,7 @@ export function PanelMorososVista({
 
         <button
           type="button"
+          data-testid="kpi-posible"
           onClick={() => setTabActivo('posible')}
           className={`flex flex-col gap-1.5 rounded-xl border p-[14px_16px] text-left shadow-sm transition-all hover:border-orange-300 ${
             tabActivo === 'posible'
@@ -187,6 +191,7 @@ export function PanelMorososVista({
 
         <button
           type="button"
+          data-testid="kpi-prejudicial"
           onClick={() => setTabActivo('prejudicial')}
           className={`flex flex-col gap-1.5 rounded-xl border p-[14px_16px] text-left shadow-sm transition-all hover:border-red-300 ${
             tabActivo === 'prejudicial'
@@ -204,6 +209,7 @@ export function PanelMorososVista({
 
         <button
           type="button"
+          data-testid="kpi-alDia"
           onClick={() => setTabActivo('alDia')}
           className={`flex flex-col gap-1.5 rounded-xl border p-[14px_16px] text-left shadow-sm transition-all hover:border-emerald-300 ${
             tabActivo === 'alDia'
@@ -238,7 +244,7 @@ export function PanelMorososVista({
             if (seccion.filas.length === 0) return null
 
             return (
-              <div key={seccion.id} className="flex flex-col">
+              <div key={seccion.id} data-testid={`grupo-${seccion.id}`} className="flex flex-col">
                 {/* Encabezado del grupo */}
                 <div className={MOROSOS_GRUPO_HEADER}>
                   <span className={`h-2 w-2 shrink-0 rounded-full ${seccion.dotColor}`} />
@@ -264,6 +270,7 @@ export function PanelMorososVista({
                   return (
                     <div
                       key={fila.loteId}
+                      data-testid="fila-moroso"
                       className={`${MOROSOS_FILA} ${seccion.bordeFila} ${seccion.fondoFila}`}
                     >
                       <div className="flex min-w-0 flex-1 flex-col sm:flex-row sm:items-center sm:gap-4">

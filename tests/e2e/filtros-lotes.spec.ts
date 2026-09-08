@@ -2,6 +2,9 @@ import { test, expect } from '@playwright/test'
 import { ensureTestFixtures, createAdminClient, TestFixtures } from './fixtures/test-data'
 import { login } from './utils/login'
 
+// Los filtros se aplican solos mientras se tipea (FiltroEnVivo, 25/08): el
+// botón "Filtrar" dejó de existir, así que los tests solo llenan el campo y
+// dejan que la aserción siguiente espere a que la lista se actualice.
 test.describe('Filtros de Cliente, Loteo y Cobranza en /admin/lotes', () => {
   let fixtures: TestFixtures
 
@@ -14,7 +17,6 @@ test.describe('Filtros de Cliente, Loteo y Cobranza en /admin/lotes', () => {
     await page.goto('/admin/lotes')
 
     await page.getByPlaceholder('Nombre del cliente').fill('E2E Cliente')
-    await page.getByRole('button', { name: 'Filtrar' }).click()
 
     await expect(page.getByRole('row', { name: /E2E Test Lote/ })).toBeVisible()
     // "DEMO Debe 1 cuota - sin teléfono" (ex "Lote1", renombrado 04/09) es de
@@ -40,7 +42,6 @@ test.describe('Filtros de Cliente, Loteo y Cobranza en /admin/lotes', () => {
     await page.goto('/admin/lotes')
 
     await page.getByPlaceholder('Nombre del cliente').fill('Zzzznadie Existe Zzzz')
-    await page.getByRole('button', { name: 'Filtrar' }).click()
 
     await expect(page.getByText('Ningún lote coincide con los filtros.')).toBeVisible()
   })

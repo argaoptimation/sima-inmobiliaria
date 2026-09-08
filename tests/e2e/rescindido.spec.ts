@@ -69,6 +69,9 @@ async function crearLoteVendidoConPagoConfirmado(
   return { loteId: lote.id as string, cuotaIds: cuotas.map((c) => c.id as string) }
 }
 
+// Los filtros se aplican solos mientras se tipea (FiltroEnVivo, 25/08): el
+// botón "Filtrar" dejó de existir, así que los tests solo llenan el campo y
+// dejan que la aserción siguiente espere a que la lista se actualice.
 test.describe('Rescindido de lote (24/08)', () => {
   let fixtures: TestFixtures
 
@@ -357,7 +360,6 @@ test.describe('Rescindido de lote (24/08)', () => {
     // Filtrar por estado "vendido": este lote pasó DE vendido A disponible
     // (06/09), así que filtrando por el estado al que pasó no aparece.
     await page.getByLabel('Pasó a estado').selectOption('vendido')
-    await page.getByRole('button', { name: 'Filtrar' }).click()
     await expect(page.getByRole('link', { name: identificador })).toHaveCount(0)
   })
 

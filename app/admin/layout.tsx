@@ -3,6 +3,7 @@ import { redirect } from 'next/navigation'
 import { AdminShell } from '@/components/AdminShell'
 import { contarPagosPendientes } from '@/lib/pagos-pendientes'
 import { obtenerCotizacionVigente } from '@/lib/cuenta-corriente/obtener-cotizacion-vigente'
+import { obtenerNotificaciones } from '@/lib/notificaciones/obtener-notificaciones'
 import { hoyArgentina } from '@/lib/fecha/hoy-argentina'
 
 export default async function AdminLayout({ children }: { children: React.ReactNode }) {
@@ -34,6 +35,7 @@ export default async function AdminLayout({ children }: { children: React.ReactN
 
   const pagosPendientes = await contarPagosPendientes(supabase, profile.role, user.id)
   const cotizacion = await obtenerCotizacionVigente(supabase, hoyArgentina())
+  const notificaciones = await obtenerNotificaciones(supabase, profile.role, user.id)
 
   return (
     <AdminShell
@@ -42,6 +44,7 @@ export default async function AdminLayout({ children }: { children: React.ReactN
       userId={user.id}
       nombreUsuario={profile.full_name ?? user.email ?? 'Usuario'}
       cotizacion={cotizacion}
+      notificaciones={notificaciones}
     >
       {children}
     </AdminShell>

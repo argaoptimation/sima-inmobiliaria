@@ -107,8 +107,10 @@ test.describe('Contador de pagos pendientes en la nav', () => {
     // Un submit de Server Action no cambia la URL (ya estamos en
     // /admin/pagos), así que esperar por waitForURL no sirve como señal de
     // que el servidor terminó de procesar el submit. Esperamos, en cambio, a
-    // que la columna "Confirmado acreedor" refleje el resultado real.
-    await expect(fila.locator('td').nth(9)).toHaveText('Sí')
+    // que la tarjeta muestre el doble check del destinatario ya confirmado.
+    // (Era `td.nth(9)`; la tabla de Pagos pasó a tarjetas y esa columna
+    // dejó de existir, así que la aserción no podía volver a pasar.)
+    await expect(fila).toContainText('confirmó')
 
     await page.goto('/admin/lotes')
     expect(await leerContadorPagos(page)).toBe(base)

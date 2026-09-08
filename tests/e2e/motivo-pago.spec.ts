@@ -57,7 +57,9 @@ test.describe('Motivo del pago (seña / cuota) en /admin/pagos', () => {
     const fila = page
       .locator('[data-testid="tarjeta-pago"]')
       .filter({ has: page.locator(`a[href*="${nombreArchivo}"]`) })
-    await expect(fila.locator('td').nth(4)).toHaveText('Cuota')
+    // El motivo va en la línea de subtítulo de la tarjeta, junto al lote y
+    // el medio de pago (antes era la columna 4 de la tabla).
+    await expect(fila).toContainText('Cuota')
   })
 
   test('un pago de seña muestra "Seña" en la columna Motivo', async ({ page }) => {
@@ -70,6 +72,6 @@ test.describe('Motivo del pago (seña / cuota) en /admin/pagos', () => {
     const fila = page
       .locator('[data-testid="tarjeta-pago"]')
       .filter({ has: page.locator(`a[href*="${nombreArchivo}"]`) })
-    await expect(fila.locator('td').nth(4)).toHaveText('Seña')
+    await expect(fila).toContainText('Seña')
   })
 })

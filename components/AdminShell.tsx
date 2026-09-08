@@ -1,8 +1,10 @@
 'use client'
 
 import { useEffect, useState, type ReactNode } from 'react'
-import { Search, Bell, Menu } from 'lucide-react'
+import { Search, Menu } from 'lucide-react'
 import { NavAdmin } from './NavAdmin'
+import { CentroNotificaciones } from './CentroNotificaciones'
+import type { Notificacion } from '@/lib/notificaciones/obtener-notificaciones'
 import { TOPBAR, BUSCADOR_GLOBAL, DOLAR_PILL } from '@/lib/ui/clases'
 
 const CLAVE_COLAPSADA = 'sima-sidebar-colapsada'
@@ -19,6 +21,7 @@ export function AdminShell({
   userId,
   nombreUsuario,
   cotizacion,
+  notificaciones,
   children,
 }: {
   role: string
@@ -26,6 +29,7 @@ export function AdminShell({
   userId: string
   nombreUsuario: string
   cotizacion: number | null
+  notificaciones: Notificacion[]
   children: ReactNode
 }) {
   const [colapsada, setColapsada] = useState(false)
@@ -111,7 +115,7 @@ export function AdminShell({
                 <span className="tabular-nums">Dólar ${cotizacion.toLocaleString('es-AR')}</span>
               </div>
             )}
-            <Bell className="h-[19px] w-[19px] text-slate-500" />
+            <CentroNotificaciones notificaciones={notificaciones} />
           </div>
         </div>
 

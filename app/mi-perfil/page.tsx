@@ -5,6 +5,7 @@ import { CampoTelefono, AyudaTelefono } from '@/components/CampoTelefono'
 import { Obligatorio } from '@/components/Obligatorio'
 import { AdminShell } from '@/components/AdminShell'
 import { contarPagosPendientes } from '@/lib/pagos-pendientes'
+import { obtenerNotificaciones } from '@/lib/notificaciones/obtener-notificaciones'
 import { calcularSaldoCuentaCorrientePorMoneda } from '@/lib/cuenta-corriente/calcular-saldo'
 import { EnlaceBoton } from '@/components/EnlaceBoton'
 import { BotonEnvio } from '@/components/BotonEnvio'
@@ -41,6 +42,7 @@ export default async function MiPerfilPage({
   }
 
   const pagosPendientes = await contarPagosPendientes(supabase, perfil!.role, user!.id)
+  const notificaciones = await obtenerNotificaciones(supabase, perfil!.role, user!.id)
 
   const { data: movimientosCuentaCorriente } = await supabase
     .from('movimientos_cuenta_corriente')
@@ -152,6 +154,7 @@ export default async function MiPerfilPage({
       userId={user!.id}
       nombreUsuario={perfil!.full_name ?? user!.email ?? 'Usuario'}
       cotizacion={null}
+      notificaciones={notificaciones}
     >
       {contenido}
     </AdminShell>

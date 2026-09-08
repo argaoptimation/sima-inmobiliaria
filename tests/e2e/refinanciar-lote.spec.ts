@@ -52,6 +52,9 @@ async function crearLoteVendidoConCuotas(
   return { loteId: lote.id as string, cuotas }
 }
 
+// Los filtros se aplican solos mientras se tipea (FiltroEnVivo, 25/08): el
+// botón "Filtrar" dejó de existir, así que los tests solo llenan el campo y
+// dejan que la aserción siguiente espere a que la lista se actualice.
 test.describe('Refinanciar cuotas (26/08)', () => {
   let fixtures: TestFixtures
 
@@ -146,7 +149,6 @@ test.describe('Refinanciar cuotas (26/08)', () => {
     await expect(filaGlobal.getByText('Refinanció')).toBeVisible()
 
     await page.getByLabel('Movimiento').selectOption('refinanciado')
-    await page.getByRole('button', { name: 'Filtrar' }).click()
     await expect(page.locator('tbody tr', { hasText: identificador })).toBeVisible()
   })
 
@@ -274,7 +276,6 @@ test.describe('Refinanciar cuotas (26/08)', () => {
 
     await page.goto('/admin/historial-lotes')
     await page.getByLabel('Movimiento').selectOption('creado')
-    await page.getByRole('button', { name: 'Filtrar' }).click()
     await expect(page.locator('tbody tr', { hasText: identificador })).toBeVisible()
   })
 })
