@@ -4,7 +4,6 @@ import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { redirect } from 'next/navigation'
 import { requireAdminSobreLote, requireAdministrador } from '@/lib/auth/require-admin'
-import { tieneDatosTransferencia } from '@/lib/lotes/validar-cuenta-cobro'
 import { mensajeDeError } from '@/lib/errores'
 import { generarYGuardarContrato } from '@/lib/contratos/generar-y-guardar'
 import { generarCuotas, generarCuotasManual } from '@/lib/lotes/generar-cuotas'
@@ -23,6 +22,9 @@ export async function actualizarDatosGenerales(loteId: string, formData: FormDat
   const precioTotalTexto = ((formData.get('precioTotal') as string) || '').trim()
   const precioTotal = precioTotalTexto ? Number(precioTotalTexto) : null
   const indiceTipo = ((formData.get('indiceTipo') as string) || '').trim() || null
+  // Se puede mover el lote de loteo desde acá (08/09): es lo que decide la
+  // plantilla del boleto de compraventa, y antes solo se elegía al crearlo.
+  const loteoId = ((formData.get('loteoId') as string) || '').trim() || null
   const numeroLote = ((formData.get('numeroLote') as string) || '').trim() || null
   const manzana = ((formData.get('manzana') as string) || '').trim() || null
   const superficieM2Texto = ((formData.get('superficieM2') as string) || '').trim()
@@ -39,6 +41,7 @@ export async function actualizarDatosGenerales(loteId: string, formData: FormDat
       ubicacion,
       precio_total: precioTotal,
       indice_tipo: indiceTipo,
+      loteo_id: loteoId,
       numero_lote: numeroLote,
       manzana,
       superficie_m2: superficieM2,
@@ -49,7 +52,15 @@ export async function actualizarDatosGenerales(loteId: string, formData: FormDat
     .eq('id', loteId)
 
   if (error) {
-    redirect(`/admin/lotes/${loteId}?error=${encodeURIComponent(mensajeDeError(error))}`)
+    redirect(
+      `/admin/lotes/${loteId}?error=${encodeURIComponent(
+        mensajeDeError(error, {
+          // El identificador es único dentro del loteo, así que mover un
+          // lote a otro loteo puede chocar con uno que ya se llama igual.
+          '23505': `Ese loteo ya tiene un lote con el identificador "${identificador}". Cambiá el identificador o elegí otro loteo.`,
+        })
+      )}`
+    )
   }
 
   redirect(`/admin/lotes/${loteId}?ok=${encodeURIComponent('Datos del lote guardados.')}`)
@@ -395,10 +406,6 @@ export async function actualizarCobro(loteId: string, formData: FormData) {
   const adminId = idOVacio(formData.get('adminId'))
   const acreedorId = idOVacio(formData.get('acreedorId'))
   const vendedorId = idOVacio(formData.get('vendedorId'))
-  const cuentaCobroRaw = idOVacio(formData.get('cuentaCobroId'))
-  const esExterna = cuentaCobroRaw?.startsWith('externa:') ?? false
-  const cuentaCobroId = esExterna ? null : cuentaCobroRaw
-  const cuentaCobroExternaId = esExterna ? cuentaCobroRaw!.slice('externa:'.length) : null
 
   const idsAValidar = [adminId, acreedorId, vendedorId].filter(
     (valorId): valorId is string => valorId !== null
@@ -429,69 +436,6 @@ export async function actualizarCobro(loteId: string, formData: FormData) {
     }
   }
 
-  if (cuentaCobroId) {
-    const idsAsociados = [adminId, acreedorId, vendedorId]
-    const admin = createAdminClient()
-
-    if (!idsAsociados.includes(cuentaCobroId)) {
-      const { data: participanteCoincide } = await admin
-        .from('lote_participantes')
-        .select('id')
-        .eq('lote_id', loteId)
-        .eq('profile_id', cuentaCobroId)
-        .maybeSingle()
-
-      if (!participanteCoincide) {
-        redirect(
-          `/admin/lotes/${loteId}/distribucion?error=${encodeURIComponent(
-            'La cuenta de cobro tiene que ser el admin, el acreedor, el vendedor o un participante adicional de este lote'
-          )}`
-        )
-      }
-    }
-
-    const { data: persona } = await admin
-      .from('profiles')
-      .select('id, alias, banco, titular')
-      .eq('id', cuentaCobroId)
-      .single()
-
-    if (
-      !persona ||
-      !tieneDatosTransferencia({ alias: persona.alias, banco: persona.banco, titular: persona.titular })
-    ) {
-      redirect(
-        `/admin/lotes/${loteId}/distribucion?error=${encodeURIComponent(
-          'Esa persona todavía no tiene datos de transferencia cargados'
-        )}&editarUsuario=${cuentaCobroId}`
-      )
-    }
-  }
-
-  if (cuentaCobroExternaId) {
-    const admin = createAdminClient()
-    const { data: cuentaExterna } = await admin
-      .from('cuentas_externas')
-      .select('id, titular, alias, banco')
-      .eq('id', cuentaCobroExternaId)
-      .maybeSingle()
-
-    if (
-      !cuentaExterna ||
-      !tieneDatosTransferencia({
-        titular: cuentaExterna.titular,
-        alias: cuentaExterna.alias,
-        banco: cuentaExterna.banco,
-      })
-    ) {
-      redirect(
-        `/admin/lotes/${loteId}/distribucion?error=${encodeURIComponent(
-          'Esa cuenta externa todavía no tiene datos de transferencia completos'
-        )}`
-      )
-    }
-  }
-
   const supabase = await createClient()
   const { error } = await supabase
     .from('lotes')
@@ -499,8 +443,6 @@ export async function actualizarCobro(loteId: string, formData: FormData) {
       admin_id: adminId,
       acreedor_id: acreedorId,
       vendedor_id: vendedorId,
-      cuenta_cobro_id: cuentaCobroId,
-      cuenta_cobro_externa_id: cuentaCobroExternaId,
     })
     .eq('id', loteId)
 

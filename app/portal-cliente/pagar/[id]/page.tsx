@@ -2,6 +2,7 @@ import { createClient } from '@/lib/supabase/server'
 import { notFound, redirect } from 'next/navigation'
 import { registrarPago } from './actions'
 import { tieneDatosTransferencia } from '@/lib/lotes/validar-cuenta-cobro'
+import { resolverDestinoDeCobro } from '@/lib/pagos/quien-cobra'
 import { hoyArgentina } from '@/lib/fecha/hoy-argentina'
 import { MontoYMoneda } from './MontoYMoneda'
 import { EnlaceBoton } from '@/components/EnlaceBoton'
@@ -43,7 +44,9 @@ export default async function PagarCuotaPage({
 
   const { data: lote } = await supabase
     .from('lotes')
-    .select('cliente_id, cuenta_cobro_id, cuenta_cobro_externa_id, moneda, interes_moratorio_diario')
+    .select(
+      'cliente_id, cuenta_cobro_id, cuenta_cobro_externa_id, acreedor_id, moneda, interes_moratorio_diario'
+    )
     .eq('id', cuota!.lote_id)
     .single()
 
@@ -57,9 +60,18 @@ export default async function PagarCuotaPage({
   // por cuota: la 1 al vendedor 1, la 2 al vendedor 2, etc.). Si esa cuota
   // no tiene uno propio, se cae al del lote -- que es como funcionaba antes,
   // así que ninguna cuota vieja se queda sin alias que mostrar.
-  const perfilQueCobraId = cuota!.cuenta_cobro_id ?? (cuota!.cuenta_cobro_externa_id ? null : lote.cuenta_cobro_id)
-  const cuentaExternaQueCobraId =
-    cuota!.cuenta_cobro_externa_id ?? (cuota!.cuenta_cobro_id ? null : lote.cuenta_cobro_externa_id)
+  //
+  // Y si no hay ninguno de los dos, cobra el acreedor del lote. Esa última
+  // rama la tenía resolverDestinatarioDelPago desde siempre (es quien
+  // confirma el pago) pero esta pantalla no, así que el cliente podía ver
+  // "sin datos para transferir" en una cuota que el sistema sí sabía a quién
+  // le correspondía. Importa desde el 08/09, que es cuando el lote dejó de
+  // tener una cuenta de cobro propia que rellenara el hueco.
+  const destinoExplicito = resolverDestinoDeCobro(cuota, lote)
+  const perfilQueCobraId =
+    destinoExplicito.perfilId ??
+    (destinoExplicito.cuentaExternaId ? null : (lote.acreedor_id ?? null))
+  const cuentaExternaQueCobraId = destinoExplicito.cuentaExternaId
 
   if (perfilQueCobraId) {
     const { data } = await supabase

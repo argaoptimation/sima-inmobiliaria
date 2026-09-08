@@ -249,4 +249,54 @@ test.describe('Loteos', () => {
     await admin.from('lotes').delete().in('id', [loteEnA!.id, loteEnB!.id, loteSinLoteo!.id])
     await admin.from('loteos').delete().in('id', [loteoA!.id, loteoB!.id])
   })
+
+  test('desde el detalle del lote se le puede asignar el loteo', async ({ page }) => {
+    const admin = createAdminClient()
+    const nombreLoteo = `E2E Loteo Detalle ${Date.now()}`
+
+    const { data: loteo, error: errorLoteo } = await admin
+      .from('loteos')
+      .insert({ nombre: nombreLoteo })
+      .select('id')
+      .single()
+    if (errorLoteo || !loteo) {
+      throw new Error(`No se pudo crear el loteo de prueba: ${errorLoteo?.message}`)
+    }
+
+    const { data: loteoPrevio } = await admin
+      .from('lotes')
+      .select('loteo_id')
+      .eq('id', fixtures.loteId)
+      .single()
+
+    try {
+      await login(page, fixtures.admin.email, fixtures.password)
+      await page.goto(`/admin/lotes/${fixtures.loteId}`)
+
+      // Hasta el 08/09 el loteo solo se elegía al crear el lote: un lote
+      // cargado sin loteo no tenía plantilla de contrato y no había forma de
+      // arreglarlo desde su propia ficha.
+      // Por id y no por label: el option le agrega " — sin plantilla de
+      // contrato" a los loteos que todavía no tienen una, y selectOption con
+      // `label` exige el texto exacto.
+      await page.selectOption('select[name="loteoId"]', loteo.id)
+      await expect(page.locator('select[name="loteoId"] option:checked')).toContainText(nombreLoteo)
+      await page.getByRole('button', { name: 'Guardar', exact: true }).click()
+      await expect(page.getByText('Datos del lote guardados.')).toBeVisible()
+
+      const { data: lote } = await admin
+        .from('lotes')
+        .select('loteo_id')
+        .eq('id', fixtures.loteId)
+        .single()
+
+      expect(lote?.loteo_id).toBe(loteo.id)
+    } finally {
+      await admin
+        .from('lotes')
+        .update({ loteo_id: loteoPrevio?.loteo_id ?? null })
+        .eq('id', fixtures.loteId)
+      await admin.from('loteos').delete().eq('id', loteo.id)
+    }
+  })
 })

@@ -30,10 +30,17 @@ interface Props {
   participantesElegibles: Participante[]
   objetivosIniciales: { participanteKey: string; monto: string }[]
   distribucionesIniciales: Record<number, { participanteKey: string; monto: string }[]>
-  // A qué cuenta se transfiere cada cuota (clave de participante o ''
-  // cuando todavía no se eligió y hay que caer a la del lote).
+  // A qué cuenta se transfiere cada cuota (clave de participante, o ''
+  // cuando todavía no se eligió).
   cuentaCobroInicialPorCuota: Record<number, string>
+  // Resguardo de los lotes anteriores al 08/09, cuando el destino se
+  // cargaba a nivel lote. Vacío en todo lote nuevo: desde ese día el
+  // destino se elige acá, cuota por cuota.
   cuentaCobroDelLote: string
+  // Integrantes que todavía no tienen alias/banco/titular cargados: se les
+  // puede asignar una cuota igual, pero el cliente no va a ver dónde pagar
+  // hasta que se les carguen.
+  sinDatosTransferencia: string[]
   // Saldo de cuenta corriente que ya tiene cada integrante, en la moneda
   // del lote. Positivo = la empresa todavía le debe.
   saldoActualPorClave: Record<string, number>
@@ -106,6 +113,7 @@ export function DistribucionCuotas({
   distribucionesIniciales,
   cuentaCobroInicialPorCuota,
   cuentaCobroDelLote,
+  sinDatosTransferencia,
   saldoActualPorClave,
 }: Props) {
   const [objetivos, setObjetivos] = useState<Fila[]>(() => objetivosIniciales.map(conId))
@@ -117,6 +125,25 @@ export function DistribucionCuotas({
   const [cuentasCobro, setCuentasCobro] = useState<Record<number, string>>(
     () => cuentaCobroInicialPorCuota
   )
+
+  const clavesSinDatos = new Set(sinDatosTransferencia)
+
+  // Reemplaza el destino de TODAS las cuotas de una (08/09). Es lo que
+  // antes hacía la "cuenta de cobro actual" del lote, que se sacó por
+  // redundante: el caso normal sigue siendo que cobre siempre el mismo, y
+  // sin esto habría que repetir el mismo click sesenta veces por lote.
+  function aplicarATodasLasCuotas(clave: string) {
+    setCuentasCobro(Object.fromEntries(cuotas.map((cuota) => [cuota.numero, clave])))
+  }
+
+  const cuotasSinDestino = cuotas.filter(
+    (cuota) => !(cuentasCobro[cuota.numero] || cuentaCobroDelLote)
+  )
+
+  const cuotasConDestinoSinDatos = cuotas.filter((cuota) => {
+    const clave = cuentasCobro[cuota.numero] || cuentaCobroDelLote
+    return clave !== '' && clavesSinDatos.has(clave)
+  })
 
   function nombrePorClave(clave: string) {
     return participantesElegibles.find((participante) => participante.key === clave)?.nombre ?? clave
@@ -275,6 +302,54 @@ export function DistribucionCuotas({
       </div>
 
       <h2 className={`mb-2 ${TITULO_H2}`}>Cuotas — distribución</h2>
+
+      {/* Elegir de una sola vez a quién se le transfieren TODAS las cuotas.
+          Reemplaza a la "cuenta de cobro actual" que estaba en la sección
+          de arriba (08/09, pedido de Gabriel): el destino ahora vive en la
+          cuota, que es donde se cobra, y este atajo cubre el caso normal de
+          que siempre cobre el mismo. */}
+      <div className="mb-4 rounded-lg border border-blue-100 bg-blue-50/40 p-3">
+        <label className="block text-sm font-medium text-blue-900">
+          Le transfieren todas las cuotas a
+          <select
+            data-testid="cuenta-cobro-todas"
+            value=""
+            onChange={(evento) => {
+              if (evento.target.value) aplicarATodasLasCuotas(evento.target.value)
+            }}
+            className={`mt-1 w-full max-w-md ${ENTRADA}`}
+          >
+            <option value="">— elegir para aplicar a todas —</option>
+            {participantesElegibles.map((participante) => (
+              <option key={participante.key} value={participante.key}>
+                {participante.nombre}
+                {clavesSinDatos.has(participante.key) && ' — sin datos de transferencia'}
+              </option>
+            ))}
+          </select>
+        </label>
+        <p className="mt-1 text-xs text-slate-600">
+          Pisa lo elegido en todas las cuotas de abajo. Después podés cambiar una por una las que
+          cobre otro. Se guarda recién al apretar &quot;Guardar distribución&quot;.
+        </p>
+      </div>
+
+      {cuotasSinDestino.length > 0 && (
+        <p className="mb-4 rounded-lg bg-amber-50 p-3 text-sm text-amber-800">
+          {cuotasSinDestino.length === cuotas.length
+            ? 'Ninguna cuota tiene a quién transferirle todavía: el cliente no va a ver ningún alias para pagar.'
+            : `Sin destino todavía: cuota ${cuotasSinDestino.map((cuota) => cuota.numero).join(', ')}. El cliente no va a ver ningún alias para pagar esas.`}
+        </p>
+      )}
+
+      {cuotasConDestinoSinDatos.length > 0 && (
+        <p className="mb-4 rounded-lg bg-amber-50 p-3 text-sm text-amber-800">
+          La cuota {cuotasConDestinoSinDatos.map((cuota) => cuota.numero).join(', ')} le toca a
+          alguien que todavía no tiene alias, banco y titular cargados, así que el cliente no va a
+          ver dónde pagarla. Cargale los datos en Usuarios (o en Cuentas externas) y listo.
+        </p>
+      )}
+
       <div className="mb-6 flex flex-col gap-4">
         {cuotas.map((cuota) => {
           const claveQueCobra = cuentasCobro[cuota.numero] || cuentaCobroDelLote
@@ -350,10 +425,20 @@ export function DistribucionCuotas({
                       }
                       className={`mt-1 w-full ${ENTRADA}`}
                     >
-                      <option value="">— la cuenta del lote —</option>
+                      {/* Los lotes anteriores al 08/09 pueden tener todavía
+                          una cuenta cargada a nivel lote: se nombra para que
+                          no sea un resguardo invisible. En los nuevos no hay
+                          ninguna y la opción vacía es lisa y llanamente
+                          "sin asignar". */}
+                      <option value="">
+                        {cuentaCobroDelLote
+                          ? `— la cuenta del lote (${nombrePorClave(cuentaCobroDelLote)}) —`
+                          : '— sin asignar —'}
+                      </option>
                       {participantesElegibles.map((participante) => (
                         <option key={participante.key} value={participante.key}>
                           {participante.nombre}
+                          {clavesSinDatos.has(participante.key) && ' — sin datos de transferencia'}
                         </option>
                       ))}
                     </select>
@@ -384,8 +469,8 @@ export function DistribucionCuotas({
                     </div>
                   ) : (
                     <p className="mt-2 text-xs text-slate-500">
-                      Sin cuenta elegida acá y sin cuenta de cobro cargada en el lote: el cliente no
-                      va a ver ningún alias para pagar esta cuota.
+                      Sin destino elegido: el cliente no va a ver ningún alias para pagar esta
+                      cuota.
                     </p>
                   )}
                 </div>

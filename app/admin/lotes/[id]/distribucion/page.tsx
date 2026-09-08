@@ -3,6 +3,7 @@ import { notFound } from 'next/navigation'
 import { requireAdministrador } from '@/lib/auth/require-admin'
 import { obtenerCuotasSinDistribucion } from '@/lib/cuenta-corriente/cuotas-sin-distribucion'
 import { resolverAdminPorDefecto } from '@/lib/lotes/admin-por-defecto'
+import { tieneDatosTransferencia } from '@/lib/lotes/validar-cuenta-cobro'
 import { guardarDistribucionLote } from './actions'
 import { DistribucionCuotas } from './DistribucionCuotas'
 import { EnlaceBoton } from '@/components/EnlaceBoton'
@@ -14,10 +15,10 @@ export default async function DistribucionLotePage({
   searchParams,
 }: {
   params: Promise<{ id: string }>
-  searchParams: Promise<{ error?: string; ok?: string; editarUsuario?: string }>
+  searchParams: Promise<{ error?: string; ok?: string }>
 }) {
   const { id } = await params
-  const { error, ok, editarUsuario } = await searchParams
+  const { error, ok } = await searchParams
 
   await requireAdministrador()
 
@@ -95,12 +96,18 @@ export default async function DistribucionLotePage({
 
   const { data: perfilesIntegrantes } =
     profileIdsIntegrantes.length > 0
-      ? await supabase.from('profiles').select('id, full_name, role').in('id', profileIdsIntegrantes)
+      ? await supabase
+          .from('profiles')
+          .select('id, full_name, role, alias, banco, titular')
+          .in('id', profileIdsIntegrantes)
       : { data: [] }
 
   const { data: cuentasExternas } =
     cuentaExternaIdsIntegrantes.length > 0
-      ? await supabase.from('cuentas_externas').select('id, nombre').in('id', cuentaExternaIdsIntegrantes)
+      ? await supabase
+          .from('cuentas_externas')
+          .select('id, nombre, alias, banco, titular')
+          .in('id', cuentaExternaIdsIntegrantes)
       : { data: [] }
 
   const etiquetaPorProfileId = new Map(
@@ -126,6 +133,35 @@ export default async function DistribucionLotePage({
       nombre: `${cuentaExterna.nombre} (cuenta externa)`,
     })),
   ]
+
+  // Quiénes todavía no tienen alias/banco/titular cargados. Antes esto se
+  // resolvía escondiéndolos del selector de cuenta de cobro del lote; ahora
+  // que el destino se elige por cuota se avisa en vez de bloquear, porque es
+  // normal asignarle la cuota a alguien y cargarle los datos después. Sin el
+  // aviso, el cliente abriría el portal a pagar y no vería ningún alias.
+  const sinDatosTransferencia = new Set<string>()
+  for (const persona of perfilesIntegrantes ?? []) {
+    if (
+      !tieneDatosTransferencia({
+        alias: persona.alias,
+        banco: persona.banco,
+        titular: persona.titular,
+      })
+    ) {
+      sinDatosTransferencia.add(`profile:${persona.id}`)
+    }
+  }
+  for (const cuentaExterna of cuentasExternas ?? []) {
+    if (
+      !tieneDatosTransferencia({
+        alias: cuentaExterna.alias,
+        banco: cuentaExterna.banco,
+        titular: cuentaExterna.titular,
+      })
+    ) {
+      sinDatosTransferencia.add(`externa:${cuentaExterna.id}`)
+    }
+  }
 
   const { data: objetivos } = await supabase
     .from('lote_distribucion_objetivos')
@@ -160,6 +196,21 @@ export default async function DistribucionLotePage({
       }))
   }
 
+  // A quién se le transfiere cada cuota, ya guardado. Desde el 08/09 este es
+  // el único lugar donde se define: el lote ya no tiene una "cuenta de cobro
+  // actual" propia (pedido de Gabriel -- era decidir lo mismo dos veces). Los
+  // lotes anteriores a ese cambio pueden tener todavía una cargada, y se
+  // sigue respetando como resguardo para las cuotas que quedaron sin destino
+  // propio.
+  const cuentaCobroInicialPorCuota: Record<number, string> = {}
+  for (const cuota of cuotas ?? []) {
+    cuentaCobroInicialPorCuota[cuota.numero] = cuota.cuenta_cobro_id
+      ? `profile:${cuota.cuenta_cobro_id}`
+      : cuota.cuenta_cobro_externa_id
+        ? `externa:${cuota.cuenta_cobro_externa_id}`
+        : ''
+  }
+
   // Un profile guardado en objetivos/distribuciones puede haber cambiado de
   // role desde entonces y ya no aparecer en participantesElegibles -- si eso
   // pasa, su <select> no tiene ninguna opción que matchee el value inicial y
@@ -172,6 +223,14 @@ export default async function DistribucionLotePage({
   for (const fila of objetivosIniciales) clavesUsadas.add(fila.participanteKey)
   for (const filas of Object.values(distribucionesIniciales)) {
     for (const fila of filas) clavesUsadas.add(fila.participanteKey)
+  }
+  // También el destino ya guardado de cada cuota: si esa persona dejó de ser
+  // integrante del lote, su <select> se quedaría sin ninguna opción que
+  // matchee el valor inicial y el próximo guardado le borraría el destino en
+  // silencio. Importa más desde el 08/09, que es cuando el destino pasó a
+  // vivir solo en la cuota.
+  for (const clave of Object.values(cuentaCobroInicialPorCuota)) {
+    if (clave) clavesUsadas.add(clave)
   }
 
   const profileIdsFaltantes = Array.from(clavesUsadas)
@@ -211,18 +270,6 @@ export default async function DistribucionLotePage({
         nombre: `${cuentaExterna.nombre} (cuenta externa, ya no es integrante del lote)`,
       })
     }
-  }
-
-  // Cuenta que cobra cada cuota, ya guardada. Sin nada cargado, cae a la
-  // cuenta del lote -- que es como funcionaba antes de tener cuenta por
-  // cuota, así que ninguna cuota queda sin destino.
-  const cuentaCobroInicialPorCuota: Record<number, string> = {}
-  for (const cuota of cuotas ?? []) {
-    cuentaCobroInicialPorCuota[cuota.numero] = cuota.cuenta_cobro_id
-      ? `profile:${cuota.cuenta_cobro_id}`
-      : cuota.cuenta_cobro_externa_id
-        ? `externa:${cuota.cuenta_cobro_externa_id}`
-        : ''
   }
 
   const cuentaCobroDelLote = lote.cuenta_cobro_id
@@ -287,7 +334,7 @@ export default async function DistribucionLotePage({
       {/* Quiénes cobran, arriba de cómo se reparte: son dos mitades de la
           misma decisión (06/09, pedido de Gabriel). Antes esto vivía en el
           detalle del lote y había que ir y volver entre dos pantallas. */}
-      <SeccionCobro loteId={id} editarUsuario={editarUsuario} />
+      <SeccionCobro loteId={id} />
 
       {/* El resultado de lo de arriba: la lista final de quiénes pueden
           recibir plata de este lote, ya resuelta (incluye admin, acreedor y
@@ -338,6 +385,7 @@ export default async function DistribucionLotePage({
             distribucionesIniciales={distribucionesIniciales}
             cuentaCobroInicialPorCuota={cuentaCobroInicialPorCuota}
             cuentaCobroDelLote={cuentaCobroDelLote}
+            sinDatosTransferencia={[...sinDatosTransferencia]}
             saldoActualPorClave={saldoActualPorClave}
           />
         </form>

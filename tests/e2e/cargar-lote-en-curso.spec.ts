@@ -71,6 +71,31 @@ test.describe('Cargar un lote ya vendido', () => {
     await page.getByRole('button', { name: 'Cargar lote vendido' }).click()
   }
 
+  test('el índice de ajuste aparece solo si el lote está en pesos', async ({ page }) => {
+    await login(page, fixtures.admin.email, fixtures.password)
+    await page.goto('/admin/lotes/cargar-en-curso')
+
+    const indice = page.locator('select[name="indiceTipo"]')
+
+    // En dólares no hay nada que indexar, así que el campo ni aparece
+    // (08/09, pedido de Gabriel).
+    await expect(page.locator('select[name="moneda"]')).toHaveValue('USD')
+    await expect(indice).toHaveCount(0)
+
+    await page.selectOption('select[name="moneda"]', 'ARS')
+    await expect(indice).toBeVisible()
+
+    // Y trae los índices ya cargados en /admin/indices, no una lista vacía:
+    // la consulta pedía una columna que no existe y el desplegable quedaba
+    // con la única opción "sin índice".
+    const opciones = await indice.locator('option').allTextContents()
+    expect(opciones.length).toBeGreaterThan(1)
+    expect(opciones[0]).toContain('sin índice')
+
+    await page.selectOption('select[name="moneda"]', 'USD')
+    await expect(indice).toHaveCount(0)
+  })
+
   test('carga el lote vendido, el comprador y las cuotas de una sola vez', async ({ page }) => {
     const identificador = `E2E En Curso ${Date.now()}`
     const clienteEmail = `comprador.viejo.${Date.now()}@sima-e2e.invalid`

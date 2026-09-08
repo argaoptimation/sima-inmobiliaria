@@ -222,6 +222,22 @@ export async function eliminarCuentaExterna(cuentaExternaId: string) {
     )
   }
 
+  // Cuotas que se le transfieren a esta cuenta. Desde el 08/09 el destino se
+  // elige cuota por cuota, así que mirar solo el lote dejaba pasar el caso
+  // normal.
+  const { count: cuotasAsociadas } = await supabase
+    .from('cuotas')
+    .select('id', { count: 'exact', head: true })
+    .eq('cuenta_cobro_externa_id', cuentaExternaId)
+
+  if (cuotasAsociadas && cuotasAsociadas > 0) {
+    redirect(
+      `/admin/cuentas-externas/${cuentaExternaId}?error=${encodeURIComponent(
+        'No se puede eliminar: está asignada como cuenta de cobro de alguna cuota'
+      )}`
+    )
+  }
+
   const { count: lotesAsociados } = await supabase
     .from('lotes')
     .select('id', { count: 'exact', head: true })

@@ -3,6 +3,41 @@ import { createAdminClient, ensureTestFixtures, TestFixtures } from './fixtures/
 import { login } from './utils/login'
 import { completarFormularioPagar } from './utils/pagar'
 
+/**
+ * Suma una cuenta externa como participante del lote. Desde el 08/09 es el
+ * paso previo obligatorio para poder mandarle una cuota a cobrar: el lote
+ * dejó de tener una "cuenta de cobro actual" propia (que listaba todas las
+ * cuentas externas del sistema) y el selector por cuota solo ofrece a los
+ * integrantes del lote.
+ */
+async function agregarComoParticipante(
+  page: import('@playwright/test').Page,
+  nombreCuentaExterna: string
+) {
+  // El <details> a veces no queda abierto con un solo click: si la
+  // navegación de Next todavía está reemplazando el árbol, el click llega
+  // al summary viejo y el nuevo se renderiza cerrado. Se reintenta hasta
+  // que el formulario esté realmente visible, en vez de asumirlo.
+  const selectorParticipante = page.locator('select[name="participanteId"]')
+
+  await expect(async () => {
+    if (!(await selectorParticipante.isVisible())) {
+      await page.getByText('+ Agregar participante al lote', { exact: true }).click()
+    }
+    await expect(selectorParticipante).toBeVisible({ timeout: 1000 })
+  }).toPass({ timeout: 15000 })
+
+  await page.selectOption('select[name="participanteId"]', {
+    label: `${nombreCuentaExterna} (cuenta externa)`,
+  })
+  await page.getByRole('button', { name: 'Agregar al lote' }).click()
+  await expect(
+    page.locator('[data-testid="participantes-del-lote"] li', {
+      hasText: `${nombreCuentaExterna} (cuenta externa)`,
+    })
+  ).toBeVisible()
+}
+
 test.describe('Cuentas externas', () => {
   let fixtures: TestFixtures
 
@@ -250,9 +285,7 @@ test.describe('Cuentas externas', () => {
     }
   })
 
-  test('seleccionar una cuenta externa como cuenta de cobro de un lote, sin asociarla antes', async ({
-    page,
-  }) => {
+  test('sumar una cuenta externa al lote y mandarle una cuota a cobrar', async ({ page }) => {
     await login(page, fixtures.admin.email, fixtures.password)
 
     await page.goto('/admin/cuentas-externas/nuevo')
@@ -270,17 +303,19 @@ test.describe('Cuentas externas', () => {
 
     try {
       await page.goto(`/admin/lotes/${fixtures.loteId}/distribucion`)
-      await page.selectOption('select[name="cuentaCobroId"]', {
+      await agregarComoParticipante(page, nombreCuentaExterna)
+
+      await page.selectOption('select[name="cuota1CuentaCobro"]', {
         label: `${nombreCuentaExterna} (cuenta externa)`,
       })
-      await page.getByRole('button', { name: 'Guardar cobro' }).click()
+      await page.getByRole('button', { name: 'Guardar distribución' }).click()
 
       // Mismo fenómeno de lectura-después-de-escritura ya documentado en
-      // este spec: el update del lote puede no estar visible todavía en la
-      // primera recarga inmediatamente después del redirect.
+      // este spec: el update puede no estar visible todavía en la primera
+      // recarga inmediatamente después del redirect.
       await expect(async () => {
         await page.reload()
-        await expect(page.locator('select[name="cuentaCobroId"]')).toHaveValue(
+        await expect(page.locator('select[name="cuota1CuentaCobro"]')).toHaveValue(
           new RegExp(`^externa:`)
         )
       }).toPass({ timeout: 10000 })
@@ -292,7 +327,11 @@ test.describe('Cuentas externas', () => {
       // borrado por nombre "E2E %" del beforeAll de este mismo archivo en la
       // próxima corrida.
       const admin = createAdminClient()
-      await admin.from('lotes').update({ cuenta_cobro_externa_id: null }).eq('id', fixtures.loteId)
+      await admin
+        .from('cuotas')
+        .update({ cuenta_cobro_externa_id: null })
+        .eq('lote_id', fixtures.loteId)
+      await admin.from('lote_participantes').delete().eq('lote_id', fixtures.loteId)
     }
   })
 
@@ -315,10 +354,12 @@ test.describe('Cuentas externas', () => {
 
     try {
       await page.goto(`/admin/lotes/${fixtures.loteId}/distribucion`)
-      await page.selectOption('select[name="cuentaCobroId"]', {
+      await agregarComoParticipante(page, nombreCuentaExterna)
+
+      await page.selectOption('select[name="cuota1CuentaCobro"]', {
         label: `${nombreCuentaExterna} (cuenta externa)`,
       })
-      await page.getByRole('button', { name: 'Guardar cobro' }).click()
+      await page.getByRole('button', { name: 'Guardar distribución' }).click()
 
       // Hay que esperar a que el guardado se confirme (mismo patrón que el
       // test de más arriba de esta misma suite) ANTES de limpiar cookies y
@@ -327,7 +368,7 @@ test.describe('Cuentas externas', () => {
       // asignación de cuenta_cobro_externa_id nunca llega a persistirse.
       await expect(async () => {
         await page.reload()
-        await expect(page.locator('select[name="cuentaCobroId"]')).toHaveValue(
+        await expect(page.locator('select[name="cuota1CuentaCobro"]')).toHaveValue(
           new RegExp(`^externa:`)
         )
       }).toPass({ timeout: 10000 })
@@ -382,7 +423,11 @@ test.describe('Cuentas externas', () => {
       // identificador único, con la causa real -- un pago huérfano --
       // escondida detrás).
       const admin = createAdminClient()
-      await admin.from('lotes').update({ cuenta_cobro_externa_id: null }).eq('id', fixtures.loteId)
+      await admin
+        .from('cuotas')
+        .update({ cuenta_cobro_externa_id: null })
+        .eq('lote_id', fixtures.loteId)
+      await admin.from('lote_participantes').delete().eq('lote_id', fixtures.loteId)
       await admin.from('cuentas_externas_movimientos').delete().eq('cuenta_externa_id', cuentaExternaId)
       await admin.from('pagos').delete().eq('lote_id', fixtures.loteId).eq('cliente_id', fixtures.cliente.id)
       await admin.from('cuentas_externas').delete().eq('id', cuentaExternaId)

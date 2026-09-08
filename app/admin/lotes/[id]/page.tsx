@@ -443,13 +443,22 @@ export default async function LoteDetallePage({
   const totalDeudaRefinanciable =
     Math.round(cuotasRefinanciables.reduce((acumulado, cuota) => acumulado + cuota.saldo_pendiente, 0) * 100) / 100
 
+  // Loteos para poder reasignar el lote desde acá (08/09, pedido de
+  // Gabriel). Un lote cargado sin loteo -- típico de los que se dan de alta
+  // ya vendidos, o de los que se importaron sueltos -- no tiene plantilla
+  // de contrato, así que el boleto de compraventa no se puede generar y no
+  // había forma de arreglarlo sin volver a crear el lote.
+  const { data: loteosDisponibles } = await supabase
+    .from('loteos')
+    .select('id, nombre, plantilla_contrato_path')
+    .order('nombre')
+
   // Para "Generar contrato": hace falta saber si el loteo de este lote ya
   // tiene una plantilla cargada, para mostrar el botón habilitado o el
   // aviso de "cargá una plantilla primero" en vez de dejar que falle recién
   // al hacer clic.
-  const { data: loteoDelLote } = lote!.loteo_id
-    ? await supabase.from('loteos').select('plantilla_contrato_path').eq('id', lote!.loteo_id).single()
-    : { data: null }
+  const loteoDelLote =
+    (loteosDisponibles ?? []).find((loteo) => loteo.id === lote!.loteo_id) ?? null
 
   return (
     <main className="w-full">
@@ -989,6 +998,32 @@ export default async function LoteDetallePage({
                 </span>
               </label>
             )}
+
+            {/* Reasignar el loteo desde el propio lote (08/09, pedido de
+                Gabriel): es lo que decide con qué plantilla se genera el
+                boleto de compraventa, y hasta ahora solo se podía elegir al
+                crearlo. */}
+            <label className="text-sm">
+              Loteo
+              <select
+                name="loteoId"
+                defaultValue={lote!.loteo_id ?? ''}
+                className={`${ENTRADA} w-full`}
+              >
+                <option value="">— sin loteo —</option>
+                {(loteosDisponibles ?? []).map((loteo) => (
+                  <option key={loteo.id} value={loteo.id}>
+                    {loteo.nombre}
+                    {!loteo.plantilla_contrato_path && ' — sin plantilla de contrato'}
+                  </option>
+                ))}
+              </select>
+              <span className="mt-1 block text-xs text-slate-500">
+                Define qué plantilla se usa para generar el boleto de compraventa. Con el loteo
+                asignado y los datos de abajo cargados, el boleto sale solo desde la sección
+                Contratos.
+              </span>
+            </label>
 
             <p className="mt-2 text-sm font-medium text-slate-700">
               Datos legales del lote (opcionales -- solo hacen falta para generar el contrato)

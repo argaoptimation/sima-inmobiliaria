@@ -63,12 +63,62 @@ function combinarPorParticipante(filas: FilaValida[]): FilaValida[] {
   return Array.from(mapa.values())
 }
 
+// A quién se le puede mandar a cobrar una cuota: los mismos que aparecen en
+// el selector, es decir el admin, el acreedor y el vendedor del lote más los
+// participantes adicionales. Se chequea también en el servidor porque el
+// <select> solo limita lo que se ve, no lo que se manda.
+async function esIntegranteDelLote(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  loteId: string,
+  lote: { admin_id: string | null; acreedor_id: string | null; vendedor_id: string | null },
+  clave: string
+): Promise<boolean> {
+  const destino = parseParticipanteKey(clave)
+  if (!destino) return false
+
+  if (
+    destino.profile_id &&
+    [lote.admin_id, lote.acreedor_id, lote.vendedor_id].includes(destino.profile_id)
+  ) {
+    return true
+  }
+
+  // Un administrador siempre vale, aunque el lote tenga admin_id en null:
+  // la pantalla lo ofrece igual, porque el admin del lote cae por defecto en
+  // Nicolás (ver resolverAdminPorDefecto). Sin esta rama, elegirlo en un
+  // lote viejo daría "no es integrante de este lote".
+  if (destino.profile_id) {
+    const { data: perfil } = await supabase
+      .from('profiles')
+      .select('role')
+      .eq('id', destino.profile_id)
+      .maybeSingle()
+
+    if (perfil?.role === 'administrador') return true
+  }
+
+  const consulta = supabase
+    .from('lote_participantes')
+    .select('id')
+    .eq('lote_id', loteId)
+
+  const { data: participante } = destino.profile_id
+    ? await consulta.eq('profile_id', destino.profile_id).maybeSingle()
+    : await consulta.eq('cuenta_externa_id', destino.cuenta_externa_id!).maybeSingle()
+
+  return Boolean(participante)
+}
+
 export async function guardarDistribucionLote(loteId: string, formData: FormData) {
   await requireAdministrador()
 
   const supabase = await createClient()
 
-  const { data: lote } = await supabase.from('lotes').select('estado, ciclo_actual').eq('id', loteId).single()
+  const { data: lote } = await supabase
+    .from('lotes')
+    .select('estado, ciclo_actual, admin_id, acreedor_id, vendedor_id')
+    .eq('id', loteId)
+    .single()
 
   if (!lote || lote.estado !== 'vendido') {
     redirect(
@@ -78,7 +128,7 @@ export async function guardarDistribucionLote(loteId: string, formData: FormData
 
   const { data: cuotas } = await supabase
     .from('cuotas')
-    .select('id, numero')
+    .select('id, numero, cuenta_cobro_id, cuenta_cobro_externa_id')
     .eq('lote_id', loteId)
     .eq('ciclo', lote.ciclo_actual)
 
@@ -135,9 +185,43 @@ export async function guardarDistribucionLote(loteId: string, formData: FormData
   // Cuenta que cobra cada cuota (05/09). Va aparte del RPC de arriba porque
   // no es una fila de distribución sino una columna de la propia cuota: es
   // el alias que el cliente ve en su portal cuando va a pagar ESA cuota.
-  // Vacío = cae a la cuenta del lote, que es como funcionaba antes.
+  //
+  // Desde el 08/09 es el ÚNICO lugar donde se define el destino: el lote ya
+  // no tiene una cuenta de cobro propia. Por eso la validación de "tiene que
+  // ser alguien del lote", que antes vivía en actualizarCobro, se mudó acá.
+  //
+  // La validación va COMPLETA antes de escribir nada: si se validara cuota
+  // por cuota dentro del mismo bucle, un destino inválido en la cuota 5
+  // dejaría las cuatro primeras ya guardadas y el resto sin tocar.
+  const clavesPorCuota = new Map<number, string>()
+
   for (const cuota of cuotas) {
     const clave = ((formData.get(`cuota${cuota.numero}CuentaCobro`) as string) || '').trim()
+    clavesPorCuota.set(cuota.numero, clave)
+
+    // Solo se valida lo que CAMBIÓ. Una cuota puede tener guardado a alguien
+    // que después dejó de ser integrante del lote: su opción se sigue
+    // ofreciendo para no borrarle el destino en silencio, y rechazar el
+    // formulario entero por eso dejaría el lote imposible de guardar.
+    const claveGuardada = cuota.cuenta_cobro_id
+      ? `profile:${cuota.cuenta_cobro_id}`
+      : cuota.cuenta_cobro_externa_id
+        ? `externa:${cuota.cuenta_cobro_externa_id}`
+        : ''
+
+    if (clave === claveGuardada || clave === '') continue
+
+    if (!(await esIntegranteDelLote(supabase, loteId, lote, clave))) {
+      redirect(
+        `/admin/lotes/${loteId}/distribucion?error=${encodeURIComponent(
+          `A quién se le transfiere la cuota ${cuota.numero} tiene que ser el admin, el acreedor, el vendedor o un participante adicional de este lote`
+        )}`
+      )
+    }
+  }
+
+  for (const cuota of cuotas) {
+    const clave = clavesPorCuota.get(cuota.numero) ?? ''
     const destino = clave ? parseParticipanteKey(clave) : null
 
     const { error: errorCuenta } = await supabase

@@ -53,3 +53,4 @@ supabase/.temp
 
 # skills de terceros instalados localmente (herramienta de Claude Code, no código de la app)
 .claude/skills/
+.claude/settings.local.json

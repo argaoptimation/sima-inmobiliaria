@@ -104,6 +104,31 @@ export async function quitarParticipante(loteId: string, participanteId: string)
     redirect(`/admin/lotes/${loteId}/distribucion`)
   }
 
+  // Cuotas que hoy se le transfieren a esta persona/cuenta. Desde el 08/09
+  // el destino vive en la cuota y ya no en el lote, así que el guard mira
+  // ahí: sacarlo del lote dejaría esas cuotas apuntando a alguien que ya no
+  // participa, y el cliente vería un alias que no corresponde.
+  const columna = participante!.profile_id ? 'cuenta_cobro_id' : 'cuenta_cobro_externa_id'
+  const valor = participante!.profile_id ?? participante!.cuenta_externa_id
+
+  const { data: cuotasQueCobra } = await supabase
+    .from('cuotas')
+    .select('numero')
+    .eq('lote_id', loteId)
+    .eq(columna, valor!)
+    .order('numero')
+
+  if ((cuotasQueCobra ?? []).length > 0) {
+    redirect(
+      `/admin/lotes/${loteId}/distribucion?error=${encodeURIComponent(
+        `No se puede quitar: hoy cobra la cuota ${cuotasQueCobra!.map((cuota) => cuota.numero).join(', ')} de este lote. Cambiá a quién se le transfieren y después quitalo.`
+      )}`
+    )
+  }
+
+  // Los lotes anteriores al 08/09 pueden tener todavía una cuenta de cobro
+  // cargada a nivel lote, que sigue siendo el resguardo de las cuotas sin
+  // destino propio.
   const { data: lote } = await supabase
     .from('lotes')
     .select('cuenta_cobro_id, cuenta_cobro_externa_id')

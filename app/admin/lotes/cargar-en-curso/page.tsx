@@ -2,6 +2,7 @@ import { createClient } from '@/lib/supabase/server'
 import { requireAdministrador } from '@/lib/auth/require-admin'
 import { cargarLoteEnCurso } from './actions'
 import { CuotasQueQuedan } from './CuotasQueQuedan'
+import { SoloSiPesos } from './SoloSiPesos'
 import { EnlaceBoton } from '@/components/EnlaceBoton'
 import { BotonEnvio } from '@/components/BotonEnvio'
 import { BuscadorPersona } from '@/components/BuscadorPersona'
@@ -51,10 +52,13 @@ export default async function CargarLoteEnCursoPage({
   const { data: loteos } = await supabase.from('loteos').select('id, nombre').order('nombre')
 
   // Mismos índices que ofrece el detalle del lote: los que ya se cargaron
-  // al menos una vez en /admin/indices.
-  const { data: valoresIndice } = await supabase.from('indices_valores').select('indice_nombre')
+  // al menos una vez en /admin/indices. La columna es `nombre` -- pedir
+  // `indice_nombre` (que es como se llama en ajustes_indexacion) hacía
+  // fallar la consulta en silencio y dejaba el desplegable vacío, que fue
+  // justo lo que vio Gabriel el 08/09.
+  const { data: valoresIndice } = await supabase.from('indices_valores').select('nombre')
   const nombresIndicesDisponibles = [
-    ...new Set((valoresIndice ?? []).map((fila) => fila.indice_nombre as string)),
+    ...new Set((valoresIndice ?? []).map((fila) => fila.nombre as string)),
   ].sort()
 
   return (
@@ -174,6 +178,11 @@ export default async function CargarLoteEnCursoPage({
                 </option>
               ))}
             </select>
+            <span className="mt-1 block text-xs text-slate-500">
+              El loteo define qué plantilla se usa para generar el boleto de compraventa. Si lo
+              elegís acá y los datos legales de abajo están cargados, el boleto sale solo desde el
+              detalle del lote. Se puede asignar después.
+            </span>
           </label>
         </section>
 
@@ -256,21 +265,42 @@ export default async function CargarLoteEnCursoPage({
               className={`w-full ${ENTRADA}`}
             />
           </label>
-          <label className="text-sm text-slate-600">
-            Índice de ajuste (opcional — solo se aplica si el lote está en pesos)
-            <select name="indiceTipo" defaultValue={previo('indiceTipo')} className={`w-full ${ENTRADA}`}>
-              <option value="">— sin índice —</option>
-              {nombresIndicesDisponibles.map((nombre) => (
-                <option key={nombre} value={nombre}>
-                  {nombre}
-                </option>
-              ))}
-            </select>
-            <span className="mt-1 block text-xs text-slate-500">
-              Si el lote se ajusta por índice, elegilo acá: las cuotas que quedan se van a ajustar
-              solas de acá en adelante. En un lote en dólares se ignora.
-            </span>
-          </label>
+          {/* Solo aparece con la moneda en ARS: en un lote en dólares no hay
+              nada que indexar (08/09, pedido de Gabriel). */}
+          <SoloSiPesos monedaInicial={previo('moneda') || 'USD'}>
+            <label className="text-sm text-slate-600">
+              Índice de ajuste (opcional)
+              <select name="indiceTipo" defaultValue={previo('indiceTipo')} className={`w-full ${ENTRADA}`}>
+                <option value="">— sin índice —</option>
+                {nombresIndicesDisponibles.map((nombre) => (
+                  <option key={nombre} value={nombre}>
+                    {nombre}
+                  </option>
+                ))}
+              </select>
+              <span className="mt-1 block text-xs text-slate-500">
+                {nombresIndicesDisponibles.length > 0 ? (
+                  <>
+                    Si el lote se ajusta por índice, elegilo acá: las cuotas que quedan se van a
+                    ajustar solas de acá en adelante. Las que ya están pagadas no se tocan. Los
+                    índices de la lista son los que ya se cargaron al menos una vez en{' '}
+                    <EnlaceBoton href="/admin/indices" className={ENLACE}>
+                      Índices
+                    </EnlaceBoton>
+                    .
+                  </>
+                ) : (
+                  <>
+                    Todavía no hay ningún índice cargado —{' '}
+                    <EnlaceBoton href="/admin/indices" className={ENLACE}>
+                      cargá el primero acá
+                    </EnlaceBoton>{' '}
+                    y después va a aparecer en esta lista.
+                  </>
+                )}
+              </span>
+            </label>
+          </SoloSiPesos>
         </section>
 
         <details className="rounded-lg border border-blue-100 text-sm">

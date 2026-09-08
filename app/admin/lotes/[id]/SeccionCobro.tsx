@@ -3,12 +3,17 @@ import { actualizarCobro } from './actions'
 import { agregarParticipante, quitarParticipante } from './participantes-actions'
 import { tieneDatosTransferencia } from '@/lib/lotes/validar-cuenta-cobro'
 import { resolverAdminPorDefecto } from '@/lib/lotes/admin-por-defecto'
-import { EnlaceBoton } from '@/components/EnlaceBoton'
 import { BotonEnvio } from '@/components/BotonEnvio'
-import { ENTRADA, BOTON_PRIMARIO, ENLACE, TITULO_H2 } from '@/lib/ui/clases'
+import { ENTRADA, BOTON_PRIMARIO, TITULO_H2 } from '@/lib/ui/clases'
 
-// Quiénes cobran este lote: admin, acreedor, vendedor, la cuenta que recibe
-// las transferencias hoy, y los participantes adicionales.
+// Quiénes cobran este lote: admin, acreedor, vendedor y los participantes
+// adicionales.
+//
+// La "cuenta de cobro actual" del lote se sacó de acá el 08/09 (pedido de
+// Gabriel): desde que cada cuota elige a quién se le transfiere, un destino
+// a nivel lote era un segundo lugar donde decidir lo mismo. Ahora eso se
+// define cuota por cuota, más abajo en esta misma pantalla, con un
+// "aplicar a todas" para el caso normal de que cobre siempre el mismo.
 //
 // Vive en /distribucion y no en el detalle del lote (06/09, pedido de
 // Gabriel): definir quiénes participan y repartir las cuotas entre ellos son
@@ -19,13 +24,7 @@ import { ENTRADA, BOTON_PRIMARIO, ENLACE, TITULO_H2 } from '@/lib/ui/clases'
 // Carga sus propios datos en vez de recibirlos por props: son ocho consultas
 // que solo usa este bloque, y pasarlas desde la página que lo dibuja fue lo
 // que hizo que el detalle del lote llegara a 1500 líneas.
-export async function SeccionCobro({
-  loteId,
-  editarUsuario,
-}: {
-  loteId: string
-  editarUsuario?: string
-}) {
+export async function SeccionCobro({ loteId }: { loteId: string }) {
   const supabase = await createClient()
 
   const {
@@ -44,7 +43,7 @@ export async function SeccionCobro({
 
   const { data: lote } = await supabase
     .from('lotes')
-    .select('admin_id, acreedor_id, vendedor_id, cuenta_cobro_id, cuenta_cobro_externa_id')
+    .select('admin_id, acreedor_id, vendedor_id')
     .eq('id', loteId)
     .maybeSingle()
 
@@ -69,14 +68,6 @@ export async function SeccionCobro({
 
   const acreedores = (staff ?? []).filter((persona) => persona.role === 'acreedor')
   const vendedores = (staff ?? []).filter((persona) => persona.role === 'vendedor')
-  const conDatos = (staff ?? []).filter(
-    (persona) =>
-      tieneDatosTransferencia({
-        alias: persona.alias,
-        banco: persona.banco,
-        titular: persona.titular,
-      }) || persona.id === lote.cuenta_cobro_id
-  )
 
   const { data: participantes } = await supabase
     .from('lote_participantes')
@@ -140,20 +131,9 @@ export async function SeccionCobro({
     <section className="mb-8 max-w-3xl">
       <h2 className={`mb-2 ${TITULO_H2}`}>Cobro</h2>
       <p className="mb-3 text-sm text-slate-600">
-        Asigná quiénes son el admin, el acreedor y el vendedor de este lote, y cuál de ellos recibe
-        las transferencias actualmente. Solo se puede elegir como cuenta de cobro a alguien que ya
-        tenga datos de transferencia cargados
-        {editarUsuario && (
-          <>
-            {' '}
-            —{' '}
-            <EnlaceBoton href={`/admin/usuarios?editar=${editarUsuario}`} className={ENLACE}>
-              cargarlos ahora
-            </EnlaceBoton>
-          </>
-        )}
-        . Los que sumes acá son los únicos entre los que después vas a poder repartir cada cuota,
-        más abajo.
+        Asigná quiénes son el admin, el acreedor y el vendedor de este lote. Los que sumes acá son
+        los únicos entre los que después vas a poder repartir cada cuota, y los únicos a los que vas
+        a poder mandarle una cuota a cobrar, más abajo.
       </p>
 
       <form action={actualizarCobroConId} className="flex flex-col gap-3">
@@ -217,43 +197,14 @@ export async function SeccionCobro({
             ))}
           </select>
         </label>
-        <label className="text-sm">
-          Cuenta de cobro actual
-          <select
-            name="cuentaCobroId"
-            defaultValue={
-              lote.cuenta_cobro_externa_id
-                ? `externa:${lote.cuenta_cobro_externa_id}`
-                : (lote.cuenta_cobro_id ?? '')
-            }
-            className={`${ENTRADA} w-full`}
-          >
-            <option value="">— sin asignar —</option>
-            {conDatos.map((persona) => (
-              <option key={persona.id} value={persona.id}>
-                {persona.full_name} ({persona.role})
-                {!tieneDatosTransferencia({
-                  alias: persona.alias,
-                  banco: persona.banco,
-                  titular: persona.titular,
-                }) && ' — sin datos de transferencia'}
-              </option>
-            ))}
-            {(cuentasExternas ?? []).map((cuentaExterna) => (
-              <option key={cuentaExterna.id} value={`externa:${cuentaExterna.id}`}>
-                {cuentaExterna.nombre} (cuenta externa)
-              </option>
-            ))}
-          </select>
-        </label>
         <BotonEnvio className={`cursor-pointer self-start ${BOTON_PRIMARIO}`}>
           Guardar cobro
         </BotonEnvio>
       </form>
 
-      {/* Va pegado debajo de "Cuenta de cobro actual", listando en una línea
-          quién más participa; el formulario aparece recién al apretar el "+"
-          (antes era un bloque aparte explicado en largo, que hacía ruido). */}
+      {/* Va pegado debajo de los roles, listando en una línea quién más
+          participa; el formulario aparece recién al apretar el "+" (antes
+          era un bloque aparte explicado en largo, que hacía ruido). */}
       <div className="mt-4 border-t border-blue-100 pt-4">
         <p className="text-sm font-medium text-blue-900">Otros participantes del cobro</p>
         {(participantes ?? []).length === 0 ? (

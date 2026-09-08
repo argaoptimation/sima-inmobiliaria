@@ -5,6 +5,12 @@
       "name": "sima-dev",
       "runtimeExecutable": "npm",
       "runtimeArgs": ["run", "dev", "--", "-p", "3001"],
+      "autoPort": false,
+      "port": 3001
+    },
+    {
+      "name": "sima-attach",
+      "url": "http://localhost:3001",
       "port": 3001
     }
   ]

@@ -6,18 +6,25 @@ import { login } from './utils/login'
  * Abre el desplegable "+ Agregar participante al lote" de la sección de cobro.
  *
  * Desde el 05/09 la sección dejó de estar siempre desplegada: quedó como una
- * línea debajo de "Cuenta de cobro actual" y el formulario aparece recién al
+ * línea debajo de los roles del lote y el formulario aparece recién al
  * apretar el "+", para que no haga tanto ruido. Y desde el 06/09 esa sección
  * vive en /distribucion, no en el detalle del lote -- por eso el nombre dice
  * "al lote", para distinguirla del "+ Agregar participante a esta cuota" del
  * reparto por cuota, que ahora está en la misma pantalla.
  */
 async function abrirFormularioParticipante(page: import('@playwright/test').Page) {
-  const resumen = page.getByText('+ Agregar participante al lote', { exact: true })
-  if (await resumen.isVisible().catch(() => false)) {
-    await resumen.click()
-  }
-  await expect(page.locator('select[name="participanteId"]')).toBeVisible()
+  // El <details> a veces no queda abierto con un solo click: si la
+  // navegación de Next todavía está reemplazando el árbol, el click llega
+  // al summary viejo y el nuevo se renderiza cerrado. Se reintenta hasta
+  // que el formulario esté realmente visible, en vez de asumirlo.
+  const selectorParticipante = page.locator('select[name="participanteId"]')
+
+  await expect(async () => {
+    if (!(await selectorParticipante.isVisible())) {
+      await page.getByText('+ Agregar participante al lote', { exact: true }).click()
+    }
+    await expect(selectorParticipante).toBeVisible({ timeout: 1000 })
+  }).toPass({ timeout: 15000 })
 }
 
 
@@ -155,7 +162,7 @@ test.describe('Múltiples participantes por lote', () => {
       await page.selectOption('select[name="participanteId"]', { label: 'E2E Vendedor B (vendedor)' })
       await page.getByRole('button', { name: 'Agregar al lote' }).click()
       // getByText matchearía también la opción homónima del <select> de
-      // "Cuenta de cobro actual": se acota al <li> de la lista.
+      // "Agregar participante": se acota al <li> de la lista.
       await expect(page.locator('[data-testid="participantes-del-lote"] li', { hasText: 'E2E Vendedor B (vendedor)' })).toBeVisible()
 
       await abrirFormularioParticipante(page)
@@ -180,7 +187,7 @@ test.describe('Múltiples participantes por lote', () => {
     await page.selectOption('select[name="participanteId"]', { label: 'E2E Vendedor A (vendedor)' })
     await page.getByRole('button', { name: 'Agregar al lote' }).click()
     // getByText matchearía también la opción homónima del <select> de
-    // "Cuenta de cobro actual": se acota al <li> de la lista.
+    // "Agregar participante": se acota al <li> de la lista.
     await expect(page.locator('[data-testid="participantes-del-lote"] li', { hasText: 'E2E Vendedor A (vendedor)' })).toBeVisible()
 
     // quitarParticipante no tiene ningún diálogo de confirmación de por
@@ -204,7 +211,7 @@ test.describe('Múltiples participantes por lote', () => {
     })
     await page.getByRole('button', { name: 'Agregar al lote' }).click()
     // getByText matchearía también la opción homónima del <select> de
-    // "Cuenta de cobro actual": se acota al <li> de la lista.
+    // "Agregar participante": se acota al <li> de la lista.
     await expect(page.locator('[data-testid="participantes-del-lote"] li', { hasText: 'E2E Acreedor Con Datos (acreedor)' })).toBeVisible()
 
     try {
@@ -266,67 +273,122 @@ test.describe('Múltiples participantes por lote', () => {
     await expect(page.getByText('Otros participantes del cobro')).not.toBeVisible()
   })
 
-  test('un participante adicional puede elegirse como cuenta de cobro; alguien no asociado, no', async ({
-    page,
-  }) => {
+  test('solo un integrante del lote puede cobrar una cuota', async ({ page }) => {
     const admin = createAdminClient()
 
     await login(page, fixtures.admin.email, fixtures.password)
-    await page.goto(`/admin/lotes/${fixtures.loteSecundarioId}/distribucion`)
+    await page.goto(`/admin/lotes/${fixtures.loteId}/distribucion`)
 
-    // E2E Vendedor A no es acreedor/vendedor/admin de loteSecundario (esos
-    // son acreedorSecundario y vendedorLoteB, ver fixtures/test-data.ts) y sí
-    // tiene datos de transferencia -- opción válida para este caso.
-    // Todavía no es participante de este lote: la opción existe en el
-    // selector (es global), pero el submit se rechaza.
-    await page.selectOption('select[name="cuentaCobroId"]', { label: 'E2E Vendedor A (vendedor)' })
-    await page.getByRole('button', { name: 'Guardar cobro' }).click()
-    await expect(
-      page.getByText(
-        'La cuenta de cobro tiene que ser el admin, el acreedor, el vendedor o un participante adicional de este lote'
-      )
-    ).toBeVisible()
+    // E2E Vendedor B no es acreedor/vendedor/admin de este lote (esos son
+    // acreedorConDatos y vendedorLoteA, ver fixtures/test-data.ts) y todavía
+    // no es participante, así que no tiene por qué figurar entre los que
+    // pueden cobrar una cuota. Desde el 08/09 este selector es el único
+    // lugar donde se elige el destino del cobro.
+    const opcionesAntes = await page
+      .locator('select[name="cuota1CuentaCobro"] option')
+      .allTextContents()
+
+    expect(opcionesAntes.some((texto) => texto.includes('E2E Vendedor B'))).toBe(false)
 
     try {
       await abrirFormularioParticipante(page)
-      await page.selectOption('select[name="participanteId"]', { label: 'E2E Vendedor A (vendedor)' })
+      await page.selectOption('select[name="participanteId"]', { label: 'E2E Vendedor B (vendedor)' })
       await page.getByRole('button', { name: 'Agregar al lote' }).click()
-      // getByText matchearía también las opciones homónimas de los <select>
-      // de "Cuenta de cobro actual" y "Agregar participante": se acota al
-      // <li> de la lista, mismo criterio que el resto del suite.
-      await expect(page.locator('[data-testid="participantes-del-lote"] li', { hasText: 'E2E Vendedor A (vendedor)' })).toBeVisible()
+      // getByText matchearía también las opciones homónimas de los <select>:
+      // se acota al <li> de la lista, mismo criterio que el resto del suite.
+      await expect(
+        page.locator('[data-testid="participantes-del-lote"] li', { hasText: 'E2E Vendedor B (vendedor)' })
+      ).toBeVisible()
 
-      await page.selectOption('select[name="cuentaCobroId"]', { label: 'E2E Vendedor A (vendedor)' })
-      await page.getByRole('button', { name: 'Guardar cobro' }).click()
+      await page.selectOption('select[name="cuota1CuentaCobro"]', {
+        label: 'E2E Vendedor B (participante)',
+      })
+      await page.getByRole('button', { name: 'Guardar distribución' }).click()
 
       // El submit exitoso de un Server Action no dispara una navegación de
       // browser tradicional que Playwright pueda esperar automáticamente
-      // tras el click -- sin esta espera, el reload de abajo puede llegar
-      // antes de que la mutación se haya confirmado. Mismo criterio de
-      // polling de lectura-después-de-escritura que el resto del suite.
+      // tras el click. Mismo criterio de polling de lectura-después-de-
+      // escritura que el resto del suite.
       await expect
         .poll(
           async () => {
-            const { data: lote } = await admin
-              .from('lotes')
+            const { data: cuota } = await admin
+              .from('cuotas')
               .select('cuenta_cobro_id')
-              .eq('id', fixtures.loteSecundarioId)
+              .eq('lote_id', fixtures.loteId)
+              .eq('numero', 1)
               .single()
-            return lote?.cuenta_cobro_id ?? null
+            return cuota?.cuenta_cobro_id ?? null
           },
           { timeout: 10000 }
         )
-        .toBe(fixtures.vendedorLoteA.id)
-
-      await page.reload()
-      await expect(page.locator('select[name="cuentaCobroId"]')).toHaveValue(fixtures.vendedorLoteA.id)
+        .toBe(fixtures.vendedorLoteB.id)
     } finally {
-      await admin.from('lotes').update({ cuenta_cobro_id: null }).eq('id', fixtures.loteSecundarioId)
+      await admin
+        .from('cuotas')
+        .update({ cuenta_cobro_id: null, cuenta_cobro_externa_id: null })
+        .eq('lote_id', fixtures.loteId)
       await admin
         .from('lote_participantes')
         .delete()
-        .eq('lote_id', fixtures.loteSecundarioId)
-        .eq('profile_id', fixtures.vendedorLoteA.id)
+        .eq('lote_id', fixtures.loteId)
+        .eq('profile_id', fixtures.vendedorLoteB.id)
+    }
+  })
+
+  test('no se puede quitar del lote a alguien que hoy cobra una cuota', async ({ page }) => {
+    const admin = createAdminClient()
+
+    await login(page, fixtures.admin.email, fixtures.password)
+    await page.goto(`/admin/lotes/${fixtures.loteId}/distribucion`)
+
+    try {
+      await abrirFormularioParticipante(page)
+      await page.selectOption('select[name="participanteId"]', { label: 'E2E Vendedor B (vendedor)' })
+      await page.getByRole('button', { name: 'Agregar al lote' }).click()
+      await expect(
+        page.locator('[data-testid="participantes-del-lote"] li', { hasText: 'E2E Vendedor B (vendedor)' })
+      ).toBeVisible()
+
+      // Se asigna por base para probar el guard aislado del formulario.
+      await admin
+        .from('cuotas')
+        .update({ cuenta_cobro_id: fixtures.vendedorLoteB.id })
+        .eq('lote_id', fixtures.loteId)
+        .eq('numero', 1)
+
+      await expect
+        .poll(
+          async () => {
+            const { data: cuota } = await admin
+              .from('cuotas')
+              .select('cuenta_cobro_id')
+              .eq('lote_id', fixtures.loteId)
+              .eq('numero', 1)
+              .single()
+            return cuota?.cuenta_cobro_id ?? null
+          },
+          { timeout: 10000 }
+        )
+        .toBe(fixtures.vendedorLoteB.id)
+
+      await page.reload()
+      const fila = page.locator('[data-testid="participantes-del-lote"] li', {
+        hasText: 'E2E Vendedor B (vendedor)',
+      })
+      await fila.getByRole('button', { name: 'Quitar' }).click()
+
+      await expect(page.getByText('No se puede quitar: hoy cobra la cuota 1')).toBeVisible()
+    } finally {
+      await admin
+        .from('cuotas')
+        .update({ cuenta_cobro_id: null, cuenta_cobro_externa_id: null })
+        .eq('lote_id', fixtures.loteId)
+      await admin
+        .from('lote_participantes')
+        .delete()
+        .eq('lote_id', fixtures.loteId)
+        .eq('profile_id', fixtures.vendedorLoteB.id)
     }
   })
 })
