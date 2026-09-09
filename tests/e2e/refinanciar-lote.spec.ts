@@ -256,9 +256,11 @@ test.describe('Refinanciar cuotas (26/08)', () => {
   test('un lote recién creado ya aparece en el historial ("Lote creado")', async ({ page }) => {
     await login(page, fixtures.admin.email, fixtures.password)
 
-    const identificador = `E2E Historial Creado ${Date.now()}`
+    const numeroLote = `Historial-Creado-${Date.now()}`
+    const identificador = `Mza E2E - Lote ${numeroLote}`
     await page.goto('/admin/lotes/nuevo')
-    await page.locator('input[name="identificador"]').fill(identificador)
+    await page.locator('input[name="manzana"]').fill('E2E')
+    await page.locator('input[name="numeroLote"]').fill(numeroLote)
     await page.locator('input[name="ubicacion"]').fill('Ubicación E2E')
     await page.locator('input[name="precioTotal"]').fill('1000')
     await page.selectOption('select[name="moneda"]', 'USD')

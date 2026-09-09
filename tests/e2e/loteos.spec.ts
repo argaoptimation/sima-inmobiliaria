@@ -164,7 +164,12 @@ test.describe('Loteos', () => {
     page,
   }) => {
     const admin = createAdminClient()
-    const identificadorRepetido = `E2E Repetido ${Date.now()}`
+    // El nombre del lote lo arma la app con la manzana y el numero (ver
+    // lib/lotes/identificador-automatico.ts), asi que para provocar el choque
+    // hay que repetir esos dos, no un texto libre.
+    const manzanaRepetida = 'E2E'
+    const numeroRepetido = `Repetido-${Date.now()}`
+    const identificadorRepetido = `Mza ${manzanaRepetida} - Lote ${numeroRepetido}`
 
     const { data: loteoA } = await admin
       .from('loteos')
@@ -236,15 +241,14 @@ test.describe('Loteos', () => {
     // identificador repetido (el nuevo lote también queda sin loteo).
     await login(page, fixtures.admin.email, fixtures.password)
     await page.goto('/admin/lotes/nuevo')
-    await page
-      .locator('input[name="identificador"]')
-      .fill(identificadorRepetido)
+    await page.locator('input[name="manzana"]').fill(manzanaRepetida)
+    await page.locator('input[name="numeroLote"]').fill(numeroRepetido)
     await page.locator('input[name="ubicacion"]').fill('Ubicación de prueba')
     await page.locator('input[name="precioTotal"]').fill('1000')
     await page.locator('input[name="acreedorNombre"]').fill('E2E Acreedor Con Datos')
     await page.getByRole('button', { name: 'Crear lote' }).click()
 
-    await expect(page.getByText(/Ya existe un lote con ese identificador/)).toBeVisible()
+    await expect(page.getByText(/Ya hay un lote con esa manzana y ese número/)).toBeVisible()
 
     await admin.from('lotes').delete().in('id', [loteEnA!.id, loteEnB!.id, loteSinLoteo!.id])
     await admin.from('loteos').delete().in('id', [loteoA!.id, loteoB!.id])
@@ -281,7 +285,7 @@ test.describe('Loteos', () => {
       // `label` exige el texto exacto.
       await page.selectOption('select[name="loteoId"]', loteo.id)
       await expect(page.locator('select[name="loteoId"] option:checked')).toContainText(nombreLoteo)
-      await page.getByRole('button', { name: 'Guardar', exact: true }).click()
+      await page.getByRole('button', { name: 'Guardar cambios' }).click()
       await expect(page.getByText('Datos del lote guardados.')).toBeVisible()
 
       const { data: lote } = await admin

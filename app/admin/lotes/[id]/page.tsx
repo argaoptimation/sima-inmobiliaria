@@ -30,6 +30,7 @@ import { telefonoParaWhatsApp } from '@/lib/telefono/prefijos'
 import { mesDeFecha } from '@/lib/lotes/aplicar-indexacion'
 import { EVENTO_HISTORIAL_ETIQUETA } from '@/lib/lotes/eventos-historial'
 import { listarNumerosDeCuota } from '@/lib/cuotas/listar-numeros'
+import { identificadorAutomatico } from '@/lib/lotes/identificador-automatico'
 import { CampoArchivoDirecto } from '@/components/CampoArchivoDirecto'
 import { FiltroEnVivo } from '@/components/FiltroEnVivo'
 import { RefinanciarCuotas } from './RefinanciarCuotas'
@@ -536,12 +537,17 @@ export default async function LoteDetallePage({
   // "Mza 5 - Lote 12": el nombre catastral con el que Nico ubica cada
   // lote. Es lo mismo de lo que sale el `identificador`, ver
   // lib/lotes/identificador-automatico.ts.
-  const ubicacionCatastral = [
-    lote!.manzana ? `Manzana ${lote!.manzana}` : null,
-    lote!.numero_lote ? `Lote ${lote!.numero_lote}` : null,
-  ]
-    .filter(Boolean)
-    .join(' · ')
+  const nombreDerivado = identificadorAutomatico(lote!.manzana, lote!.numero_lote)
+  const elNombreYaDiceManzanaYLote = nombreDerivado === lote!.identificador
+
+  const ubicacionCatastral = elNombreYaDiceManzanaYLote
+    ? ''
+    : [
+        lote!.manzana ? `Manzana ${lote!.manzana}` : null,
+        lote!.numero_lote ? `Lote ${lote!.numero_lote}` : null,
+      ]
+        .filter(Boolean)
+        .join(' · ')
 
   const actualizarDatosGeneralesConId = actualizarDatosGenerales.bind(null, id)
 
@@ -1524,11 +1530,17 @@ export default async function LoteDetallePage({
               <div>
                 <h2 className={PANEL_TITULO}>Datos del lote</h2>
                 <p className="text-xs text-slate-500">
-                  Se llama{' '}
-                  <strong className="font-semibold text-slate-700">{lote!.identificador}</strong>
-                  {ubicacionCatastral
-                    ? ' — el nombre sale de la manzana y el número.'
-                    : ' — cargá la manzana y el número y el nombre se arma solo.'}
+                  {elNombreYaDiceManzanaYLote ? (
+                    'El nombre del lote sale de la manzana y el número: si los corregís acá, el nombre los sigue.'
+                  ) : (
+                    <>
+                      Hoy se llama{' '}
+                      <strong className="font-semibold text-slate-700">
+                        {lote!.identificador}
+                      </strong>
+                      . Si cargás la manzana y el número, pasa a llamarse por ellos.
+                    </>
+                  )}
                 </p>
               </div>
             </div>

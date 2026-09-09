@@ -200,7 +200,7 @@ test.describe('Reserva de lote (fase 1: texto + comprobante de seña)', () => {
   // completo del lote (si pagó, historial, etc.) -- lo único que no tiene
   // que ver es el reparto entre acreedores (Destinos/Cobro/Participantes,
   // ya gateados aparte) ni editar datos generales/documentos.
-  test('cobrador puede abrir el detalle del lote pero no ve Datos generales ni Cobro', async ({
+  test('cobrador puede abrir el detalle del lote pero no ve Datos del lote ni Cobro', async ({
     page,
   }) => {
     const loteId = await crearLoteDisponible(`E2E Lote Detalle Cobrador ${Date.now()}`)
@@ -210,7 +210,10 @@ test.describe('Reserva de lote (fase 1: texto + comprobante de seña)', () => {
     await page.goto(`/admin/lotes/${loteId}`)
     await expect(page).toHaveURL(new RegExp(`/admin/lotes/${loteId}$`))
     await expect(page.getByTestId('estado-lote')).toHaveText('disponible')
-    await expect(page.getByRole('heading', { name: 'Datos generales' })).toHaveCount(0)
+    // "Datos del lote" desde el 09/09 (antes "Datos generales"). Si este
+    // assert se queda con el nombre viejo pasa igual aunque el cobrador SI
+    // vea el panel, que es justo lo que tiene que atajar.
+    await expect(page.getByRole('heading', { name: 'Datos del lote' })).toHaveCount(0)
     await expect(page.getByRole('heading', { name: 'Cobro' })).toHaveCount(0)
     await expect(page.getByText('Otros participantes del cobro')).toHaveCount(0)
 

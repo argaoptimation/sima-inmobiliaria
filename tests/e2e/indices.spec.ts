@@ -528,7 +528,7 @@ test.describe('Índices — carga manual y aplicación automática a mes vencido
     expect(valorBorrado).toBeNull()
   })
 
-  test('el selector de índice en Datos generales del lote guarda correctamente', async ({ page }) => {
+  test('el selector de índice en Datos del lote guarda correctamente', async ({ page }) => {
     const admin = createAdminClient()
     const { loteId } = await crearLoteVendidoConIndice(
       `E2E Selector Indice ${Date.now()}`,
@@ -553,7 +553,7 @@ test.describe('Índices — carga manual y aplicación automática a mes vencido
     await login(page, fixtures.admin.email, fixtures.password)
     await page.goto(`/admin/lotes/${loteId}`)
     await page.locator('select[name="indiceTipo"]').selectOption(nombreIndice)
-    await page.getByRole('button', { name: 'Guardar', exact: true }).click()
+    await page.getByRole('button', { name: 'Guardar cambios' }).click()
     await page.waitForURL(`**/admin/lotes/${loteId}`)
 
     let intentos = 0

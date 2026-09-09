@@ -368,7 +368,7 @@ export default async function LotesPage({
     idsLotesReservadosPorMi.length > 0
       ? await supabase
           .from('lotes')
-          .select('id, identificador, moneda, estado, ubicacion, precio_total')
+          .select('id, identificador, manzana, numero_lote, moneda, estado, ubicacion, precio_total')
           .in('id', idsLotesReservadosPorMi)
           .order('created_at', { ascending: false })
       : { data: [] }
@@ -599,8 +599,9 @@ export default async function LotesPage({
               <table className="w-full border-collapse text-left">
                 <thead>
                   <tr className={TABLA_PANEL_HEADER}>
-                    <th className={TABLA_PANEL_TH}>Identificador</th>
-                    <th className={TABLA_PANEL_TH}>Ubicación / Mz</th>
+                    <th className={TABLA_PANEL_TH}>Manzana</th>
+                    <th className={TABLA_PANEL_TH}>Lote</th>
+                    <th className={TABLA_PANEL_TH}>Ubicación</th>
                     <th className={`${TABLA_PANEL_TH} text-right`}>Precio total</th>
                     <th className={`${TABLA_PANEL_TH} text-center`}>Moneda</th>
                     <th className={TABLA_PANEL_TH}>Estado</th>
@@ -612,8 +613,14 @@ export default async function LotesPage({
                     const cancelarReservaConId = cancelarReserva.bind(null, lote.id)
                     return (
                       <tr key={lote.id} className={indice % 2 === 1 ? TABLA_PANEL_TR_ALTERNA : TABLA_PANEL_TR}>
-                        <td className={`${TABLA_PANEL_TD} max-w-[230px] truncate font-semibold text-slate-900`}>
-                          {lote.identificador}
+                        <td className={`${TABLA_PANEL_TD} font-semibold text-slate-900 tabular-nums`}>
+                          {lote.manzana ?? <span className="text-slate-400">—</span>}
+                        </td>
+                        <td
+                          className={`${TABLA_PANEL_TD} max-w-[230px] truncate font-semibold text-slate-900 tabular-nums`}
+                          title={lote.identificador}
+                        >
+                          {lote.numero_lote ?? lote.identificador}
                         </td>
                         <td className={`${TABLA_PANEL_TD} max-w-[190px] truncate text-slate-500`}>
                           {lote.ubicacion ?? '—'}
