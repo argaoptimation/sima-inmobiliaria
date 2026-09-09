@@ -87,4 +87,59 @@ test.describe('Panel de Morosos (26/08)', () => {
     await expect(page.getByTestId('grupo-alDia')).toHaveCount(0)
     await expect(filaDelLote(page, 'posible')).toBeVisible()
   })
+
+  // Buscador unificado y columnas nuevas (09/09, pedido de Nico): un solo
+  // campo para cliente / DNI / loteo / lote, porque el que atiende el
+  // telefono tiene UN dato suelto y no sabe en cual de tres filtros va.
+  test('el buscador unico encuentra por nombre de cliente y por lote, y deja fuera al resto', async ({
+    page,
+  }) => {
+    await login(page, fixtures.admin.email, fixtures.password)
+    await page.goto('/admin/panel-morosos')
+
+    const buscador = page.getByRole('searchbox', { name: 'Buscar por cliente, DNI, loteo o lote' })
+    const filas = page.getByTestId('fila-moroso')
+
+    const totalSinFiltrar = await filas.count()
+    expect(totalSinFiltrar).toBeGreaterThan(1)
+
+    // Por identificador de lote.
+    await buscador.fill('E2E Test Lote')
+    await expect(filas).toHaveCount(1)
+    await expect(filas.first()).toContainText('E2E Test Lote')
+
+    // Por nombre de cliente, en minusculas: la busqueda no distingue mayusculas.
+    await buscador.fill('e2e cliente')
+    await expect(filas.first()).toBeVisible()
+    expect(await filas.count()).toBeLessThan(totalSinFiltrar)
+
+    // Algo que no existe deja la lista vacia y lo dice.
+    await buscador.fill('zzzzzzzz')
+    await expect(filas).toHaveCount(0)
+    await expect(page.getByText('Ningún cliente coincide', { exact: false })).toBeVisible()
+
+    // Al limpiarlo vuelven todos.
+    await buscador.fill('')
+    await expect(filas).toHaveCount(totalSinFiltrar)
+  })
+
+  test('la tabla trae las columnas de cobranza que pidio Nico', async ({ page }) => {
+    await login(page, fixtures.admin.email, fixtures.password)
+    await page.goto('/admin/panel-morosos')
+
+    // exact: true a proposito -- sin eso, "Lote" tambien matchea "Loteo" y
+    // Playwright falla por ambiguedad, no por que falte la columna.
+    for (const columna of [
+      'Loteo',
+      'Mza',
+      'Lote',
+      'Comprador',
+      'Situación',
+      'Monto cuota',
+      'Intereses',
+      'Total adeudado',
+    ]) {
+      await expect(page.getByRole('columnheader', { name: columna, exact: true })).toBeVisible()
+    }
+  })
 })

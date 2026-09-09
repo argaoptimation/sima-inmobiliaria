@@ -24,6 +24,18 @@ export interface FilaMoroso {
   // mandarlo directo desde este panel filtrando por tramo.
   telefono: string | null
   mensajeWhatsApp: string | null
+  // Agregado 09/09 (pedido de Nico): el panel dejo de ser una lista de
+  // nombres y paso a ser la tabla con la que se trabaja la cobranza. Para
+  // eso hace falta ver, sin entrar a cada lote, cuanto es la cuota, cuanto
+  // debe y cuanto de eso es interes.
+  dni: string | null
+  montoCuota: number
+  interesMoratorio: number
+  totalAdeudado: number
+  // Un lote sin saldo pendiente esta pagado. Se distingue de "al dia"
+  // (debe, pero todavia no vencio nada) porque la columna decia "0 cuotas"
+  // en los dos casos y no se entendia cual era cual.
+  pagado: boolean
 }
 
 export interface TramosMora {
@@ -61,7 +73,7 @@ export async function calcularTramosMora(supabase: SupabaseServerClient): Promis
     clienteIds.length > 0
       ? await supabase
           .from('profiles')
-          .select('id, full_name, telefono_prefijo, telefono_numero')
+          .select('id, full_name, dni, telefono_prefijo, telefono_numero')
           .in('id', clienteIds)
       : { data: [] }
   const clientePorId = new Map((clientes ?? []).map((cliente) => [cliente.id, cliente]))
@@ -70,7 +82,7 @@ export async function calcularTramosMora(supabase: SupabaseServerClient): Promis
     loteIds.length > 0
       ? await supabase
           .from('cuotas')
-          .select('lote_id, ciclo, saldo_pendiente, fecha_vencimiento, interes_condonado')
+          .select('lote_id, ciclo, saldo_pendiente, monto_ajustado, monto_base, fecha_vencimiento, interes_condonado')
           .in('lote_id', loteIds)
           .order('fecha_vencimiento', { ascending: true })
       : { data: [] }
@@ -80,7 +92,13 @@ export async function calcularTramosMora(supabase: SupabaseServerClient): Promis
 
   const cuotasPorLote = new Map<
     string,
-    { saldo_pendiente: number; fecha_vencimiento: string; interes_condonado: boolean }[]
+    {
+      saldo_pendiente: number
+      monto_ajustado: number
+      monto_base: number
+      fecha_vencimiento: string
+      interes_condonado: boolean
+    }[]
   >()
   for (const cuota of cuotas) {
     const lista = cuotasPorLote.get(cuota.lote_id) ?? []
@@ -173,6 +191,39 @@ export async function calcularTramosMora(supabase: SupabaseServerClient): Promis
           })
         : null
 
+    // El interes que hoy tiene encima este lote, sumando cuota vencida por
+    // cuota vencida. Es el mismo numero que ya se usaba para el mensaje de
+    // WhatsApp, pero antes solo se calculaba para moroso/prejudicial: aca va
+    // siempre, porque la columna tiene que decir la verdad tambien cuando el
+    // cliente debe una sola cuota.
+    const interesMoratorio =
+      Math.round(
+        cuotasVencidasDelLote.reduce(
+          (acum, cuota) =>
+            acum +
+            calcularInteresMoratorio(
+              {
+                saldoPendiente: cuota.saldoPendiente,
+                fechaVencimiento: cuota.fechaVencimiento,
+                interesCondonado: cuota.interesCondonado,
+              },
+              lote.interes_moratorio_diario,
+              hoy
+            ),
+          0
+        ) * 100
+      ) / 100
+
+    // Cuanto es "la cuota" de este lote: la primera que todavia debe algo,
+    // por su monto ajustado (el de hoy, ya indexado). Si no debe nada, la
+    // ultima que tuvo. Es el numero que Nico dice por telefono.
+    const cuotaDeReferencia =
+      cuotasDelLote.find((cuota) => cuota.saldo_pendiente > 0) ??
+      cuotasDelLote[cuotasDelLote.length - 1]
+    const montoCuota = cuotaDeReferencia
+      ? (cuotaDeReferencia.monto_ajustado || cuotaDeReferencia.monto_base)
+      : 0
+
     const fila: FilaMoroso = {
       loteId: lote.id,
       identificador: lote.identificador,
@@ -186,6 +237,11 @@ export async function calcularTramosMora(supabase: SupabaseServerClient): Promis
       numeroLote: lote.numero_lote,
       telefono: telefonoParaWhatsApp(cliente?.telefono_prefijo ?? null, cliente?.telefono_numero ?? null),
       mensajeWhatsApp,
+      dni: cliente?.dni ?? null,
+      montoCuota,
+      interesMoratorio,
+      totalAdeudado: Math.round((saldoPendiente + interesMoratorio) * 100) / 100,
+      pagado: saldoPendiente === 0,
     }
 
     if (lote.marcado_prejudicial) {
