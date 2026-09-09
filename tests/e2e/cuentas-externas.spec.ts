@@ -431,7 +431,12 @@ test.describe('Cuentas externas', () => {
       // la primera carga.
       await expect(async () => {
         await page.goto(`/admin/cuentas-externas/${cuentaExternaId}`)
-        await expect(page.getByText('Crédito', { exact: true }).first()).toBeVisible()
+        // Un cobro que entra a la cuenta externa es plata que YA le llego:
+        // en el vocabulario de la planilla eso es un debito (resta del
+        // saldo). En la base sigue guardado como 'credito' -- esa tabla usa
+        // los dos terminos al reves que la planilla, y se traduce en la
+        // vista para que las dos cuentas corrientes se lean igual.
+        await expect(page.getByText('débito', { exact: true }).first()).toBeVisible()
       }).toPass({ timeout: 10000 })
     } finally {
       // fixtures.loteId es compartido con otros specs -- se limpia la

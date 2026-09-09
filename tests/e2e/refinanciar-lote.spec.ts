@@ -137,7 +137,12 @@ test.describe('Refinanciar cuotas (26/08)', () => {
     const historialLote = page.locator('details', { hasText: 'Historial de estados del lote' })
     const filaRefinanciado = historialLote.locator('li', { hasText: 'Refinanció' })
     await expect(filaRefinanciado).toContainText('E2E Admin')
-    await expect(filaRefinanciado).toContainText('Deuda de 2000 USD (2 cuota(s)) → 4 cuota(s) nueva(s)')
+    // Desde el 09/09 el evento dice QUE cuotas entraron y cuales salieron,
+    // no solo cuantas: sin los numeros no se puede reconstruir la historia
+    // del lote meses despues.
+    await expect(filaRefinanciado).toContainText(
+      'Deuda de 2000 USD — cuota 2 a 3 (2) → cuota 4 a 7 (4 nueva(s))'
+    )
 
     // Historial global.
     await page.goto('/admin/historial-lotes')

@@ -190,13 +190,19 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
   }
 
   hoja.columns = [
-    { width: 14 },
-    { width: 12 },
-    { width: 30 },
-    { width: 34 },
-    { width: 16 },
-    { width: 14 },
-    { width: 10 },
+    { width: 12 }, // Fecha
+    { width: 18 }, // Tipo de movimiento
+    { width: 24 }, // Concepto
+    { width: 20 }, // Loteo
+    { width: 8 }, // Mza
+    { width: 12 }, // Lote
+    { width: 24 }, // Cliente
+    { width: 10 }, // Mes de
+    { width: 12 }, // Nro cuota
+    { width: 14 }, // Monto
+    { width: 10 }, // Moneda
+    { width: 16 }, // Cotizacion del dia
+    { width: 34 }, // Detalle
   ]
 
   const buffer = await workbook.xlsx.writeBuffer()

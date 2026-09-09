@@ -172,6 +172,7 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
     { width: 14 }, // Monto
     { width: 10 }, // Moneda
     { width: 16 }, // Cotización del día
+    { width: 34 }, // Detalle
   ]
 
   const buffer = await workbook.xlsx.writeBuffer()

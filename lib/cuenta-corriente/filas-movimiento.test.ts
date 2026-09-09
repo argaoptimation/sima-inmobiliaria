@@ -152,7 +152,11 @@ describe('armarFilasDeMovimiento', () => {
   })
 
   it('las celdas salen en el orden de la planilla de Nicolas', () => {
-    const [fila] = armarFilasDeMovimiento([movimiento({})], LOTES, CUOTAS)
+    const [fila] = armarFilasDeMovimiento(
+      [movimiento({ detalle: 'Cuota 3 de Q-M4-L1', de_parte_de: 'Cliente 1' })],
+      LOTES,
+      CUOTAS
+    )
     expect(celdasDeFila(fila)).toEqual([
       '2026-09-08',
       'crédito',
@@ -166,6 +170,9 @@ describe('armarFilasDeMovimiento', () => {
       100,
       'USD',
       '',
+      // El detalle cierra la fila: es lo que escribio una persona, y sin el
+      // no queda ninguna explicacion en castellano de por que existe.
+      'Cuota 3 de Q-M4-L1 — de: Cliente 1',
     ])
   })
 })

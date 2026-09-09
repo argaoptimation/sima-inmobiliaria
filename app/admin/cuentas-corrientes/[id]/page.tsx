@@ -266,8 +266,17 @@ export default async function CuentaCorrienteDetallePage({
                           {fila.tipoMovimiento}
                         </span>
                       </td>
-                      <td className={TABLA_CELDA} title={fila.detalle}>
+                      {/* El detalle va DEBAJO del concepto y no en un
+                          tooltip: es lo que escribio una persona ("de:
+                          Cliente 1", "Adelanto entregado en mano") y es la
+                          unica explicacion de por que existe esa fila. En un
+                          tooltip no se ve, no se busca con Ctrl+F y no se
+                          lee en el celular. */}
+                      <td className={TABLA_CELDA}>
                         {fila.concepto}
+                        {fila.detalle && (
+                          <span className="block text-xs text-slate-500">{fila.detalle}</span>
+                        )}
                       </td>
                       <td className={TABLA_CELDA}>{fila.loteo || '—'}</td>
                       <td className={TABLA_CELDA}>{fila.manzana || '—'}</td>

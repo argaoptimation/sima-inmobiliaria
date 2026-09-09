@@ -42,8 +42,12 @@ test.describe('Debe manual en cuenta corriente (25/08)', () => {
     await page.waitForURL(/\?ok=1/)
     await expect(saldo).toHaveText('350 USD')
 
+    // "credito" y no "Debe": desde el 09/09 la tabla habla el vocabulario de
+    // la planilla de Nicolas. Un gasto sigue siendo un Debe en la base, pero
+    // con monto negativo, asi que la columna Monto es la que manda -- de
+    // hecho la suma de esa columna es el saldo.
     const filaGasto = page.locator('tbody tr', { hasText: 'Adelanto ya entregado en mano' })
-    await expect(filaGasto.getByText('Debe', { exact: true })).toBeVisible()
+    await expect(filaGasto.getByText('crédito', { exact: true })).toBeVisible()
     await expect(filaGasto.getByText('-150 USD')).toBeVisible()
   })
 

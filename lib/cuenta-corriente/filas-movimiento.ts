@@ -142,6 +142,12 @@ export const COLUMNAS_PLANILLA = [
   'Monto',
   'Moneda',
   'Cotización del día',
+  // El texto que escribió el administrador ("Adelanto entregado en mano",
+  // "de: Cliente 1"). No estaba en la captura de Nicolás, pero sacarlo
+  // perdía la unica explicacion en castellano de por que existe esa fila:
+  // el concepto de al lado es una etiqueta fija del sistema, esto es lo que
+  // penso una persona.
+  'Detalle',
 ] as const
 
 export function celdasDeFila(fila: FilaMovimientoPlanilla): (string | number)[] {
@@ -158,5 +164,6 @@ export function celdasDeFila(fila: FilaMovimientoPlanilla): (string | number)[] 
     fila.monto,
     fila.moneda,
     fila.cotizacionDia ?? '',
+    fila.detalle,
   ]
 }
