@@ -42,13 +42,13 @@ async function reservarLotePorUI(
   }
 ) {
   await page.goto(`/admin/lotes/${loteId}/reservar`)
-  await page.getByPlaceholder('Nombre completo').fill(datos.nombreCompleto)
-  await page.getByPlaceholder('DNI *', { exact: true }).fill(datos.dni)
-  await page.getByPlaceholder('Domicilio').fill(datos.domicilio)
-  await page.getByPlaceholder('Email').fill(datos.email)
+  await page.locator('input[name="nombreCompleto"]').fill(datos.nombreCompleto)
+  await page.locator('input[name="dni"]').fill(datos.dni)
+  await page.locator('input[name="domicilio"]').fill(datos.domicilio)
+  await page.locator('input[name="email"]').fill(datos.email)
   await page.getByPlaceholder('9351234567').fill(datos.telefono)
   await page.selectOption('select[name="estadoCivil"]', 'soltero')
-  await page.getByPlaceholder('Monto de la seña').fill(datos.montoSena)
+  await page.locator('input[name="montoSena"]').fill(datos.montoSena)
   await page.selectOption('select[name="monedaSena"]', 'USD')
   await page.setInputFiles('[data-testid="comprobante"]', {
     name: `e2e-comprobante-${Date.now()}.pdf`,

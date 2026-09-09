@@ -232,7 +232,7 @@ export default async function VenderLotePage({
                   : 'Confirmar venta y enviar invitación'
               }
               seccionCliente={
-                <section className={SECCION_FORM}>
+                <section key="cliente" className={SECCION_FORM}>
                   <div className="flex items-center gap-3">
                     <span className={SECCION_FORM_NUMERO}>1</span>
                     <div>
@@ -270,7 +270,7 @@ export default async function VenderLotePage({
                 </section>
               }
               seccionParticipantes={
-                <section className={SECCION_FORM}>
+                <section key="participantes" className={SECCION_FORM}>
                   <div className="flex items-center gap-3">
                     <span className={SECCION_FORM_NUMERO}>3</span>
                     <div>
@@ -285,7 +285,7 @@ export default async function VenderLotePage({
                 </section>
               }
               fichaTecnica={
-                <div className={PANEL_SIN_PADDING}>
+                <div key="ficha" className={PANEL_SIN_PADDING}>
                   <div className={FICHA_LOTE_TAPA}>
                     <div className="relative z-10 flex items-center justify-between">
                       <span className={FICHA_LOTE_BADGE}>

@@ -323,6 +323,13 @@ export function CuotasYDocumento({
       </div>
 
       <div className="space-y-4 lg:col-span-5">
+        {/* La ficha del lote va ARRIBA del balance (09/09, pedido de
+            Gabriel): primero qué se está vendiendo, después cuánto queda.
+            Y el balance, al quedar debajo, cae a la altura de los campos de
+            cuotas de la izquierda -- que es donde hay que estar mirándolo
+            mientras se tipea, para ver cómo va quedando el saldo. */}
+        {fichaTecnica}
+
         {/* Resumen de liquidación: las mismas cuentas que ya se hacían, pero
             como tarjeta al costado en vez de un bloque de texto perdido
             entre los campos. Es lo que hay que mirar mientras se tipea. */}
@@ -420,7 +427,6 @@ export function CuotasYDocumento({
           </div>
         )}
 
-        {fichaTecnica}
 
         <div className={`${PANEL} space-y-2`}>
           <BotonEnvio className={`w-full cursor-pointer justify-center ${BOTON_PRIMARIO}`}>
