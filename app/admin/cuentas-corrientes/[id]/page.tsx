@@ -23,6 +23,11 @@ import {
   TABLA_CELDA_PRINCIPAL,
 } from '@/lib/ui/clases'
 import { ETIQUETA_ORIGEN } from '@/lib/cuenta-corriente/etiquetas'
+import { armarFilasDeMovimiento } from '@/lib/cuenta-corriente/filas-movimiento'
+import {
+  traerDatosDeLotes,
+  traerDatosDeCuotas,
+} from '@/lib/cuenta-corriente/traer-datos-planilla'
 
 export default async function CuentaCorrienteDetallePage({
   params,
@@ -56,7 +61,7 @@ export default async function CuentaCorrienteDetallePage({
   const { data: movimientosData } = await supabase
     .from('movimientos_cuenta_corriente')
     .select(
-      'id, tipo, monto, moneda, cotizacion_dia, origen, fecha_evento, de_parte_de, detalle, lote_id, lotes(identificador)'
+      'id, tipo, monto, moneda, cotizacion_dia, origen, fecha_evento, de_parte_de, detalle, lote_id, cuota_id, lotes(identificador)'
     )
     .eq('profile_id', id)
     .order('fecha_evento', { ascending: false })
@@ -73,6 +78,7 @@ export default async function CuentaCorrienteDetallePage({
     de_parte_de: string | null
     detalle: string | null
     lote_id: string | null
+    cuota_id: string | null
     lotes: { identificador: string } | null
   }>
 
@@ -116,6 +122,22 @@ export default async function CuentaCorrienteDetallePage({
 
   const hayFiltrosActivos = Boolean(filtroLoteId || filtroOrigen || filtroDesde || filtroHasta)
 
+  // La tabla de abajo es EXACTAMENTE la misma que se descarga (regla de
+  // Gabriel, 09/09: "todas estas tablas que podriamos exportar deberian
+  // estar tambien visibles"). Mismo armado, mismas columnas, mismo orden --
+  // por eso el calculo vive en lib y no aca.
+  const filasPlanilla = armarFilasDeMovimiento(
+    movimientosFiltrados,
+    await traerDatosDeLotes(
+      supabase,
+      movimientosFiltrados.map((m) => m.lote_id).filter((id): id is string => Boolean(id))
+    ),
+    await traerDatosDeCuotas(
+      supabase,
+      movimientosFiltrados.map((m) => m.cuota_id).filter((id): id is string => Boolean(id))
+    )
+  )
+
   // La descarga respeta los mismos filtros que se están viendo en pantalla.
   const paramsExport = new URLSearchParams()
   if (filtroLoteId) paramsExport.set('lote', filtroLoteId)
@@ -125,7 +147,7 @@ export default async function CuentaCorrienteDetallePage({
   const queryStringExport = paramsExport.toString()
 
   return (
-    <main className="max-w-3xl">
+    <main>
       <EnlaceBoton href={esAdmin ? '/admin/cuentas-corrientes' : '/admin/lotes'} className={`mb-4 inline-block ${ENLACE}`}>
         {esAdmin ? '← Volver a Cuentas corrientes' : '← Volver'}
       </EnlaceBoton>
@@ -219,36 +241,57 @@ export default async function CuentaCorrienteDetallePage({
                   <tr className={TABLA_HEADER_FILA}>
                     <th className={TABLA_HEADER_CELDA}>Fecha</th>
                     <th className={TABLA_HEADER_CELDA}>Tipo</th>
-                    <th className={TABLA_HEADER_CELDA}>Origen</th>
-                    <th className={TABLA_HEADER_CELDA}>Detalle</th>
+                    <th className={TABLA_HEADER_CELDA}>Concepto</th>
+                    <th className={TABLA_HEADER_CELDA}>Loteo</th>
+                    <th className={TABLA_HEADER_CELDA}>Mza</th>
                     <th className={TABLA_HEADER_CELDA}>Lote</th>
-                    <th className={TABLA_HEADER_CELDA}>Monto</th>
+                    <th className={TABLA_HEADER_CELDA}>Cliente</th>
+                    <th className={TABLA_HEADER_CELDA}>Mes de</th>
+                    <th className={TABLA_HEADER_CELDA}>Nro cuota</th>
+                    <th className={`${TABLA_HEADER_CELDA} text-right`}>Monto</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {movimientosFiltrados.map((movimiento) => (
-                    <tr key={movimiento.id} className={TABLA_FILA}>
-                      <td className={TABLA_CELDA_PRINCIPAL}>
-                        {new Date(movimiento.fecha_evento).toLocaleDateString('es-AR')}
-                      </td>
-                      <td className={TABLA_CELDA}>{movimiento.tipo === 'debe' ? 'Debe' : 'Haber'}</td>
-                      <td className={TABLA_CELDA}>{ETIQUETA_ORIGEN[movimiento.origen] ?? movimiento.origen}</td>
-                      <td className={TABLA_CELDA}>
-                        {movimiento.detalle ?? '—'}
-                        {movimiento.de_parte_de ? ` (de: ${movimiento.de_parte_de})` : ''}
+                  {filasPlanilla.map((fila) => (
+                    <tr key={fila.id} className={TABLA_FILA}>
+                      <td className={`${TABLA_CELDA_PRINCIPAL} tabular-nums`}>
+                        {new Date(fila.fecha).toLocaleDateString('es-AR')}
                       </td>
                       <td className={TABLA_CELDA}>
-                        {movimiento.lote_id && movimiento.lotes ? (
-                          <EnlaceBoton href={`/admin/lotes/${movimiento.lote_id}`} className={ENLACE_TABLA}>
-                            {movimiento.lotes.identificador}
+                        <span
+                          className={
+                            fila.tipoMovimiento === 'crédito' ? 'text-emerald-700' : 'text-slate-600'
+                          }
+                        >
+                          {fila.tipoMovimiento}
+                        </span>
+                      </td>
+                      <td className={TABLA_CELDA} title={fila.detalle}>
+                        {fila.concepto}
+                      </td>
+                      <td className={TABLA_CELDA}>{fila.loteo || '—'}</td>
+                      <td className={TABLA_CELDA}>{fila.manzana || '—'}</td>
+                      <td className={TABLA_CELDA}>
+                        {fila.loteId && fila.lote ? (
+                          <EnlaceBoton href={`/admin/lotes/${fila.loteId}`} className={ENLACE_TABLA}>
+                            {fila.lote}
                           </EnlaceBoton>
                         ) : (
-                          '—'
+                          fila.lote || '—'
                         )}
                       </td>
-                      <td className={TABLA_CELDA}>
-                        {movimiento.monto} {movimiento.moneda}
-                        {movimiento.cotizacion_dia ? ` (cotización: ${movimiento.cotizacion_dia})` : ''}
+                      <td className={TABLA_CELDA}>{fila.cliente || '—'}</td>
+                      <td className={TABLA_CELDA}>{fila.mesDe || '—'}</td>
+                      <td className={`${TABLA_CELDA} tabular-nums`}>{fila.nroCuota || '—'}</td>
+                      <td className={`${TABLA_CELDA} tabular-nums text-right whitespace-nowrap`}>
+                        <span className={fila.monto < 0 ? 'text-slate-600' : 'text-emerald-700'}>
+                          {fila.monto} {fila.moneda}
+                        </span>
+                        {fila.cotizacionDia ? (
+                          <span className="block text-xs text-slate-500">
+                            cotización {fila.cotizacionDia}
+                          </span>
+                        ) : null}
                       </td>
                     </tr>
                   ))}

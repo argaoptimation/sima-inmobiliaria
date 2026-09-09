@@ -2,6 +2,11 @@ import { createClient } from '@/lib/supabase/server'
 import { requireAdministrador } from '@/lib/auth/require-admin'
 import { notFound } from 'next/navigation'
 import { calcularSaldoPorMoneda } from '@/lib/cuentas-externas/calcular-saldo'
+import { armarFilasDeMovimiento } from '@/lib/cuenta-corriente/filas-movimiento'
+import {
+  traerDatosDeLotes,
+  traerDatosDeCuotasPorPago,
+} from '@/lib/cuenta-corriente/traer-datos-planilla'
 import { actualizarCuentaExterna, agregarMovimiento, eliminarCuentaExterna } from '../actions'
 import { BotonEliminarCuentaExterna } from '../BotonEliminarCuentaExterna'
 import { EnlaceBoton } from '@/components/EnlaceBoton'
@@ -25,11 +30,48 @@ import {
   TABLA_CELDA_PRINCIPAL,
   ENLACE_TABLA,
 } from '@/lib/ui/clases'
-import { ETIQUETA_ORIGEN } from '@/lib/cuenta-corriente/etiquetas'
 import {
   FormularioMovimientoManual,
   ETIQUETAS_CUENTA_EXTERNA,
 } from '@/components/FormularioMovimientoManual'
+
+
+// Una cuenta externa guarda 'debito'/'credito' con el sentido invertido
+// respecto de la planilla de Nicolas: aca 'debito' es lo que TODAVIA le
+// debemos (suma al saldo) y 'credito' es lo que ya le transferimos (resta).
+// En la planilla es al reves: el credito es lo que le queda a favor.
+//
+// Se traduce en vez de renombrar la base: son dos vocabularios distintos y
+// la pantalla tiene que hablar el de Nicolas, para que las dos cuentas
+// corrientes (la de una persona y la de una cuenta externa) se lean igual.
+function comoMovimientoDeCuentaCorriente(movimiento: {
+  id: string
+  tipo: 'debito' | 'credito'
+  monto: number
+  moneda: string
+  concepto: string | null
+  fecha_evento: string
+  de_parte_de: string | null
+  origen: string | null
+  lote_id: string | null
+  pago_id: string | null
+}) {
+  return {
+    id: movimiento.id,
+    tipo: (movimiento.tipo === 'debito' ? 'debe' : 'haber') as 'debe' | 'haber',
+    monto: movimiento.monto,
+    moneda: movimiento.moneda,
+    cotizacion_dia: null,
+    origen: movimiento.origen ?? 'transferencia_empresa',
+    fecha_evento: movimiento.fecha_evento,
+    de_parte_de: movimiento.de_parte_de,
+    detalle: movimiento.concepto,
+    lote_id: movimiento.lote_id,
+    // Estos movimientos no apuntan a la cuota sino al pago: se le pasa el
+    // pago como si fuera la cuota y el mapa viene indexado por pago_id.
+    cuota_id: movimiento.pago_id,
+  }
+}
 
 export default async function CuentaExternaDetallePage({
   params,
@@ -62,7 +104,7 @@ export default async function CuentaExternaDetallePage({
   const { data: movimientosData } = await supabase
     .from('cuentas_externas_movimientos')
     .select(
-      'id, tipo, monto, moneda, concepto, fecha_evento, lote_id, de_parte_de, origen, created_at, lotes(identificador)'
+      'id, tipo, monto, moneda, concepto, fecha_evento, lote_id, de_parte_de, origen, created_at, pago_id'
     )
     .eq('cuenta_externa_id', id)
     .order('fecha_evento', { ascending: false })
@@ -81,7 +123,7 @@ export default async function CuentaExternaDetallePage({
     de_parte_de: string | null
     origen: string | null
     created_at: string
-    lotes: { identificador: string } | null
+    pago_id: string | null
   }>
 
   // Para el formulario compartido: el buscador de lotes y las sugerencias de
@@ -117,6 +159,21 @@ export default async function CuentaExternaDetallePage({
     return true
   })
   const hayFiltrosActivos = Boolean(filtroDesde || filtroHasta)
+
+  // Mismo formato de planilla que la cuenta corriente de una persona
+  // (09/09), y la tabla que se ve es identica a la que se descarga.
+  const adaptados = movimientosFiltrados.map(comoMovimientoDeCuentaCorriente)
+  const filasPlanilla = armarFilasDeMovimiento(
+    adaptados,
+    await traerDatosDeLotes(
+      supabase,
+      adaptados.map((m) => m.lote_id).filter((id): id is string => Boolean(id))
+    ),
+    await traerDatosDeCuotasPorPago(
+      supabase,
+      adaptados.map((m) => m.cuota_id).filter((id): id is string => Boolean(id))
+    )
+  )
 
   return (
     <main className="max-w-2xl">
@@ -221,41 +278,52 @@ export default async function CuentaExternaDetallePage({
                   <tr className={`${TABLA_HEADER_FILA} sticky top-0 z-10`}>
                     <th className={TABLA_HEADER_CELDA}>Fecha</th>
                     <th className={TABLA_HEADER_CELDA}>Tipo</th>
-                    <th className={TABLA_HEADER_CELDA}>Origen</th>
-                    <th className={TABLA_HEADER_CELDA}>Detalle</th>
+                    <th className={TABLA_HEADER_CELDA}>Concepto</th>
+                    <th className={TABLA_HEADER_CELDA}>Loteo</th>
+                    <th className={TABLA_HEADER_CELDA}>Mza</th>
                     <th className={TABLA_HEADER_CELDA}>Lote</th>
-                    <th className={TABLA_HEADER_CELDA}>Monto</th>
+                    <th className={TABLA_HEADER_CELDA}>Cliente</th>
+                    <th className={TABLA_HEADER_CELDA}>Mes de</th>
+                    <th className={TABLA_HEADER_CELDA}>Nro cuota</th>
+                    <th className={`${TABLA_HEADER_CELDA} text-right`}>Monto</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {movimientosFiltrados.map((movimiento) => (
-                    <tr key={movimiento.id} className={TABLA_FILA}>
-                      <td className={TABLA_CELDA_PRINCIPAL}>
-                        {new Date(`${movimiento.fecha_evento}T00:00:00`).toLocaleDateString('es-AR')}
+                  {filasPlanilla.map((fila) => (
+                    <tr key={fila.id} className={TABLA_FILA}>
+                      <td className={`${TABLA_CELDA_PRINCIPAL} tabular-nums`}>
+                        {new Date(`${fila.fecha}T00:00:00`).toLocaleDateString('es-AR')}
                       </td>
                       <td className={TABLA_CELDA}>
-                        {movimiento.tipo === 'debito' ? 'Débito' : 'Crédito'}
+                        <span
+                          className={
+                            fila.tipoMovimiento === 'crédito' ? 'text-emerald-700' : 'text-slate-600'
+                          }
+                        >
+                          {fila.tipoMovimiento}
+                        </span>
                       </td>
-                      <td className={TABLA_CELDA}>
-                        {movimiento.origen
-                          ? (ETIQUETA_ORIGEN[movimiento.origen] ?? movimiento.origen)
-                          : '—'}
+                      <td className={TABLA_CELDA} title={fila.detalle}>
+                        {fila.concepto}
                       </td>
+                      <td className={TABLA_CELDA}>{fila.loteo || '—'}</td>
+                      <td className={TABLA_CELDA}>{fila.manzana || '—'}</td>
                       <td className={TABLA_CELDA}>
-                        {movimiento.concepto ?? '—'}
-                        {movimiento.de_parte_de ? ` (de: ${movimiento.de_parte_de})` : ''}
-                      </td>
-                      <td className={TABLA_CELDA}>
-                        {movimiento.lote_id && movimiento.lotes ? (
-                          <EnlaceBoton href={`/admin/lotes/${movimiento.lote_id}`} className={ENLACE_TABLA}>
-                            {movimiento.lotes.identificador}
+                        {fila.loteId && fila.lote ? (
+                          <EnlaceBoton href={`/admin/lotes/${fila.loteId}`} className={ENLACE_TABLA}>
+                            {fila.lote}
                           </EnlaceBoton>
                         ) : (
-                          '—'
+                          fila.lote || '—'
                         )}
                       </td>
-                      <td className={TABLA_CELDA}>
-                        {movimiento.monto} {movimiento.moneda}
+                      <td className={TABLA_CELDA}>{fila.cliente || '—'}</td>
+                      <td className={TABLA_CELDA}>{fila.mesDe || '—'}</td>
+                      <td className={`${TABLA_CELDA} tabular-nums`}>{fila.nroCuota || '—'}</td>
+                      <td className={`${TABLA_CELDA} tabular-nums text-right whitespace-nowrap`}>
+                        <span className={fila.monto < 0 ? 'text-slate-600' : 'text-emerald-700'}>
+                          {fila.monto} {fila.moneda}
+                        </span>
                       </td>
                     </tr>
                   ))}

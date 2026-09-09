@@ -2,7 +2,56 @@ import { NextRequest, NextResponse } from 'next/server'
 import ExcelJS from 'exceljs'
 import { createClient } from '@/lib/supabase/server'
 import { requireAdministrador } from '@/lib/auth/require-admin'
-import { ETIQUETA_ORIGEN } from '@/lib/cuenta-corriente/etiquetas'
+import {
+  armarFilasDeMovimiento,
+  celdasDeFila,
+  COLUMNAS_PLANILLA,
+} from '@/lib/cuenta-corriente/filas-movimiento'
+import {
+  traerDatosDeLotes,
+  traerDatosDeCuotasPorPago,
+} from '@/lib/cuenta-corriente/traer-datos-planilla'
+
+// Una cuenta externa guarda 'debito'/'credito' con el sentido invertido
+// respecto de la planilla de Nicolas: aca 'debito' es lo que TODAVIA le
+// debemos (suma al saldo) y 'credito' es lo que ya le transferimos (resta).
+// En la planilla es al reves: el credito es lo que le queda a favor.
+//
+// Se traduce en vez de renombrar la base: son dos vocabularios distintos
+// (el contable de la tabla y el que Nicolas usa en su Excel) y la pantalla
+// tiene que hablar el segundo. 'debito' -> 'debe' (credito, positivo) y
+// 'credito' -> 'haber' (debito, negativo) deja las dos cuentas corrientes
+// leyendose igual.
+function comoMovimientoDeCuentaCorriente(movimiento: {
+  id: string
+  tipo: 'debito' | 'credito'
+  monto: number
+  moneda: string
+  concepto: string | null
+  fecha_evento: string
+  de_parte_de: string | null
+  origen: string | null
+  lote_id: string | null
+  pago_id?: string | null
+}) {
+  return {
+    id: movimiento.id,
+    tipo: (movimiento.tipo === 'debito' ? 'debe' : 'haber') as 'debe' | 'haber',
+    monto: movimiento.monto,
+    moneda: movimiento.moneda,
+    cotizacion_dia: null,
+    origen: movimiento.origen ?? 'transferencia_empresa',
+    fecha_evento: movimiento.fecha_evento,
+    de_parte_de: movimiento.de_parte_de,
+    detalle: movimiento.concepto,
+    lote_id: movimiento.lote_id,
+    // El movimiento de una cuenta externa no apunta a la cuota sino al pago.
+    // Se le pasa el pago como si fuera la cuota, y el mapa que se arma abajo
+    // esta indexado por pago_id -- ver traerDatosDeCuotasPorPago.
+    cuota_id: movimiento.pago_id ?? null,
+  }
+}
+
 
 // El mismo Excel que ya existía para la cuenta corriente de una persona,
 // ahora para una cuenta externa (06/09, pedido de Gabriel: las dos pantallas
@@ -37,13 +86,14 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
   const { data: movimientosData } = await supabase
     .from('cuentas_externas_movimientos')
     .select(
-      'tipo, monto, moneda, concepto, fecha_evento, de_parte_de, origen, lote_id, lotes(identificador)'
+      'id, tipo, monto, moneda, concepto, fecha_evento, de_parte_de, origen, lote_id, pago_id'
     )
     .eq('cuenta_externa_id', id)
     .order('fecha_evento', { ascending: false })
     .order('created_at', { ascending: false })
 
   const movimientos = (movimientosData ?? []) as unknown as Array<{
+    id: string
     tipo: 'debito' | 'credito'
     monto: number
     moneda: string
@@ -52,7 +102,7 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
     de_parte_de: string | null
     origen: string | null
     lote_id: string | null
-    lotes: { identificador: string } | null
+    pago_id: string | null
   }>
 
   // Mismo filtro que la pantalla: la descarga respeta lo que el admin está
@@ -63,10 +113,30 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
     return true
   })
 
-  const totalesPorTipoYMoneda = new Map<string, number>()
-  for (const movimiento of movimientosFiltrados) {
-    const clave = `${movimiento.tipo}|${movimiento.moneda}`
-    totalesPorTipoYMoneda.set(clave, (totalesPorTipoYMoneda.get(clave) ?? 0) + movimiento.monto)
+  // Mismo formato de planilla que la cuenta corriente de una persona
+  // (09/09, pedido de Gabriel: "replicarlo en cuentas externas incluyendo
+  // los movimientos que no tienen lote").
+  const adaptados = movimientosFiltrados.map(comoMovimientoDeCuentaCorriente)
+
+  const filas = armarFilasDeMovimiento(
+    adaptados,
+    await traerDatosDeLotes(
+      supabase,
+      adaptados.map((m) => m.lote_id).filter((id): id is string => Boolean(id))
+    ),
+    await traerDatosDeCuotasPorPago(
+      supabase,
+      adaptados.map((m) => m.cuota_id).filter((id): id is string => Boolean(id))
+    )
+  )
+
+  const resumenPorMoneda = new Map<string, { credito: number; debito: number; saldo: number }>()
+  for (const fila of filas) {
+    const actual = resumenPorMoneda.get(fila.moneda) ?? { credito: 0, debito: 0, saldo: 0 }
+    if (fila.monto >= 0) actual.credito += fila.monto
+    else actual.debito += -fila.monto
+    actual.saldo += fila.monto
+    resumenPorMoneda.set(fila.moneda, actual)
   }
 
   const workbook = new ExcelJS.Workbook()
@@ -83,48 +153,39 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
   hoja.addRow([])
 
   hoja.addRow(['Resumen']).font = ESTILO_SUBTITULO.font
-  const filaEncabezadoResumen = hoja.addRow(['Tipo', 'Moneda', 'Total'])
+  const filaEncabezadoResumen = hoja.addRow([
+    'Moneda',
+    'Le corresponde (crédito)',
+    'Ya cobró (débito)',
+    'Saldo',
+  ])
   filaEncabezadoResumen.eachCell((celda) => {
     celda.font = ESTILO_ENCABEZADO.font
     celda.fill = ESTILO_ENCABEZADO.fill
   })
-  for (const [clave, total] of totalesPorTipoYMoneda.entries()) {
-    const [tipo, moneda] = clave.split('|')
-    hoja.addRow([tipo === 'debito' ? 'Débito' : 'Crédito', moneda, total])
+  for (const [moneda, totales] of resumenPorMoneda.entries()) {
+    hoja.addRow([
+      moneda,
+      Math.round(totales.credito * 100) / 100,
+      Math.round(totales.debito * 100) / 100,
+      Math.round(totales.saldo * 100) / 100,
+    ])
   }
-  if (totalesPorTipoYMoneda.size === 0) {
+  if (resumenPorMoneda.size === 0) {
     hoja.addRow(['Sin movimientos con estos filtros.'])
   }
 
   hoja.addRow([])
   hoja.addRow(['Detalle']).font = ESTILO_SUBTITULO.font
-  const filaEncabezadoDetalle = hoja.addRow([
-    'Fecha',
-    'Tipo',
-    'Origen',
-    'Detalle',
-    'Lote',
-    'Monto',
-    'Moneda',
-  ])
+  const filaEncabezadoDetalle = hoja.addRow([...COLUMNAS_PLANILLA])
   filaEncabezadoDetalle.eachCell((celda) => {
     celda.font = ESTILO_ENCABEZADO.font
     celda.fill = ESTILO_ENCABEZADO.fill
   })
-  for (const movimiento of movimientosFiltrados) {
-    hoja.addRow([
-      movimiento.fecha_evento,
-      movimiento.tipo === 'debito' ? 'Débito' : 'Crédito',
-      movimiento.origen ? (ETIQUETA_ORIGEN[movimiento.origen] ?? movimiento.origen) : '',
-      [movimiento.concepto, movimiento.de_parte_de ? `de: ${movimiento.de_parte_de}` : null]
-        .filter(Boolean)
-        .join(' — '),
-      movimiento.lotes?.identificador ?? '',
-      movimiento.monto,
-      movimiento.moneda,
-    ])
+  for (const fila of filas) {
+    hoja.addRow(celdasDeFila(fila))
   }
-  if (movimientosFiltrados.length === 0) {
+  if (filas.length === 0) {
     hoja.addRow(['Ningún movimiento con estos filtros.'])
   }
 

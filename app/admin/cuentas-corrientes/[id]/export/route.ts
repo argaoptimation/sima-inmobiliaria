@@ -2,15 +2,15 @@ import { NextRequest, NextResponse } from 'next/server'
 import ExcelJS from 'exceljs'
 import { createClient } from '@/lib/supabase/server'
 import { requireAdminOTitularCuenta } from '@/lib/auth/require-admin'
-
-const ETIQUETA_ORIGEN: Record<string, string> = {
-  cobro_cuota: 'Cobro de cuota (automático)',
-  transferencia_empresa: 'Transferencia de la empresa',
-  pago_directo_cliente: 'Pago directo del cliente',
-  reversion_cobro_cuota: 'Reversión (corrección de pago)',
-  ajuste_distribucion: 'Ajuste de distribución',
-  debe_manual: 'Debe manual (gasto/adelanto/descuento)',
-}
+import {
+  armarFilasDeMovimiento,
+  celdasDeFila,
+  COLUMNAS_PLANILLA,
+} from '@/lib/cuenta-corriente/filas-movimiento'
+import {
+  traerDatosDeLotes,
+  traerDatosDeCuotas,
+} from '@/lib/cuenta-corriente/traer-datos-planilla'
 
 // Reescrito 04/09 (Gabriel, corrigiendo mi propio error): esto era un .csv
 // plano -- en la práctica, Excel en configuración regional Argentina/
@@ -46,13 +46,14 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
   const { data: movimientosData } = await supabase
     .from('movimientos_cuenta_corriente')
     .select(
-      'tipo, monto, moneda, cotizacion_dia, origen, fecha_evento, de_parte_de, detalle, lote_id, lotes(identificador)'
+      'id, tipo, monto, moneda, cotizacion_dia, origen, fecha_evento, de_parte_de, detalle, lote_id, cuota_id'
     )
     .eq('profile_id', id)
     .order('fecha_evento', { ascending: false })
     .order('created_at', { ascending: false })
 
   const movimientos = (movimientosData ?? []) as unknown as Array<{
+    id: string
     tipo: 'debe' | 'haber'
     monto: number
     moneda: string
@@ -62,7 +63,7 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
     de_parte_de: string | null
     detalle: string | null
     lote_id: string | null
-    lotes: { identificador: string } | null
+    cuota_id: string | null
   }>
 
   // Mismo filtro que la pantalla (ver page.tsx) -- la descarga tiene que
@@ -76,13 +77,36 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
     return true
   })
 
-  // Resumen: total Debe/Haber por moneda, solo de lo que quedó filtrado --
-  // mismo criterio que el resumen de /admin/cierre-caja (totales agrupados,
-  // no un solo número global que mezcle monedas).
-  const totalesPorTipoYMoneda = new Map<string, number>()
-  for (const movimiento of movimientosFiltrados) {
-    const clave = `${movimiento.tipo}|${movimiento.moneda}`
-    totalesPorTipoYMoneda.set(clave, (totalesPorTipoYMoneda.get(clave) ?? 0) + movimiento.monto)
+  // Reescrito 09/09 al formato que ya usaba Nicolás en su planilla (captura
+  // que pasó Gabriel): fecha, tipo de movimiento, concepto, loteo, mza,
+  // lote, cliente, mes de, nro cuota, monto. Antes salía "Debe / Haber /
+  // Lote" y había que ir al sistema para saber de qué cuota y de qué
+  // comprador se estaba hablando.
+  const lotePorId = await traerDatosDeLotes(
+    supabase,
+    movimientosFiltrados
+      .map((movimiento) => movimiento.lote_id)
+      .filter((id): id is string => Boolean(id))
+  )
+  const cuotaPorId = await traerDatosDeCuotas(
+    supabase,
+    movimientosFiltrados
+      .map((movimiento) => movimiento.cuota_id)
+      .filter((id): id is string => Boolean(id))
+  )
+
+  const filas = armarFilasDeMovimiento(movimientosFiltrados, lotePorId, cuotaPorId)
+
+  // Resumen por moneda. El saldo es la suma de la columna Monto (crédito
+  // positivo, débito negativo), así que la planilla se puede verificar sola:
+  // el que la recibe suma la columna y le tiene que dar lo mismo.
+  const resumenPorMoneda = new Map<string, { credito: number; debito: number; saldo: number }>()
+  for (const fila of filas) {
+    const actual = resumenPorMoneda.get(fila.moneda) ?? { credito: 0, debito: 0, saldo: 0 }
+    if (fila.monto >= 0) actual.credito += fila.monto
+    else actual.debito += -fila.monto
+    actual.saldo += fila.monto
+    resumenPorMoneda.set(fila.moneda, actual)
   }
 
   const workbook = new ExcelJS.Workbook()
@@ -99,62 +123,55 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
   hoja.addRow([])
 
   hoja.addRow(['Resumen']).font = ESTILO_SUBTITULO.font
-  const filaEncabezadoResumen = hoja.addRow(['Tipo', 'Moneda', 'Total'])
+  const filaEncabezadoResumen = hoja.addRow([
+    'Moneda',
+    'Le corresponde (crédito)',
+    'Ya cobró (débito)',
+    'Saldo',
+  ])
   filaEncabezadoResumen.eachCell((celda) => {
     celda.font = ESTILO_ENCABEZADO.font
     celda.fill = ESTILO_ENCABEZADO.fill
   })
-  for (const [clave, total] of totalesPorTipoYMoneda.entries()) {
-    const [tipo, moneda] = clave.split('|')
-    hoja.addRow([tipo === 'debe' ? 'Debe' : 'Haber', moneda, total])
+  for (const [moneda, totales] of resumenPorMoneda.entries()) {
+    hoja.addRow([
+      moneda,
+      Math.round(totales.credito * 100) / 100,
+      Math.round(totales.debito * 100) / 100,
+      Math.round(totales.saldo * 100) / 100,
+    ])
   }
-  if (totalesPorTipoYMoneda.size === 0) {
+  if (resumenPorMoneda.size === 0) {
     hoja.addRow(['Sin movimientos con estos filtros.'])
   }
 
   hoja.addRow([])
   hoja.addRow(['Detalle']).font = ESTILO_SUBTITULO.font
-  const filaEncabezadoDetalle = hoja.addRow([
-    'Fecha',
-    'Tipo',
-    'Origen',
-    'Detalle',
-    'Lote',
-    'Monto',
-    'Moneda',
-    'Cotización del día',
-  ])
+  const filaEncabezadoDetalle = hoja.addRow([...COLUMNAS_PLANILLA])
   filaEncabezadoDetalle.eachCell((celda) => {
     celda.font = ESTILO_ENCABEZADO.font
     celda.fill = ESTILO_ENCABEZADO.fill
   })
-  for (const movimiento of movimientosFiltrados) {
-    hoja.addRow([
-      movimiento.fecha_evento,
-      movimiento.tipo === 'debe' ? 'Debe' : 'Haber',
-      ETIQUETA_ORIGEN[movimiento.origen] ?? movimiento.origen,
-      [movimiento.detalle, movimiento.de_parte_de ? `de: ${movimiento.de_parte_de}` : null]
-        .filter(Boolean)
-        .join(' — '),
-      movimiento.lotes?.identificador ?? '',
-      movimiento.monto,
-      movimiento.moneda,
-      movimiento.cotizacion_dia ?? '',
-    ])
+  for (const fila of filas) {
+    hoja.addRow(celdasDeFila(fila))
   }
-  if (movimientosFiltrados.length === 0) {
+  if (filas.length === 0) {
     hoja.addRow(['Ningún movimiento con estos filtros.'])
   }
 
   hoja.columns = [
-    { width: 14 },
-    { width: 12 },
-    { width: 30 },
-    { width: 34 },
-    { width: 16 },
-    { width: 14 },
-    { width: 10 },
-    { width: 16 },
+    { width: 12 }, // Fecha
+    { width: 18 }, // Tipo de movimiento
+    { width: 24 }, // Concepto
+    { width: 20 }, // Loteo
+    { width: 8 }, // Mza
+    { width: 12 }, // Lote
+    { width: 24 }, // Cliente
+    { width: 10 }, // Mes de
+    { width: 12 }, // Nro cuota
+    { width: 14 }, // Monto
+    { width: 10 }, // Moneda
+    { width: 16 }, // Cotización del día
   ]
 
   const buffer = await workbook.xlsx.writeBuffer()
