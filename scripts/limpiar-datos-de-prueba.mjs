@@ -11,7 +11,12 @@
 //   node scripts/limpiar-datos-de-prueba.mjs --dry-run  (solo informa)
 //
 // Qué considera "de prueba", y nada más que eso:
-//   - lotes y loteos cuyo identificador/nombre empieza con "E2E"
+//   - lotes cuyo identificador CONTIENE "E2E" y loteos cuyo nombre empieza
+//     con "E2E". Contiene y no empieza (09/09): el identificador del lote
+//     ya no lo elige el test, lo arma la app con la manzana y el numero
+//     ("Mza E2E - Lote E2E-1788..."), asi que ninguno empieza con E2E y
+//     quedaban lotes huerfanos -- y con ellos usuarios que no se podian
+//     borrar porque el lote seguia apuntandolos.
 //   - cuentas externas cuyo nombre contiene "E2E"
 //   - usuarios con email @sima-e2e.invalid
 //   - archivos del bucket que ya no referencia ninguna fila
@@ -89,7 +94,7 @@ async function borrarPorIds(tabla, columna, ids, contexto) {
 }
 
 async function limpiarBase() {
-  const lotes = await idsDe('lotes', 'identificador', `${PREFIJO}%`)
+  const lotes = await idsDe('lotes', 'identificador', `%${PREFIJO}%`)
   const loteos = await idsDe('loteos', 'nombre', `${PREFIJO}%`)
   const cuentasExternas = await idsDe('cuentas_externas', 'nombre', `%${PREFIJO}%`)
 
