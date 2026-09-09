@@ -12,4 +12,6 @@ export const EVENTO_HISTORIAL_ETIQUETA: Record<string, string> = {
   desmarcado_prejudicial: 'Salió de Prejudicial',
   saldado: 'Pago total anticipado',
   cargado_en_curso: 'Cargado ya vendido',
+  interes_condonado: 'Interés condonado',
+  interes_restituido: 'Interés restituido',
 }

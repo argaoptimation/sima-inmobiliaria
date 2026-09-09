@@ -122,7 +122,7 @@ export default async function PortalClientePage() {
       // y revendido mezclaba acá la deuda vieja del dueño anterior).
       const { data: cuotas } = await supabase
         .from('cuotas')
-        .select('id, numero, monto_base, saldo_pendiente, fecha_vencimiento')
+        .select('id, numero, monto_base, saldo_pendiente, fecha_vencimiento, interes_condonado')
         .eq('lote_id', lote.id)
         .eq('ciclo', lote.ciclo_actual)
         .order('numero', { ascending: true })
@@ -142,7 +142,11 @@ export default async function PortalClientePage() {
       const vencida = primeraImpaga ? primeraImpaga.fecha_vencimiento < hoy : false
       const interes = primeraImpaga
         ? calcularInteresMoratorio(
-            { saldoPendiente: primeraImpaga.saldo_pendiente, fechaVencimiento: primeraImpaga.fecha_vencimiento },
+            {
+              saldoPendiente: primeraImpaga.saldo_pendiente,
+              fechaVencimiento: primeraImpaga.fecha_vencimiento,
+              interesCondonado: primeraImpaga.interes_condonado,
+            },
             lote.interes_moratorio_diario,
             hoy
           )

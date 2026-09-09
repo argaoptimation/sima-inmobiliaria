@@ -8,6 +8,8 @@ import { mensajeDeError } from '@/lib/errores'
 import { generarYGuardarContrato } from '@/lib/contratos/generar-y-guardar'
 import { generarCuotas, generarCuotasManual } from '@/lib/lotes/generar-cuotas'
 import { calcularMontoCuota } from '@/lib/lotes/calcular-monto-cuota'
+import { listarNumerosDeCuota } from '@/lib/cuotas/listar-numeros'
+import { revalidarNotificaciones } from '@/lib/notificaciones/revalidar'
 
 function idOVacio(valor: FormDataEntryValue | null): string | null {
   const texto = valor as string | null
@@ -306,7 +308,7 @@ export async function refinanciarLote(loteId: string, formData: FormData) {
   // cuotas -- exactamente como lo pidió Nicolás.
   const { data: cuotasConSaldo } = await admin
     .from('cuotas')
-    .select('id, saldo_pendiente')
+    .select('id, numero, saldo_pendiente')
     .eq('lote_id', loteId)
     .eq('ciclo', lote!.ciclo_actual)
     .gt('saldo_pendiente', 0)
@@ -386,12 +388,29 @@ export async function refinanciarLote(loteId: string, formData: FormData) {
     redirect(`/admin/lotes/${loteId}?error=${encodeURIComponent(mensajeDeError(errorInsertarCuotas))}`)
   }
 
+  // Qué cuotas entraron y cuáles salieron, por número (08/09, pedido de
+  // Gabriel). Antes el evento solo decía CUÁNTAS eran, y meses después
+  // "2 cuotas → 1 cuota nueva" no alcanza para reconstruir la historia del
+  // lote: hay que poder leer "pagó hasta la 20, se refinanciaron la 21 a la
+  // 30, y de ahí en más paga la 31 a la 40".
+  const numerosRefinanciados = cuotasConSaldo!.map((cuota) => cuota.numero)
+  const numerosNuevos = cuotasNuevas.map((cuota) => numeroInicial + cuota.numero - 1)
+
   await admin.from('lote_historial_estados').insert({
     lote_id: loteId,
     evento: 'refinanciado',
     cambiado_por: user!.id,
-    detalle: `Deuda de ${totalDeuda} ${lote!.moneda} (${cuotasConSaldo!.length} cuota(s)) → ${cantidadNueva} cuota(s) nueva(s)`,
+    detalle:
+      `Deuda de ${totalDeuda} ${lote!.moneda} — ` +
+      `cuota ${listarNumerosDeCuota(numerosRefinanciados)} ` +
+      `(${cuotasConSaldo!.length}) → cuota ${listarNumerosDeCuota(numerosNuevos)} ` +
+      `(${cantidadNueva} nueva(s))`,
   })
+
+  // Las cuotas nuevas nacen sin destino de cobro, así que la campana tiene
+  // que volver a mirar: puede aparecer un "no hay a dónde pagar" que hasta
+  // recién no existía.
+  revalidarNotificaciones()
 
   redirect(`/admin/lotes/${loteId}?ok=${encodeURIComponent('Refinanciación registrada')}`)
 }
@@ -649,5 +668,119 @@ export async function saldarLote(loteId: string, formData: FormData) {
 
   redirect(
     `${destino}?ok=${encodeURIComponent('Pago total anticipado registrado -- la deuda restante quedó cerrada.')}`
+  )
+}
+
+// Condonar el interés moratorio de una o de todas las cuotas del lote
+// (08/09, migración 0059). Pedido de Nicolás: el interés no es solo un
+// número que se cobra, es con lo que negocia para destrabar una deuda
+// parada ("pagame el capital y te saco los intereses").
+//
+// Es un interruptor, no un monto: perdonar "los $50.000 de hoy" haría
+// reaparecer intereses mañana, porque la mora se recalcula a diario contra
+// la fecha de vencimiento. Con esto la cuota deja de generar interés, y se
+// puede volver atrás si el cliente no cumple lo que prometió.
+export async function condonarInteresMoratorio(loteId: string, formData: FormData) {
+  await requireAdministrador()
+
+  const supabase = await createClient()
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
+
+  const destino = `/admin/lotes/${loteId}`
+  const alcance = ((formData.get('alcance') as string) || '').trim()
+  const motivo = ((formData.get('motivo') as string) || '').trim()
+  const restituir = formData.get('restituir') === '1'
+
+  const { data: lote } = await supabase
+    .from('lotes')
+    .select('estado, ciclo_actual')
+    .eq('id', loteId)
+    .single()
+
+  if (!lote || lote.estado !== 'vendido') {
+    redirect(`${destino}?error=${encodeURIComponent('Solo se puede condonar interés en un lote vendido')}`)
+  }
+
+  const admin = createAdminClient()
+
+  let consulta = admin
+    .from('cuotas')
+    .select('id, numero')
+    .eq('lote_id', loteId)
+    .eq('ciclo', lote!.ciclo_actual)
+    .eq('interes_condonado', restituir)
+
+  // "todas" son las que todavía deben algo: condonarle el interés a una
+  // cuota ya paga no cambia nada y solo ensucia el historial.
+  if (alcance === 'todas') {
+    consulta = consulta.gt('saldo_pendiente', 0)
+  } else {
+    const numero = Number(alcance)
+    if (!Number.isInteger(numero)) {
+      redirect(`${destino}?error=${encodeURIComponent('Elegí a qué cuota condonarle el interés')}`)
+    }
+    consulta = consulta.eq('numero', numero)
+  }
+
+  const { data: cuotas } = await consulta
+
+  if (!cuotas || cuotas.length === 0) {
+    redirect(
+      `${destino}?error=${encodeURIComponent(
+        restituir
+          ? 'No hay ninguna cuota con el interés condonado para restituir'
+          : 'No hay ninguna cuota con saldo a la que condonarle el interés'
+      )}`
+    )
+  }
+
+  const { error } = await admin
+    .from('cuotas')
+    .update(
+      restituir
+        ? {
+            interes_condonado: false,
+            interes_condonado_en: null,
+            interes_condonado_por: null,
+            interes_condonado_motivo: null,
+          }
+        : {
+            interes_condonado: true,
+            interes_condonado_en: new Date().toISOString(),
+            interes_condonado_por: user!.id,
+            interes_condonado_motivo: motivo || null,
+          }
+    )
+    .in(
+      'id',
+      cuotas!.map((cuota) => cuota.id)
+    )
+
+  if (error) {
+    redirect(`${destino}?error=${encodeURIComponent(mensajeDeError(error))}`)
+  }
+
+  const numeros = listarNumerosDeCuota(cuotas!.map((cuota) => cuota.numero))
+
+  // Queda en el historial del lote porque es una decisión comercial con
+  // plata adentro, no un ajuste técnico: meses después hay que poder ver
+  // quién perdonó qué y por qué.
+  await admin.from('lote_historial_estados').insert({
+    lote_id: loteId,
+    evento: restituir ? 'interes_restituido' : 'interes_condonado',
+    cambiado_por: user!.id,
+    detalle: restituir
+      ? `Se volvió a aplicar el interés moratorio a la cuota ${numeros}`
+      : `Interés moratorio condonado en la cuota ${numeros}${motivo ? ` — ${motivo}` : ''}`,
+  })
+
+  redirect(
+    `${destino}?ok=${encodeURIComponent(
+      restituir
+        ? `Interés moratorio restituido en la cuota ${numeros}`
+        : `Interés moratorio condonado en la cuota ${numeros}`
+    )}`
   )
 }

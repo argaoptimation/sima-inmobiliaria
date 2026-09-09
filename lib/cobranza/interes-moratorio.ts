@@ -1,6 +1,12 @@
 export interface CuotaConMora {
   saldoPendiente: number
   fechaVencimiento: string
+  // Interés condonado (08/09): esta cuota deja de generar mora, la ya
+  // devengada y la futura. Es un campo obligatorio a propósito -- si fuera
+  // opcional, cualquier pantalla nueva que se olvidara de traerlo le
+  // seguiría cobrando intereses a un cliente al que se le prometió que no.
+  // Ver migración 0059.
+  interesCondonado: boolean
 }
 
 const MS_POR_DIA = 24 * 60 * 60 * 1000
@@ -22,6 +28,7 @@ export function calcularInteresMoratorio(
   interesMoratorioDiarioPorcentaje: number | null,
   hoy: string
 ): number {
+  if (cuota.interesCondonado) return 0
   if (!interesMoratorioDiarioPorcentaje || cuota.saldoPendiente <= 0) return 0
 
   const dias = diasDeAtraso(cuota.fechaVencimiento, hoy)

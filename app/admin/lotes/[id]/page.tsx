@@ -17,6 +17,7 @@ import {
   refinanciarLote,
   generarContratoLote,
   saldarLote,
+  condonarInteresMoratorio,
 } from './actions'
 import { cancelarReserva } from '../actions'
 import { confirmarPago } from '../../pagos/actions'
@@ -28,6 +29,7 @@ import { PanelSaldar } from './PanelSaldar'
 import { telefonoParaWhatsApp } from '@/lib/telefono/prefijos'
 import { mesDeFecha } from '@/lib/lotes/aplicar-indexacion'
 import { EVENTO_HISTORIAL_ETIQUETA } from '@/lib/lotes/eventos-historial'
+import { listarNumerosDeCuota } from '@/lib/cuotas/listar-numeros'
 import { CampoArchivoDirecto } from '@/components/CampoArchivoDirecto'
 import { FiltroEnVivo } from '@/components/FiltroEnVivo'
 import { RefinanciarCuotas } from './RefinanciarCuotas'
@@ -36,6 +38,7 @@ import { BotonEnvio } from '@/components/BotonEnvio'
 import { COLUMNA_LECTURA,
   ENTRADA,
   BOTON_PRIMARIO,
+  BOTON_SECUNDARIO,
   ENLACE,
   TITULO_H1,
   TITULO_H2,
@@ -133,7 +136,9 @@ export default async function LoteDetallePage({
 
   const { data: cuotas } = await supabase
     .from('cuotas')
-    .select('id, numero, monto_base, monto_ajustado, saldo_pendiente, fecha_vencimiento, refinanciada, migrada')
+    .select(
+      'id, numero, monto_base, monto_ajustado, saldo_pendiente, fecha_vencimiento, refinanciada, migrada, interes_condonado, interes_condonado_motivo'
+    )
     .eq('lote_id', id)
     .eq('ciclo', lote!.ciclo_actual)
     .order('numero', { ascending: true })
@@ -464,9 +469,21 @@ export default async function LoteDetallePage({
   const marcarPrejudicialConId = marcarPrejudicial.bind(null, id, undefined)
   const desmarcarPrejudicialConId = desmarcarPrejudicial.bind(null, id)
   const refinanciarConId = refinanciarLote.bind(null, id)
+  const condonarInteresConId = condonarInteresMoratorio.bind(null, id)
   const generarContratoConId = generarContratoLote.bind(null, id)
 
   const cuotasRefinanciables = (cuotas ?? []).filter((cuota) => cuota.saldo_pendiente > 0)
+
+  // Cuotas a las que tiene sentido condonarles el interés: las que deben
+  // algo y hoy están generando mora. Las ya condonadas van aparte, para
+  // poder volver atrás (es una palanca de negociación, no algo definitivo).
+  const cuotasConMoraViva = (cuotas ?? []).filter(
+    (cuota) =>
+      !cuota.interes_condonado &&
+      cuota.saldo_pendiente > 0 &&
+      cuota.fecha_vencimiento < hoy
+  )
+  const cuotasConInteresCondonado = (cuotas ?? []).filter((cuota) => cuota.interes_condonado)
   const totalDeudaRefinanciable =
     Math.round(cuotasRefinanciables.reduce((acumulado, cuota) => acumulado + cuota.saldo_pendiente, 0) * 100) / 100
 
@@ -742,7 +759,11 @@ export default async function LoteDetallePage({
               lote!.estado === 'vendido' && cuota.saldo_pendiente > 0 && cuota.fecha_vencimiento < hoy
             const interesMoratorio = vencida
               ? calcularInteresMoratorio(
-                  { saldoPendiente: cuota.saldo_pendiente, fechaVencimiento: cuota.fecha_vencimiento },
+                  {
+                    saldoPendiente: cuota.saldo_pendiente,
+                    fechaVencimiento: cuota.fecha_vencimiento,
+                    interesCondonado: cuota.interes_condonado,
+                  },
                   lote!.interes_moratorio_diario,
                   hoy
                 )
@@ -790,10 +811,19 @@ export default async function LoteDetallePage({
                   )}
                 </td>
                 <td className={TABLA_CELDA}>
-                  {interesMoratorio > 0 && (
-                    <span className="text-red-700">
-                      +{interesMoratorio} {lote!.moneda}
+                  {cuota.interes_condonado ? (
+                    <span
+                      className="italic text-emerald-700"
+                      title={cuota.interes_condonado_motivo ?? undefined}
+                    >
+                      Condonado
                     </span>
+                  ) : (
+                    interesMoratorio > 0 && (
+                      <span className="text-red-700">
+                        +{interesMoratorio} {lote!.moneda}
+                      </span>
+                    )
                   )}
                 </td>
                 <td className={TABLA_CELDA}>{vencida && <span className="text-red-700">Vencida</span>}</td>
@@ -834,6 +864,100 @@ export default async function LoteDetallePage({
           </form>
         </details>
       )}
+
+      {/* Condonar el interés moratorio (08/09, pedido de Nicolás vía
+          Gabriel): el interés es con lo que negocia para destrabar una deuda
+          parada, así que tiene que poder sacarlo -- y volver a ponerlo si el
+          cliente no cumple. Ver migración 0059. */}
+      {perfilPropio!.role === 'administrador' &&
+        lote!.estado === 'vendido' &&
+        (cuotasConMoraViva.length > 0 || cuotasConInteresCondonado.length > 0) && (
+          <details className="mb-6 rounded border border-blue-100 text-sm">
+            <summary className="cursor-pointer select-none p-3 font-medium">
+              Condonar interés moratorio
+            </summary>
+            <div className="flex flex-col gap-4 border-t border-blue-100 p-3">
+              {cuotasConMoraViva.length > 0 && (
+                <form action={condonarInteresConId} className="flex flex-col gap-3">
+                  <p className="text-slate-600">
+                    La cuota deja de generar interés: ni el que ya se acumuló ni el que se
+                    seguiría acumulando. Sigue debiendo su capital. No devuelve interés ya
+                    cobrado en un pago anterior &mdash; eso sería una devolución de plata que ya
+                    entró y se repartió.
+                  </p>
+                  <label className="text-sm">
+                    A qué cuota
+                    <select name="alcance" required className={`${ENTRADA} w-full`} defaultValue="">
+                      <option value="" disabled>
+                        Elegí una cuota
+                      </option>
+                      <option value="todas">
+                        Todas las que deben algo ({cuotasRefinanciables.length})
+                      </option>
+                      {cuotasConMoraViva.map((cuota) => (
+                        <option key={cuota.id} value={cuota.numero}>
+                          Cuota {cuota.numero} &mdash; vence el{' '}
+                          {formatearFechaCorta(cuota.fecha_vencimiento)}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                  <label className="text-sm">
+                    Por qué (opcional, queda en el historial)
+                    <input
+                      type="text"
+                      name="motivo"
+                      maxLength={200}
+                      placeholder="Ej: acuerdo de pago, cancela el capital esta semana"
+                      className={`${ENTRADA} w-full`}
+                    />
+                  </label>
+                  <BotonEnvio className={`cursor-pointer self-start ${BOTON_PRIMARIO}`}>
+                    Condonar interés
+                  </BotonEnvio>
+                </form>
+              )}
+
+              {cuotasConInteresCondonado.length > 0 && (
+                <form
+                  action={condonarInteresConId}
+                  className="flex flex-col gap-3 border-t border-blue-100 pt-4"
+                >
+                  <input type="hidden" name="restituir" value="1" />
+                  <p className="text-slate-600">
+                    Con el interés condonado: cuota{' '}
+                    {listarNumerosDeCuota(cuotasConInteresCondonado.map((cuota) => cuota.numero))}.
+                    Si el cliente no cumplió lo que prometió, se puede volver a aplicar &mdash; el
+                    interés se recalcula desde el vencimiento original, como si nunca se hubiera
+                    condonado.
+                  </p>
+                  <label className="text-sm">
+                    A qué cuota
+                    <select name="alcance" required className={`${ENTRADA} w-full`} defaultValue="">
+                      <option value="" disabled>
+                        Elegí una cuota
+                      </option>
+                      <option value="todas">
+                        Todas las condonadas ({cuotasConInteresCondonado.length})
+                      </option>
+                      {cuotasConInteresCondonado.map((cuota) => (
+                        <option key={cuota.id} value={cuota.numero}>
+                          Cuota {cuota.numero}
+                          {cuota.interes_condonado_motivo
+                            ? ` — ${cuota.interes_condonado_motivo}`
+                            : ''}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                  <BotonEnvio className={`cursor-pointer self-start ${BOTON_SECUNDARIO}`}>
+                    Volver a aplicar el interés
+                  </BotonEnvio>
+                </form>
+              )}
+            </div>
+          </details>
+        )}
         </div>
 
         <div>

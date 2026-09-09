@@ -69,7 +69,7 @@ export default async function EfectivoPage({
     loteIdsVendidos.length > 0
       ? await supabase
           .from('cuotas')
-          .select('id, lote_id, numero, saldo_pendiente, fecha_vencimiento, ciclo')
+          .select('id, lote_id, numero, saldo_pendiente, fecha_vencimiento, ciclo, interes_condonado')
           .in('lote_id', loteIdsVendidos)
           .gt('saldo_pendiente', 0)
           .order('numero', { ascending: true })
@@ -87,6 +87,7 @@ export default async function EfectivoPage({
       numero: cuota.numero,
       fechaVencimiento: cuota.fecha_vencimiento,
       saldoPendiente: cuota.saldo_pendiente,
+      interesCondonado: cuota.interes_condonado,
     })
     cuotasPorLoteId[cuota.lote_id] = lista
   }

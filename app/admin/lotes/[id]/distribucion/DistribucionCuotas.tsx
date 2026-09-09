@@ -11,7 +11,9 @@ import {
   TABLA_HEADER_CELDA,
   TABLA_FILA,
   TABLA_CELDA,
+  NUMERO_TABULAR,
 } from '@/lib/ui/clases'
+import { formatearFechaCorta } from '@/lib/fecha/formatear-fecha-corta'
 
 interface Fila {
   id: string
@@ -26,7 +28,7 @@ interface Participante {
 
 interface Props {
   moneda: string
-  cuotas: { numero: number; montoBase: number }[]
+  cuotas: { numero: number; montoBase: number; fechaVencimiento: string }[]
   participantesElegibles: Participante[]
   objetivosIniciales: { participanteKey: string; monto: string }[]
   distribucionesIniciales: Record<number, { participanteKey: string; monto: string }[]>
@@ -357,8 +359,16 @@ export function DistribucionCuotas({
 
           return (
             <div key={cuota.numero} className="rounded-lg border border-blue-100 p-3">
+              {/* La fecha de vencimiento al lado del monto (08/09, pedido de
+                  Nico): esta pantalla se recorre cuota por cuota decidiendo
+                  quién cobra cada una, y sin la fecha había que salir al
+                  detalle del lote para saber de qué mes se estaba hablando. */}
               <p className="mb-2 text-sm font-semibold text-blue-900">
-                Cuota {cuota.numero} — {cuota.montoBase} {moneda}
+                Cuota {cuota.numero} —{' '}
+                <span className={NUMERO_TABULAR}>{cuota.montoBase}</span> {moneda}
+                <span className="ml-2 font-normal text-slate-500">
+                  vence el <span className={NUMERO_TABULAR}>{formatearFechaCorta(cuota.fechaVencimiento)}</span>
+                </span>
               </p>
 
               {/* Dos columnas: a la izquierda cómo se reparte la comisión de

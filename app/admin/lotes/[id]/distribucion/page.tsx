@@ -38,7 +38,7 @@ export default async function DistribucionLotePage({
 
   const { data: cuotas } = await supabase
     .from('cuotas')
-    .select('id, numero, monto_base, cuenta_cobro_id, cuenta_cobro_externa_id')
+    .select('id, numero, monto_base, fecha_vencimiento, cuenta_cobro_id, cuenta_cobro_externa_id')
     .eq('lote_id', id)
     .eq('ciclo', lote.ciclo_actual)
     .order('numero', { ascending: true })
@@ -379,7 +379,11 @@ export default async function DistribucionLotePage({
         <form action={guardarDistribucionConId}>
           <DistribucionCuotas
             moneda={lote!.moneda}
-            cuotas={(cuotas ?? []).map((cuota) => ({ numero: cuota.numero, montoBase: cuota.monto_base }))}
+            cuotas={(cuotas ?? []).map((cuota) => ({
+              numero: cuota.numero,
+              montoBase: cuota.monto_base,
+              fechaVencimiento: cuota.fecha_vencimiento,
+            }))}
             participantesElegibles={participantesElegibles}
             objetivosIniciales={objetivosIniciales}
             distribucionesIniciales={distribucionesIniciales}

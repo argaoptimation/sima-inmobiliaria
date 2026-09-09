@@ -5,6 +5,7 @@ import { redirect } from 'next/navigation'
 import { requireAdministrador } from '@/lib/auth/require-admin'
 import { tieneDatosTransferencia } from '@/lib/lotes/validar-cuenta-cobro'
 import { mensajeDeError } from '@/lib/errores'
+import { revalidarNotificaciones } from '@/lib/notificaciones/revalidar'
 
 export async function crearCuentaExterna(formData: FormData) {
   await requireAdministrador()
@@ -110,6 +111,10 @@ export async function actualizarCuentaExterna(cuentaExternaId: string, formData:
       `/admin/cuentas-externas/${cuentaExternaId}?error=${encodeURIComponent(mensajeDeError(error))}`
     )
   }
+
+  // Misma razón que en usuarios: una cuenta externa sin alias/banco/titular
+  // deja cuotas "sin dónde pagar" en la campana.
+  revalidarNotificaciones()
 
   redirect(`/admin/cuentas-externas/${cuentaExternaId}?ok=1`)
 }

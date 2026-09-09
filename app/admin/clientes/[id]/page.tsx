@@ -74,7 +74,7 @@ export default async function ClienteDetallePage({
     (lotes ?? []).map(async (lote) => {
       const { data: cuotas } = await supabase
         .from('cuotas')
-        .select('saldo_pendiente, fecha_vencimiento')
+        .select('saldo_pendiente, fecha_vencimiento, interes_condonado')
         .eq('lote_id', lote.id)
         .order('fecha_vencimiento', { ascending: true })
 
@@ -86,6 +86,7 @@ export default async function ClienteDetallePage({
       const cuotasNormalizadas = (cuotas ?? []).map((cuota) => ({
         saldoPendiente: cuota.saldo_pendiente,
         fechaVencimiento: cuota.fecha_vencimiento,
+        interesCondonado: cuota.interes_condonado,
       }))
 
       const estadoCobranza = calcularEstadoCobranza(cuotasNormalizadas, hoy)

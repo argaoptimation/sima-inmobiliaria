@@ -22,7 +22,11 @@ export function calcularEstadoCobranza(cuotas: CuotaEstado[], hoy: string): Esta
 // Extraído de calcularEstadoCobranza para que los llamadores (páginas que
 // arman el mensaje de WhatsApp) puedan listar los meses adeudados sin
 // duplicar el filtro de "vencida" acá.
-export function cuotasVencidas(cuotas: CuotaEstado[], hoy: string): CuotaEstado[] {
+// Genérica en T (08/09): devuelve las MISMAS cuotas que le entraron, con los
+// campos extra que traigan. El llamador que necesita, además de las fechas,
+// saber si a esa cuota se le condonó el interés no tiene que volver a
+// cruzarlas contra la lista original.
+export function cuotasVencidas<T extends CuotaEstado>(cuotas: T[], hoy: string): T[] {
   return cuotas
     .filter((cuota) => cuota.saldoPendiente > 0 && cuota.fechaVencimiento < hoy)
     .sort((a, b) => a.fechaVencimiento.localeCompare(b.fechaVencimiento))

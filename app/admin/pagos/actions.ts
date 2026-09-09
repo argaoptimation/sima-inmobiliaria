@@ -5,6 +5,7 @@ import { imputarPagoFIFO, imputarPagoConMora } from '@/lib/pagos/imputar-fifo'
 import { revalidatePath } from 'next/cache'
 import { redirect } from 'next/navigation'
 import { requireAdministrador } from '@/lib/auth/require-admin'
+import { revalidarNotificaciones } from '@/lib/notificaciones/revalidar'
 import { hoyArgentina } from '@/lib/fecha/hoy-argentina'
 import {
   alcanzaConLaConfirmacionDelAdmin,
@@ -266,7 +267,7 @@ export async function confirmarPago(pagoId: string, formData: FormData) {
   // que imputar contra deuda vieja de un ciclo anterior.
   const { data: cuotas } = await supabase
     .from('cuotas')
-    .select('id, saldo_pendiente, fecha_vencimiento, mora_pagada')
+    .select('id, saldo_pendiente, fecha_vencimiento, mora_pagada, interes_condonado')
     .eq('lote_id', lote.id)
     .eq('ciclo', lote.ciclo_actual)
     .gt('saldo_pendiente', 0)
@@ -283,6 +284,7 @@ export async function confirmarPago(pagoId: string, formData: FormData) {
       saldoPendiente: cuota.saldo_pendiente,
       fechaVencimiento: cuota.fecha_vencimiento,
       moraPagada: cuota.mora_pagada,
+      interesCondonado: cuota.interes_condonado,
     })),
     lote.interes_moratorio_diario,
     hoyArgentina()
@@ -345,6 +347,10 @@ export async function confirmarPago(pagoId: string, formData: FormData) {
   revalidatePath('/admin/efectivo')
   revalidatePath('/admin/cierre-caja')
   revalidatePath('/portal-cliente')
+  // Baja el contador de "pagos esperando que los confirmes" y puede levantar
+  // el de "cobraste cuotas sin repartir": los dos viven en la campana, que
+  // se calcula en el layout y no se recalcula sola.
+  revalidarNotificaciones()
 }
 
 export async function editarMontoPago(pagoId: string, formData: FormData) {
@@ -576,4 +582,5 @@ export async function editarMontoPago(pagoId: string, formData: FormData) {
 
   revalidatePath('/admin/pagos')
   revalidatePath('/portal-cliente')
+  revalidarNotificaciones()
 }

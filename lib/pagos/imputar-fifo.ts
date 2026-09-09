@@ -43,6 +43,9 @@ export interface CuotaConMoraPendiente {
   // devengada TOTAL a hoy desde fecha_vencimiento cada vez, así que hay que
   // restar lo ya cobrado para no volver a cobrarlo.
   moraPagada: number
+  // Interes condonado: esta cuota cobra capital y nada de mora, aunque este
+  // vencida hace meses. Ver migracion 0059.
+  interesCondonado: boolean
 }
 
 export interface ImputacionConMora {
@@ -77,7 +80,11 @@ export function imputarPagoConMora(
     if (cuota.saldoPendiente <= 0) continue
 
     const moraDevengada = calcularInteresMoratorio(
-      { saldoPendiente: cuota.saldoPendiente, fechaVencimiento: cuota.fechaVencimiento },
+      {
+        saldoPendiente: cuota.saldoPendiente,
+        fechaVencimiento: cuota.fechaVencimiento,
+        interesCondonado: cuota.interesCondonado,
+      },
       interesMoratorioDiarioPorcentaje,
       hoy
     )

@@ -70,7 +70,7 @@ export async function calcularTramosMora(supabase: SupabaseServerClient): Promis
     loteIds.length > 0
       ? await supabase
           .from('cuotas')
-          .select('lote_id, ciclo, saldo_pendiente, fecha_vencimiento')
+          .select('lote_id, ciclo, saldo_pendiente, fecha_vencimiento, interes_condonado')
           .in('lote_id', loteIds)
           .order('fecha_vencimiento', { ascending: true })
       : { data: [] }
@@ -78,7 +78,10 @@ export async function calcularTramosMora(supabase: SupabaseServerClient): Promis
   const cicloActualPorLoteId = new Map((lotesVendidos ?? []).map((lote) => [lote.id, lote.ciclo_actual]))
   const cuotas = (cuotasSinFiltrar ?? []).filter((cuota) => cuota.ciclo === cicloActualPorLoteId.get(cuota.lote_id))
 
-  const cuotasPorLote = new Map<string, { saldo_pendiente: number; fecha_vencimiento: string }[]>()
+  const cuotasPorLote = new Map<
+    string,
+    { saldo_pendiente: number; fecha_vencimiento: string; interes_condonado: boolean }[]
+  >()
   for (const cuota of cuotas) {
     const lista = cuotasPorLote.get(cuota.lote_id) ?? []
     lista.push(cuota)
@@ -111,6 +114,7 @@ export async function calcularTramosMora(supabase: SupabaseServerClient): Promis
       cuotasDelLote.map((cuota) => ({
         saldoPendiente: cuota.saldo_pendiente,
         fechaVencimiento: cuota.fecha_vencimiento,
+        interesCondonado: cuota.interes_condonado,
       })),
       hoy
     )
@@ -142,7 +146,11 @@ export async function calcularTramosMora(supabase: SupabaseServerClient): Promis
             (acum, cuota) =>
               acum +
               calcularInteresMoratorio(
-                { saldoPendiente: cuota.saldoPendiente, fechaVencimiento: cuota.fechaVencimiento },
+                {
+                  saldoPendiente: cuota.saldoPendiente,
+                  fechaVencimiento: cuota.fechaVencimiento,
+                  interesCondonado: cuota.interesCondonado,
+                },
                 lote.interes_moratorio_diario,
                 hoy
               ),

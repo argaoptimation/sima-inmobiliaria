@@ -3,6 +3,7 @@
 import { createClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
 import { requireAdministrador } from '@/lib/auth/require-admin'
+import { revalidarNotificaciones } from '@/lib/notificaciones/revalidar'
 
 interface FilaValida {
   profile_id: string | null
@@ -241,6 +242,11 @@ export async function guardarDistribucionLote(loteId: string, formData: FormData
       )
     }
   }
+
+  // Esta pantalla es la que resuelve dos de los avisos de la campana ("no
+  // hay a dónde pagar la cuota N" y "cobraste cuotas sin repartir"), así que
+  // es la que más se notaba cuando la campana quedaba desactualizada.
+  revalidarNotificaciones()
 
   redirect(`/admin/lotes/${loteId}/distribucion?ok=1`)
 }

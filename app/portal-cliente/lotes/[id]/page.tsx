@@ -126,7 +126,7 @@ export default async function PortalClienteLotePage({
   // criterio que ya usa el detalle del lote en /admin.
   const { data: cuotas } = await supabase
     .from('cuotas')
-    .select('id, numero, monto_base, saldo_pendiente, fecha_vencimiento, refinanciada')
+    .select('id, numero, monto_base, saldo_pendiente, fecha_vencimiento, refinanciada, interes_condonado')
     .eq('lote_id', lote!.id)
     .eq('ciclo', lote!.ciclo_actual)
     .order('numero', { ascending: true })
@@ -150,7 +150,11 @@ export default async function PortalClienteLotePage({
     const vencida = cuota.saldo_pendiente > 0 && cuota.fecha_vencimiento < hoy
     const interesMoratorio = vencida
       ? calcularInteresMoratorio(
-          { saldoPendiente: cuota.saldo_pendiente, fechaVencimiento: cuota.fecha_vencimiento },
+          {
+            saldoPendiente: cuota.saldo_pendiente,
+            fechaVencimiento: cuota.fecha_vencimiento,
+            interesCondonado: cuota.interes_condonado,
+          },
           lote!.interes_moratorio_diario,
           hoy
         )

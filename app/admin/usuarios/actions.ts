@@ -6,6 +6,7 @@ import { redirect } from 'next/navigation'
 import { requireAdministrador } from '@/lib/auth/require-admin'
 import { tieneDatosTransferencia } from '@/lib/lotes/validar-cuenta-cobro'
 import { mensajeDeError } from '@/lib/errores'
+import { revalidarNotificaciones } from '@/lib/notificaciones/revalidar'
 import { invitarPorEmail } from '@/lib/auth/invitar-por-email'
 
 const ROLES_STAFF = ['acreedor', 'vendedor', 'cobrador'] as const
@@ -122,6 +123,10 @@ export async function actualizarDatosTransferenciaStaff(userId: string, formData
   if (error) {
     redirect(`/admin/usuarios?error=${encodeURIComponent(mensajeDeError(error))}`)
   }
+
+  // Cargarle alias/banco/titular a alguien puede apagar el aviso de "a quien
+  // la cobra le faltan los datos, el cliente no ve dónde transferir".
+  revalidarNotificaciones()
 
   redirect('/admin/usuarios')
 }

@@ -11,8 +11,21 @@
 // API funcionando para tocarlo desde acá (ver
 // feedback_verificar_proyecto_supabase en la memoria).
 //
-// Sin NEXT_PUBLIC_SITE_URL seteada (ej. corriendo local), cae a
-// localhost:3000 -- mismo comportamiento de siempre en desarrollo.
+// Dominio real de producción (08/09/2026). No es un secreto -- es la URL
+// pública que se le manda al cliente por WhatsApp -- así que puede vivir en
+// el repo, que es público.
+//
+// Está acá y no solo en una variable de entorno porque el mensaje de
+// cobranza LLEVA este link adentro: si la variable se olvida de setear en
+// Vercel, el fallback silencioso mandaba a los clientes a "localhost:3000",
+// que para ellos es un link roto. Un default correcto en producción vale
+// más que la pureza de no hardcodear nada.
+const URL_PRODUCCION = 'https://simacor.vercel.app'
+
+// NEXT_PUBLIC_SITE_URL sigue mandando si está seteada (para previews de
+// Vercel o un dominio propio el día que lo haya). Sin ella: producción usa
+// el dominio de arriba y desarrollo sigue en localhost:3000, como siempre.
 export function obtenerSiteUrl(): string {
-  return process.env.NEXT_PUBLIC_SITE_URL ?? 'http://localhost:3000'
+  if (process.env.NEXT_PUBLIC_SITE_URL) return process.env.NEXT_PUBLIC_SITE_URL
+  return process.env.NODE_ENV === 'production' ? URL_PRODUCCION : 'http://localhost:3000'
 }

@@ -3,6 +3,7 @@
 import { createClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
 import { revalidatePath } from 'next/cache'
+import { revalidarNotificaciones } from '@/lib/notificaciones/revalidar'
 import { mensajeDeError } from '@/lib/errores'
 import { hoyArgentina } from '@/lib/fecha/hoy-argentina'
 
@@ -67,5 +68,7 @@ export async function guardarCotizacionDolar(formData: FormData) {
   // mano. Con <a> plano (como era antes) nunca hacía falta, cada
   // navegación era una carga completa sin caché.
   revalidatePath('/admin/lotes')
+  // Y la campana, que avisa "todavía no cargaste la cotización de hoy".
+  revalidarNotificaciones()
   redirect('/admin/lotes')
 }

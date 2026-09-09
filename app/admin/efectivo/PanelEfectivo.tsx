@@ -18,6 +18,7 @@ export interface CuotaPendienteInfo {
   numero: number
   fechaVencimiento: string
   saldoPendiente: number
+  interesCondonado: boolean
 }
 
 // Panel lateral compacto (pedido de Gabriel 28/08 -- "no scroll para abajo,
@@ -46,7 +47,11 @@ export function PanelEfectivo({
     return cuotasDelLote.map((cuota) => ({
       ...cuota,
       mora: calcularInteresMoratorio(
-        { saldoPendiente: cuota.saldoPendiente, fechaVencimiento: cuota.fechaVencimiento },
+        {
+          saldoPendiente: cuota.saldoPendiente,
+          fechaVencimiento: cuota.fechaVencimiento,
+          interesCondonado: cuota.interesCondonado,
+        },
         loteSeleccionado.interesMoratorioDiario,
         hoy
       ),

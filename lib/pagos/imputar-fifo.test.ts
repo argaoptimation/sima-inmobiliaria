@@ -57,7 +57,7 @@ describe('imputarPagoConMora', () => {
   it('sin mora devengada, se comporta igual que imputarPagoFIFO (todo a capital)', () => {
     const resultado = imputarPagoConMora(
       60000,
-      [{ id: 'c1', saldoPendiente: 60000, fechaVencimiento: '2026-09-01', moraPagada: 0 }],
+      [{ id: 'c1', saldoPendiente: 60000, fechaVencimiento: '2026-09-01', moraPagada: 0, interesCondonado: false }],
       1,
       '2026-08-15' // no vencida todavia
     )
@@ -70,7 +70,7 @@ describe('imputarPagoConMora', () => {
     // Cuota de 1000, vencida hace 10 dias, 1% diario => 100 de mora.
     const resultado = imputarPagoConMora(
       1050,
-      [{ id: 'c1', saldoPendiente: 1000, fechaVencimiento: '2026-08-01', moraPagada: 0 }],
+      [{ id: 'c1', saldoPendiente: 1000, fechaVencimiento: '2026-08-01', moraPagada: 0, interesCondonado: false }],
       1,
       '2026-08-11'
     )
@@ -82,7 +82,7 @@ describe('imputarPagoConMora', () => {
   it('un pago que no alcanza ni para la mora, se imputa todo a mora y nada a capital', () => {
     const resultado = imputarPagoConMora(
       40,
-      [{ id: 'c1', saldoPendiente: 1000, fechaVencimiento: '2026-08-01', moraPagada: 0 }],
+      [{ id: 'c1', saldoPendiente: 1000, fechaVencimiento: '2026-08-01', moraPagada: 0, interesCondonado: false }],
       1,
       '2026-08-11' // mora devengada: 100
     )
@@ -96,7 +96,7 @@ describe('imputarPagoConMora', () => {
     // (moraPagada=60) -- solo quedan 40 de mora pendiente.
     const resultado = imputarPagoConMora(
       1000,
-      [{ id: 'c1', saldoPendiente: 1000, fechaVencimiento: '2026-08-01', moraPagada: 60 }],
+      [{ id: 'c1', saldoPendiente: 1000, fechaVencimiento: '2026-08-01', moraPagada: 60, interesCondonado: false }],
       1,
       '2026-08-11'
     )
@@ -109,8 +109,8 @@ describe('imputarPagoConMora', () => {
     const resultado = imputarPagoConMora(
       1200,
       [
-        { id: 'c1', saldoPendiente: 1000, fechaVencimiento: '2026-08-01', moraPagada: 0 }, // mora: 100 (10 dias)
-        { id: 'c2', saldoPendiente: 1000, fechaVencimiento: '2026-08-05', moraPagada: 0 }, // mora: 60 (6 dias)
+        { id: 'c1', saldoPendiente: 1000, fechaVencimiento: '2026-08-01', moraPagada: 0, interesCondonado: false }, // mora: 100 (10 dias)
+        { id: 'c2', saldoPendiente: 1000, fechaVencimiento: '2026-08-05', moraPagada: 0, interesCondonado: false }, // mora: 60 (6 dias)
       ],
       1,
       '2026-08-11'
@@ -126,7 +126,7 @@ describe('imputarPagoConMora', () => {
   it('sin tasa de interes configurada (null), nunca cobra mora', () => {
     const resultado = imputarPagoConMora(
       500,
-      [{ id: 'c1', saldoPendiente: 1000, fechaVencimiento: '2026-08-01', moraPagada: 0 }],
+      [{ id: 'c1', saldoPendiente: 1000, fechaVencimiento: '2026-08-01', moraPagada: 0, interesCondonado: false }],
       null,
       '2026-08-11'
     )
@@ -138,8 +138,8 @@ describe('imputarPagoConMora', () => {
     const resultado = imputarPagoConMora(
       500,
       [
-        { id: 'c1', saldoPendiente: 0, fechaVencimiento: '2026-08-01', moraPagada: 0 },
-        { id: 'c2', saldoPendiente: 1000, fechaVencimiento: '2026-09-05', moraPagada: 0 }, // no vencida
+        { id: 'c1', saldoPendiente: 0, fechaVencimiento: '2026-08-01', moraPagada: 0, interesCondonado: false },
+        { id: 'c2', saldoPendiente: 1000, fechaVencimiento: '2026-09-05', moraPagada: 0, interesCondonado: false }, // no vencida
       ],
       1,
       '2026-08-11'
@@ -151,12 +151,35 @@ describe('imputarPagoConMora', () => {
   it('no genera ninguna imputacion si el pago es 0', () => {
     const resultado = imputarPagoConMora(
       0,
-      [{ id: 'c1', saldoPendiente: 1000, fechaVencimiento: '2026-08-01', moraPagada: 0 }],
+      [{ id: 'c1', saldoPendiente: 1000, fechaVencimiento: '2026-08-01', moraPagada: 0, interesCondonado: false }],
       1,
       '2026-08-11'
     )
 
     expect(resultado.imputaciones).toEqual([])
+    expect(resultado.saldoNoImputado).toBe(0)
+  })
+
+  // Condonar el interes (08/09, migracion 0059): la cuota sigue debiendo su
+  // capital, pero el pago no se come nada en concepto de mora. Es la
+  // diferencia entre "te perdono los intereses" y "te perdono la deuda".
+  it('con el interes condonado, el pago va todo a capital aunque este vencida hace 10 dias', () => {
+    const resultado = imputarPagoConMora(
+      1000,
+      [
+        {
+          id: 'c1',
+          saldoPendiente: 1000,
+          fechaVencimiento: '2026-08-01',
+          moraPagada: 0,
+          interesCondonado: true,
+        },
+      ],
+      1,
+      '2026-08-11'
+    )
+
+    expect(resultado.imputaciones).toEqual([{ cuotaId: 'c1', montoCapital: 1000, montoMora: 0 }])
     expect(resultado.saldoNoImputado).toBe(0)
   })
 })

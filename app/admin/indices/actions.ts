@@ -12,6 +12,7 @@ import {
   type ValorIndiceDisponible,
 } from '@/lib/lotes/aplicar-indexacion'
 import { mensajeDeError } from '@/lib/errores'
+import { revalidarNotificaciones } from '@/lib/notificaciones/revalidar'
 
 type SupabaseServerClient = Awaited<ReturnType<typeof createClient>>
 
@@ -374,6 +375,10 @@ export async function cargarValorIndice(formData: FormData) {
     )
   )
 
+  // El aviso "falta cargar el índice de tal mes" vive en la campana, que
+  // se calcula en el layout: sin esto seguiría ahí después de cargarlo.
+  revalidarNotificaciones()
+
   redirect('/admin/indices')
 }
 
@@ -444,6 +449,8 @@ export async function corregirValorIndice(formData: FormData) {
     )
   )
 
+  revalidarNotificaciones()
+
   redirect(`/admin/indices?ok=${encodeURIComponent('Índice corregido')}`)
 }
 
@@ -511,6 +518,8 @@ export async function eliminarValorIndice(formData: FormData) {
   if (errorDelete) {
     redirect(`/admin/indices?error=${encodeURIComponent(mensajeDeError(errorDelete))}`)
   }
+
+  revalidarNotificaciones()
 
   redirect(`/admin/indices?ok=${encodeURIComponent('Índice eliminado')}`)
 }
