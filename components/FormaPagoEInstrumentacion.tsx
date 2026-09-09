@@ -2,7 +2,7 @@
 
 import { useState } from 'react'
 import { Obligatorio } from './Obligatorio'
-import { ENTRADA } from '@/lib/ui/clases'
+import { ENTRADA, ETIQUETA_CAMPO, GRILLA_CAMPOS } from '@/lib/ui/clases'
 
 interface Props {
   formaPagoInicial: string
@@ -32,10 +32,12 @@ export function FormaPagoEInstrumentacion({ formaPagoInicial, instrumentacionIni
   }
 
   return (
-    <>
-      <label className="text-sm text-slate-600">
-        Forma de pago
-        <Obligatorio />
+    <div className={GRILLA_CAMPOS}>
+      <label className="text-sm">
+        <span className={ETIQUETA_CAMPO}>
+          Forma de pago
+          <Obligatorio />
+        </span>
         <select
           name="formaPago"
           required
@@ -51,9 +53,11 @@ export function FormaPagoEInstrumentacion({ formaPagoInicial, instrumentacionIni
         </select>
       </label>
 
-      <label className="text-sm text-slate-600">
-        Instrumentación
-        <Obligatorio />
+      <label className="text-sm">
+        <span className={ETIQUETA_CAMPO}>
+          Instrumentación
+          <Obligatorio />
+        </span>
         <select
           name="instrumentacion"
           required
@@ -67,14 +71,15 @@ export function FormaPagoEInstrumentacion({ formaPagoInicial, instrumentacionIni
           <option value="boleto">Boleto de compraventa</option>
           <option value="escritura">Escritura</option>
         </select>
-        <span className="mt-1 block text-xs text-slate-500">
+      </label>
+
+      <p className="text-xs text-slate-500 md:col-span-2">
           Se completa sola según la forma de pago (financiado → boleto de compraventa, contado →
           escritura), pero podés cambiarla: si este caso va solo a escritura aunque sea financiado,
           elegí escritura. El boleto se genera automáticamente al confirmar la reserva solo si queda
           en &quot;Boleto de compraventa&quot;. Si más adelante cambia, se edita la reserva y se
           genera el boleto desde Boletos de compraventa: nada queda trabado.
-        </span>
-      </label>
-    </>
+      </p>
+    </div>
   )
 }

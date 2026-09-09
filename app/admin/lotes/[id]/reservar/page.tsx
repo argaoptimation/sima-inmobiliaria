@@ -171,6 +171,9 @@ export default async function ReservarLotePage({
                       defaultValue={telefonoAlternativoPreservado ?? ''}
                       className={`${ENTRADA} w-full`}
                     />
+                    <span className="mt-1 block text-xs text-slate-500">
+                      Un segundo número por si no atiende el primero.
+                    </span>
                   </label>
 
                   <label className="text-sm">
@@ -216,7 +219,7 @@ export default async function ReservarLotePage({
                       type="number"
                       step="0.01"
                       min="0"
-                      placeholder="Monto de la seña *"
+                      placeholder="0,00"
                       defaultValue={montoSenaPreservado ?? ''}
                       required
                       className={`${ENTRADA} w-full tabular-nums`}
@@ -291,64 +294,6 @@ export default async function ReservarLotePage({
                 </div>
               </section>
 
-              <section className={SECCION_FORM}>
-                <div className="flex items-center gap-3">
-                  <span className={SECCION_FORM_NUMERO}>3</span>
-                  <div>
-                    <h2 className={SECCION_FORM_TITULO}>Documentación adjunta</h2>
-                    <p className={SECCION_FORM_BAJADA}>
-                      El DNI del titular es obligatorio. Lo demás depende del estado civil que
-                      hayas elegido arriba.
-                    </p>
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
-                  <CampoArchivoDirecto
-                    name="dniFrente"
-                    bucket="comprobantes"
-                    carpeta={`reservas/${id}`}
-                    tipoArchivo="dni-frente"
-                    label={
-                      <>
-                        DNI - frente
-                        <Obligatorio />
-                      </>
-                    }
-                    nombreError="La foto del DNI (frente)"
-                  />
-                  <CampoArchivoDirecto
-                    name="dniDorso"
-                    bucket="comprobantes"
-                    carpeta={`reservas/${id}`}
-                    tipoArchivo="dni-dorso"
-                    label={
-                      <>
-                        DNI - dorso
-                        <Obligatorio />
-                      </>
-                    }
-                    nombreError="La foto del DNI (dorso)"
-                  />
-                  <CampoArchivoDirecto
-                    name="dniConyuge"
-                    bucket="comprobantes"
-                    carpeta={`reservas/${id}`}
-                    tipoArchivo="dni-conyuge"
-                    label={'DNI del cónyuge (solo si elegiste "Casado/a" arriba)'}
-                    nombreError="La foto del DNI del cónyuge"
-                  />
-                  <CampoArchivoDirecto
-                    name="sentenciaDivorcio"
-                    bucket="comprobantes"
-                    carpeta={`reservas/${id}`}
-                    tipoArchivo="sentencia-divorcio"
-                    label={'Sentencia de divorcio (solo si elegiste "Divorciado/a" arriba)'}
-                    nombreError="La sentencia de divorcio"
-                  />
-                </div>
-              </section>
-
               {!lote!.loteo_id && (
                 <p className="rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900">
                   Ojo: este lote no tiene un loteo asignado, y la plantilla del contrato sale del
@@ -358,21 +303,6 @@ export default async function ReservarLotePage({
                 </p>
               )}
 
-              {/* El pie con la accion, separado de las secciones: es el
-                  final del recorrido, no un campo mas. */}
-              <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-slate-200/80 bg-white p-4 shadow-[0_2px_10px_rgba(15,23,42,0.03)]">
-                <p className="text-xs text-slate-500">
-                  Al confirmar, el lote pasa a estado <strong>reservado</strong>.
-                </p>
-                <div className="flex items-center gap-2">
-                  <EnlaceBoton href="/admin/lotes" className={`text-sm ${ENLACE}`}>
-                    Cancelar
-                  </EnlaceBoton>
-                  <BotonEnvio className={`cursor-pointer ${BOTON_PRIMARIO}`}>
-                    Confirmar reserva
-                  </BotonEnvio>
-                </div>
-              </div>
             </div>
 
             {/* La ficha del lote, a la derecha: que se vea QUE se esta
@@ -433,6 +363,83 @@ export default async function ReservarLotePage({
                     </div>
                   </div>
                 </div>
+              </div>
+
+            <section className={SECCION_FORM}>
+              <div className="flex items-center gap-3">
+                <span className={SECCION_FORM_NUMERO}>3</span>
+                <div>
+                  <h2 className={SECCION_FORM_TITULO}>Documentación adjunta</h2>
+                  <p className={SECCION_FORM_BAJADA}>
+                    El DNI del titular es obligatorio. Lo demás depende del estado civil que
+                    hayas elegido arriba.
+                  </p>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 gap-3">
+                <CampoArchivoDirecto
+                  name="dniFrente"
+                  bucket="comprobantes"
+                  carpeta={`reservas/${id}`}
+                  tipoArchivo="dni-frente"
+                  label={
+                    <>
+                      DNI - frente
+                      <Obligatorio />
+                    </>
+                  }
+                  nombreError="La foto del DNI (frente)"
+                />
+                <CampoArchivoDirecto
+                  name="dniDorso"
+                  bucket="comprobantes"
+                  carpeta={`reservas/${id}`}
+                  tipoArchivo="dni-dorso"
+                  label={
+                    <>
+                      DNI - dorso
+                      <Obligatorio />
+                    </>
+                  }
+                  nombreError="La foto del DNI (dorso)"
+                />
+                <CampoArchivoDirecto
+                  name="dniConyuge"
+                  bucket="comprobantes"
+                  carpeta={`reservas/${id}`}
+                  tipoArchivo="dni-conyuge"
+                  label={'DNI del cónyuge (solo si elegiste "Casado/a" arriba)'}
+                  nombreError="La foto del DNI del cónyuge"
+                />
+                <CampoArchivoDirecto
+                  name="sentenciaDivorcio"
+                  bucket="comprobantes"
+                  carpeta={`reservas/${id}`}
+                  tipoArchivo="sentencia-divorcio"
+                  label={'Sentencia de divorcio (solo si elegiste "Divorciado/a" arriba)'}
+                  nombreError="La sentencia de divorcio"
+                />
+              </div>
+            </section>
+            </div>
+
+            {/* El pie con la accion, a lo ancho de las dos columnas: es el
+                final del recorrido completo, no el de una de las dos
+                mitades. Colgado de la izquierda quedaba a media altura de
+                la pantalla, con la documentacion de la derecha todavia sin
+                cargar debajo. */}
+            <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-slate-200/80 bg-white p-4 shadow-[0_2px_10px_rgba(15,23,42,0.03)] lg:col-span-12">
+              <p className="text-xs text-slate-500">
+                Al confirmar, el lote pasa a estado <strong>reservado</strong>.
+              </p>
+              <div className="flex items-center gap-2">
+                <EnlaceBoton href="/admin/lotes" className={`text-sm ${ENLACE}`}>
+                  Cancelar
+                </EnlaceBoton>
+                <BotonEnvio className={`cursor-pointer ${BOTON_PRIMARIO}`}>
+                  Confirmar reserva
+                </BotonEnvio>
               </div>
             </div>
           </div>

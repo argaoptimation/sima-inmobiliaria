@@ -57,7 +57,7 @@ test.describe('Editar reserva ya cargada', () => {
     await login(page, fixtures.admin.email, fixtures.password)
     await page.goto(`/admin/lotes/${loteId}/reservar/editar`)
 
-    await expect(page.getByPlaceholder('Nombre completo')).toHaveValue('Comprador Original')
+    await expect(page.locator('input[name="nombreCompleto"]')).toHaveValue('Comprador Original')
     await page.getByPlaceholder('9351234567').fill('3512222222')
     await page.getByRole('button', { name: 'Guardar cambios' }).click()
     await page.waitForURL(`**/admin/lotes/${loteId}`)
@@ -113,7 +113,7 @@ test.describe('Editar reserva ya cargada', () => {
     expect(reserva?.comprobante_sena_path).toBeTruthy()
 
     await page.goto(`/admin/lotes/${loteId}`)
-    await expect(page.getByRole('link', { name: 'Ver comprobante de la seña' })).toBeVisible()
+    await expect(page.getByRole('link', { name: 'Comprobante de la seña' })).toBeVisible()
   })
 
   test('cambiar a "casado" sin DNI del cónyuge (nuevo ni existente) es rechazado', async ({ page }) => {
@@ -221,11 +221,11 @@ test.describe('Editar reserva ya cargada', () => {
     await login(page, fixtures.admin.email, fixtures.password)
     await page.goto(`/admin/lotes/${loteId}/reservar/editar`)
 
-    await page.getByPlaceholder('Nombre completo').fill('Nombre Corregido')
+    await page.locator('input[name="nombreCompleto"]').fill('Nombre Corregido')
     await page.selectOption('select[name="estadoCivil"]', 'casado')
     await page.getByRole('button', { name: 'Guardar cambios' }).click()
 
     await expect(page.getByText('Subí el DNI del cónyuge')).toBeVisible()
-    await expect(page.getByPlaceholder('Nombre completo')).toHaveValue('Nombre Corregido')
+    await expect(page.locator('input[name="nombreCompleto"]')).toHaveValue('Nombre Corregido')
   })
 })

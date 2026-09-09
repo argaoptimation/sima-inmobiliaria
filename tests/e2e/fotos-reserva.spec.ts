@@ -41,13 +41,13 @@ async function subirArchivo(page: Page, selector: string, nombre: string) {
 }
 
 async function completarCamposBasicos(page: Page, estadoCivil: string) {
-  await page.getByPlaceholder('Nombre completo').fill('Comprador Fotos E2E')
-  await page.getByPlaceholder('DNI *', { exact: true }).fill('30111222')
-  await page.getByPlaceholder('Domicilio').fill('Calle Falsa 123')
-  await page.getByPlaceholder('Email').fill(`fotos.e2e.${Date.now()}@sima-e2e.invalid`)
+  await page.locator('input[name="nombreCompleto"]').fill('Comprador Fotos E2E')
+  await page.locator('input[name="dni"]').fill('30111222')
+  await page.locator('input[name="domicilio"]').fill('Calle Falsa 123')
+  await page.locator('input[name="email"]').fill(`fotos.e2e.${Date.now()}@sima-e2e.invalid`)
   await page.getByPlaceholder('9351234567').fill('3511234567')
   await page.selectOption('select[name="estadoCivil"]', estadoCivil)
-  await page.getByPlaceholder('Monto de la seña').fill('500')
+  await page.locator('input[name="montoSena"]').fill('500')
   await subirArchivo(page, '[data-testid="comprobante"]', `e2e-comprobante-${Date.now()}.pdf`)
 }
 
@@ -203,9 +203,9 @@ test.describe('Fotos en la reserva', () => {
 
     await page.goto(`/admin/lotes/${loteId}`)
 
-    await expect(page.getByRole('link', { name: 'Ver DNI (frente)' })).toBeVisible()
-    await expect(page.getByRole('link', { name: 'Ver DNI (dorso)' })).toBeVisible()
-    await expect(page.getByRole('link', { name: 'Ver DNI del cónyuge' })).toBeVisible()
-    await expect(page.getByRole('link', { name: 'Ver sentencia de divorcio' })).toHaveCount(0)
+    await expect(page.getByRole('link', { name: 'DNI (frente)' })).toBeVisible()
+    await expect(page.getByRole('link', { name: 'DNI (dorso)' })).toBeVisible()
+    await expect(page.getByRole('link', { name: 'DNI del cónyuge' })).toBeVisible()
+    await expect(page.getByRole('link', { name: 'Sentencia de divorcio' })).toHaveCount(0)
   })
 })

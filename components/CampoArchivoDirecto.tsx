@@ -1,6 +1,6 @@
 'use client'
 
-import { useId, useState, type ReactNode } from 'react'
+import { useEffect, useId, useState, type ReactNode } from 'react'
 import { createClient } from '@/lib/supabase/browser'
 import { excedeTamanioMaximo, MAX_ARCHIVO_MB } from '@/lib/storage/validar-tamanio-archivo'
 import { Spinner } from './Spinner'
@@ -28,6 +28,11 @@ interface CampoArchivoDirectoProps {
   // Path ya existente (al editar algo que ya tenía un archivo cargado) --
   // se preserva si el usuario no elige uno nuevo.
   valorInicial?: string | null
+  // URL firmada de ese archivo ya cargado, si el server la pudo generar:
+  // sirve para mostrarlo en la vista previa antes de reemplazarlo. Sin
+  // esto, al editar solo se veía el texto "ya hay un archivo cargado" y
+  // había que confiar en la memoria para saber cuál era.
+  urlInicial?: string | null
   // Cómo nombrar el archivo en el mensaje de "pesa más de 15 MB", ej. "El
   // comprobante de la seña", "La foto del DNI (frente)" -- mismo texto que
   // ya se usaba cuando esta validación corría del lado del servidor.
@@ -53,6 +58,7 @@ export function CampoArchivoDirecto({
   required = false,
   accept = 'image/*,.pdf',
   valorInicial = null,
+  urlInicial = null,
   nombreError = 'El archivo',
   compacto = false,
   incluirNombreOriginal = false,
@@ -63,6 +69,23 @@ export function CampoArchivoDirecto({
   const [error, setError] = useState<string | null>(null)
   const [nombreArchivo, setNombreArchivo] = useState<string | null>(null)
 
+  // Vista previa de lo que se acaba de elegir (09/09, pedido de Gabriel).
+  // Sale de `URL.createObjectURL` sobre el File local y no de una URL
+  // firmada del Storage: se ve en el acto, sin un viaje más al servidor, y
+  // es exactamente el archivo que se está por mandar. El caso que resuelve
+  // es concreto: subir la foto del DNI de atrás creyendo que era la de
+  // adelante, o una foto movida, y enterarse recién cuando hay que armar
+  // el boleto.
+  const [vistaPrevia, setVistaPrevia] = useState<{ url: string; esImagen: boolean } | null>(null)
+
+  // Las object URLs viven hasta que se las revoca a mano: sin esto, cargar
+  // cinco archivos en un formulario deja cinco blobs colgados en memoria.
+  useEffect(() => {
+    const url = vistaPrevia?.url
+    if (!url || !url.startsWith('blob:')) return
+    return () => URL.revokeObjectURL(url)
+  }, [vistaPrevia])
+
   async function manejarSeleccion(archivo: File | null) {
     setError(null)
     if (!archivo) return
@@ -71,11 +94,16 @@ export function CampoArchivoDirecto({
       setError(`${nombreError} pesa más de ${MAX_ARCHIVO_MB} MB — subí uno más liviano.`)
       setPath(valorInicial)
       setNombreArchivo(null)
+      setVistaPrevia(null)
       return
     }
 
     setSubiendo(true)
     setNombreArchivo(archivo.name)
+    setVistaPrevia({
+      url: URL.createObjectURL(archivo),
+      esImagen: archivo.type.startsWith('image/'),
+    })
 
     const nombreSeguro = archivo.name.replace(/[^a-zA-Z0-9._-]/g, '_')
     const rutaCompleta = `${carpeta}/${tipoArchivo}-${Date.now()}-${nombreSeguro}`
@@ -141,6 +169,47 @@ export function CampoArchivoDirecto({
     </>
   )
 
+  // Lo que se muestra: el archivo recién elegido si hay uno, si no el que
+  // ya estaba guardado. En la versión compacta no va -- vive dentro de una
+  // fila de tabla, no hay lugar para una miniatura.
+  const previa = vistaPrevia ?? (urlInicial ? { url: urlInicial, esImagen: true } : null)
+
+  const bloqueVistaPrevia =
+    !compacto && previa && !error ? (
+      <div className="mt-2 flex items-center gap-3 rounded-xl border border-slate-200 bg-slate-50 p-2">
+        {previa.esImagen ? (
+          // Un `blob:` local o una URL firmada de Storage: next/image no
+          // puede optimizar ninguno de los dos.
+          // eslint-disable-next-line @next/next/no-img-element
+          <img
+            src={previa.url}
+            alt={`Vista previa de ${nombreArchivo ?? 'lo cargado'}`}
+            className="h-20 w-28 shrink-0 rounded-lg border border-slate-200 bg-white object-contain"
+          />
+        ) : (
+          <span className="flex h-20 w-28 shrink-0 items-center justify-center rounded-lg border border-slate-200 bg-white text-xs font-semibold text-slate-500">
+            PDF
+          </span>
+        )}
+        <div className="min-w-0 text-xs">
+          <p className="truncate font-medium text-slate-700">
+            {nombreArchivo ?? 'Archivo ya cargado'}
+          </p>
+          <a
+            href={previa.url}
+            target="_blank"
+            rel="noreferrer"
+            className="font-semibold text-blue-700 underline-offset-2 hover:underline"
+          >
+            Ver en grande
+          </a>
+          <p className="mt-0.5 text-slate-500">
+            Revisá que se lea bien antes de confirmar. Para cambiarlo, elegí otro archivo.
+          </p>
+        </div>
+      </div>
+    ) : null
+
   if (compacto) {
     return (
       <span className="inline-flex items-center gap-2 text-xs">
@@ -162,6 +231,7 @@ export function CampoArchivoDirecto({
         {inputArchivo}
       </label>
       <div className="mt-1.5 min-h-[1.25rem] text-sm">{estado}</div>
+      {bloqueVistaPrevia}
       {camposOcultos}
     </div>
   )

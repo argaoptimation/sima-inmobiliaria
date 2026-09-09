@@ -61,13 +61,13 @@ test.describe('Límite de tamaño de archivo en subidas', () => {
     await login(page, fixtures.admin.email, fixtures.password)
     await page.goto(`/admin/lotes/${loteId}/reservar`)
 
-    await page.getByPlaceholder('Nombre completo').fill('Comprador E2E')
-    await page.getByPlaceholder('DNI *', { exact: true }).fill('30111222')
-    await page.getByPlaceholder('Domicilio').fill('Calle Falsa 123')
-    await page.getByPlaceholder('Email').fill('comprador.archivo.grande@sima-demo.invalid')
+    await page.locator('input[name="nombreCompleto"]').fill('Comprador E2E')
+    await page.locator('input[name="dni"]').fill('30111222')
+    await page.locator('input[name="domicilio"]').fill('Calle Falsa 123')
+    await page.locator('input[name="email"]').fill('comprador.archivo.grande@sima-demo.invalid')
     await page.getByPlaceholder('9351234567').fill('3511234567')
     await page.selectOption('select[name="estadoCivil"]', 'soltero')
-    await page.getByPlaceholder('Monto de la seña').fill('500')
+    await page.locator('input[name="montoSena"]').fill('500')
     await page.setInputFiles('[data-testid="comprobante"]', {
       name: 'comprobante-grande.pdf',
       mimeType: 'application/pdf',
@@ -143,13 +143,13 @@ test.describe('Límite de tamaño de archivo en subidas', () => {
     await login(page, fixtures.admin.email, fixtures.password)
     await page.goto(`/admin/lotes/${loteId}/reservar`)
 
-    await page.getByPlaceholder('Nombre completo').fill('Comprador E2E')
-    await page.getByPlaceholder('DNI *', { exact: true }).fill('30111222')
-    await page.getByPlaceholder('Domicilio').fill('Calle Falsa 123')
-    await page.getByPlaceholder('Email').fill('comprador.archivo.valido@sima-demo.invalid')
+    await page.locator('input[name="nombreCompleto"]').fill('Comprador E2E')
+    await page.locator('input[name="dni"]').fill('30111222')
+    await page.locator('input[name="domicilio"]').fill('Calle Falsa 123')
+    await page.locator('input[name="email"]').fill('comprador.archivo.valido@sima-demo.invalid')
     await page.getByPlaceholder('9351234567').fill('3511234567')
     await page.selectOption('select[name="estadoCivil"]', 'soltero')
-    await page.getByPlaceholder('Monto de la seña').fill('500')
+    await page.locator('input[name="montoSena"]').fill('500')
     await page.setInputFiles('[data-testid="comprobante"]', {
       name: 'comprobante-valido.pdf',
       mimeType: 'application/pdf',

@@ -49,16 +49,16 @@ test.describe('Buscar cliente por DNI al reservar', () => {
 
     // Escribe algo en OTRO campo primero -- el punto del rediseño (bug real
     // reportado 01/09) es justamente que buscar no tiene que borrar esto.
-    await page.getByPlaceholder('Domicilio').fill('Borrador que no se tiene que perder')
+    await page.locator('input[name="domicilio"]').fill('Borrador que no se tiene que perder')
 
     await page.getByPlaceholder('Buscar cliente por DNI o nombre').fill(dni)
     await page.getByRole('button', { name: new RegExp(`${dni}.*Juan Encontrado`) }).click()
 
     await expect(page.getByText(/Encontramos a Juan Encontrado/)).toBeVisible()
-    await expect(page.getByPlaceholder('Nombre completo')).toHaveValue('Juan Encontrado')
-    await expect(page.getByPlaceholder('DNI *', { exact: true })).toHaveValue(dni)
-    await expect(page.getByPlaceholder('Domicilio')).toHaveValue('Domicilio Encontrado 333')
-    await expect(page.getByPlaceholder('Email')).toHaveValue(email)
+    await expect(page.locator('input[name="nombreCompleto"]')).toHaveValue('Juan Encontrado')
+    await expect(page.locator('input[name="dni"]')).toHaveValue(dni)
+    await expect(page.locator('input[name="domicilio"]')).toHaveValue('Domicilio Encontrado 333')
+    await expect(page.locator('input[name="email"]')).toHaveValue(email)
     await expect(page.getByPlaceholder('9351234567')).toHaveValue('3517777777')
   })
 
@@ -92,12 +92,12 @@ test.describe('Buscar cliente por DNI al reservar', () => {
 
     await login(page, fixtures.admin.email, fixtures.password)
     await page.goto(`/admin/lotes/${loteId}/reservar`)
-    await page.getByPlaceholder('Domicilio').fill('Esto tampoco se tiene que borrar')
+    await page.locator('input[name="domicilio"]').fill('Esto tampoco se tiene que borrar')
     await page.getByPlaceholder('Buscar cliente por DNI o nombre').fill(textoInexistente)
 
     await expect(page.getByText('No encontramos ningún cliente con eso')).toBeVisible()
-    await expect(page.getByPlaceholder('Nombre completo')).toHaveValue('')
-    await expect(page.getByPlaceholder('Domicilio')).toHaveValue('Esto tampoco se tiene que borrar')
+    await expect(page.locator('input[name="nombreCompleto"]')).toHaveValue('')
+    await expect(page.locator('input[name="domicilio"]')).toHaveValue('Esto tampoco se tiene que borrar')
   })
 
   test('sin usar el buscador, el formulario de reservar se comporta igual que siempre', async ({
@@ -108,7 +108,7 @@ test.describe('Buscar cliente por DNI al reservar', () => {
     await login(page, fixtures.admin.email, fixtures.password)
     await page.goto(`/admin/lotes/${loteId}/reservar`)
 
-    await expect(page.getByPlaceholder('Nombre completo')).toHaveValue('')
+    await expect(page.locator('input[name="nombreCompleto"]')).toHaveValue('')
     await expect(page.getByText(/Encontramos a/)).toHaveCount(0)
     await expect(page.getByText('No encontramos ningún cliente')).toHaveCount(0)
   })
