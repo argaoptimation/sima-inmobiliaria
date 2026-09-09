@@ -117,7 +117,7 @@ export default async function CuentasExternasPage({
                         ? '—'
                         : monedas.map((moneda) => (
                             <span key={moneda} className="block">
-                              {resumen[moneda].leCorresponde} {moneda}
+                              {resumen[moneda].leCorresponde.toLocaleString('es-AR')} {moneda}
                             </span>
                           ))}
                     </td>
@@ -126,7 +126,7 @@ export default async function CuentasExternasPage({
                         ? '—'
                         : monedas.map((moneda) => (
                             <span key={moneda} className="block">
-                              {resumen[moneda].cobroDirecto} {moneda}
+                              {resumen[moneda].cobroDirecto.toLocaleString('es-AR')} {moneda}
                             </span>
                           ))}
                     </td>

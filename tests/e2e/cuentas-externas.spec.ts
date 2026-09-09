@@ -86,7 +86,9 @@ test.describe('Cuentas externas', () => {
     // al listado -- se reintenta la navegacion en vez de asumir un sleep fijo.
     await expect(async () => {
       await page.goto('/admin/cuentas-externas')
-      await expect(page.getByRole('row', { name: new RegExp(nombre) })).toContainText('2000 USD')
+      // Con separador de miles desde el 09/09: es el numero que se tipea en
+      // el homebanking, y "2000" a ojo se confunde con "20000".
+      await expect(page.getByRole('row', { name: new RegExp(nombre) })).toContainText('2.000 USD')
     }).toPass({ timeout: 10000 })
   })
 

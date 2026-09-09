@@ -53,9 +53,15 @@ export function resumirCuentaCorrientePorMoneda(
 // lectores: Nicolás mirando a todos, y cada vendedor/acreedor mirando la
 // suya. Un "−800" significa cosas opuestas según quién lo lea, así que la
 // columna dice la acción en vez de pedir que alguien interprete un número.
+// 09/09: los montos se formatean con separador de miles. Este texto es el
+// que Nicolás lee para tipear una transferencia en el homebanking, y
+// "1500000" a ojo se confunde con "150000" -- un error de diez veces la
+// plata. Con "1.500.000" hay que equivocarse a propósito.
 export function describirSituacion(saldo: number, moneda: string): string {
-  if (saldo > 0) return `Hay que darle ${saldo} ${moneda}`
-  if (saldo < 0) return `Tiene ${Math.abs(saldo)} ${moneda} de más`
+  const monto = Math.abs(saldo).toLocaleString('es-AR', { maximumFractionDigits: 2 })
+
+  if (saldo > 0) return `Hay que darle ${monto} ${moneda}`
+  if (saldo < 0) return `Tiene ${monto} ${moneda} de más`
 
   return 'Al día'
 }

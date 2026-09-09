@@ -88,6 +88,15 @@ describe('describirSituacion', () => {
   })
 
   it('nunca muestra un menos delante del número', () => {
-    expect(describirSituacion(-1500.5, 'ARS')).toBe('Tiene 1500.5 ARS de más')
+    expect(describirSituacion(-1500.5, 'ARS')).toBe('Tiene 1.500,5 ARS de más')
+  })
+
+  it('separa los miles: es el número que se tipea en el homebanking', () => {
+    // "1500000" a ojo se confunde con "150000" -- diez veces la plata.
+    expect(describirSituacion(1500000, 'ARS')).toBe('Hay que darle 1.500.000 ARS')
+  })
+
+  it('no arrastra decimales largos de una división', () => {
+    expect(describirSituacion(33.333333, 'USD')).toBe('Hay que darle 33,33 USD')
   })
 })
