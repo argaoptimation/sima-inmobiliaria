@@ -5,6 +5,7 @@ import { createAdminClient } from '@/lib/supabase/admin'
 import { redirect } from 'next/navigation'
 import { requireAdminSobreLote, requireAdministrador } from '@/lib/auth/require-admin'
 import { mensajeDeError } from '@/lib/errores'
+import { identificadorAutomatico } from '@/lib/lotes/identificador-automatico'
 import { generarYGuardarContrato } from '@/lib/contratos/generar-y-guardar'
 import { generarCuotas, generarCuotasManual } from '@/lib/lotes/generar-cuotas'
 import { calcularMontoCuota } from '@/lib/lotes/calcular-monto-cuota'
@@ -19,7 +20,6 @@ function idOVacio(valor: FormDataEntryValue | null): string | null {
 export async function actualizarDatosGenerales(loteId: string, formData: FormData) {
   await requireAdminSobreLote(loteId)
 
-  const identificador = formData.get('identificador') as string
   const ubicacion = ((formData.get('ubicacion') as string) || '').trim() || null
   const precioTotalTexto = ((formData.get('precioTotal') as string) || '').trim()
   const precioTotal = precioTotalTexto ? Number(precioTotalTexto) : null
@@ -36,6 +36,23 @@ export async function actualizarDatosGenerales(loteId: string, formData: FormDat
   const matricula = ((formData.get('matricula') as string) || '').trim() || null
 
   const supabase = await createClient()
+
+  // El nombre del lote sale de la manzana y el número, no de un campo de
+  // texto aparte (09/09, pedido de Nico -- ver
+  // lib/lotes/identificador-automatico.ts). Se recalcula en cada guardado:
+  // si se corrige la manzana, el nombre la sigue en vez de quedar mintiendo.
+  //
+  // Si el lote no tiene ninguno de los dos cargados -- los viejos, los que
+  // se importaron -- se deja el nombre que ya tenía: renombrarlo a nada
+  // sería peor, y la columna es `not null`.
+  const identificadorDerivado = identificadorAutomatico(manzana, numeroLote)
+  const { data: loteActual } = await supabase
+    .from('lotes')
+    .select('identificador')
+    .eq('id', loteId)
+    .single()
+  const identificador = identificadorDerivado ?? loteActual?.identificador
+
   const { error } = await supabase
     .from('lotes')
     .update({
@@ -59,7 +76,7 @@ export async function actualizarDatosGenerales(loteId: string, formData: FormDat
         mensajeDeError(error, {
           // El identificador es único dentro del loteo, así que mover un
           // lote a otro loteo puede chocar con uno que ya se llama igual.
-          '23505': `Ese loteo ya tiene un lote con el identificador "${identificador}". Cambiá el identificador o elegí otro loteo.`,
+          '23505': `Ese loteo ya tiene un lote llamado "${identificador}". Cambiá la manzana o el número de lote, o elegí otro loteo.`,
         })
       )}`
     )

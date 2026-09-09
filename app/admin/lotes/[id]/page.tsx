@@ -44,6 +44,12 @@ import {
   CalendarDays,
   Wallet,
   Receipt,
+  FolderOpen,
+  ChevronDown,
+  Trash2,
+  Upload,
+  FileSignature,
+  Landmark,
 } from 'lucide-react'
 import { COLUMNA_LECTURA,
   ENTRADA,
@@ -90,6 +96,14 @@ import { COLUMNA_LECTURA,
   TABLA_FILA,
   TABLA_CELDA,
   ENLACE_TABLA,
+  DESPLEGABLE_CABECERA,
+  DESPLEGABLE_CABECERA_CONTADOR,
+  GRILLA_DATOS_LOTE,
+  DATO_LECTURA_ETIQUETA,
+  DATO_LECTURA_VALOR,
+  CHIP_ARCHIVO,
+  CHIP_ARCHIVO_VACIO,
+  ETIQUETA_CAMPO,
 } from '@/lib/ui/clases'
 
 const MESES_ABREVIADOS = [
@@ -519,6 +533,16 @@ export default async function LoteDetallePage({
 
   const destinosOrdenados = [...destinoPorClave.values()].sort((a, b) => b.monto - a.monto)
 
+  // "Mza 5 - Lote 12": el nombre catastral con el que Nico ubica cada
+  // lote. Es lo mismo de lo que sale el `identificador`, ver
+  // lib/lotes/identificador-automatico.ts.
+  const ubicacionCatastral = [
+    lote!.manzana ? `Manzana ${lote!.manzana}` : null,
+    lote!.numero_lote ? `Lote ${lote!.numero_lote}` : null,
+  ]
+    .filter(Boolean)
+    .join(' · ')
+
   const actualizarDatosGeneralesConId = actualizarDatosGenerales.bind(null, id)
 
   const { data: indicesDisponibles } =
@@ -656,10 +680,16 @@ export default async function LoteDetallePage({
                   </span>
                 )}
               </div>
+              {/* La moneda salio de aca (09/09): ya se ve en la pill de la
+                  tarjeta de precio y en la de saldo, dos veces mas abajo.
+                  En su lugar, la manzana y el lote -- que es como los
+                  nombra Nico y hasta ahora no se veian en el detalle. */}
               <p className={CABECERA_LOTE_SUBTITULO}>
+                {ubicacionCatastral && <span>{ubicacionCatastral}</span>}
+                {ubicacionCatastral && lote!.ubicacion && (
+                  <span className="text-slate-300">·</span>
+                )}
                 {lote!.ubicacion && <span>{lote!.ubicacion}</span>}
-                {lote!.ubicacion && <span className="text-slate-300">·</span>}
-                <span>Moneda {lote!.moneda}</span>
                 {cuotasDelCiclo.length > 0 && (
                   <>
                     <span className="text-slate-300">·</span>
@@ -671,6 +701,103 @@ export default async function LoteDetallePage({
           </div>
 
           <div className="flex flex-wrap items-center gap-2">
+            {/* Documentacion del lote como desplegable en la cabecera
+                (09/09, mockup 2): estaba al fondo de la pagina, despues de
+                todos los formularios, y es de las cosas que mas se abren.
+                Es un <details> nativo: se abre sin JavaScript y no arrastra
+                estado. */}
+            <details className="relative">
+              <summary className={DESPLEGABLE_CABECERA}>
+                <FolderOpen className="h-[15px] w-[15px]" />
+                Documentación del lote
+                {documentosSinContrato.length > 0 && (
+                  <span className={DESPLEGABLE_CABECERA_CONTADOR}>
+                    {documentosSinContrato.length}
+                  </span>
+                )}
+                <ChevronDown className="h-[15px] w-[15px]" />
+              </summary>
+
+              <div className="absolute top-full right-0 z-20 mt-2 w-[min(26rem,calc(100vw-3rem))] space-y-3 rounded-2xl border border-slate-200 bg-white p-4 text-left shadow-xl shadow-slate-900/10">
+                {documentosSinContrato.length === 0 ? (
+                  <p className="text-sm text-slate-500">
+                    Todavía no se subió ningún documento a este lote.
+                  </p>
+                ) : (
+                  <ul className="space-y-1.5">
+                    {documentosSinContrato.map((documento) => {
+                      const eliminarDocumentoConId = eliminarDocumentoLote.bind(null, documento.id, id)
+                      return (
+                        <li
+                          key={documento.id}
+                          className="flex items-center justify-between gap-2 rounded-xl border border-slate-200/80 bg-slate-50 px-3 py-2"
+                        >
+                          <div className="min-w-0">
+                            {documento.url ? (
+                              <a
+                                href={documento.url}
+                                target="_blank"
+                                className="block truncate text-sm font-semibold text-blue-700 underline-offset-4 hover:underline"
+                              >
+                                {documento.descripcion}
+                              </a>
+                            ) : (
+                              <span className="block truncate text-sm text-slate-600">
+                                {documento.descripcion} (link no disponible)
+                              </span>
+                            )}
+                            <span className="text-[11px] text-slate-500">
+                              Subido por {documento.nombreSubidoPor}
+                            </span>
+                          </div>
+                          {perfilPropio!.role !== 'cobrador' && (
+                            <form action={eliminarDocumentoConId}>
+                              <BotonEnvio
+                                className="cursor-pointer rounded-lg p-1.5 text-slate-400 transition-colors hover:bg-red-50 hover:text-red-600"
+                                aria-label={`Eliminar ${documento.descripcion}`}
+                              >
+                                <Trash2 className="h-4 w-4" />
+                              </BotonEnvio>
+                            </form>
+                          )}
+                        </li>
+                      )
+                    })}
+                  </ul>
+                )}
+
+                {perfilPropio!.role !== 'cobrador' && (
+                  <form
+                    action={subirDocumentoConId}
+                    className="space-y-2 border-t border-slate-100 pt-3"
+                  >
+                    <label className="block text-sm">
+                      <span className={ETIQUETA_CAMPO}>Descripción</span>
+                      <input
+                        name="descripcion"
+                        placeholder="Ej: Plano del lote"
+                        required
+                        className={`${ENTRADA} w-full`}
+                      />
+                    </label>
+                    <CampoArchivoDirecto
+                      name="archivo"
+                      bucket="comprobantes"
+                      carpeta={`lotes/${id}`}
+                      tipoArchivo="documento"
+                      label="Archivo"
+                      accept="*/*"
+                      required
+                    />
+                    <BotonEnvio className={`w-full cursor-pointer justify-center ${BOTON_PRIMARIO}`}>
+                      <Upload className="h-[15px] w-[15px]" />
+                      Subir documento
+                    </BotonEnvio>
+                  </form>
+                )}
+              </div>
+            </details>
+
             {perfilPropio!.role === 'administrador' && lote!.estado === 'reservado' && (
               <>
                 <EnlaceBoton
@@ -834,14 +961,12 @@ export default async function LoteDetallePage({
         </div>
       </div>
 
-      <div className={COLUMNA_LECTURA}>
-
       {/* Destinos = reparto entre acreedor/vendedor/participantes -- Nicolás
           confirmó 25/08 que el cobrador puede ver todo lo de si el cliente
           pagó o no, pero NO el reparto entre acreedores. */}
       {destinosOrdenados.length > 0 && perfilPropio!.role !== 'cobrador' && (
         <div className={`mb-6 text-sm ${PANEL}`}>
-          <h2 className="mb-2 text-base font-bold text-blue-900">Destinos (a quién se distribuyó)</h2>
+          <h2 className={`mb-2 ${PANEL_TITULO}`}>Destinos (a quién se distribuyó)</h2>
           {/* Mismo texto que el link de abajo de la tabla de cuotas (08/09,
               pedido de Gabriel): son dos puertas a la MISMA pantalla y
               llamarlas distinto hacía pensar que eran dos cosas. */}
@@ -862,84 +987,93 @@ export default async function LoteDetallePage({
         </div>
       )}
 
+      {/* La ficha de la reserva (09/09): eran quince <p> sueltos, sin panel,
+          justo entre la cabecera nueva y la tabla de cuotas nueva. Mismos
+          datos, en grilla, y los adjuntos como chips en vez de una lista de
+          links con "no disponible" repetido cinco veces. */}
       {reserva && (
-        <>
-          <h2 className={`mb-2 mt-6 ${TITULO_H2}`}>Reserva</h2>
-          <p className="mb-1 text-sm">Comprador: {reserva.nombre_completo}</p>
-          <p className="mb-1 text-sm">DNI: {reserva.dni}</p>
-          <p className="mb-1 text-sm">Domicilio: {reserva.domicilio}</p>
-          <p className="mb-1 text-sm">
-            Contacto: {reserva.email} · +
-            {telefonoParaWhatsApp(reserva.telefono_prefijo, reserva.telefono_numero)}
-            {reserva.telefono_alternativo && ` · ${reserva.telefono_alternativo}`}
-          </p>
-          <p className="mb-1 text-sm">Estado civil: {reserva.estado_civil}</p>
-          {reserva.instrumentacion && (
-            <p className="mb-1 text-sm">Instrumentación prevista: {reserva.instrumentacion}</p>
-          )}
-          <p className="mb-1 text-sm font-medium">
-            Seña: {reserva.monto_sena} {reserva.moneda_sena}
-          </p>
-          <p className="mb-1 text-sm">
-            Recibida por: {reservaRecibidoPorNombre ?? reserva.recibido_por_otro}
-          </p>
-          <p className="mb-4 text-sm">
-            {reservaComprobanteUrl ? (
-              <a href={reservaComprobanteUrl} target="_blank" className={ENLACE}>
-                Ver comprobante de la seña
-              </a>
-            ) : (
-              <span className="text-slate-500">Comprobante no disponible</span>
-            )}
-          </p>
-          <p className="mb-1 text-sm">
-            {reservaDniFrenteUrl ? (
-              <a href={reservaDniFrenteUrl} target="_blank" className={ENLACE}>
-                Ver DNI (frente)
-              </a>
-            ) : (
-              <span className="text-slate-500">DNI (frente) no disponible</span>
-            )}
-          </p>
-          <p className="mb-1 text-sm">
-            {reservaDniDorsoUrl ? (
-              <a href={reservaDniDorsoUrl} target="_blank" className={ENLACE}>
-                Ver DNI (dorso)
-              </a>
-            ) : (
-              <span className="text-slate-500">DNI (dorso) no disponible</span>
-            )}
-          </p>
-          {reserva.dni_conyuge_path && (
-            <p className="mb-1 text-sm">
-              {reservaDniConyugeUrl ? (
-                <a href={reservaDniConyugeUrl} target="_blank" className={ENLACE}>
-                  Ver DNI del cónyuge
-                </a>
-              ) : (
-                <span className="text-slate-500">DNI del cónyuge no disponible</span>
+        <div className={`mb-6 ${PANEL_SIN_PADDING}`}>
+          <div className={PANEL_HEADER}>
+            <div className="flex items-center gap-3">
+              <span className={PANEL_HEADER_ICONO}>
+                <FileSignature className="h-5 w-5" />
+              </span>
+              <div>
+                <h2 className={PANEL_TITULO}>Reserva</h2>
+                <p className="text-xs text-slate-500">
+                  Los datos con los que se firmó. Al vender, el comprador final puede ser otro.
+                </p>
+              </div>
+            </div>
+            <span className="rounded-xl border border-emerald-200/60 bg-emerald-50 px-3 py-1.5 text-sm font-bold text-emerald-700 tabular-nums">
+              Seña {reserva.monto_sena} {reserva.moneda_sena}
+            </span>
+          </div>
+
+          <div className="space-y-4 p-5">
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+              <div>
+                <p className={DATO_LECTURA_ETIQUETA}>Comprador</p>
+                <p className={DATO_LECTURA_VALOR}>{reserva.nombre_completo}</p>
+              </div>
+              <div>
+                <p className={DATO_LECTURA_ETIQUETA}>DNI</p>
+                <p className={`${DATO_LECTURA_VALOR} tabular-nums`}>{reserva.dni}</p>
+              </div>
+              <div>
+                <p className={DATO_LECTURA_ETIQUETA}>Estado civil</p>
+                <p className={DATO_LECTURA_VALOR}>{reserva.estado_civil}</p>
+              </div>
+              <div>
+                <p className={DATO_LECTURA_ETIQUETA}>Recibida por</p>
+                <p className={DATO_LECTURA_VALOR}>
+                  {reservaRecibidoPorNombre ?? reserva.recibido_por_otro ?? '—'}
+                </p>
+              </div>
+              <div className="sm:col-span-2">
+                <p className={DATO_LECTURA_ETIQUETA}>Domicilio</p>
+                <p className={DATO_LECTURA_VALOR}>{reserva.domicilio}</p>
+              </div>
+              <div className="sm:col-span-2">
+                <p className={DATO_LECTURA_ETIQUETA}>Contacto</p>
+                <p className={DATO_LECTURA_VALOR}>
+                  {reserva.email} · +
+                  {telefonoParaWhatsApp(reserva.telefono_prefijo, reserva.telefono_numero)}
+                  {reserva.telefono_alternativo && ` · ${reserva.telefono_alternativo}`}
+                </p>
+              </div>
+              {reserva.instrumentacion && (
+                <div>
+                  <p className={DATO_LECTURA_ETIQUETA}>Instrumentación prevista</p>
+                  <p className={DATO_LECTURA_VALOR}>{reserva.instrumentacion}</p>
+                </div>
               )}
-            </p>
-          )}
-          {reserva.sentencia_divorcio_path && (
-            <p className="mb-4 text-sm">
-              {reservaSentenciaDivorcioUrl ? (
-                <a href={reservaSentenciaDivorcioUrl} target="_blank" className={ENLACE}>
-                  Ver sentencia de divorcio
-                </a>
-              ) : (
-                <span className="text-slate-500">Sentencia de divorcio no disponible</span>
-              )}
-            </p>
-          )}
-        </>
+            </div>
+
+            <div className="border-t border-slate-100 pt-3">
+              <p className={`mb-2 ${DATO_LECTURA_ETIQUETA}`}>Adjuntos de la reserva</p>
+              <div className="flex flex-wrap gap-2">
+                <ChipDeArchivo url={reservaComprobanteUrl} nombre="Comprobante de la seña" />
+                <ChipDeArchivo url={reservaDniFrenteUrl} nombre="DNI (frente)" />
+                <ChipDeArchivo url={reservaDniDorsoUrl} nombre="DNI (dorso)" />
+                {reserva.dni_conyuge_path && (
+                  <ChipDeArchivo url={reservaDniConyugeUrl} nombre="DNI del cónyuge" />
+                )}
+                {reserva.sentencia_divorcio_path && (
+                  <ChipDeArchivo
+                    url={reservaSentenciaDivorcioUrl}
+                    nombre="Sentencia de divorcio"
+                  />
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
       )}
 
       {/* El link al documento firmado se mudo a la tarjeta de Acreedor de la
           cabecera (09/09): estaba suelto en el medio de la pantalla y ahora
           vive al lado de quien firmo. */}
-
-      </div>
 
       {/* Cuotas a la izquierda, historial de pagos a la derecha (05/09,
           pedido de Nico vía Gabriel): antes había que scrollear hasta
@@ -1364,92 +1498,138 @@ export default async function LoteDetallePage({
         </>
       )}
 
-      {/* Editar datos generales / gestionar documentos: son operaciones,
-          no solo "ver si el cliente pagó" -- Nicolás (25/08) solo confirmó
-          que el cobrador puede VER, así que estos quedan afuera hasta que
-          se confirme explícitamente que también puede editarlos. La lista
-          de documentos (debajo) sigue visible para todos -- ver sí es
-          parte de lo que Nicolás confirmó. */}
+      </div>
+
+      {/* Datos del lote (09/09, mockup 2): era una pila de inputs a lo ancho
+          de una columna de 48rem, con el identificador arriba de todo. Ahora
+          es un panel a todo el ancho con los campos cortos de a cuatro por
+          fila -- manzana, lote, superficie, cuenta de rentas entran en una
+          sola linea -- y el guardar en la cabecera del panel, como en el
+          mockup.
+
+          El identificador dejo de ser un campo: se arma solo con la manzana
+          y el numero (ver lib/lotes/identificador-automatico.ts). Se muestra
+          igual, porque es el nombre con el que el lote aparece en los
+          recibos y en los contratos, pero de solo lectura.
+
+          Sigue afuera del alcance del cobrador: Nicolas (25/08) confirmo que
+          puede VER, no editar. */}
       {perfilPropio!.role !== 'cobrador' && (
-        <>
-          <h2 className={`mb-2 mt-8 ${TITULO_H2}`}>Datos generales</h2>
-          <form action={actualizarDatosGeneralesConId} className="mb-8 flex flex-col gap-3">
+        <form action={actualizarDatosGeneralesConId} className={`mt-8 ${PANEL_SIN_PADDING}`}>
+          <div className={PANEL_HEADER}>
+            <div className="flex items-center gap-3">
+              <span className={PANEL_HEADER_ICONO}>
+                <Landmark className="h-5 w-5" />
+              </span>
+              <div>
+                <h2 className={PANEL_TITULO}>Datos del lote</h2>
+                <p className="text-xs text-slate-500">
+                  Se llama{' '}
+                  <strong className="font-semibold text-slate-700">{lote!.identificador}</strong>
+                  {ubicacionCatastral
+                    ? ' — el nombre sale de la manzana y el número.'
+                    : ' — cargá la manzana y el número y el nombre se arma solo.'}
+                </p>
+              </div>
+            </div>
+            <BotonEnvio className={`cursor-pointer ${BOTON_PRIMARIO}`}>Guardar cambios</BotonEnvio>
+          </div>
+
+          <div className={`${GRILLA_DATOS_LOTE} p-5`}>
             <label className="text-sm">
-              Identificador
+              <span className={ETIQUETA_CAMPO}>Manzana</span>
               <input
-                name="identificador"
-                defaultValue={lote!.identificador}
-                required
+                name="manzana"
+                defaultValue={lote!.manzana ?? ''}
+                placeholder="Ej: 5 o B"
                 className={`${ENTRADA} w-full`}
               />
             </label>
             <label className="text-sm">
-              Ubicación
+              <span className={ETIQUETA_CAMPO}>Número de lote</span>
+              <input
+                name="numeroLote"
+                defaultValue={lote!.numero_lote ?? ''}
+                placeholder="Ej: 12"
+                className={`${ENTRADA} w-full`}
+              />
+            </label>
+            <label className="text-sm">
+              <span className={ETIQUETA_CAMPO}>Superficie total (m²)</span>
+              <input
+                name="superficieM2"
+                type="number"
+                step="0.01"
+                min="0"
+                defaultValue={lote!.superficie_m2 ?? ''}
+                className={`${ENTRADA} w-full tabular-nums`}
+              />
+            </label>
+            <label className="text-sm">
+              <span className={ETIQUETA_CAMPO}>Cuenta en rentas</span>
+              <input
+                name="cuentaRentas"
+                defaultValue={lote!.cuenta_rentas ?? ''}
+                className={`${ENTRADA} w-full tabular-nums`}
+              />
+            </label>
+
+            <label className="text-sm sm:col-span-2">
+              <span className={ETIQUETA_CAMPO}>Ubicación</span>
               <input
                 name="ubicacion"
                 defaultValue={lote!.ubicacion ?? ''}
-                placeholder="Ej: Loteo San Martín, Manzana 3"
+                placeholder="Ej: Loteo San Martín, Etapa 2"
                 className={`${ENTRADA} w-full`}
               />
             </label>
-            <label className="text-sm">
-              Precio total del lote
-              {/* Badge de moneda al lado del campo (pedido de Gabriel 03/09):
-                  antes solo se veía la moneda arriba del todo, en el resumen
-                  del lote -- si entrabas directo a este formulario para
-                  editar el precio no había forma de saber en qué moneda
-                  sin scrollear. La moneda no es editable acá a propósito:
-                  se fija al crear el lote, cambiarla después rompería los
-                  cálculos de cuotas/pagos ya cargados en la otra moneda. */}
-              <div className="flex items-center gap-2">
+            <label className="text-sm sm:col-span-2">
+              <span className={ETIQUETA_CAMPO}>Nomenclatura catastral</span>
+              <input
+                name="nomenclaturaCatastral"
+                defaultValue={lote!.nomenclatura_catastral ?? ''}
+                placeholder="Circ. 04 - Secc. B - Ch. 12"
+                className={`${ENTRADA} w-full`}
+              />
+            </label>
+
+            <label className="text-sm sm:col-span-2">
+              <span className={ETIQUETA_CAMPO}>Matrícula / folio real</span>
+              <input
+                name="matricula"
+                defaultValue={lote!.matricula ?? ''}
+                className={`${ENTRADA} w-full`}
+              />
+            </label>
+            <label className="text-sm sm:col-span-2">
+              <span className={ETIQUETA_CAMPO}>Precio total del lote</span>
+              {/* La moneda no se edita acá a propósito: se fija al crear el
+                  lote, y cambiarla después rompería los cálculos de las
+                  cuotas y los pagos ya cargados en la otra moneda. */}
+              <div className="flex items-stretch gap-2">
                 <input
                   name="precioTotal"
                   type="number"
                   step="0.01"
                   min="0"
                   defaultValue={lote!.precio_total ?? ''}
-                  className={`${ENTRADA} w-full`}
+                  className={`${ENTRADA} w-full tabular-nums`}
                 />
                 <span
-                  className="mt-1 shrink-0 rounded-lg border-2 border-slate-200 bg-slate-100 px-3 py-2.5 text-sm font-semibold text-slate-600"
+                  className="mt-1 flex shrink-0 items-center rounded-lg border-2 border-slate-200 bg-slate-100 px-3 text-sm font-semibold text-slate-600"
                   title="La moneda se fija al crear el lote y no se puede cambiar acá"
                 >
                   {lote!.moneda}
                 </span>
               </div>
             </label>
-            {lote!.moneda === 'ARS' && (
-              <label className="text-sm">
-                Índice de ajuste (opcional — solo para lotes en pesos)
-                <select
-                  name="indiceTipo"
-                  defaultValue={lote!.indice_tipo ?? ''}
-                  className={`${ENTRADA} w-full`}
-                >
-                  <option value="">— sin índice —</option>
-                  {nombresIndicesDisponibles.map((nombre) => (
-                    <option key={nombre} value={nombre}>
-                      {nombre}
-                    </option>
-                  ))}
-                </select>
-                <span className="mt-1 block text-xs text-slate-500">
-                  Si elegís un índice, las cuotas de este lote se ajustan solas cada mes con el
-                  valor que se cargue en{' '}
-                  <EnlaceBoton href="/admin/indices" className={ENLACE}>
-                    Índices
-                  </EnlaceBoton>
-                  . Los índices disponibles acá son los que ya se cargaron al menos una vez ahí.
-                </span>
-              </label>
-            )}
 
             {/* Reasignar el loteo desde el propio lote (08/09, pedido de
                 Gabriel): es lo que decide con qué plantilla se genera el
                 boleto de compraventa, y hasta ahora solo se podía elegir al
                 crearlo. */}
-            <label className="text-sm">
-              Loteo
+            <label className="text-sm sm:col-span-2">
+              <span className={ETIQUETA_CAMPO}>Loteo</span>
               <select
                 name="loteoId"
                 defaultValue={lote!.loteo_id ?? ''}
@@ -1464,195 +1644,145 @@ export default async function LoteDetallePage({
                 ))}
               </select>
               <span className="mt-1 block text-xs text-slate-500">
-                Define qué plantilla se usa para generar el boleto de compraventa. Con el loteo
-                asignado y los datos de abajo cargados, el boleto sale solo desde la sección
-                Contratos.
+                Define qué plantilla se usa para generar el boleto de compraventa.
               </span>
             </label>
 
-            <p className="mt-2 text-sm font-medium text-slate-700">
-              Datos legales del lote (opcionales -- solo hacen falta para generar el contrato)
-            </p>
-            <div className="grid grid-cols-2 gap-3">
-              <label className="text-sm">
-                Número de lote
-                <input
-                  name="numeroLote"
-                  defaultValue={lote!.numero_lote ?? ''}
+            {lote!.moneda === 'ARS' && (
+              <label className="text-sm sm:col-span-2">
+                <span className={ETIQUETA_CAMPO}>Índice de ajuste (solo lotes en pesos)</span>
+                <select
+                  name="indiceTipo"
+                  defaultValue={lote!.indice_tipo ?? ''}
                   className={`${ENTRADA} w-full`}
-                />
+                >
+                  <option value="">— sin índice —</option>
+                  {nombresIndicesDisponibles.map((nombre) => (
+                    <option key={nombre} value={nombre}>
+                      {nombre}
+                    </option>
+                  ))}
+                </select>
+                <span className="mt-1 block text-xs text-slate-500">
+                  Con un índice elegido, las cuotas se ajustan solas cada mes con el valor que se
+                  cargue en{' '}
+                  <EnlaceBoton href="/admin/indices" className={ENLACE}>
+                    Índices
+                  </EnlaceBoton>
+                  . Los disponibles son los que ya se cargaron al menos una vez ahí.
+                </span>
               </label>
-              <label className="text-sm">
-                Manzana
-                <input
-                  name="manzana"
-                  defaultValue={lote!.manzana ?? ''}
-                  className={`${ENTRADA} w-full`}
-                />
-              </label>
-              <label className="text-sm">
-                Superficie (m2)
-                <input
-                  name="superficieM2"
-                  type="number"
-                  step="0.01"
-                  min="0"
-                  defaultValue={lote!.superficie_m2 ?? ''}
-                  className={`${ENTRADA} w-full`}
-                />
-              </label>
-              <label className="text-sm">
-                Cuenta en rentas
-                <input
-                  name="cuentaRentas"
-                  defaultValue={lote!.cuenta_rentas ?? ''}
-                  className={`${ENTRADA} w-full`}
-                />
-              </label>
-              <label className="text-sm">
-                Nomenclatura catastral
-                <input
-                  name="nomenclaturaCatastral"
-                  defaultValue={lote!.nomenclatura_catastral ?? ''}
-                  className={`${ENTRADA} w-full`}
-                />
-              </label>
-              <label className="text-sm">
-                Matrícula
-                <input
-                  name="matricula"
-                  defaultValue={lote!.matricula ?? ''}
-                  className={`${ENTRADA} w-full`}
-                />
-              </label>
+            )}
+          </div>
+        </form>
+      )}
+
+      {/* Contratos (09/09, mockup 2): mismo panel que el resto en vez de un
+          titulo suelto con una lista de <li> con guiones. */}
+      {perfilPropio!.role !== 'cobrador' &&
+        (lote!.estado === 'vendido' || lote!.estado === 'reservado') && (
+          <div className={`mt-6 ${PANEL_SIN_PADDING}`}>
+            <div className={PANEL_HEADER}>
+              <div className="flex items-center gap-3">
+                <span className={PANEL_HEADER_ICONO}>
+                  <FileSignature className="h-5 w-5" />
+                </span>
+                <div>
+                  <h2 className={PANEL_TITULO}>Contratos</h2>
+                  <p className="text-xs text-slate-500">
+                    {lote!.estado === 'reservado'
+                      ? 'Sale con los datos de la reserva. Las cuotas se cargan al vender, así que esa parte queda en blanco hasta ese momento.'
+                      : 'Se guarda como un documento más de este lote, con los datos cargados hasta ahora.'}
+                  </p>
+                </div>
+              </div>
+
+              {loteoDelLote?.plantilla_contrato_path && (
+                <form action={generarContratoConId} className="flex items-end gap-2">
+                  <label className="text-sm">
+                    <span className={ETIQUETA_CAMPO}>Fecha del contrato</span>
+                    <input
+                      name="fechaContrato"
+                      type="date"
+                      required
+                      defaultValue={hoy}
+                      className={ENTRADA}
+                    />
+                  </label>
+                  <BotonEnvio className={`mb-px cursor-pointer ${BOTON_PRIMARIO}`}>
+                    Generar contrato
+                  </BotonEnvio>
+                </form>
+              )}
             </div>
 
-            <BotonEnvio className={`cursor-pointer self-start ${BOTON_PRIMARIO}`}>
-              Guardar
-            </BotonEnvio>
-          </form>
-        </>
-      )}
+            <div className="p-5">
+              {!loteoDelLote?.plantilla_contrato_path ? (
+                <p className="rounded-xl border border-amber-200 bg-amber-50 p-3 text-sm text-amber-800">
+                  El loteo de este lote todavía no tiene una plantilla de contrato cargada —{' '}
+                  <EnlaceBoton href="/admin/loteos" className={ENLACE}>
+                    subí una acá
+                  </EnlaceBoton>{' '}
+                  para poder generarlo.
+                </p>
+              ) : contratosGenerados.length === 0 ? (
+                <p className="text-sm text-slate-500">
+                  Todavía no se generó ningún contrato para este lote.
+                </p>
+              ) : (
+                <ul className="space-y-2">
+                  {contratosGenerados.map((documento) => {
+                    const eliminarContratoConId = eliminarDocumentoLote.bind(
+                      null,
+                      documento.id,
+                      id
+                    )
+                    return (
+                      <li
+                        key={documento.id}
+                        className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-slate-200/80 bg-slate-50 px-4 py-3"
+                      >
+                        <div className="flex min-w-0 items-center gap-3">
+                          <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-white text-blue-700 shadow-sm">
+                            <FileText className="h-4 w-4" />
+                          </span>
+                          <div className="min-w-0">
+                            {documento.url ? (
+                              <a
+                                href={documento.url}
+                                target="_blank"
+                                className="block truncate text-sm font-semibold text-blue-700 underline-offset-4 hover:underline"
+                              >
+                                {documento.descripcion}
+                              </a>
+                            ) : (
+                              <span className="block truncate text-sm text-slate-600">
+                                {documento.descripcion} (link no disponible)
+                              </span>
+                            )}
+                            <span className="text-[11px] text-slate-500">
+                              Generado por {documento.nombreSubidoPor}
+                            </span>
+                          </div>
+                        </div>
+                        <form action={eliminarContratoConId}>
+                          <BotonEnvio
+                            className="cursor-pointer rounded-lg p-1.5 text-slate-400 transition-colors hover:bg-red-50 hover:text-red-600"
+                            aria-label={`Eliminar ${documento.descripcion}`}
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </BotonEnvio>
+                        </form>
+                      </li>
+                    )
+                  })}
+                </ul>
+              )}
+            </div>
+          </div>
+        )}
 
-      {perfilPropio!.role !== 'cobrador' && (lote!.estado === 'vendido' || lote!.estado === 'reservado') && (
-        <>
-          <h2 className={`mb-2 mt-8 ${TITULO_H2}`}>Contratos</h2>
-          {loteoDelLote?.plantilla_contrato_path ? (
-            <form action={generarContratoConId} className="mb-4 flex flex-wrap items-end gap-3">
-              <label className="text-sm">
-                Fecha del contrato
-                <input
-                  name="fechaContrato"
-                  type="date"
-                  required
-                  defaultValue={hoy}
-                  className={ENTRADA}
-                />
-              </label>
-              <BotonEnvio className={`cursor-pointer ${BOTON_PRIMARIO}`}>
-                Generar contrato
-              </BotonEnvio>
-              <span className="text-xs text-slate-500">
-                {lote!.estado === 'reservado'
-                  ? 'Genera el contrato ya con los datos de la reserva -- las cuotas todavía no están cargadas (recién se cargan al vender), así que esa parte queda en blanco hasta ese momento.'
-                  : 'Se guarda como un documento más de este lote, con los datos cargados hasta ahora.'}
-              </span>
-            </form>
-          ) : (
-            <p className="mb-4 text-sm text-amber-700">
-              El loteo de este lote todavía no tiene una plantilla de contrato cargada --{' '}
-              <EnlaceBoton href="/admin/loteos" className={ENLACE}>
-                subí una acá
-              </EnlaceBoton>{' '}
-              para poder generarlo.
-            </p>
-          )}
-          {/* Contratos ya generados -- separados del resto de "Documentos"
-              (04/09, pedido de Gabriel: solapa propia para no tener que
-              buscarlos entre planos/fotos/otros archivos). Se identifican
-              por la descripción que les pone generarContratoLote al
-              subirlos ("Contrato generado (...)"). */}
-          {contratosGenerados.length > 0 && (
-            <ul className="mb-8 flex flex-col gap-2">
-              {contratosGenerados.map((documento) => {
-                const eliminarContratoConId = eliminarDocumentoLote.bind(null, documento.id, id)
-                return (
-                  <li key={documento.id} className="flex items-center gap-3 text-sm">
-                    {documento.url ? (
-                      <a href={documento.url} target="_blank" className={ENLACE}>
-                        {documento.descripcion}
-                      </a>
-                    ) : (
-                      <span>{documento.descripcion} (link no disponible)</span>
-                    )}
-                    <span className="text-slate-500">— generado por {documento.nombreSubidoPor}</span>
-                    <form action={eliminarContratoConId}>
-                      <BotonEnvio className="cursor-pointer text-sm text-red-700 underline-offset-2 hover:underline">
-                        Eliminar
-                      </BotonEnvio>
-                    </form>
-                  </li>
-                )
-              })}
-            </ul>
-          )}
-        </>
-      )}
-
-      <h2 className={`mb-2 mt-8 ${TITULO_H2}`}>Documentos</h2>
-      {documentosSinContrato.length === 0 ? (
-        <p className="mb-3 text-sm text-slate-600">Todavía no se subió ningún documento.</p>
-      ) : (
-        <ul className="mb-3 flex flex-col gap-2">
-          {documentosSinContrato.map((documento) => {
-            const eliminarDocumentoConId = eliminarDocumentoLote.bind(null, documento.id, id)
-            return (
-              <li key={documento.id} className="flex items-center gap-3 text-sm">
-                {documento.url ? (
-                  <a href={documento.url} target="_blank" className={ENLACE}>
-                    {documento.descripcion}
-                  </a>
-                ) : (
-                  <span>{documento.descripcion} (link no disponible)</span>
-                )}
-                <span className="text-slate-500">— subido por {documento.nombreSubidoPor}</span>
-                {perfilPropio!.role !== 'cobrador' && (
-                  <form action={eliminarDocumentoConId}>
-                    <BotonEnvio className="cursor-pointer text-sm text-red-700 underline-offset-2 hover:underline">
-                      Eliminar
-                    </BotonEnvio>
-                  </form>
-                )}
-              </li>
-            )
-          })}
-        </ul>
-      )}
-      {perfilPropio!.role !== 'cobrador' && (
-      <form action={subirDocumentoConId} className="mb-8 flex flex-col gap-3">
-        <label className="text-sm">
-          Descripción
-          <input
-            name="descripcion"
-            placeholder="Ej: Plano del lote *"
-            required
-            className={`${ENTRADA} w-full`}
-          />
-        </label>
-        <CampoArchivoDirecto
-          name="archivo"
-          bucket="comprobantes"
-          carpeta={`lotes/${id}`}
-          tipoArchivo="documento"
-          label="Archivo"
-          accept="*/*"
-          required
-        />
-        <BotonEnvio className={`cursor-pointer self-start ${BOTON_PRIMARIO}`}>
-          Subir documento
-        </BotonEnvio>
-      </form>
-      )}
+      <div className={COLUMNA_LECTURA}>
 
       {/* La sección de Cobro (admin / acreedor / vendedor / cuenta que
           cobra / participantes) se mudó a /distribucion el 06/09: definir
@@ -1724,5 +1854,26 @@ export default async function LoteDetallePage({
       )}
       </div>
     </main>
+  )
+}
+
+// Un adjunto: link si el archivo esta, chip apagado si no se pudo firmar la
+// URL. Antes cada uno era un parrafo con "Ver X" o "X no disponible", y con
+// cinco adjuntos la ficha de la reserva eran cinco renglones de texto.
+function ChipDeArchivo({ url, nombre }: { url: string | null; nombre: string }) {
+  if (!url) {
+    return (
+      <span className={CHIP_ARCHIVO_VACIO}>
+        <FileText className="h-[14px] w-[14px]" />
+        {nombre} — no disponible
+      </span>
+    )
+  }
+
+  return (
+    <a href={url} target="_blank" rel="noopener noreferrer" className={CHIP_ARCHIVO}>
+      <FileText className="h-[14px] w-[14px]" />
+      {nombre}
+    </a>
   )
 }

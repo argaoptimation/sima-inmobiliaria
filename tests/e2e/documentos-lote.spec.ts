@@ -1,4 +1,4 @@
-import { test, expect } from '@playwright/test'
+import { test, expect, Page } from '@playwright/test'
 import { readFileSync } from 'node:fs'
 import path from 'node:path'
 import { ensureTestFixtures, createAdminClient, TestFixtures } from './fixtures/test-data'
@@ -6,6 +6,50 @@ import { login } from './utils/login'
 
 const COMPROBANTE_PATH = path.join(__dirname, 'fixtures', 'comprobante-test.pdf')
 const COMPROBANTE_BYTES = readFileSync(COMPROBANTE_PATH)
+
+// La documentacion del lote vive en un desplegable de la cabecera desde el
+// 09/09 (mockup 2). Es un <details> nativo, asi que cada navegacion lo vuelve
+// a dejar cerrado: hay que abrirlo despues de cada goto y de cada submit.
+async function abrirDocumentacion(page: Page) {
+  const desplegable = page.locator('details', {
+    has: page.locator('summary', { hasText: 'Documentación del lote' }),
+  })
+  // Primero se espera a que la pagina termine de asentarse: despues de un
+  // submit, la Server Action revalida y React vuelve a renderizar la
+  // cabecera, asi que un click hecho antes de que llegue esa revalidacion se
+  // pierde y el <details> queda cerrado igual. Y despues se reintenta, por
+  // si aun asi llega tarde.
+  await page.waitForLoadState('networkidle')
+  await expect(async () => {
+    if ((await desplegable.getAttribute('open')) === null) {
+      await desplegable.locator('summary').click()
+    }
+    await expect(desplegable).toHaveAttribute('open', '', { timeout: 1500 })
+  }).toPass({ timeout: 20_000 })
+}
+
+// Igual que verEnDocumentacion pero para el formulario de subida: abrir y
+// comprobar tienen que pasar en el mismo reintento.
+async function abrirParaSubir(page: Page) {
+  await expect(async () => {
+    await abrirDocumentacion(page)
+    await expect(page.getByRole('button', { name: 'Subir documento' })).toBeVisible({
+      timeout: 2000,
+    })
+  }).toPass({ timeout: 30_000 })
+}
+
+async function verEnDocumentacion(page: Page, texto: string, cantidad?: number) {
+  await expect(async () => {
+    await abrirDocumentacion(page)
+    const fila = page.locator('li', { hasText: texto })
+    if (cantidad === 0) {
+      await expect(fila).toHaveCount(0, { timeout: 2000 })
+    } else {
+      await expect(fila.first()).toBeVisible({ timeout: 2000 })
+    }
+  }).toPass({ timeout: 30_000 })
+}
 
 test.describe('Documentos del lote', () => {
   let fixtures: TestFixtures
@@ -17,6 +61,7 @@ test.describe('Documentos del lote', () => {
   test('admin sube un documento y aparece en la sección con su link funcionando', async ({ page }) => {
     await login(page, fixtures.admin.email, fixtures.password)
     await page.goto(`/admin/lotes/${fixtures.loteId}`)
+    await abrirParaSubir(page)
 
     await page.getByPlaceholder('Ej: Plano del lote').fill('Plano de prueba')
     await page.setInputFiles('[data-testid="archivo"]', {
@@ -27,15 +72,15 @@ test.describe('Documentos del lote', () => {
     await expect(page.locator('[data-testid="archivo"]')).toBeEnabled()
     await page.getByRole('button', { name: 'Subir documento' }).click()
     await page.waitForURL((url) => url.pathname === `/admin/lotes/${fixtures.loteId}`)
-
+    await verEnDocumentacion(page, 'Plano de prueba')
     const fila = page.locator('li', { hasText: 'Plano de prueba' })
-    await expect(fila).toBeVisible()
     await expect(fila.getByRole('link', { name: 'Plano de prueba' })).toBeVisible()
   })
 
   test('un acreedor puede subir un documento a su propio lote', async ({ page }) => {
     await login(page, fixtures.acreedorSecundario.email, fixtures.password)
     await page.goto(`/admin/lotes/${fixtures.loteSecundarioId}`)
+    await abrirParaSubir(page)
 
     await page.getByPlaceholder('Ej: Plano del lote').fill('Documento del acreedor')
     await page.setInputFiles('[data-testid="archivo"]', {
@@ -46,8 +91,7 @@ test.describe('Documentos del lote', () => {
     await expect(page.locator('[data-testid="archivo"]')).toBeEnabled()
     await page.getByRole('button', { name: 'Subir documento' }).click()
     await page.waitForURL((url) => url.pathname === `/admin/lotes/${fixtures.loteSecundarioId}`)
-
-    await expect(page.locator('li', { hasText: 'Documento del acreedor' })).toBeVisible()
+    await verEnDocumentacion(page, 'Documento del acreedor')
   })
 
   test('el rechazo de un acreedor sobre un lote que dejó de ser suyo ocurre en el servidor', async ({
@@ -73,6 +117,7 @@ test.describe('Documentos del lote', () => {
 
     await login(page, fixtures.acreedorConDatos.email, fixtures.password)
     await page.goto(`/admin/lotes/${fixtures.loteId}`)
+    await abrirParaSubir(page)
 
     await page.getByPlaceholder('Ej: Plano del lote').fill('Intento tardío')
     await page.setInputFiles('[data-testid="archivo"]', {
@@ -113,6 +158,7 @@ test.describe('Documentos del lote', () => {
     await page.goto(`/admin/lotes/${fixtures.loteId}`)
 
     for (const nombre of ['Doc A', 'Doc B']) {
+      await abrirParaSubir(page)
       // Espera a que el botón esté disponible (no "Cargando…") ANTES de
       // llenar el próximo documento -- esta página hace ~15 queries
       // secuenciales, así que la revalidación tras el submit anterior puede
@@ -120,7 +166,6 @@ test.describe('Documentos del lote', () => {
       // revalidación llega (form action exitosa) -- si se llena el próximo
       // documento mientras el botón todavía dice "Cargando…", ese reset
       // tardío borra lo recién tipeado y el submit siguiente sale vacío.
-      await expect(page.getByRole('button', { name: 'Subir documento' })).toBeVisible()
       await page.getByPlaceholder('Ej: Plano del lote').fill(nombre)
       await page.setInputFiles('[data-testid="archivo"]', {
         name: `${nombre}.pdf`,
@@ -133,14 +178,14 @@ test.describe('Documentos del lote', () => {
     }
     // Confirma que el último submit realmente terminó (botón de vuelta a su
     // texto normal) antes de pasar a borrar -- mismo motivo que arriba.
-    await expect(page.getByRole('button', { name: 'Subir documento' })).toBeVisible()
+    await abrirParaSubir(page)
 
     const filaA = page.locator('li', { hasText: 'Doc A' })
     await filaA.getByRole('button', { name: 'Eliminar' }).click()
     await page.waitForURL((url) => url.pathname === `/admin/lotes/${fixtures.loteId}`)
 
-    await expect(page.locator('li', { hasText: 'Doc A' })).toHaveCount(0)
-    await expect(page.locator('li', { hasText: 'Doc B' })).toBeVisible()
+    await verEnDocumentacion(page, 'Doc A', 0)
+    await verEnDocumentacion(page, 'Doc B')
   })
 
   test('un vendedor ve precio, acreedor y documentos en /info sin pasar por reservar', async ({ page }) => {
