@@ -689,7 +689,13 @@ export async function condonarInteresMoratorio(loteId: string, formData: FormDat
   } = await supabase.auth.getUser()
 
   const destino = `/admin/lotes/${loteId}`
-  const alcance = ((formData.get('alcance') as string) || '').trim()
+  // Varias cuotas de una (08/09, pedido de Gabriel): el caso real es
+  // "arreglamos por las tres vencidas", no una sola. Se eligen con casillas
+  // y llegan todas bajo el mismo nombre.
+  const numerosElegidos = formData
+    .getAll('numero')
+    .map((valor) => Number(valor))
+    .filter((numero) => Number.isInteger(numero))
   const motivo = ((formData.get('motivo') as string) || '').trim()
   const restituir = formData.get('restituir') === '1'
 
@@ -705,26 +711,29 @@ export async function condonarInteresMoratorio(loteId: string, formData: FormDat
 
   const admin = createAdminClient()
 
-  let consulta = admin
+  if (numerosElegidos.length === 0) {
+    redirect(
+      `${destino}?error=${encodeURIComponent(
+        restituir
+          ? 'Marcá al menos una cuota a la que volver a aplicarle el interés'
+          : 'Marcá al menos una cuota a la que condonarle el interés'
+      )}`
+    )
+  }
+
+  // El estado esperado se filtra en la consulta: condonar solo agarra las que
+  // NO están condonadas y restituir solo las que sí. Si la pantalla estaba
+  // vieja (otro admin ya lo hizo), no pasa nada raro, simplemente no encuentra
+  // esa cuota. Y solo las que deben algo: condonarle el interés a una cuota ya
+  // paga no cambia ningún número y solo ensucia el historial.
+  const { data: cuotas } = await admin
     .from('cuotas')
     .select('id, numero')
     .eq('lote_id', loteId)
     .eq('ciclo', lote!.ciclo_actual)
     .eq('interes_condonado', restituir)
-
-  // "todas" son las que todavía deben algo: condonarle el interés a una
-  // cuota ya paga no cambia nada y solo ensucia el historial.
-  if (alcance === 'todas') {
-    consulta = consulta.gt('saldo_pendiente', 0)
-  } else {
-    const numero = Number(alcance)
-    if (!Number.isInteger(numero)) {
-      redirect(`${destino}?error=${encodeURIComponent('Elegí a qué cuota condonarle el interés')}`)
-    }
-    consulta = consulta.eq('numero', numero)
-  }
-
-  const { data: cuotas } = await consulta
+    .gt('saldo_pendiente', 0)
+    .in('numero', numerosElegidos)
 
   if (!cuotas || cuotas.length === 0) {
     redirect(

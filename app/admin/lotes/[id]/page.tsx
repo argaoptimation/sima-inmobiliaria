@@ -483,7 +483,9 @@ export default async function LoteDetallePage({
       cuota.saldo_pendiente > 0 &&
       cuota.fecha_vencimiento < hoy
   )
-  const cuotasConInteresCondonado = (cuotas ?? []).filter((cuota) => cuota.interes_condonado)
+  const cuotasConInteresCondonado = (cuotas ?? []).filter(
+    (cuota) => cuota.interes_condonado && cuota.saldo_pendiente > 0
+  )
   const totalDeudaRefinanciable =
     Math.round(cuotasRefinanciables.reduce((acumulado, cuota) => acumulado + cuota.saldo_pendiente, 0) * 100) / 100
 
@@ -591,10 +593,13 @@ export default async function LoteDetallePage({
       {destinosOrdenados.length > 0 && perfilPropio!.role !== 'cobrador' && (
         <div className="mb-6 rounded border border-blue-100 bg-blue-50/40 p-3 text-sm">
           <h2 className="mb-2 text-base font-bold text-blue-900">Destinos (a quién se distribuyó)</h2>
+          {/* Mismo texto que el link de abajo de la tabla de cuotas (08/09,
+              pedido de Gabriel): son dos puertas a la MISMA pantalla y
+              llamarlas distinto hacía pensar que eran dos cosas. */}
           <p className="mb-2 text-slate-600">
             Según la distribución configurada por cuota (
             <EnlaceBoton href={`/admin/lotes/${id}/distribucion`} className={ENLACE}>
-              ver / editar el detalle por cuota →
+              cobro y distribución de cuotas →
             </EnlaceBoton>
             ).
           </p>
@@ -885,23 +890,23 @@ export default async function LoteDetallePage({
                     cobrado en un pago anterior &mdash; eso sería una devolución de plata que ya
                     entró y se repartió.
                   </p>
-                  <label className="text-sm">
-                    A qué cuota
-                    <select name="alcance" required className={`${ENTRADA} w-full`} defaultValue="">
-                      <option value="" disabled>
-                        Elegí una cuota
-                      </option>
-                      <option value="todas">
-                        Todas las que deben algo ({cuotasRefinanciables.length})
-                      </option>
+                  {/* Casillas y no un desplegable: el caso real es "arreglamos
+                      por las tres vencidas", no una sola. */}
+                  <fieldset className="flex flex-col gap-1">
+                    <legend className="mb-1 text-sm font-medium">A qué cuotas</legend>
+                    <div className="flex max-h-56 flex-col gap-1 overflow-y-auto rounded border border-blue-100 p-2">
                       {cuotasConMoraViva.map((cuota) => (
-                        <option key={cuota.id} value={cuota.numero}>
-                          Cuota {cuota.numero} &mdash; vence el{' '}
-                          {formatearFechaCorta(cuota.fecha_vencimiento)}
-                        </option>
+                        <label key={cuota.id} className="flex items-center gap-2 text-sm">
+                          <input type="checkbox" name="numero" value={cuota.numero} />
+                          <span>
+                            Cuota {cuota.numero} &mdash; venció el{' '}
+                            {formatearFechaCorta(cuota.fecha_vencimiento)}, debe{' '}
+                            {cuota.saldo_pendiente} {lote!.moneda}
+                          </span>
+                        </label>
                       ))}
-                    </select>
-                  </label>
+                    </div>
+                  </fieldset>
                   <label className="text-sm">
                     Por qué (opcional, queda en el historial)
                     <input
@@ -931,25 +936,22 @@ export default async function LoteDetallePage({
                     interés se recalcula desde el vencimiento original, como si nunca se hubiera
                     condonado.
                   </p>
-                  <label className="text-sm">
-                    A qué cuota
-                    <select name="alcance" required className={`${ENTRADA} w-full`} defaultValue="">
-                      <option value="" disabled>
-                        Elegí una cuota
-                      </option>
-                      <option value="todas">
-                        Todas las condonadas ({cuotasConInteresCondonado.length})
-                      </option>
+                  <fieldset className="flex flex-col gap-1">
+                    <legend className="mb-1 text-sm font-medium">A qué cuotas</legend>
+                    <div className="flex max-h-56 flex-col gap-1 overflow-y-auto rounded border border-blue-100 p-2">
                       {cuotasConInteresCondonado.map((cuota) => (
-                        <option key={cuota.id} value={cuota.numero}>
-                          Cuota {cuota.numero}
-                          {cuota.interes_condonado_motivo
-                            ? ` — ${cuota.interes_condonado_motivo}`
-                            : ''}
-                        </option>
+                        <label key={cuota.id} className="flex items-center gap-2 text-sm">
+                          <input type="checkbox" name="numero" value={cuota.numero} />
+                          <span>
+                            Cuota {cuota.numero}
+                            {cuota.interes_condonado_motivo
+                              ? ` — ${cuota.interes_condonado_motivo}`
+                              : ''}
+                          </span>
+                        </label>
                       ))}
-                    </select>
-                  </label>
+                    </div>
+                  </fieldset>
                   <BotonEnvio className={`cursor-pointer self-start ${BOTON_SECUNDARIO}`}>
                     Volver a aplicar el interés
                   </BotonEnvio>
