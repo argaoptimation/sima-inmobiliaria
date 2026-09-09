@@ -227,6 +227,33 @@ test.describe('Vender — entrega (anticipo al boleto)', () => {
     expect(imputaciones).toHaveLength(0)
   })
 
+  // Lo unico que el mockup 4 agrego de verdad: contestar "cuando termina de
+  // pagar" sin que nadie abra una calculadora. El calculo esta testeado
+  // aparte (lib/lotes/mes-de-finalizacion.test.ts); esto verifica que
+  // llegue a la pantalla y que se recalcule al cambiar la cantidad.
+  test('el resumen dice en que mes termina de pagar, y se recalcula al cambiar las cuotas', async ({
+    page,
+  }) => {
+    const loteId = await crearLoteReservadoListoParaVender(
+      `E2E Vender Mes Fin ${Date.now()}`,
+      12000,
+      fixtures.acreedorConDatos.id
+    )
+
+    await login(page, fixtures.admin.email, fixtures.password)
+    await page.goto(`/admin/lotes/${loteId}/vender`)
+    await page.locator('input[name="fechaPrimeraCuota"]').fill('2026-10-10')
+    await page.getByPlaceholder('Cantidad de cuotas (1 para venta al contado)').fill('12')
+
+    // 12 cuotas desde octubre de 2026 terminan en septiembre de 2027: se
+    // cuenta DESDE la primera, no despues.
+    await expect(page.getByText('Termina de pagar en')).toBeVisible()
+    await expect(page.getByText('Septiembre 2027')).toBeVisible()
+
+    await page.getByPlaceholder('Cantidad de cuotas (1 para venta al contado)').fill('24')
+    await expect(page.getByText('Septiembre 2028')).toBeVisible()
+  })
+
   test('el documento firmado se conserva al rebotar por cliente existente', async ({ page }) => {
     // Bug reportado por Gabriel el 05/09: cuando el comprador ya tenía
     // cuenta (segundo lote del mismo cliente), el aviso de "ya existe una

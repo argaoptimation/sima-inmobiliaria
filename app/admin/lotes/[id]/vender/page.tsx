@@ -3,11 +3,25 @@ import { notFound } from 'next/navigation'
 import { requireAdministrador } from '@/lib/auth/require-admin'
 import { venderLote } from './actions'
 import { CuotasYDocumento } from './CuotasYDocumento'
-import { telefonoParaWhatsApp } from '@/lib/telefono/prefijos'
+import { FileSignature } from 'lucide-react'
 import { EnlaceBoton } from '@/components/EnlaceBoton'
-import { BotonEnvio } from '@/components/BotonEnvio'
-import { ENTRADA, BOTON_PRIMARIO, ENLACE, TITULO_H1, BANNER_ERROR } from '@/lib/ui/clases'
-import { Obligatorio } from '@/components/Obligatorio'
+import {
+  ENTRADA,
+  ENLACE,
+  BANNER_ERROR,
+  PANEL,
+  PANEL_SIN_PADDING,
+  SECCION_FORM,
+  SECCION_FORM_NUMERO,
+  SECCION_FORM_TITULO,
+  SECCION_FORM_BAJADA,
+  GRILLA_CAMPOS,
+  ETIQUETA_CAMPO,
+  FICHA_LOTE_TAPA,
+  FICHA_LOTE_BADGE,
+  FICHA_LOTE_FILA,
+  FICHA_LOTE_DESTACADO,
+} from '@/lib/ui/clases'
 import { calcularSenaADescontar } from '@/lib/lotes/sena-a-descontar'
 
 export default async function VenderLotePage({
@@ -54,9 +68,14 @@ export default async function VenderLotePage({
 
   const supabase = await createClient()
 
+  // Los datos del lote para la ficha de la derecha (09/09, mockup 4):
+  // hasta ahora se vendia un lote sin ver en pantalla ni su superficie ni
+  // su nomenclatura.
   const { data: lote } = await supabase
     .from('lotes')
-    .select('id, identificador, estado, precio_total, moneda')
+    .select(
+      'id, identificador, estado, precio_total, moneda, ubicacion, superficie_m2, manzana, numero_lote, nomenclatura_catastral, matricula, loteos(nombre)'
+    )
     .eq('id', id)
     .single()
 
@@ -85,6 +104,16 @@ export default async function VenderLotePage({
     fechaSena: reserva?.created_at ? String(reserva.created_at).slice(0, 10) : null,
   })
 
+  const loteoNombre = Array.isArray(lote!.loteos)
+    ? (lote!.loteos[0]?.nombre ?? null)
+    : ((lote!.loteos as { nombre: string } | null)?.nombre ?? null)
+  const ubicacionEnLaFicha = [
+    lote!.manzana ? `Manzana ${lote!.manzana}` : null,
+    lote!.numero_lote ? `Lote ${lote!.numero_lote}` : null,
+  ]
+    .filter(Boolean)
+    .join(' · ')
+
   const venderLoteConId = venderLote.bind(null, id)
 
   const modoInicial: 'automatico' | 'manual' = modoPreservado === 'manual' ? 'manual' : 'automatico'
@@ -99,49 +128,65 @@ export default async function VenderLotePage({
   )
 
   return (
-    <main className="max-w-md">
-      <div className="mb-4 flex gap-4">
-        <EnlaceBoton href="/admin/lotes" className={`text-sm ${ENLACE}`}>
-          ← Volver a Lotes
-        </EnlaceBoton>
-        <EnlaceBoton href={`/admin/lotes/${id}`} className={`text-sm ${ENLACE}`}>
-          ← Volver al lote
-        </EnlaceBoton>
+    <main>
+      <div className="mb-5">
+        <div className="flex flex-wrap gap-4">
+          <EnlaceBoton href="/admin/lotes" className={`text-sm ${ENLACE}`}>
+            ← Volver a Lotes
+          </EnlaceBoton>
+          <EnlaceBoton href={`/admin/lotes/${id}`} className={`text-sm ${ENLACE}`}>
+            ← Volver al lote
+          </EnlaceBoton>
+        </div>
+        <h1 className="mt-1 font-heading text-2xl font-bold tracking-tight text-slate-900">
+          Vender lote y dar de alta al cliente
+        </h1>
       </div>
-      <h1 className={`mb-6 ${TITULO_H1}`}>Vender lote y dar de alta al cliente</h1>
 
-      {error && <p className={BANNER_ERROR}>{error}</p>}
+      {error && <p className={`mb-4 ${BANNER_ERROR}`}>{error}</p>}
 
       {lote!.estado !== 'reservado' ? (
-        <p className="mb-4 rounded-lg bg-amber-50 p-3 text-sm text-amber-800">
+        <p className={`${PANEL} text-sm text-amber-800`}>
           Este lote no está en estado reservado (estado actual: {lote!.estado}), no se puede
           vender. Primero hay que reservarlo.
         </p>
       ) : (
         <>
+          {/* La reserva vigente, arriba de todo y a lo ancho (mockup 4): es
+              el hecho más importante de la pantalla, no un dato más. Antes
+              era una listita gris en el medio del formulario. */}
           {reserva && (
-            <div className="mb-4 rounded-lg border border-blue-100 bg-blue-50/40 p-3 text-sm">
-              <p className="mb-1 font-semibold text-blue-900">Datos de la reserva</p>
-              <p>Persona que reservó: {reserva.nombre_completo}</p>
-              <p>DNI: {reserva.dni}</p>
-              <p>Domicilio: {reserva.domicilio}</p>
-              <p>
-                Teléfono: +{telefonoParaWhatsApp(reserva.telefono_prefijo, reserva.telefono_numero)}
-              </p>
-              <p>
-                Seña: {reserva.monto_sena} {reserva.moneda_sena}
-              </p>
-              <p className="mt-2 text-slate-600">
-                Los campos de comprador de abajo ya vienen completados con estos datos. Si el
-                comprador final es otra persona (por ejemplo, alguien reservó en representación
-                de otra persona), simplemente sobrescribilos: el usuario que se crea abajo es
-                siempre el comprador, no necesariamente quien reservó.
-              </p>
+            <div className="mb-4 flex flex-wrap items-start gap-3 rounded-2xl border border-amber-200/80 bg-amber-50/60 p-4 ring-1 ring-amber-300/40">
+              <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-amber-100 text-amber-700">
+                <FileSignature className="h-5 w-5" />
+              </span>
+              <div className="min-w-0 flex-1">
+                <p className="font-heading text-sm font-bold text-slate-900">
+                  Reserva vigente identificada
+                </p>
+                <p className="mt-0.5 text-xs text-slate-700">
+                  Lote reservado por <strong>{reserva.nombre_completo}</strong> (DNI {reserva.dni}).
+                  Seña de{' '}
+                  <strong className="tabular-nums">
+                    {reserva.monto_sena} {reserva.moneda_sena}
+                  </strong>
+                  {reserva.created_at
+                    ? ` el ${new Date(String(reserva.created_at)).toLocaleDateString('es-AR')}`
+                    : ''}
+                  .
+                </p>
+                <p className="mt-1.5 text-xs text-slate-600">
+                  Los campos del comprador ya vienen completados con estos datos. Si el comprador
+                  final es otra persona (por ejemplo, alguien reservó en representación de otra),
+                  sobrescribilos: el usuario que se crea es siempre el comprador, no
+                  necesariamente quien reservó.
+                </p>
+              </div>
             </div>
           )}
 
           {confirmarClienteId && (
-            <div className="mb-4 rounded-lg border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900">
+            <div className="mb-4 rounded-2xl border border-amber-300 bg-amber-50 p-4 text-sm text-amber-900">
               <p className="font-medium">Ya existe una cuenta de cliente con ese email</p>
               <p className="mt-1">
                 Nombre en esa cuenta: <span className="font-medium">{nombreEncontrado}</span>
@@ -162,37 +207,10 @@ export default async function VenderLotePage({
             </div>
           )}
 
-          <form action={venderLoteConId} className="flex flex-col gap-3">
+          <form action={venderLoteConId}>
             {confirmarClienteId && (
               <input type="hidden" name="confirmarClienteExistente" value={confirmarClienteId} />
             )}
-
-            <input
-              name="fullName"
-              placeholder="Nombre completo del comprador *"
-              defaultValue={fullNamePreservado ?? reserva?.nombre_completo ?? ''}
-              required
-              className={ENTRADA}
-            />
-            <input
-              name="email"
-              type="email"
-              placeholder="Email del comprador *"
-              defaultValue={emailPreservado ?? reserva?.email ?? ''}
-              required
-              className={ENTRADA}
-            />
-            <label className="text-sm text-slate-600">
-              Fecha de la primera cuota
-              <Obligatorio />
-              <input
-                name="fechaPrimeraCuota"
-                type="date"
-                defaultValue={fechaPrimeraCuotaPreservada ?? ''}
-                required
-                className={`${ENTRADA} w-full`}
-              />
-            </label>
 
             <CuotasYDocumento
               loteId={id}
@@ -207,13 +225,121 @@ export default async function VenderLotePage({
               entregaInicial={entregaMontoPreservado ?? ''}
               interesMoratorioDiarioInicial={interesMoratorioDiarioPreservado ?? ''}
               documentoInicial={documentoFirmadoPreservado ?? null}
-            />
+              fechaPrimeraCuotaInicial={fechaPrimeraCuotaPreservada ?? ''}
+              textoBotonEnvio={
+                confirmarClienteId
+                  ? 'Confirmar venta con esta cuenta existente'
+                  : 'Confirmar venta y enviar invitación'
+              }
+              seccionCliente={
+                <section className={SECCION_FORM}>
+                  <div className="flex items-center gap-3">
+                    <span className={SECCION_FORM_NUMERO}>1</span>
+                    <div>
+                      <h2 className={SECCION_FORM_TITULO}>Cliente comprador</h2>
+                      <p className={SECCION_FORM_BAJADA}>
+                        Se le crea una cuenta con este mail y se le manda la invitación al portal.
+                      </p>
+                    </div>
+                  </div>
 
-            <BotonEnvio className={`cursor-pointer ${BOTON_PRIMARIO}`}>
-              {confirmarClienteId
-                ? 'Confirmar venta con esta cuenta existente'
-                : 'Confirmar venta y enviar invitación'}
-            </BotonEnvio>
+                  <div className={GRILLA_CAMPOS}>
+                    <label className="text-sm">
+                      <span className={ETIQUETA_CAMPO}>Nombre completo / razón social</span>
+                      <input
+                        name="fullName"
+                        placeholder="Nombre completo del comprador *"
+                        defaultValue={fullNamePreservado ?? reserva?.nombre_completo ?? ''}
+                        required
+                        className={`${ENTRADA} w-full`}
+                      />
+                    </label>
+
+                    <label className="text-sm">
+                      <span className={ETIQUETA_CAMPO}>Correo electrónico</span>
+                      <input
+                        name="email"
+                        type="email"
+                        placeholder="Email del comprador *"
+                        defaultValue={emailPreservado ?? reserva?.email ?? ''}
+                        required
+                        className={`${ENTRADA} w-full`}
+                      />
+                    </label>
+                  </div>
+                </section>
+              }
+              seccionParticipantes={
+                <section className={SECCION_FORM}>
+                  <div className="flex items-center gap-3">
+                    <span className={SECCION_FORM_NUMERO}>3</span>
+                    <div>
+                      <h2 className={SECCION_FORM_TITULO}>Reparto y destino de cobro</h2>
+                      <p className={SECCION_FORM_BAJADA}>
+                        Quién cobra cada cuota y cómo se reparte. Se carga en el paso siguiente,
+                        apenas confirmes la venta: recién ahí existen las cuotas que hay que
+                        repartir.
+                      </p>
+                    </div>
+                  </div>
+                </section>
+              }
+              fichaTecnica={
+                <div className={PANEL_SIN_PADDING}>
+                  <div className={FICHA_LOTE_TAPA}>
+                    <div className="relative z-10 flex items-center justify-between">
+                      <span className={FICHA_LOTE_BADGE}>
+                        {ubicacionEnLaFicha || lote!.identificador}
+                      </span>
+                    </div>
+                    <div className="relative z-10">
+                      <h3 className="font-heading text-lg font-bold text-white">
+                        {loteoNombre ?? lote!.identificador}
+                      </h3>
+                      {lote!.ubicacion && (
+                        <p className="text-xs text-slate-300">{lote!.ubicacion}</p>
+                      )}
+                    </div>
+                  </div>
+
+                  <div className="space-y-3 p-4">
+                    <p className="border-b border-slate-100 pb-1 text-xs font-bold tracking-wider text-slate-400 uppercase">
+                      Ficha técnica y catastral
+                    </p>
+                    <div className="space-y-2.5">
+                      <div className={FICHA_LOTE_FILA}>
+                        <span className="text-slate-500">Identificador</span>
+                        <span className="font-semibold text-slate-800">{lote!.identificador}</span>
+                      </div>
+                      <div className={FICHA_LOTE_FILA}>
+                        <span className="text-slate-500">Superficie total</span>
+                        <span className="font-bold text-slate-800 tabular-nums">
+                          {lote!.superficie_m2 ? `${lote!.superficie_m2} m²` : '—'}
+                        </span>
+                      </div>
+                      <div className={FICHA_LOTE_FILA}>
+                        <span className="text-slate-500">Nomenclatura catastral</span>
+                        <span className="font-medium text-slate-800">
+                          {lote!.nomenclatura_catastral ?? '—'}
+                        </span>
+                      </div>
+                      <div className={FICHA_LOTE_FILA}>
+                        <span className="text-slate-500">Matrícula / folio real</span>
+                        <span className="font-medium text-slate-800">{lote!.matricula ?? '—'}</span>
+                      </div>
+                      <div className={FICHA_LOTE_DESTACADO}>
+                        <span className="text-xs font-bold text-slate-700">Precio de lista</span>
+                        <span className="font-heading text-base font-extrabold text-blue-700 tabular-nums">
+                          {lote!.precio_total
+                            ? `${lote!.precio_total.toLocaleString('es-AR')} ${lote!.moneda}`
+                            : '—'}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              }
+            />
           </form>
         </>
       )}
