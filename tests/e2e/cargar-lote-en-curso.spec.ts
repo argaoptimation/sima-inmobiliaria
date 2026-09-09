@@ -2,6 +2,12 @@ import { test, expect } from '@playwright/test'
 import { ensureTestFixtures, createAdminClient, TestFixtures } from './fixtures/test-data'
 import { login } from './utils/login'
 
+// La manzana es fija en estos tests: lo que hace unico a cada lote es el
+// numero, que lleva el timestamp. El nombre del lote lo arma la app con las
+// dos cosas (lib/lotes/identificador-automatico.ts).
+const MANZANA_E2E = 'E2E'
+const identificadorEsperado = (numeroLote: string) => `Mza ${MANZANA_E2E} - Lote ${numeroLote}`
+
 // Alta de un lote que ya estaba vendido y a mitad de pagar antes de usar la
 // plataforma (07/09). Lo que estos tests cuidan no es que el formulario
 // guarde: es que la plata cobrada ANTES del sistema no se cuele como
@@ -38,7 +44,7 @@ test.describe('Cargar un lote ya vendido', () => {
   async function cargarLote(
     page: import('@playwright/test').Page,
     datos: {
-      identificador: string
+      numeroLote: string
       clienteEmail: string
       cuotasYaPagadas: string
       cuotasPendientes: string
@@ -49,7 +55,8 @@ test.describe('Cargar un lote ya vendido', () => {
     }
   ) {
     await page.goto('/admin/lotes/cargar-en-curso')
-    await page.locator('input[name="identificador"]').fill(datos.identificador)
+    await page.locator('input[name="manzana"]').fill(MANZANA_E2E)
+    await page.locator('input[name="numeroLote"]').fill(datos.numeroLote)
     await page.locator('input[name="ubicacion"]').fill('Ubicación E2E')
     await page.locator('input[name="precioTotal"]').fill('30000')
     await page.locator('input[name="acreedorNombre"]').fill('E2E Acreedor Con Datos')
@@ -97,14 +104,15 @@ test.describe('Cargar un lote ya vendido', () => {
   })
 
   test('carga el lote vendido, el comprador y las cuotas de una sola vez', async ({ page }) => {
-    const identificador = `E2E En Curso ${Date.now()}`
+    const numeroLote = `En-Curso-${Date.now()}`
+    const identificador = identificadorEsperado(numeroLote)
     const clienteEmail = `comprador.viejo.${Date.now()}@sima-e2e.invalid`
     lotesCreados.push(identificador)
     clientesCreados.push(clienteEmail)
 
     await login(page, fixtures.admin.email, fixtures.password)
     await cargarLote(page, {
-      identificador,
+      numeroLote,
       clienteEmail,
       cuotasYaPagadas: '18',
       cuotasPendientes: '42',
@@ -148,14 +156,15 @@ test.describe('Cargar un lote ya vendido', () => {
   test('la plata vieja no entra a la contabilidad: sin pagos, sin imputaciones, sin cuenta corriente', async ({
     page,
   }) => {
-    const identificador = `E2E En Curso Sin Plata ${Date.now()}`
+    const numeroLote = `En-Curso-Sin-Plata-${Date.now()}`
+    const identificador = identificadorEsperado(numeroLote)
     const clienteEmail = `comprador.sinplata.${Date.now()}@sima-e2e.invalid`
     lotesCreados.push(identificador)
     clientesCreados.push(clienteEmail)
 
     await login(page, fixtures.admin.email, fixtures.password)
     await cargarLote(page, {
-      identificador,
+      numeroLote,
       clienteEmail,
       cuotasYaPagadas: '10',
       cuotasPendientes: '5',
@@ -192,14 +201,15 @@ test.describe('Cargar un lote ya vendido', () => {
   })
 
   test('no le manda invitación al comprador', async ({ page }) => {
-    const identificador = `E2E En Curso Sin Invitar ${Date.now()}`
+    const numeroLote = `En-Curso-Sin-Invitar-${Date.now()}`
+    const identificador = identificadorEsperado(numeroLote)
     const clienteEmail = `comprador.sininvitar.${Date.now()}@sima-e2e.invalid`
     lotesCreados.push(identificador)
     clientesCreados.push(clienteEmail)
 
     await login(page, fixtures.admin.email, fixtures.password)
     await cargarLote(page, {
-      identificador,
+      numeroLote,
       clienteEmail,
       cuotasYaPagadas: '3',
       cuotasPendientes: '3',
@@ -224,14 +234,15 @@ test.describe('Cargar un lote ya vendido', () => {
   })
 
   test('el detalle del lote aclara que esas cuotas no las cobró el sistema', async ({ page }) => {
-    const identificador = `E2E En Curso Detalle ${Date.now()}`
+    const numeroLote = `En-Curso-Detalle-${Date.now()}`
+    const identificador = identificadorEsperado(numeroLote)
     const clienteEmail = `comprador.detalle.${Date.now()}@sima-e2e.invalid`
     lotesCreados.push(identificador)
     clientesCreados.push(clienteEmail)
 
     await login(page, fixtures.admin.email, fixtures.password)
     await cargarLote(page, {
-      identificador,
+      numeroLote,
       clienteEmail,
       cuotasYaPagadas: '2',
       cuotasPendientes: '2',
@@ -251,7 +262,8 @@ test.describe('Cargar un lote ya vendido', () => {
   })
 
   test('las cuotas que quedan pueden tener cada una su propio monto', async ({ page }) => {
-    const identificador = `E2E En Curso Escalonado ${Date.now()}`
+    const numeroLote = `En-Curso-Escalonado-${Date.now()}`
+    const identificador = identificadorEsperado(numeroLote)
     const clienteEmail = `comprador.escalonado.${Date.now()}@sima-e2e.invalid`
     lotesCreados.push(identificador)
     clientesCreados.push(clienteEmail)
@@ -261,7 +273,7 @@ test.describe('Cargar un lote ya vendido', () => {
     // cartera de Nicolás, con planes escalonados y refinanciaciones a
     // mitad de camino.
     await cargarLote(page, {
-      identificador,
+      numeroLote,
       clienteEmail,
       cuotasYaPagadas: '2',
       cuotasPendientes: '3',
@@ -292,14 +304,15 @@ test.describe('Cargar un lote ya vendido', () => {
   })
 
   test('muestra una vez la contraseña con la que el comprador puede entrar', async ({ page }) => {
-    const identificador = `E2E En Curso Contrasena ${Date.now()}`
+    const numeroLote = `En-Curso-Contrasena-${Date.now()}`
+    const identificador = identificadorEsperado(numeroLote)
     const clienteEmail = `comprador.contrasena.${Date.now()}@sima-e2e.invalid`
     lotesCreados.push(identificador)
     clientesCreados.push(clienteEmail)
 
     await login(page, fixtures.admin.email, fixtures.password)
     await cargarLote(page, {
-      identificador,
+      numeroLote,
       clienteEmail,
       cuotasYaPagadas: '1',
       cuotasPendientes: '2',
@@ -325,14 +338,15 @@ test.describe('Cargar un lote ya vendido', () => {
   })
 
   test('rechaza un plan imposible sin perder lo ya tipeado', async ({ page }) => {
-    const identificador = `E2E En Curso Invalido ${Date.now()}`
+    const numeroLote = `En-Curso-Invalido-${Date.now()}`
+    const identificador = identificadorEsperado(numeroLote)
 
     await login(page, fixtures.admin.email, fixtures.password)
     // 601 cuotas en total: pasa la validación del browser (los campos solo
     // exigen enteros positivos) y la corta el server action, que es lo que
     // se quiere ejercitar acá.
     await cargarLote(page, {
-      identificador,
+      numeroLote,
       clienteEmail: `comprador.invalido.${Date.now()}@sima-e2e.invalid`,
       cuotasYaPagadas: '300',
       cuotasPendientes: '301',
@@ -341,7 +355,7 @@ test.describe('Cargar un lote ya vendido', () => {
     await expect(page.getByText('más de 600 cuotas')).toBeVisible()
     // Lo cargado vuelve en la URL: son ~200 lotes a mano, retipear todo por
     // un campo mal puesto no es aceptable.
-    await expect(page.locator('input[name="identificador"]')).toHaveValue(identificador)
+    await expect(page.locator('input[name="numeroLote"]')).toHaveValue(numeroLote)
     await expect(page.locator('input[name="cuotasYaPagadas"]')).toHaveValue('300')
 
     const admin = createAdminClient()

@@ -11,13 +11,13 @@ import { telefonoParaGuardar } from '@/lib/telefono/prefijos'
 import { mensajeDeError } from '@/lib/errores'
 import { invitarPorEmail } from '@/lib/auth/invitar-por-email'
 import { generarContrasenaInicial } from '@/lib/auth/contrasena-inicial'
+import { identificadorAutomatico } from '@/lib/lotes/identificador-automatico'
 
 // Todo lo que el admin tipeó vuelve en la URL cuando el formulario rebota.
 // Acá importa más que en cualquier otra pantalla: son ~200 lotes a cargar a
 // mano y el formulario tiene veinte campos, así que perder lo cargado por un
 // email repetido sería insoportable.
 const CAMPOS_A_PRESERVAR = [
-  'identificador',
   'ubicacion',
   'precioTotal',
   'moneda',
@@ -110,12 +110,20 @@ export async function cargarLoteEnCurso(formData: FormData) {
   const texto = (campo: string) => ((formData.get(campo) as string) || '').trim()
   const textoONulo = (campo: string) => texto(campo) || null
 
-  const identificador = texto('identificador')
+  // El nombre del lote sale de la manzana y el numero (09/09, pedido de
+  // Nico): esta es la pantalla con la que va a cargar la cartera a mano, y
+  // tipear "Loteo X - Manzana 3 - Lote 12" doscientas veces es doscientas
+  // chances de escribirlo distinto. Ver lib/lotes/identificador-automatico.ts.
+  const identificador = identificadorAutomatico(texto('manzana'), texto('numeroLote'))
   const ubicacion = textoONulo('ubicacion')
   const moneda = texto('moneda') as 'USD' | 'ARS'
   const precioTotal = Number(texto('precioTotal'))
 
-  if (!identificador) volverConError(formData, 'El identificador del lote es obligatorio')
+  if (!identificador)
+    volverConError(
+      formData,
+      'Cargá la manzana y el número de lote: de ahí sale el nombre con el que el lote aparece en toda la plataforma'
+    )
   if (!ubicacion) volverConError(formData, 'La ubicación del lote es obligatoria')
   if (!Number.isFinite(precioTotal) || precioTotal <= 0) {
     volverConError(formData, 'El precio total del lote tiene que ser mayor a cero')
@@ -322,7 +330,7 @@ export async function cargarLoteEnCurso(formData: FormData) {
     volverConError(
       formData,
       mensajeDeError(errorLote, {
-        '23505': `Ya existe un lote con el identificador "${identificador}" en ese loteo (o sin loteo asignado)`,
+        '23505': `Ya hay un lote llamado "${identificador}" en ese loteo (o entre los que no tienen loteo asignado)`,
       })
     )
   }

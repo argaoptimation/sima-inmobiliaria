@@ -13,10 +13,10 @@ test.describe('Acreedor al crear/importar lotes', () => {
     await login(page, fixtures.admin.email, fixtures.password)
     await page.goto('/admin/lotes/nuevo')
 
-    const identificador = `E2E Lote Acreedor Existente ${Date.now()}`
-    await page
-      .locator('input[name="identificador"]')
-      .fill(identificador)
+    const numeroLote = `E2E-existente-${Date.now()}`
+    const identificador = `Mza E2E - Lote ${numeroLote}`
+    await page.locator('input[name="manzana"]').fill('E2E')
+    await page.locator('input[name="numeroLote"]').fill(numeroLote)
     await page.locator('input[name="ubicacion"]').fill('Ubicación E2E')
     await page.locator('input[name="precioTotal"]').fill('10000')
     await page.locator('input[name="acreedorNombre"]').fill('E2E Acreedor Con Datos')
@@ -38,11 +38,11 @@ test.describe('Acreedor al crear/importar lotes', () => {
     await login(page, fixtures.admin.email, fixtures.password)
     await page.goto('/admin/lotes/nuevo')
 
-    const identificador = `E2E Lote Acreedor Nuevo ${Date.now()}`
+    const numeroLote = `E2E-nuevo-${Date.now()}`
+    const identificador = `Mza E2E - Lote ${numeroLote}`
     const emailNuevo = `acreedor.nuevo.${Date.now()}@sima-e2e.invalid`
-    await page
-      .locator('input[name="identificador"]')
-      .fill(identificador)
+    await page.locator('input[name="manzana"]').fill('E2E')
+    await page.locator('input[name="numeroLote"]').fill(numeroLote)
     await page.locator('input[name="ubicacion"]').fill('Ubicación E2E')
     await page.locator('input[name="precioTotal"]').fill('10000')
     await page.locator('input[name="acreedorNombre"]').fill('+ Crear nuevo acreedor')

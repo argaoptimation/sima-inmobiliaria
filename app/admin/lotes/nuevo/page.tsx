@@ -36,16 +36,27 @@ export default async function NuevoLotePage({
       <h1 className={`mb-6 ${TITULO_H1}`}>Nuevo lote</h1>
       {error && <p className={BANNER_ERROR}>{error}</p>}
       <form action={crearLote} className="flex flex-col gap-3">
-        <label className="text-sm text-slate-600">
-          Identificador
-          <Obligatorio />
-          <input
-            name="identificador"
-            placeholder="Ej: Loteo San Martín - Manzana 3 - Lote 12"
-            required
-            className={`w-full ${ENTRADA}`}
-          />
-        </label>
+        {/* Manzana y numero arriba de todo, y obligatorios: son la
+            identidad del lote (09/09, pedido de Nico -- "Loteo, Manzana,
+            Lote" es como los nombra). De estos dos sale el `identificador`
+            con el que el lote aparece en el detalle, en los recibos y en
+            los contratos: ya no se tipea a mano. */}
+        <div className="grid grid-cols-2 gap-3">
+          <label className="text-sm text-slate-600">
+            Manzana
+            <Obligatorio />
+            <input name="manzana" placeholder="Ej: 5 o B" required className={`w-full ${ENTRADA}`} />
+          </label>
+          <label className="text-sm text-slate-600">
+            Número de lote
+            <Obligatorio />
+            <input name="numeroLote" placeholder="Ej: 12" required className={`w-full ${ENTRADA}`} />
+          </label>
+        </div>
+        <p className="-mt-1 text-xs text-slate-500">
+          El lote va a figurar como <strong>Mza 5 - Lote 12</strong> en toda la plataforma. Si son
+          de loteos distintos se pueden repetir; dentro del mismo loteo, no.
+        </p>
         <label className="text-sm text-slate-600">
           Ubicación
           <Obligatorio />
@@ -123,14 +134,6 @@ export default async function NuevoLotePage({
           Datos legales del lote (opcionales — solo hacen falta para generar el contrato)
         </p>
         <div className="grid grid-cols-2 gap-3">
-          <label className="text-sm text-slate-600">
-            Número de lote
-            <input name="numeroLote" className={`w-full ${ENTRADA}`} />
-          </label>
-          <label className="text-sm text-slate-600">
-            Manzana
-            <input name="manzana" className={`w-full ${ENTRADA}`} />
-          </label>
           <label className="text-sm text-slate-600">
             Superficie (m2)
             <input name="superficieM2" type="number" step="0.01" min="0" className={`w-full ${ENTRADA}`} />

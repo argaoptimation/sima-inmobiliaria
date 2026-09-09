@@ -36,7 +36,7 @@ test.describe('Búsqueda por identificador en /admin/lotes', () => {
     await login(page, fixtures.admin.email, fixtures.password)
     await page.goto('/admin/lotes')
 
-    await page.getByPlaceholder('Buscar identificador').fill('E2E Busqueda')
+    await page.locator('input[name="q"]').fill('E2E Busqueda')
 
     await expect(page.getByRole('row', { name: identificadorUnico })).toBeVisible()
     // "E2E Test Lote" no matchea el texto buscado -- confirma que sí filtra,
@@ -60,7 +60,7 @@ test.describe('Búsqueda por identificador en /admin/lotes', () => {
     await login(page, fixtures.admin.email, fixtures.password)
     await page.goto('/admin/lotes')
 
-    await page.getByPlaceholder('Buscar identificador').fill('E2E Busqueda ARS')
+    await page.locator('input[name="q"]').fill('E2E Busqueda ARS')
     await page.selectOption('select[name="moneda"]', 'USD')
 
     // El lote es ARS, se buscó texto que matchea pero moneda USD -- no aparece.

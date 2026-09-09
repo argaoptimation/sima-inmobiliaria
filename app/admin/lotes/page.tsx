@@ -55,12 +55,25 @@ import {
   PUNTO_COBRANZA,
 } from '@/lib/ui/clases'
 
-const COLUMNAS_ORDENABLES = ['identificador', 'ubicacion', 'precio_total', 'moneda', 'estado'] as const
+// Manzana y lote reemplazan al identificador (09/09, pedido de Nico via
+// Gabriel: esa es la distribucion de columnas a la que esta acostumbrado).
+// El `identificador` sigue existiendo -- es el nombre del lote en el resto
+// de la app -- pero se arma solo a partir de estos dos, asi que como
+// columna era la misma informacion dos veces.
+const COLUMNAS_ORDENABLES = [
+  'manzana',
+  'numero_lote',
+  'ubicacion',
+  'precio_total',
+  'moneda',
+  'estado',
+] as const
 type ColumnaOrdenable = (typeof COLUMNAS_ORDENABLES)[number]
 
 const ETIQUETAS_COLUMNA: Record<ColumnaOrdenable, string> = {
-  identificador: 'Identificador',
-  ubicacion: 'Ubicación / Mz',
+  manzana: 'Manzana',
+  numero_lote: 'Lote',
+  ubicacion: 'Ubicación',
   precio_total: 'Precio total',
   moneda: 'Moneda',
   estado: 'Estado',
@@ -146,15 +159,19 @@ export default async function LotesPage({
 
   const columnaOrden: ColumnaOrdenable = COLUMNAS_ORDENABLES.includes(sort as ColumnaOrdenable)
     ? (sort as ColumnaOrdenable)
-    : 'identificador'
+    : 'manzana'
   const ordenAscendente = dir !== 'desc'
 
   let queryLotes = supabase
     .from('lotes')
     .select(
-      'id, identificador, moneda, estado, cantidad_cuotas, ubicacion, precio_total, acreedor_id, loteo_id, cliente_id, ciclo_actual, marcado_prejudicial'
+      'id, identificador, manzana, numero_lote, moneda, estado, cantidad_cuotas, ubicacion, precio_total, acreedor_id, loteo_id, cliente_id, ciclo_actual, marcado_prejudicial'
     )
+    // Desempate fijo despues de la columna elegida: dos lotes de la misma
+    // manzana tienen que salir siempre en el mismo orden entre si, si no la
+    // lista "baila" de una carga a la otra.
     .order(columnaOrden, { ascending: ordenAscendente })
+    .order('identificador', { ascending: true })
 
   if (perfilPropio!.role === 'acreedor') {
     queryLotes = queryLotes.eq('acreedor_id', user!.id)
@@ -173,7 +190,18 @@ export default async function LotesPage({
   }
 
   if (filtroTexto) {
-    queryLotes = queryLotes.ilike('identificador', `%${filtroTexto}%`)
+    // Ahora que en pantalla se ve la manzana y el numero por separado, el
+    // buscador tiene que encontrarlos por separado tambien (09/09): buscar
+    // "12" tiene que traer el lote 12 de cualquier manzana.
+    // La coma y los parentesis son la sintaxis del `.or()` de PostgREST,
+    // asi que se sacan del texto antes de armarlo -- si no, buscar "Mza 5,
+    // lote 12" se interpreta como dos condiciones y explota.
+    const textoSeguro = filtroTexto.replace(/[,()]/g, ' ').trim()
+    queryLotes = queryLotes.or(
+      ['identificador', 'manzana', 'numero_lote', 'ubicacion']
+        .map((columna) => `${columna}.ilike.%${textoSeguro}%`)
+        .join(',')
+    )
   }
 
   if (filtroLoteoId) {
@@ -354,6 +382,34 @@ export default async function LotesPage({
     if (filtroCobranza) params.set('cobranza', filtroCobranza)
     if (filtroTexto) params.set('q', filtroTexto)
     return params
+  }
+
+  // Una cabecera ordenable, para poder ponerlas en cualquier orden en vez
+  // de mapearlas todas juntas.
+  function cabeceraOrdenable(columna: ColumnaOrdenable) {
+    const alineacion =
+      columna === 'precio_total' ? 'text-right' : columna === 'moneda' ? 'text-center' : ''
+    const alineacionInterna =
+      columna === 'precio_total'
+        ? 'flex justify-end'
+        : columna === 'moneda'
+          ? 'flex justify-center'
+          : 'flex'
+
+    return (
+      <th className={`${TABLA_PANEL_TH} ${alineacion}`}>
+        <EnlaceBoton
+          href={urlOrden(columna)}
+          className={alineacionInterna}
+          claseInterna={TABLA_PANEL_TH_ORDEN}
+        >
+          {ETIQUETAS_COLUMNA[columna]}
+          <span className="text-[9px] opacity-70">
+            {columnaOrden === columna ? (ordenAscendente ? '▲' : '▼') : ''}
+          </span>
+        </EnlaceBoton>
+      </th>
+    )
   }
 
   function urlOrden(columna: ColumnaOrdenable) {
@@ -658,7 +714,7 @@ export default async function LotesPage({
             <input
               type="text"
               name="q"
-              placeholder="Buscar identificador"
+              placeholder="Buscar por manzana, lote o ubicación"
               aria-label="Buscar por identificador"
               defaultValue={filtroTexto ?? ''}
               className={`${CAMPO_FILTRO} pl-9`}
@@ -754,36 +810,21 @@ export default async function LotesPage({
           <div className="w-full overflow-x-auto">
             <table className="w-full border-collapse text-left">
               <thead className="border-b border-slate-200/80">
+                {/* Loteo, Manzana, Lote, Comprador -- y despues el resto
+                    (09/09, Nico). Las ordenables ya no se mapean en bloque:
+                    "Comprador" va entre medio, asi que cada una se pone
+                    donde corresponde. */}
                 <tr className={TABLA_PANEL_HEADER}>
                   {!esVendedor && <th className={TABLA_PANEL_TH}>Loteo</th>}
-                  {COLUMNAS_ORDENABLES.map((columna) => (
-                    <th
-                      key={columna}
-                      className={`${TABLA_PANEL_TH} ${
-                        columna === 'precio_total' ? 'text-right' : columna === 'moneda' ? 'text-center' : ''
-                      }`}
-                    >
-                      <EnlaceBoton
-                        href={urlOrden(columna)}
-                        className={
-                          columna === 'precio_total'
-                            ? 'flex justify-end'
-                            : columna === 'moneda'
-                              ? 'flex justify-center'
-                              : 'flex'
-                        }
-                        claseInterna={TABLA_PANEL_TH_ORDEN}
-                      >
-                        {ETIQUETAS_COLUMNA[columna]}
-                        <span className="text-[9px] opacity-70">
-                          {columnaOrden === columna ? (ordenAscendente ? '▲' : '▼') : ''}
-                        </span>
-                      </EnlaceBoton>
-                    </th>
-                  ))}
+                  {cabeceraOrdenable('manzana')}
+                  {cabeceraOrdenable('numero_lote')}
+                  {esAdministrador && <th className={TABLA_PANEL_TH}>Comprador</th>}
+                  {cabeceraOrdenable('ubicacion')}
+                  {cabeceraOrdenable('precio_total')}
+                  {cabeceraOrdenable('moneda')}
+                  {cabeceraOrdenable('estado')}
                   {!esVendedor && <th className={TABLA_PANEL_TH}>Acreedor</th>}
                   {!esVendedor && <th className={`${TABLA_PANEL_TH} text-center`}>Cuotas</th>}
-                  {esAdministrador && <th className={TABLA_PANEL_TH}>Cliente</th>}
                   {!esVendedor && <th className={TABLA_PANEL_TH}>Cobranza</th>}
                   <th className={`${TABLA_PANEL_TH} min-w-[180px] text-right`}>Acciones</th>
                 </tr>
@@ -799,18 +840,44 @@ export default async function LotesPage({
                           {lote.loteo_id ? (nombreLoteoPorId.get(lote.loteo_id) ?? '—') : '— sin asignar —'}
                         </td>
                       )}
+                      <td className={`${TABLA_PANEL_TD} font-semibold text-slate-900 tabular-nums`}>
+                        {lote.manzana ?? <span className="text-slate-400">—</span>}
+                      </td>
+                      {/* El numero de lote es el link al detalle. Si el lote
+                          no tiene numero cargado (los viejos, y los que se
+                          importaron), cae al identificador: nunca queda una
+                          fila sin nada en que hacer click. */}
                       <td className={`${TABLA_PANEL_TD} max-w-[230px] truncate font-semibold`}>
                         {esVendedor ? (
-                          <span className="text-slate-900">{lote.identificador}</span>
+                          <span className="text-slate-900 tabular-nums">
+                            {lote.numero_lote ?? lote.identificador}
+                          </span>
                         ) : (
                           <EnlaceBoton
                             href={`/admin/lotes/${lote.id}`}
                             className="text-blue-600 underline-offset-4 transition-colors hover:text-blue-800 hover:underline"
+                            title={lote.identificador}
                           >
-                            {lote.identificador}
+                            <span className="tabular-nums">
+                              {lote.numero_lote ?? lote.identificador}
+                            </span>
                           </EnlaceBoton>
                         )}
                       </td>
+                      {esAdministrador && (
+                        <td className={`${TABLA_PANEL_TD} max-w-[190px] truncate font-medium text-slate-900`}>
+                          {lote.estado === 'vendido' && lote.cliente_id ? (
+                            <EnlaceBoton
+                              href={`/admin/clientes/${lote.cliente_id}`}
+                              className="underline-offset-4 transition-colors hover:text-blue-700 hover:underline"
+                            >
+                              {clientePorId.get(lote.cliente_id)?.full_name ?? '—'}
+                            </EnlaceBoton>
+                          ) : (
+                            <span className="text-slate-400">—</span>
+                          )}
+                        </td>
+                      )}
                       <td className={`${TABLA_PANEL_TD} max-w-[190px] truncate text-slate-500`}>
                         {lote.ubicacion ?? '—'}
                       </td>
@@ -849,20 +916,6 @@ export default async function LotesPage({
                         <td className={`${TABLA_PANEL_TD} text-center font-medium tabular-nums`}>
                           {lote.cantidad_cuotas ? (
                             lote.cantidad_cuotas
-                          ) : (
-                            <span className="text-slate-400">—</span>
-                          )}
-                        </td>
-                      )}
-                      {esAdministrador && (
-                        <td className={`${TABLA_PANEL_TD} max-w-[190px] truncate font-medium text-slate-900`}>
-                          {lote.estado === 'vendido' && lote.cliente_id ? (
-                            <EnlaceBoton
-                              href={`/admin/clientes/${lote.cliente_id}`}
-                              className="underline-offset-4 transition-colors hover:text-blue-700 hover:underline"
-                            >
-                              {clientePorId.get(lote.cliente_id)?.full_name ?? '—'}
-                            </EnlaceBoton>
                           ) : (
                             <span className="text-slate-400">—</span>
                           )}

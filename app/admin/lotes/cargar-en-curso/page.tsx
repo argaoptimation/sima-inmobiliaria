@@ -87,17 +87,33 @@ export default async function CargarLoteEnCursoPage({
 
         <section className="flex flex-col gap-3">
           <h2 className={TITULO_H2}>El lote</h2>
-          <label className="text-sm text-slate-600">
-            Identificador
-            <Obligatorio />
-            <input
-              name="identificador"
-              defaultValue={previo('identificador')}
-              placeholder="Ej: Loteo San Martín - Manzana 3 - Lote 12"
-              required
-              className={`w-full ${ENTRADA}`}
-            />
-          </label>
+          <div className="grid grid-cols-2 gap-3">
+            <label className="text-sm text-slate-600">
+              Manzana
+              <Obligatorio />
+              <input
+                name="manzana"
+                defaultValue={previo('manzana')}
+                placeholder="Ej: 5 o B"
+                required
+                className={`w-full ${ENTRADA}`}
+              />
+            </label>
+            <label className="text-sm text-slate-600">
+              Número de lote
+              <Obligatorio />
+              <input
+                name="numeroLote"
+                defaultValue={previo('numeroLote')}
+                placeholder="Ej: 12"
+                required
+                className={`w-full ${ENTRADA}`}
+              />
+            </label>
+          </div>
+          <p className="-mt-1 text-xs text-slate-500">
+            El lote va a figurar como <strong>Mza 5 - Lote 12</strong> en toda la plataforma.
+          </p>
           <label className="text-sm text-slate-600">
             Ubicación
             <Obligatorio />
@@ -308,14 +324,6 @@ export default async function CargarLoteEnCursoPage({
             Datos legales del lote (solo hacen falta para generar el contrato)
           </summary>
           <div className="grid gap-3 border-t border-blue-100 p-3 sm:grid-cols-2">
-            <label className="text-sm text-slate-600">
-              Número de lote
-              <input name="numeroLote" defaultValue={previo('numeroLote')} className={`w-full ${ENTRADA}`} />
-            </label>
-            <label className="text-sm text-slate-600">
-              Manzana
-              <input name="manzana" defaultValue={previo('manzana')} className={`w-full ${ENTRADA}`} />
-            </label>
             <label className="text-sm text-slate-600">
               Superficie (m2)
               <input

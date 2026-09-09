@@ -8,6 +8,7 @@ import { validarSeleccionAcreedorPorNombre } from '@/lib/lotes/validar-seleccion
 import { resolverAdminPorDefecto } from '@/lib/lotes/admin-por-defecto'
 import { mensajeDeError } from '@/lib/errores'
 import { invitarPorEmail } from '@/lib/auth/invitar-por-email'
+import { identificadorAutomatico } from '@/lib/lotes/identificador-automatico'
 
 export async function crearLote(formData: FormData) {
   // Admin-only (04/09, pedido explícito de Gabriel): requireAdmin() dejaba
@@ -21,7 +22,6 @@ export async function crearLote(formData: FormData) {
     data: { user },
   } = await supabase.auth.getUser()
 
-  const identificador = formData.get('identificador') as string
   const moneda = formData.get('moneda') as 'USD' | 'ARS'
   const ubicacion = ((formData.get('ubicacion') as string) || '').trim() || null
   const precioTotalTexto = ((formData.get('precioTotal') as string) || '').trim()
@@ -39,6 +39,18 @@ export async function crearLote(formData: FormData) {
   const cuentaRentas = ((formData.get('cuentaRentas') as string) || '').trim() || null
   const nomenclaturaCatastral = ((formData.get('nomenclaturaCatastral') as string) || '').trim() || null
   const matricula = ((formData.get('matricula') as string) || '').trim() || null
+
+  // El identificador ya no se tipea: sale de la manzana y el número
+  // (09/09, pedido de Nico). Ver lib/lotes/identificador-automatico.ts.
+  const identificador = identificadorAutomatico(manzana, numeroLote)
+
+  if (!identificador) {
+    redirect(
+      `/admin/lotes/nuevo?error=${encodeURIComponent(
+        'Cargá la manzana y el número de lote: de ahí sale el nombre con el que el lote aparece en toda la plataforma'
+      )}`
+    )
+  }
 
   if (!ubicacion || !precioTotal || !Number.isFinite(precioTotal) || precioTotal <= 0) {
     redirect(
@@ -144,7 +156,8 @@ export async function crearLote(formData: FormData) {
 
   if (errorLote) {
     const mensaje = mensajeDeError(errorLote, {
-      '23505': 'Ya existe un lote con ese identificador en este loteo (o sin loteo asignado)',
+      '23505':
+        'Ya hay un lote con esa manzana y ese número en este loteo (o entre los que no tienen loteo asignado)',
     })
     redirect(`/admin/lotes/nuevo?error=${encodeURIComponent(mensaje)}`)
   }
