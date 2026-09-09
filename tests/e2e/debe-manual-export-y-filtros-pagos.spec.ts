@@ -19,8 +19,11 @@ test.describe('Debe manual en cuenta corriente (25/08)', () => {
     await login(page, fixtures.admin.email, fixtures.password)
     await page.goto(`/admin/cuentas-corrientes/${fixtures.acreedorSecundario.id}`)
 
-    const saldo = page.locator('h2:has-text("Saldo") + p')
-    await expect(saldo).toHaveText('Sin movimientos todavía.')
+    // Desde el 10/09 el saldo es una tarjeta y lo que se lee no es el
+    // numero pelado sino la frase que dice QUE HACER con el ("hay que
+    // darle 500"): el signo solo ya se habia leido al reves una vez.
+    const saldo = page.getByTestId('saldo-USD')
+    await expect(page.getByTestId('saldo-vacio')).toBeVisible()
 
     // Crédito adicional de 500 USD.
     await page.locator('select[name="tipo"]').selectOption('debe')
@@ -30,7 +33,7 @@ test.describe('Debe manual en cuenta corriente (25/08)', () => {
     await page.locator('input[name="detalle"]').fill('Bono por lote destacado')
     await page.getByRole('button', { name: 'Agregar movimiento' }).click()
     await page.waitForURL(/\?ok=1/)
-    await expect(saldo).toHaveText('500 USD')
+    await expect(saldo).toHaveText('Hay que darle 500 USD')
 
     // Gasto/descuento de 150 USD -- tiene que restar, no sumar.
     await page.locator('select[name="tipo"]').selectOption('debe')
@@ -40,7 +43,7 @@ test.describe('Debe manual en cuenta corriente (25/08)', () => {
     await page.locator('input[name="detalle"]').fill('Adelanto ya entregado en mano')
     await page.getByRole('button', { name: 'Agregar movimiento' }).click()
     await page.waitForURL(/\?ok=1/)
-    await expect(saldo).toHaveText('350 USD')
+    await expect(saldo).toHaveText('Hay que darle 350 USD')
 
     // "credito" y no "Debe": desde el 09/09 la tabla habla el vocabulario de
     // la planilla de Nicolas. Un gasto sigue siendo un Debe en la base, pero
@@ -87,7 +90,11 @@ test.describe('Descarga Excel de movimientos (25/08, reescrito a .xlsx 04/09)', 
 
     const [download] = await Promise.all([
       page.waitForEvent('download'),
-      page.getByRole('link', { name: 'Descargar Excel →' }).click(),
+      // Desde el 10/09 hay UN solo boton de descarga en la pantalla del
+      // acreedor, y trae las cuatro hojas (mes a mes, proyeccion, ordenes
+      // de pago y esta). El nombre perdio la flechita al pasar a la
+      // cabecera; el contenido de "Cuenta corriente" no cambio.
+      page.getByRole('link', { name: 'Descargar Excel' }).click(),
     ])
 
     expect(download.suggestedFilename()).toMatch(/^cuenta-corriente-.*\.xlsx$/)

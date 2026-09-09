@@ -4,6 +4,7 @@ import { describirSituacion } from '@/lib/cuenta-corriente/situacion'
 import { obtenerResumenDeTransferencias } from '@/lib/cuenta-corriente/resumen-transferencias'
 import { monedasOrdenadas } from '@/lib/cuenta-corriente/totales-a-transferir'
 import { obtenerCuotasSinDistribucion } from '@/lib/cuenta-corriente/cuotas-sin-distribucion'
+import { mesRelativoAHoy } from '@/lib/fecha/meses'
 import { FiltroEnVivo } from '@/components/FiltroEnVivo'
 import { EnlaceBoton } from '@/components/EnlaceBoton'
 import { EncabezadoPagina } from '@/components/EncabezadoPagina'
@@ -32,12 +33,20 @@ import { Banknote } from 'lucide-react'
 export default async function CuentasCorrientesPage({
   searchParams,
 }: {
-  searchParams: Promise<{ q?: string; pendientes?: string }>
+  searchParams: Promise<{ q?: string; pendientes?: string; desde?: string; hasta?: string }>
 }) {
   await requireAdministrador()
 
-  const { q: filtroTexto, pendientes } = await searchParams
+  const { q: filtroTexto, pendientes, desde, hasta } = await searchParams
   const soloPendientes = pendientes === '1'
+
+  // El rango de meses de la hoja "Proyeccion" del Excel. Vive aca y no en
+  // el export porque hasta el 10/09 estaba clavado en seis meses: el boton
+  // de descarga cuelga de este listado, que no tenia ningun filtro de
+  // meses, asi que no habia forma de pedir otro rango (lo marco Gabriel).
+  // No cambia nada de lo que se ve en pantalla -- de ahi la etiqueta.
+  const mesDesdeEfectivo = desde || mesRelativoAHoy(0)
+  const mesHastaEfectivo = hasta || mesRelativoAHoy(5)
 
   const supabase = await createClient()
 
@@ -63,6 +72,8 @@ export default async function CuentasCorrientesPage({
   const parametrosDelExport = new URLSearchParams()
   if (filtroTexto) parametrosDelExport.set('q', filtroTexto)
   if (soloPendientes) parametrosDelExport.set('pendientes', '1')
+  parametrosDelExport.set('desde', mesDesdeEfectivo)
+  parametrosDelExport.set('hasta', mesHastaEfectivo)
   const urlExport = `/admin/cuentas-corrientes/export?${parametrosDelExport.toString()}`
 
   const monedasConTotal = monedasOrdenadas(totales)
@@ -160,10 +171,18 @@ export default async function CuentasCorrientesPage({
         </a>
       </div>
 
-      <FiltroEnVivo className="mb-4 flex items-end gap-3">
+      <FiltroEnVivo className="mb-4 flex flex-wrap items-end gap-3">
         <label className="text-sm text-slate-600">
           Buscar
           <input type="text" name="q" placeholder="Nombre" defaultValue={filtroTexto ?? ''} className={ENTRADA} />
+        </label>
+        <label className="text-sm text-slate-600">
+          Proyección del Excel: desde
+          <input type="month" name="desde" defaultValue={mesDesdeEfectivo} className={ENTRADA} />
+        </label>
+        <label className="text-sm text-slate-600">
+          hasta
+          <input type="month" name="hasta" defaultValue={mesHastaEfectivo} className={ENTRADA} />
         </label>
         <button type="submit" className={`cursor-pointer ${BOTON_SECUNDARIO}`}>
           Filtrar

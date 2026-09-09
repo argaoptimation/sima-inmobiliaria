@@ -62,19 +62,30 @@ export async function obtenerProyeccionCobranza(
   desde: string, // 'YYYY-MM-DD'
   hasta: string // 'YYYY-MM-DD'
 ): Promise<ProyeccionCobranza> {
+  // `refinanciada = false`: una cuota refinanciada sigue existiendo con
+  // saldo 0 y con su distribucion intacta (ver refinanciarLote), asi que
+  // proyectarla seria contar dos veces la misma plata -- una por la cuota
+  // vieja y otra por la nueva que la reemplazo.
   const { data } = await supabase
     .from('cuota_distribuciones')
     .select(
-      'monto, cuotas!inner(fecha_vencimiento, lote_id, lotes!inner(identificador, moneda, cliente_id))'
+      'monto, cuotas!inner(fecha_vencimiento, lote_id, ciclo, lotes!inner(identificador, moneda, cliente_id, ciclo_actual))'
     )
     .eq('profile_id', profileId)
+    .eq('cuotas.refinanciada', false)
 
   const distribuciones = (data ?? []) as unknown as Array<{
     monto: number
     cuotas: {
       fecha_vencimiento: string
       lote_id: string
-      lotes: { identificador: string; moneda: string; cliente_id: string | null }
+      ciclo: number
+      lotes: {
+        identificador: string
+        moneda: string
+        cliente_id: string | null
+        ciclo_actual: number
+      }
     }
   }>
 
@@ -84,6 +95,10 @@ export async function obtenerProyeccionCobranza(
   const porLote = new Map<string, FilaProyeccion>()
 
   for (const distribucion of distribuciones) {
+    // Cuotas de un ciclo viejo (el lote se rescindio y se volvio a vender):
+    // existen en la base pero ya no las va a pagar nadie.
+    if (distribucion.cuotas.ciclo !== distribucion.cuotas.lotes.ciclo_actual) continue
+
     const vencimiento = distribucion.cuotas.fecha_vencimiento
     if (vencimiento < desde || vencimiento > hasta) continue
 

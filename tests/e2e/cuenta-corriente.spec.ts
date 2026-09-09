@@ -139,7 +139,7 @@ test.describe('Cuenta corriente', () => {
 
     await test.step('el saldo del acreedor muestra 800 USD en /admin/cuentas-corrientes', async () => {
       await page.goto(`/admin/cuentas-corrientes/${fixtures.acreedorConDatos.id}`)
-      await expect(page.locator('h2:has-text("Saldo") + p')).toHaveText('800 USD')
+      await expect(page.getByTestId('saldo-USD')).toHaveText('Hay que darle 800 USD')
     })
 
     await test.step('una corrección hacia abajo que deja la cuota sin cobrar revierte el Debe', async () => {
@@ -200,11 +200,11 @@ test.describe('Cuenta corriente', () => {
     })
     expect(errorDebe).toBeNull()
 
-    const saldo = page.locator('h2:has-text("Saldo") + p')
+    const saldo = page.getByTestId('saldo-USD')
 
     await login(page, fixtures.admin.email, fixtures.password)
     await page.goto(`/admin/cuentas-corrientes/${fixtures.acreedorConDatos.id}`)
-    await expect(saldo).toHaveText('80 USD')
+    await expect(saldo).toHaveText('Hay que darle 80 USD')
 
     // .first(): el formulario "Registrar plata" tiene su propio Origen, y
     // ahora también lo tiene el filtro de la tabla de Movimientos más abajo
@@ -217,7 +217,7 @@ test.describe('Cuenta corriente', () => {
     await page.getByRole('button', { name: 'Agregar movimiento' }).click()
 
     await page.waitForURL(/\/admin\/cuentas-corrientes\/.+\?ok=1/)
-    await expect(saldo).toHaveText('-20 USD')
+    await expect(saldo).toHaveText('Tiene 20 USD de más')
     await expect(page.getByRole('cell', { name: 'Pago directo del cliente' })).toBeVisible()
     await expect(page.getByText('de: Cliente 1')).toBeVisible()
   })
