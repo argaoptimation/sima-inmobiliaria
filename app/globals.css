@@ -37,8 +37,8 @@ body {
    formulario de montos las flechas del spinner no aportan nada -- nadie
    carga una sena de 5.000 dolares a golpe de flecha -- y en cambio ocupan
    lugar y son un blanco de click accidental al lado del cursor.
-   El accidente grave es el otro, la rueda del mouse: ver
-   components/SinRuedaEnCamposNumericos.tsx. */
+   Los accidentes graves son los otros dos -- la rueda del mouse y las
+   flechas del teclado: ver components/CamposNumericosSoloTipeo.tsx. */
 input[type='number']::-webkit-outer-spin-button,
 input[type='number']::-webkit-inner-spin-button {
   -webkit-appearance: none;

@@ -167,11 +167,26 @@ export default async function LotesPage({
     .select(
       'id, identificador, manzana, numero_lote, moneda, estado, cantidad_cuotas, ubicacion, precio_total, acreedor_id, loteo_id, cliente_id, ciclo_actual, marcado_prejudicial'
     )
-    // Desempate fijo despues de la columna elegida: dos lotes de la misma
-    // manzana tienen que salir siempre en el mismo orden entre si, si no la
-    // lista "baila" de una carga a la otra.
-    .order(columnaOrden, { ascending: ordenAscendente })
-    .order('identificador', { ascending: true })
+
+  // Manzana y lote se ordenan por su parte numerica y despues por el texto
+  // (migracion 0060): son columnas de texto -- una manzana puede ser "B" --
+  // y ordenar texto pone "10" antes que "2". Las que no tienen numero
+  // (manzana "B") van al final y entre ellas alfabeticamente.
+  const columnasDeOrden =
+    columnaOrden === 'manzana'
+      ? ['manzana_orden', 'manzana']
+      : columnaOrden === 'numero_lote'
+        ? ['numero_lote_orden', 'numero_lote']
+        : [columnaOrden]
+
+  for (const columna of columnasDeOrden) {
+    queryLotes = queryLotes.order(columna, { ascending: ordenAscendente, nullsFirst: false })
+  }
+
+  // Desempate fijo despues de la columna elegida: dos lotes de la misma
+  // manzana tienen que salir siempre en el mismo orden entre si, si no la
+  // lista "baila" de una carga a la otra.
+  queryLotes = queryLotes.order('identificador', { ascending: true })
 
   if (perfilPropio!.role === 'acreedor') {
     queryLotes = queryLotes.eq('acreedor_id', user!.id)
