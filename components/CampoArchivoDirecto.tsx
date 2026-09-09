@@ -77,6 +77,9 @@ export function CampoArchivoDirecto({
   // adelante, o una foto movida, y enterarse recién cuando hay que armar
   // el boleto.
   const [vistaPrevia, setVistaPrevia] = useState<{ url: string; esImagen: boolean } | null>(null)
+  // Si el navegador no puede dibujar lo que creiamos una imagen, se cae al
+  // recuadro generico en vez de dejar el icono de imagen rota.
+  const [previaRota, setPreviaRota] = useState(false)
 
   // Las object URLs viven hasta que se las revoca a mano: sin esto, cargar
   // cinco archivos en un formulario deja cinco blobs colgados en memoria.
@@ -100,6 +103,7 @@ export function CampoArchivoDirecto({
 
     setSubiendo(true)
     setNombreArchivo(archivo.name)
+    setPreviaRota(false)
     setVistaPrevia({
       url: URL.createObjectURL(archivo),
       esImagen: archivo.type.startsWith('image/'),
@@ -153,7 +157,7 @@ export function CampoArchivoDirecto({
       {!subiendo && nombreArchivo && !error && (
         <span className="text-green-700">✓ {nombreArchivo}</span>
       )}
-      {!subiendo && !nombreArchivo && path && !compacto && (
+      {!subiendo && !nombreArchivo && path && !compacto && !urlInicial && (
         <span className="text-slate-500">Ya hay un archivo cargado — elegí otro para reemplazarlo</span>
       )}
       {error && <span className="text-red-700">{error}</span>}
@@ -172,23 +176,32 @@ export function CampoArchivoDirecto({
   // Lo que se muestra: el archivo recién elegido si hay uno, si no el que
   // ya estaba guardado. En la versión compacta no va -- vive dentro de una
   // fila de tabla, no hay lugar para una miniatura.
-  const previa = vistaPrevia ?? (urlInicial ? { url: urlInicial, esImagen: true } : null)
+  // Para el archivo ya guardado no hay un `File` del que leer el tipo: se
+  // deduce de la extension del path. Un PDF metido en un <img> daba el icono
+  // de imagen rota, que es lo que se veia al editar una reserva cuyo DNI se
+  // habia subido escaneado en PDF.
+  const previa =
+    vistaPrevia ??
+    (urlInicial
+      ? { url: urlInicial, esImagen: !(valorInicial ?? '').toLowerCase().endsWith('.pdf') }
+      : null)
 
   const bloqueVistaPrevia =
     !compacto && previa && !error ? (
       <div className="mt-2 flex items-center gap-3 rounded-xl border border-slate-200 bg-slate-50 p-2">
-        {previa.esImagen ? (
+        {previa.esImagen && !previaRota ? (
           // Un `blob:` local o una URL firmada de Storage: next/image no
           // puede optimizar ninguno de los dos.
           // eslint-disable-next-line @next/next/no-img-element
           <img
             src={previa.url}
             alt={`Vista previa de ${nombreArchivo ?? 'lo cargado'}`}
+            onError={() => setPreviaRota(true)}
             className="h-20 w-28 shrink-0 rounded-lg border border-slate-200 bg-white object-contain"
           />
         ) : (
           <span className="flex h-20 w-28 shrink-0 items-center justify-center rounded-lg border border-slate-200 bg-white text-xs font-semibold text-slate-500">
-            PDF
+            Archivo
           </span>
         )}
         <div className="min-w-0 text-xs">
