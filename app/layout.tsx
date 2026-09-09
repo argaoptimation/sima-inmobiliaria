@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Plus_Jakarta_Sans, Inter } from "next/font/google";
 import "./globals.css";
+import { SinRuedaEnCamposNumericos } from "@/components/SinRuedaEnCamposNumericos";
 
 // Dos familias, no una (rediseno Stitch 2026-09, DESIGN.md): Plus Jakarta
 // Sans queda SOLO para titulos de modulo, encabezados y KPIs -- su ancho
@@ -32,7 +33,10 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="es" className={`${jakarta.variable} ${inter.variable} h-full antialiased`}>
-      <body className="min-h-full flex flex-col bg-slate-50">{children}</body>
+      <body className="min-h-full flex flex-col bg-slate-50">
+        <SinRuedaEnCamposNumericos />
+        {children}
+      </body>
     </html>
   );
 }

@@ -33,6 +33,22 @@ body {
   font-variant-numeric: tabular-nums;
 }
 
+/* Sin flechitas en los campos numericos (09/09, pedido de Gabriel): en un
+   formulario de montos las flechas del spinner no aportan nada -- nadie
+   carga una sena de 5.000 dolares a golpe de flecha -- y en cambio ocupan
+   lugar y son un blanco de click accidental al lado del cursor.
+   El accidente grave es el otro, la rueda del mouse: ver
+   components/SinRuedaEnCamposNumericos.tsx. */
+input[type='number']::-webkit-outer-spin-button,
+input[type='number']::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+input[type='number'] {
+  -moz-appearance: textfield;
+  appearance: textfield;
+}
+
 /* Banda del portal del cliente (PR3 del rediseño, ver
    design-system/rediseno/PLAN.md, MOCKUP 2). El mockup referencia estas dos
    animaciones en el degradé de fondo pero no las define (@keyframes

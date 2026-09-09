@@ -17,8 +17,13 @@
 // interactivo. Sigue siendo la misma paleta azul/blanco -- no un rediseño
 // de layout -- pero ya no se lee plana.
 export const TARJETA = 'rounded-2xl border border-slate-200 bg-white p-6 shadow-lg shadow-slate-200/70'
+// El `hover:` no es decoracion (09/09, pedido de Gabriel): sobre un
+// formulario de muchas filas iguales -- cargar 36 cuotas a mano es el caso
+// real -- todos los campos se ven identicos y se pierde de vista en cual
+// esta parado el mouse. Al oscurecer el borde y blanquear el fondo, el
+// campo bajo el puntero se separa del resto sin tener que hacer click.
 export const ENTRADA =
-  'mt-1 block rounded-lg border-2 border-slate-300 bg-slate-50 px-3 py-2.5 text-sm text-slate-900 shadow-sm transition-all duration-150 placeholder:text-slate-400 focus:border-blue-600 focus:bg-white focus:outline-none focus:ring-4 focus:ring-blue-100'
+  'mt-1 block rounded-lg border-2 border-slate-300 bg-slate-50 px-3 py-2.5 text-sm text-slate-900 shadow-sm transition-all duration-150 placeholder:text-slate-400 hover:border-slate-400 hover:bg-white focus:border-blue-600 focus:bg-white focus:outline-none focus:ring-4 focus:ring-blue-100'
 export const BOTON_PRIMARIO =
   'rounded-lg bg-gradient-to-b from-blue-700 to-blue-800 px-4 py-2.5 text-sm font-semibold text-white shadow-md shadow-blue-900/25 transition-all duration-150 hover:from-blue-800 hover:to-blue-900 hover:shadow-lg hover:shadow-blue-900/30 active:scale-[0.97] active:shadow-sm disabled:cursor-not-allowed disabled:opacity-60 disabled:active:scale-100'
 export const BOTON_SECUNDARIO =
@@ -488,3 +493,38 @@ export const FICHA_LOTE_FILA =
   'flex items-center justify-between gap-3 border-b border-slate-50 py-1 text-xs'
 export const FICHA_LOTE_DESTACADO =
   'flex items-center justify-between gap-3 rounded-xl bg-slate-50 px-2.5 py-1.5'
+
+// ---------------------------------------------------------------------------
+// Rediseno Stitch 2026-09 -- ajustes del 09/09 sobre el detalle del lote
+//
+// Gabriel pidio "optimizarlo mas": la mitad de arriba ya seguia el mockup
+// (cabecera + KPIs + cuotas/pagos) pero la de abajo seguia siendo la
+// pantalla vieja -- titulos sueltos y formularios apilados en una columna
+// angosta. Estas clases son para esa mitad.
+// ---------------------------------------------------------------------------
+
+// El desplegable de "Documentacion del lote" que en el mockup vive en la
+// cabecera, al lado de las acciones. Es un <summary>, asi que se abre sin
+// JavaScript.
+export const DESPLEGABLE_CABECERA =
+  'inline-flex cursor-pointer list-none items-center gap-2 rounded-xl border border-blue-200 bg-blue-50 px-3.5 py-2 text-xs font-semibold text-blue-700 transition-all select-none hover:border-blue-300 hover:bg-blue-100 [&::-webkit-details-marker]:hidden'
+export const DESPLEGABLE_CABECERA_CONTADOR =
+  'rounded-md bg-blue-600 px-1.5 py-0.5 text-[10px] font-extrabold text-white tabular-nums'
+
+// La grilla de "Datos del lote" del mockup: campos cortos de a cuatro por
+// fila en vez de uno abajo del otro a lo ancho de una columna de 28rem. La
+// nomenclatura catastral y la matricula son largas y se toman dos.
+export const GRILLA_DATOS_LOTE = 'grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4'
+
+// Fila de dato de solo lectura (etiqueta arriba, valor abajo), para las
+// fichas que no son un formulario -- la de la reserva, por ejemplo.
+export const DATO_LECTURA_ETIQUETA =
+  'text-[11px] font-bold tracking-wider text-slate-400 uppercase'
+export const DATO_LECTURA_VALOR = 'text-sm font-medium text-slate-800'
+
+// Chip para un archivo adjunto (comprobante, DNI, contrato): link cuando el
+// archivo esta, apagado cuando no.
+export const CHIP_ARCHIVO =
+  'inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-xs font-semibold text-blue-700 transition-colors hover:border-blue-300 hover:bg-blue-50'
+export const CHIP_ARCHIVO_VACIO =
+  'inline-flex items-center gap-1.5 rounded-lg border border-dashed border-slate-200 bg-slate-50 px-2.5 py-1.5 text-xs font-medium text-slate-400'
