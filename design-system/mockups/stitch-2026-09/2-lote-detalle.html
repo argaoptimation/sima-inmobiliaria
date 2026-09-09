@@ -1,0 +1,451 @@
+<!DOCTYPE html><html lang="es" style="width: 1280px; height: 1769px; overflow: hidden; position: relative;"><head>
+<meta charset="utf-8">
+<meta content="width=device-width, initial-scale=1.0" name="viewport">
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&amp;family=Inter:wght@400;500;600;700&amp;display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet">
+<style>
+    @layer base {
+      html, body { margin: 0; padding: 0; }
+      body { overscroll-behavior: none; }
+    }
+    ::-webkit-scrollbar { width: 6px; height: 6px; }
+    ::-webkit-scrollbar-track { background: #f1f5f9; }
+    ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
+    ::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+  </style>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<script id="tailwind-config">
+    tailwind.config = {
+      darkMode: "class",
+      theme: {
+        extend: {
+          colors: {
+            brand: {
+              navy: '#0b1736',
+              navyDark: '#070f24',
+              navyLight: '#16234b',
+              blue: '#004ac6',
+              cobalt: '#0053db',
+              accent: '#2563eb',
+            }
+          },
+          fontFamily: {
+            sans: ['Inter', 'sans-serif'],
+            heading: ['Plus Jakarta Sans', 'sans-serif'],
+          }
+        }
+      }
+    };
+  </script>
+</head>
+<body class="bg-[#f4f7fb] font-sans text-slate-800 antialiased selection:bg-blue-600 selection:text-white">
+<!-- SIDEBAR (Azul Marino Corporativo #0b1736 con Logo en caja blanca) -->
+<aside class="fixed left-0 top-0 h-screen w-64 bg-[#0b1736] text-slate-300 z-50 flex flex-col justify-between border-r border-slate-800 shadow-xl">
+<div class="flex flex-col h-full overflow-hidden">
+<!-- Encabezado Sidebar & Logo Oficial -->
+<div class="h-16 flex items-center justify-between px-4 border-b border-white/10 shrink-0 bg-[#070f24]"><div class="flex-1 mr-2 rounded-lg bg-white px-3 py-1.5 flex items-center justify-center shadow-sm border border-slate-100/10"><img src="https://lh3.googleusercontent.com/aida-public/AB6AXuBpO2cwDtJHLzVlFab1wtGZ6H8DYcJCKnQfYHlbomV8PrKurlf5Dym2ZwdNSNNDZ_0ZJtsk6Va3FgmWaWH9sHkNVulUXTGS99lYerGDUlNZHpyenU2jKe552ahAGEb-vMKCvCoGEBPlh-NnTroOWin3muwqi68J1QujPTIShht-Wn6t-8gq7lCRlf_UPNqRKC1JYLU62BOqFLpyWy9QyktZRJpd3RZBKgZ-kA8vF1WLEL6VrZXTyBWpwr_g2yktl5hEWKQ" alt="SIMACOR Desarrollos Inmobiliarios" class="block h-7 w-auto object-contain"></div><button type="button" class="shrink-0 rounded-lg p-1.5 text-white/60 transition-colors hover:bg-white/[0.08] hover:text-white flex items-center justify-center" title="Contraer menú"><svg class="h-[18px] w-[18px]" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="18" height="18" x="3" y="3" rx="2"></rect><path d="M9 3v18"></path><path d="m16 15-3-3 3-3"></path></svg></button></div>
+<!-- Menú de Navegación Agrupado -->
+<div class="flex-1 overflow-y-auto px-3.5 py-4 space-y-4">
+<nav class="space-y-1">
+<a class="flex items-center gap-3 px-3 py-2 rounded-lg text-slate-400 hover:bg-white/5 hover:text-white transition-all group" href="#">
+<span class="material-symbols-outlined text-[20px] group-hover:text-blue-400 transition-colors">dashboard</span>
+<span class="text-sm font-medium">eInicio</span>
+</a>
+<!-- Sección Operación -->
+<div class="pt-3 pb-1 px-3">
+<span class="text-[10px] uppercase font-bold tracking-widest text-slate-400/80">Operación</span>
+</div>
+<a aria-current="page" class="flex items-center gap-3 px-3 py-2 rounded-lg bg-blue-600 text-white font-semibold shadow-md shadow-blue-900/40" href="#">
+<span class="material-symbols-outlined text-[20px]">pin_drop</span>
+<span class="text-sm">Lotes</span>
+</a>
+<a class="flex items-center gap-3 px-3 py-2 rounded-lg text-slate-400 hover:bg-white/5 hover:text-white transition-all group" href="#">
+<span class="material-symbols-outlined text-[20px] group-hover:text-blue-400 transition-colors">layers</span>
+<span class="text-sm font-medium">Loteos</span>
+</a>
+<a class="flex items-center gap-3 px-3 py-2 rounded-lg text-slate-400 hover:bg-white/5 hover:text-white transition-all group" href="#">
+<span class="material-symbols-outlined text-[20px] group-hover:text-blue-400 transition-colors">group</span>
+<span class="text-sm font-medium">Clientes</span>
+</a>
+<a class="flex items-center gap-3 px-3 py-2 rounded-lg text-slate-400 hover:bg-white/5 hover:text-white transition-all group" href="#">
+<span class="material-symbols-outlined text-[20px] group-hover:text-blue-400 transition-colors">draw</span>
+<span class="text-sm font-medium">Boletos de compraventa</span>
+</a>
+<!-- Sección Cobranza -->
+<div class="pt-3 pb-1 px-3">
+<span class="text-[10px] uppercase font-bold tracking-widest text-slate-400/80">Cobranza</span>
+</div>
+<a class="flex items-center justify-between px-3 py-2 rounded-lg text-slate-400 hover:bg-white/5 hover:text-white transition-all group" href="#">
+<div class="flex items-center gap-3">
+<span class="material-symbols-outlined text-[20px] group-hover:text-blue-400 transition-colors">payments</span>
+<span class="text-sm font-medium">Pagos</span>
+</div>
+<span class="bg-amber-500 text-[#3b1d02] text-[11px] font-extrabold px-2 py-0.5 rounded-full shadow-sm">12</span>
+</a>
+<a class="flex items-center gap-3 px-3 py-2 rounded-lg text-slate-400 hover:bg-white/5 hover:text-white transition-all group" href="#">
+<span class="material-symbols-outlined text-[20px] group-hover:text-blue-400 transition-colors">warning</span>
+<span class="text-sm font-medium">Panel de cuotas</span>
+</a>
+<a class="flex items-center gap-3 px-3 py-2 rounded-lg text-slate-400 hover:bg-white/5 hover:text-white transition-all group" href="#">
+<span class="material-symbols-outlined text-[20px] group-hover:text-blue-400 transition-colors">account_balance_wallet</span>
+<span class="text-sm font-medium">Efectivo</span>
+</a>
+<a class="flex items-center gap-3 px-3 py-2 rounded-lg text-slate-400 hover:bg-white/5 hover:text-white transition-all group" href="#">
+<span class="material-symbols-outlined text-[20px] group-hover:text-blue-400 transition-colors">calculate</span>
+<span class="text-sm font-medium">Cierre de caja</span>
+</a>
+<!-- Sección Finanzas -->
+<div class="pt-3 pb-1 px-3">
+<span class="text-[10px] uppercase font-bold tracking-widest text-slate-400/80">Finanzas</span>
+</div>
+<a class="flex items-center gap-3 px-3 py-2 rounded-lg text-slate-400 hover:bg-white/5 hover:text-white transition-all group" href="#">
+<span class="material-symbols-outlined text-[20px] group-hover:text-blue-400 transition-colors">menu_book</span>
+<span class="text-sm font-medium">Cuentas corrientes</span>
+</a>
+<a class="flex items-center gap-3 px-3 py-2 rounded-lg text-slate-400 hover:bg-white/5 hover:text-white transition-all group" href="#">
+<span class="material-symbols-outlined text-[20px] group-hover:text-blue-400 transition-colors">domain</span>
+<span class="text-sm font-medium">Cuentas externas</span>
+</a>
+<a class="flex items-center gap-3 px-3 py-2 rounded-lg text-slate-400 hover:bg-white/5 hover:text-white transition-all group" href="#">
+<span class="material-symbols-outlined text-[20px] group-hover:text-blue-400 transition-colors">trending_up</span>
+<span class="text-sm font-medium">Índices</span>
+</a>
+<!-- Sección Sistema -->
+<div class="pt-3 pb-1 px-3">
+<span class="text-[10px] uppercase font-bold tracking-widest text-slate-400/80">Sistema</span>
+</div>
+<a class="flex items-center gap-3 px-3 py-2 rounded-lg text-slate-400 hover:bg-white/5 hover:text-white transition-all group" href="#">
+<span class="material-symbols-outlined text-[20px] group-hover:text-blue-400 transition-colors">badge</span>
+<span class="text-sm font-medium">Mi perfil</span>
+</a>
+<a class="flex items-center gap-3 px-3 py-2 rounded-lg text-slate-400 hover:bg-white/5 hover:text-white transition-all group" href="#">
+<span class="material-symbols-outlined text-[20px] group-hover:text-blue-400 transition-colors">manage_accounts</span>
+<span class="text-sm font-medium">Usuarios</span>
+</a>
+<a class="flex items-center gap-3 px-3 py-2 rounded-lg text-slate-400 hover:bg-white/5 hover:text-white transition-all group" href="#">
+<span class="material-symbols-outlined text-[20px] group-hover:text-blue-400 transition-colors">history</span>
+<span class="text-sm font-medium">Historial</span>
+</a>
+<a class="flex items-center gap-3 px-3 py-2 rounded-lg text-slate-400 hover:bg-white/5 hover:text-white transition-all group" href="#">
+<span class="material-symbols-outlined text-[20px] group-hover:text-blue-400 transition-colors">verified_user</span>
+<span class="text-sm font-medium">Historial de ingresos</span>
+</a>
+</nav>
+</div>
+<!-- Pie de Sidebar: Perfil de Nicolás (Administrador) -->
+<div class="p-3 border-t border-white/10 bg-[#070f24] shrink-0">
+<div class="flex items-center justify-between gap-2 p-2 rounded-lg bg-white/5 border border-white/5">
+<div class="flex items-center gap-2.5 min-w-0">
+<div class="w-8 h-8 rounded-full bg-gradient-to-tr from-blue-600 to-indigo-500 text-white font-bold text-xs flex items-center justify-center shrink-0 ring-2 ring-blue-400/30">
+              N
+            </div>
+<div class="flex flex-col truncate">
+<span class="text-xs font-bold text-white truncate">Nicolás</span>
+<span class="text-[11px] text-slate-400 truncate">Administrador</span>
+</div>
+</div>
+<button class="p-1.5 text-slate-400 hover:text-rose-400 hover:bg-white/10 rounded-lg transition-colors shrink-0" title="Cerrar sesión" type="button">
+<span class="material-symbols-outlined text-[18px]">logout</span>
+</button>
+</div>
+</div>
+</div>
+</aside>
+<!-- CONTENEDOR PRINCIPAL -->
+<div class="pl-64 min-h-screen flex flex-col">
+<!-- Topbar Corporativa Limpia -->
+
+<!-- ÁREA DE CONTENIDO -->
+<main class="w-full flex-1 bg-[#f4f7fb] pt-2">
+<div class="max-w-[1720px] mx-auto px-6 py-4 md:px-8 md:py-5 space-y-6"><div class="flex flex-wrap items-center justify-between gap-2">
+<a class="inline-flex items-center gap-1.5 text-blue-600 hover:text-blue-800 font-semibold text-xs tracking-wide transition-colors group" href="#">
+<span class="material-symbols-outlined text-[18px] group-hover:-translate-x-0.5 transition-transform">arrow_back</span>
+<span class="">Volver a Lotes</span>
+</a>
+<div class="flex items-center gap-2"><div class="flex items-center gap-2 px-3 py-1.5 rounded-full bg-emerald-50 border border-emerald-200 text-emerald-800 shadow-sm"><span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span><span class="text-xs font-semibold tracking-wide">Dólar $1.420 ARS</span></div><button type="button" class="relative p-2 rounded-lg text-slate-500 hover:bg-slate-100 hover:text-slate-700 transition-colors flex items-center justify-center" title="Notificaciones"><svg class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"></path><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"></path></svg><span class="absolute top-1.5 right-1.5 w-2 h-2 rounded-full bg-rose-500 ring-2 ring-white"></span></button></div>
+</div>
+<div class="bg-white rounded-2xl p-5 md:p-6 border border-slate-200/80 shadow-[0_2px_10px_rgba(15,23,42,0.03)] flex flex-wrap items-center justify-between gap-5">
+<div class="flex items-center gap-4">
+<div class="w-13 h-13 p-3 rounded-xl bg-gradient-to-br from-blue-600 to-indigo-700 text-white flex items-center justify-center shadow-md shadow-blue-500/20 shrink-0">
+<span class="material-symbols-outlined text-[28px]">pin_drop</span>
+</div>
+<div class="flex flex-col gap-1">
+<div class="flex items-center gap-2.5 flex-wrap">
+<h1 class="font-heading text-xl md:text-2xl font-extrabold text-slate-900 tracking-tight">
+                  Lote 14 - Mz B (Altos de la Ribera)
+                </h1>
+<span class="px-2.5 py-0.5 rounded-full bg-blue-50 text-blue-700 border border-blue-200/70 text-[11px] uppercase tracking-wider font-bold">
+                  Vendido
+                </span>
+<span class="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200/70 text-[11px] uppercase tracking-wider font-bold">
+<span class="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
+                  Al día
+                </span>
+</div>
+<p class="text-xs text-slate-500 flex items-center gap-2 font-medium">
+<span class="font-mono text-slate-700 font-semibold">#LOT-2024-8849</span>
+<span class="">•</span>
+<span class="text-slate-600">Boleto Compraventa Activo</span>
+<span class="">•</span>
+<span class="text-slate-600">Plan 36 Cuotas</span>
+</p>
+</div>
+</div>
+<div class="flex items-center gap-2.5 flex-wrap shrink-0"><details class="group relative inline-block text-left"><summary class="inline-flex items-center gap-2 px-3.5 py-2 rounded-xl bg-blue-50 hover:bg-blue-100 text-blue-700 border border-blue-200 text-xs font-bold transition-all cursor-pointer list-none select-none"><span class="material-symbols-outlined text-[17px] text-blue-600">folder_open</span><span class="">Documentación del Lote</span><span class="px-1.5 py-0.2 rounded-full bg-blue-600 text-white text-[10px] font-bold">4</span><span class="material-symbols-outlined text-[16px] text-blue-500 group-open:rotate-180 transition-transform">expand_more</span></summary><div class="absolute right-0 mt-2 w-80 rounded-2xl bg-white border border-slate-200 shadow-xl p-4 z-50 space-y-3"><div class="flex items-center justify-between pb-2 border-b border-slate-100"><span class="text-xs font-bold text-slate-800">Archivos Adjuntos (4)</span><button class="inline-flex items-center gap-1 text-[11px] text-blue-600 hover:text-blue-800 font-bold" type="button"><span class="material-symbols-outlined text-[14px]">upload_file</span>Subir</button></div><ul class="divide-y divide-slate-100 text-xs"><li class="py-2 flex items-center justify-between gap-2"><div class="flex items-center gap-2 min-w-0"><span class="material-symbols-outlined text-rose-500 text-[17px] shrink-0">picture_as_pdf</span><span class="truncate text-slate-700 font-medium text-[11px]">Plano_Mensura_L14.pdf</span></div><a class="text-slate-400 hover:text-blue-600 p-1" href="#" title="Descargar"><span class="material-symbols-outlined text-[16px]">download</span></a></li><li class="py-2 flex items-center justify-between gap-2"><div class="flex items-center gap-2 min-w-0"><span class="material-symbols-outlined text-rose-500 text-[17px] shrink-0">picture_as_pdf</span><span class="truncate text-slate-700 font-medium text-[11px]">Boleto_Benitez_Firmado.pdf</span></div><a class="text-slate-400 hover:text-blue-600 p-1" href="#" title="Descargar"><span class="material-symbols-outlined text-[16px]">download</span></a></li><li class="py-2 flex items-center justify-between gap-2"><div class="flex items-center gap-2 min-w-0"><span class="material-symbols-outlined text-slate-400 text-[17px] shrink-0">draft</span><span class="truncate text-slate-700 font-medium text-[11px]">Informe_Dominio_Reg.pdf</span></div><a class="text-slate-400 hover:text-blue-600 p-1" href="#" title="Descargar"><span class="material-symbols-outlined text-[16px]">download</span></a></li><li class="py-2 flex items-center justify-between gap-2"><div class="flex items-center gap-2 min-w-0"><span class="material-symbols-outlined text-slate-400 text-[17px] shrink-0">receipt</span><span class="truncate text-slate-700 font-medium text-[11px]">Tasas_Municipales_2024.pdf</span></div><a class="text-slate-400 hover:text-blue-600 p-1" href="#" title="Descargar"><span class="material-symbols-outlined text-[16px]">download</span></a></li></ul></div></details>
+<button class="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-slate-50 hover:bg-amber-50 hover:border-amber-300 text-slate-700 hover:text-amber-800 border border-slate-200 text-xs font-semibold transition-all" type="button">
+<span class="material-symbols-outlined text-[17px] text-amber-600">warning</span>
+              Marcar Prejudicial
+            </button>
+<button class="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-slate-50 hover:bg-rose-50 hover:border-rose-300 text-slate-700 hover:text-rose-700 border border-slate-200 text-xs font-semibold transition-all" type="button">
+<span class="material-symbols-outlined text-[17px] text-rose-600">gavel</span>
+              Rescindir Lote
+            </button>
+<button class="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-slate-50 hover:bg-rose-600 text-slate-600 hover:text-white border border-slate-200 hover:border-rose-600 text-xs font-semibold transition-all" title="Eliminar registro (Permisos Admin)" type="button">
+<span class="material-symbols-outlined text-[17px]">delete</span>
+              Eliminar
+            </button>
+</div>
+</div>
+<div class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
+<div class="bg-white rounded-2xl p-5 border border-slate-200/80 shadow-[0_1px_4px_rgba(15,23,42,0.03)] flex flex-col justify-between space-y-3">
+<div class="flex items-center justify-between text-slate-400"><div class="flex items-center gap-2"><span class="text-[11px] uppercase font-bold tracking-wider text-slate-500">Precio Total Pactado</span><button class="inline-flex items-center gap-1 text-[11px] text-blue-600 hover:text-blue-800 font-bold transition-colors" type="button" title="Editar precio pactado"><span class="material-symbols-outlined text-[13px]">edit</span><span class="">Editar</span></button></div><span class="w-7 h-7 rounded-lg bg-blue-50 text-blue-600 flex items-center justify-center"><span class="material-symbols-outlined text-[16px]">monetization_on</span></span></div>
+<div><div class="flex items-baseline gap-2"><span class="font-heading text-2xl font-extrabold text-slate-900 tracking-tight font-mono">USD 28.000</span><span class="text-[10px] text-blue-700 uppercase font-extrabold bg-blue-50 border border-blue-200 px-1.5 py-0.5 rounded">Dólares</span></div></div>
+<div class="space-y-1">
+<div class="flex justify-between text-[11px] text-slate-500">
+<span class="">Progreso total</span>
+<span class="font-bold text-blue-700">65%</span>
+</div>
+<div class="w-full bg-slate-100 h-2 rounded-full overflow-hidden">
+<div class="bg-gradient-to-r from-blue-600 to-indigo-600 h-full rounded-full transition-all" style="width: 65%;"></div>
+</div>
+</div>
+</div>
+<div class="bg-white rounded-2xl p-5 border border-slate-200/80 shadow-[0_1px_4px_rgba(15,23,42,0.03)] flex flex-col justify-between space-y-3">
+<div class="flex items-center justify-between text-slate-400">
+<span class="text-[11px] uppercase font-bold tracking-wider text-slate-500">Cliente</span>
+<a class="text-blue-600 hover:text-blue-800 text-xs font-bold inline-flex items-center gap-0.5 transition-colors" href="#">
+                Ficha →
+              </a>
+</div>
+<div class="flex items-center gap-3">
+<div class="w-10 h-10 rounded-xl bg-[#0b1736] text-white flex items-center justify-center font-bold text-sm shrink-0 ring-2 ring-blue-500/20">
+                FB
+              </div>
+<div class="flex flex-col min-w-0">
+<span class="text-sm font-bold text-slate-900 truncate">Federico Agustín Benítez</span>
+<span class="text-[11px] text-slate-500 font-mono truncate">DNI 34.892.115 • <br>CUIT 20-34892115-3</span>
+</div>
+</div>
+<div class="flex items-center gap-1.5 text-xs text-slate-600 bg-slate-50 p-2 rounded-lg border border-slate-100 truncate">
+<span class="material-symbols-outlined text-[15px] text-blue-600 shrink-0">mail</span>
+<span class="truncate font-medium">f.benitez@inversiones.com.ar</span>
+</div>
+</div>
+<div class="bg-white rounded-2xl p-5 border border-slate-200/80 shadow-[0_1px_4px_rgba(15,23,42,0.03)] flex flex-col justify-between space-y-3">
+<div class="flex items-center justify-between text-slate-400">
+<span class="text-[11px] uppercase font-bold tracking-wider text-slate-500">Saldo Pendiente</span>
+<span class="inline-flex items-center justify-center text-center text-[11px] font-bold text-emerald-700 bg-emerald-50 border border-emerald-100 px-2 py-0.5 rounded-full">24 / 36 pagadas</span>
+</div>
+<div><div class="flex items-baseline gap-2"><span class="font-heading text-2xl font-extrabold text-slate-900 tracking-tight font-mono">USD 9.800,00</span><span class="text-xs text-slate-400 font-medium font-mono">/ USD 18.000,00 fin.</span></div><p class="text-xs text-slate-500 mt-1">Próx. vencimiento: <span class="font-semibold text-slate-800">10/11/2024</span></p></div>
+<div class="flex items-center justify-between text-xs pt-1 border-t border-slate-100">
+<span class="text-blue-700 font-bold bg-blue-50 px-2 py-0.5 rounded text-[11px]">12 cuotas rest.</span>
+</div>
+</div>
+<div class="bg-white rounded-2xl p-5 border border-slate-200/80 shadow-[0_1px_4px_rgba(15,23,42,0.03)] flex flex-col justify-between space-y-3">
+<div class="flex items-center justify-between text-slate-400">
+<span class="text-[11px] uppercase font-bold tracking-wider text-slate-500">Acreedor&nbsp;</span>
+<span class="w-7 h-7 rounded-lg bg-indigo-50 text-indigo-600 flex items-center justify-center">
+<span class="material-symbols-outlined text-[16px]">verified</span>
+</span>
+</div>
+<div class="space-y-1.5 text-xs">
+<div class="flex items-center justify-between">
+<span class="text-slate-400">Acreedor:</span>
+<span class="font-semibold text-slate-800 truncate max-w-[140px]">Fideicomiso Balcarce SRL</span>
+</div>
+<div class="flex items-center justify-between">
+<span class="text-slate-400">Vendedor:</span>
+<span class="font-semibold text-slate-800">Carlos Méndez</span>
+</div>
+</div>
+<a class="inline-flex items-center justify-center gap-1.5 w-full py-1.5 px-3 bg-blue-50 hover:bg-blue-100 text-blue-700 rounded-xl text-xs font-semibold transition-colors" href="#">
+<span class="material-symbols-outlined text-[15px]">description</span>
+              Ver documento firmado (Boleto #894)
+            </a>
+</div>
+</div>
+<div class="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+<div class="lg:col-span-7 xl:col-span-8 space-y-6">
+<div class="bg-white rounded-2xl border border-slate-200/80 shadow-[0_2px_10px_rgba(15,23,42,0.03)] overflow-hidden">
+<div class="p-5 flex flex-wrap items-center justify-between gap-4 border-b border-slate-100 bg-white">
+<div class="flex items-center gap-3">
+<div class="w-10 h-10 rounded-xl bg-blue-50 text-blue-700 flex items-center justify-center">
+<span class="material-symbols-outlined text-[22px]">calendar_month</span>
+</div>
+<div>
+<h2 class="font-heading font-bold text-slate-900 text-base">Plan de Cuotas Activo</h2>
+</div>
+</div>
+<button class="inline-flex items-center gap-1 px-3 py-1.5 bg-slate-50 hover:bg-slate-100 border border-slate-200 text-blue-700 rounded-xl text-xs font-semibold transition-colors" type="button">
+                  Ver / editar distribución de cuotas
+                  <span class="material-symbols-outlined text-[15px]">arrow_forward</span>
+</button>
+</div>
+<div class="p-5 space-y-4">
+<div class="flex flex-wrap items-center justify-between gap-4 p-4 rounded-xl bg-gradient-to-r from-blue-50 via-indigo-50/50 to-white border border-blue-100"><div class="flex items-center gap-3"><div class="w-10 h-10 rounded-xl bg-blue-600 text-white flex items-center justify-center shadow-md shadow-blue-500/20 shrink-0"><span class="material-symbols-outlined text-[20px]">calculate</span></div><div><span class="text-sm font-bold text-slate-900 block">Saldar Lote</span></div></div><div class="flex items-center gap-4 shrink-0"><div class="text-right"><span class="text-[10px] uppercase font-bold text-slate-400 block tracking-wider">Monto a Liquidar</span><span class="font-heading text-lg font-extrabold text-blue-700">USD 9.359,00</span></div><button class="px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold transition-all shadow-md shadow-blue-600/30 active:scale-95" type="button">Cancelación Total Anticipada</button></div></div>
+<div class="rounded-xl overflow-hidden border border-slate-200/90 shadow-sm">
+<div class="overflow-x-auto">
+<table class="w-full text-left border-collapse text-xs">
+<thead>
+<tr class="bg-gradient-to-r from-blue-900 to-blue-800 text-white font-semibold">
+<th class="py-3 px-3.5 tracking-wide">Cuota</th>
+<th class="py-3 px-3.5 tracking-wide">Vencimiento</th>
+<th class="py-3 px-3.5 text-right tracking-wide">Monto Base</th>
+<th class="py-3 px-3.5 text-right tracking-wide">Ajuste Índice</th>
+<th class="py-3 px-3.5 text-right tracking-wide">Saldo Pend.</th>
+<th class="py-3 px-3.5 text-right tracking-wide">Interés Moratorio</th>
+<th class="py-3 px-3.5 text-center tracking-wide">Estado</th>
+<th class="py-3 px-3.5 text-center tracking-wide">Acción</th>
+</tr>
+</thead>
+<tbody class="divide-y divide-slate-100 bg-white font-mono"><tr class="hover:bg-slate-50/80 transition-colors"><td class="py-3 px-3.5 font-bold text-slate-800">#23 / 36</td><td class="py-3 px-3.5 text-slate-500 font-sans">10/09/2024</td><td class="py-3 px-3.5 text-right font-medium font-mono">USD 500,00</td><td class="py-3 px-3.5 text-right text-slate-500 font-mono">+3.8% (CAC)</td><td class="py-3 px-3.5 text-right text-slate-400 font-mono">USD 0,00</td><td class="py-3 px-3.5 text-right text-slate-400">-</td><td class="py-3 px-3.5 text-center font-sans"><span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200 text-[11px] font-bold"><span class="material-symbols-outlined text-[13px]">check</span>Pagada</span></td><td class="py-3 px-3.5 text-center font-sans"><button class="text-slate-400 hover:text-blue-600 transition-colors p-1" title="Ver Recibo #842" type="button"><span class="material-symbols-outlined text-[18px]">receipt_long</span></button></td></tr><tr class="hover:bg-slate-50/80 transition-colors"><td class="py-3 px-3.5 font-bold text-slate-800">#24 / 36</td><td class="py-3 px-3.5 text-slate-500 font-sans">10/10/2024</td><td class="py-3 px-3.5 text-right font-medium font-mono">USD 500,00</td><td class="py-3 px-3.5 text-right text-slate-500 font-mono">+4.1% (CAC)</td><td class="py-3 px-3.5 text-right text-slate-400 font-mono">USD 0,00</td><td class="py-3 px-3.5 text-right text-slate-400">-</td><td class="py-3 px-3.5 text-center font-sans"><span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200 text-[11px] font-bold"><span class="material-symbols-outlined text-[13px]">check</span>Pagada</span></td><td class="py-3 px-3.5 text-center font-sans"><button class="text-slate-400 hover:text-blue-600 transition-colors p-1" title="Ver Recibo #899" type="button"><span class="material-symbols-outlined text-[18px]">receipt_long</span></button></td></tr><tr class="bg-blue-50/50 hover:bg-blue-50 transition-colors ring-1 ring-inset ring-blue-200"><td class="py-3 px-3.5 font-bold text-blue-700">#25 / 36</td><td class="py-3 px-3.5 font-bold text-slate-900 font-sans">10/11/2024</td><td class="py-3 px-3.5 text-right font-bold text-slate-800 font-mono">USD 500,00</td><td class="py-3 px-3.5 text-right font-bold text-blue-700 font-mono">+3.9% (USD 19,50)</td><td class="py-3 px-3.5 text-right font-extrabold text-slate-900 font-mono">USD 519,50</td><td class="py-3 px-3.5 text-right text-slate-400 font-mono">USD 0,00</td><td class="py-3 px-3.5 text-center font-sans"><span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-amber-50 text-amber-800 border border-amber-200 text-[11px] font-bold">Por Vencer</span></td><td class="py-3 px-3.5 text-center font-sans"><button class="px-3 py-1 rounded-lg bg-blue-600 text-white font-bold hover:bg-blue-700 transition-colors shadow-sm text-xs" type="button">Cobrar</button></td></tr><tr class="hover:bg-slate-50/80 transition-colors text-slate-600"><td class="py-3 px-3.5 font-semibold text-slate-700">#26 / 36</td><td class="py-3 px-3.5 text-slate-500 font-sans">10/12/2024</td><td class="py-3 px-3.5 text-right font-medium font-mono">USD 500,00</td><td class="py-3 px-3.5 text-right text-slate-400 font-mono">Pendiente</td><td class="py-3 px-3.5 text-right text-slate-500 font-mono">USD 500,00*</td><td class="py-3 px-3.5 text-right text-slate-400">-</td><td class="py-3 px-3.5 text-center font-sans"><span class="inline-flex items-center px-2 py-0.5 rounded-full bg-slate-100 text-slate-500 text-[11px] font-medium">Esperando</span></td><td class="py-3 px-3.5 text-center font-sans"><button class="text-slate-400 hover:text-slate-700 p-1 transition-colors" title="Simular cobro" type="button"><span class="material-symbols-outlined text-[18px]">more_horiz</span></button></td></tr><tr class="hover:bg-slate-50/80 transition-colors text-slate-600"><td class="py-3 px-3.5 font-semibold text-slate-700">#27 / 36</td><td class="py-3 px-3.5 text-slate-500 font-sans">10/01/2025</td><td class="py-3 px-3.5 text-right font-medium font-mono">USD 500,00</td><td class="py-3 px-3.5 text-right text-slate-400 font-mono">Pendiente</td><td class="py-3 px-3.5 text-right text-slate-500 font-mono">USD 500,00*</td><td class="py-3 px-3.5 text-right text-slate-400">-</td><td class="py-3 px-3.5 text-center font-sans"><span class="inline-flex items-center px-2 py-0.5 rounded-full bg-slate-100 text-slate-500 text-[11px] font-medium">Esperando</span></td><td class="py-3 px-3.5 text-center font-sans"><button class="text-slate-400 hover:text-slate-700 p-1 transition-colors" title="Simular cobro" type="button"><span class="material-symbols-outlined text-[18px]">more_horiz</span></button></td></tr></tbody>
+</table>
+</div>
+</div>
+<div class="flex flex-wrap items-center justify-between text-xs text-slate-500 pt-1">
+<span class="">Mostrando 5 cuotas del ciclo activo (23 al 27 de 36)</span>
+<a class="text-blue-600 hover:text-blue-800 font-bold inline-flex items-center gap-1" href="#">
+                    Ver cuadro de amortización completo (36 cuotas) →
+                  </a>
+</div>
+<details class="group rounded-xl bg-slate-50 border border-slate-200/80 p-4 transition-all">
+<summary class="flex items-center justify-between cursor-pointer list-none font-bold text-xs text-slate-800 select-none">
+<div class="flex items-center gap-2">
+<span class="w-6 h-6 rounded-md bg-blue-100 text-blue-700 flex items-center justify-center">
+<span class="material-symbols-outlined text-[16px]">tune</span>
+</span>
+<span class="">Refinanciar Cuotas Pendientes / Reestructuración</span>
+</div>
+<span class="material-symbols-outlined text-slate-400 group-open:rotate-180 transition-transform text-[20px]">expand_more</span>
+</summary>
+<div class="mt-4 pt-3 border-t border-slate-200 space-y-4 text-xs">
+<p class="text-slate-500">
+                      Seleccione las cuotas impagas o futuras para rearmar un sub-plan de pagos recalculando plazos y tasas.
+                    </p>
+<div class="grid grid-cols-1 md:grid-cols-3 gap-3">
+<div>
+<label class="block text-[11px] font-bold text-slate-600 mb-1">Cuotas a incluir</label>
+<select class="w-full bg-white border border-slate-200 rounded-lg px-3 py-2 text-xs text-slate-800 focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none">
+<option>Desde Cuota 25 a Cuota 36 (12)</option>
+<option>Desde Cuota 26 a Cuota 36 (11)</option>
+<option>Personalizado...</option>
+</select>
+</div>
+<div>
+<label class="block text-[11px] font-bold text-slate-600 mb-1">Nuevo plazo de pago</label>
+<select class="w-full bg-white border border-slate-200 rounded-lg px-3 py-2 text-xs text-slate-800 focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none">
+<option>18 cuotas (+6 meses extensión)</option>
+<option>24 cuotas (+12 meses extensión)</option>
+<option>12 cuotas con interés compensatorio</option>
+</select>
+</div>
+<div>
+<label class="block text-[11px] font-bold text-slate-600 mb-1">Fecha 1er nuevo vencimiento</label>
+<input class="w-full bg-white border border-slate-200 rounded-lg px-3 py-2 text-xs text-slate-800 focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none" type="date" value="2024-12-10">
+</div>
+</div>
+<div class="flex justify-end gap-2 pt-2">
+<button class="px-3.5 py-1.5 rounded-lg bg-white border border-slate-200 text-slate-700 font-bold hover:bg-slate-100 transition-colors text-xs" type="button">
+                        Simular Nuevas Cuotas
+                      </button>
+<button class="px-3.5 py-1.5 rounded-lg bg-blue-600 text-white font-bold hover:bg-blue-700 transition-colors shadow-sm text-xs" type="button">
+                        Aplicar Reestructuración y Generar Adenda
+                      </button>
+</div>
+</div>
+</details>
+</div>
+</div>
+</div>
+<div class="lg:col-span-5 xl:col-span-4 space-y-6">
+<div class="bg-white rounded-2xl border border-slate-200/80 shadow-[0_2px_10px_rgba(15,23,42,0.03)] p-5 space-y-4">
+<div class="flex items-center justify-between pb-3 border-b border-slate-100">
+<div class="flex items-center gap-2">
+<span class="w-8 h-8 rounded-lg bg-blue-50 text-blue-700 flex items-center justify-center">
+<span class="material-symbols-outlined text-[19px]">payments</span>
+</span>
+<h3 class="font-heading font-bold text-slate-900 text-sm">Historial de Pagos</h3>
+</div>
+<span class="inline-flex items-center justify-center text-center px-2.5 py-0.5 rounded-full bg-blue-50 text-blue-700 border border-blue-200 text-xs font-bold">Total: USD 18.200,00</span>
+</div>
+<div class="space-y-3"><div class="p-3.5 rounded-xl bg-amber-50/60 border border-amber-200/80 space-y-3 ring-1 ring-amber-300/60"><div class="flex items-center justify-between gap-2"><div class="flex items-center gap-2 flex-wrap"><span class="text-sm font-bold text-slate-900">Cuota #25</span></div><span class="text-sm font-bold text-blue-700 font-mono text-right shrink-0">USD 500,00</span></div><div><span class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-amber-100 text-amber-800 border border-amber-200 text-[10px] font-extrabold uppercase tracking-wide"><span class="w-1.5 h-1.5 rounded-full bg-amber-600 animate-pulse"></span>PENDIENTE DOBLE VALIDACIÓN</span></div><div class="text-slate-600 text-[11px] font-medium">04/11/2024 • Transferencia</div><div class="p-2 rounded-lg bg-white/90 border border-amber-200/80 text-[11px] text-slate-600 flex items-center justify-between gap-2"><div class="flex items-center gap-1.5 truncate"><span class="material-symbols-outlined text-blue-600 text-[15px]">receipt_long</span><span class="truncate font-medium text-slate-700">Comprobante reci...</span></div><a class="text-blue-600 hover:text-blue-800 font-bold inline-flex items-center gap-0.5 shrink-0 text-xs" href="#">Ver adjunto<span class="material-symbols-outlined text-[13px]">open_in_new</span></a></div><div class="p-3 rounded-xl bg-white border border-amber-200/80 space-y-2.5 text-[11px]"><div class="flex items-center justify-between text-[10px] font-bold pb-1.5 border-b border-slate-100"><span class="flex items-center gap-1 text-slate-700 uppercase tracking-wider"><span class="material-symbols-outlined text-[15px] text-blue-600">verified_user</span>DOBLE CONTROL</span><span class="text-amber-700 font-extrabold tracking-wider uppercase text-[10px]">PASO 2 DE 2</span></div><div class="flex items-center justify-between py-0.5 gap-2"><div class="flex items-center gap-1.5 min-w-0"><span class="material-symbols-outlined text-emerald-700 text-[15px] shrink-0">check_circle</span><span class="text-slate-700 font-medium truncate">Rece...</span></div><span class="inline-flex items-center px-2 py-0.5 rounded-md bg-emerald-50 text-emerald-800 font-bold text-[10px] border border-emerald-200 shrink-0">✓ Validado (04/11 11:20 hs)</span></div><div class="flex items-center justify-between py-0.5 text-slate-700 gap-2"><div class="flex items-center gap-1.5 min-w-0"><span class="material-symbols-outlined text-amber-600 text-[15px] shrink-0">hourglass_top</span><span class="text-slate-700 font-medium truncate">Admin (Nicolás):</span></div><span class="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-amber-100 text-amber-800 font-bold text-[10px] border border-amber-200 shrink-0"><span class="material-symbols-outlined text-[12px] text-amber-700">schedule</span>⏳ Pendiente</span></div></div><div class="flex items-center justify-between gap-2 pt-1"><span class="text-[11px] text-amber-800 font-semibold flex items-center gap-1.5"><span class="w-1.5 h-1.5 rounded-full bg-amber-500"></span>Acción requerida por Admin</span><button class="px-3.5 py-1.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs transition-all shadow-md shadow-blue-600/20 flex items-center gap-1.5 active:scale-95 shrink-0" type="button" title="Revisar comprobante e impactar"><span class="material-symbols-outlined text-[15px]">rule</span>Revisar e Impactar</button></div></div><div class="p-3.5 rounded-xl bg-slate-50 border border-slate-200/80 space-y-2 hover:bg-slate-100/60 transition-colors"><div class="flex items-center justify-between gap-2"><div class="flex items-center gap-2"><span class="text-sm font-bold text-slate-900">Cuota #24</span><span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200 text-[10px] font-bold"><span class="material-symbols-outlined text-[12px]">check_circle</span>Confirmado</span></div><span class="text-sm font-bold text-blue-700 font-mono text-right shrink-0">USD 500,00</span></div><div class="text-slate-500 text-[11px] font-medium">08/10/2024 • Transferencia Galicia</div><div class="flex items-center justify-between pt-1.5 border-t border-slate-200/70 text-[11px] font-sans"><span class="text-emerald-700 font-medium text-[11px]">Impactado por Nicolás (Admin)</span><a class="text-blue-600 hover:text-blue-800 font-bold inline-flex items-center gap-1 text-xs" href="#">Ver comprobante<span class="material-symbols-outlined text-[13px]">open_in_new</span></a></div></div><div class="p-3.5 rounded-xl bg-slate-50 border border-slate-200/80 space-y-2 hover:bg-slate-100/60 transition-colors"><div class="flex items-center justify-between gap-2"><div class="flex items-center gap-2"><span class="text-sm font-bold text-slate-900">Cuota #23</span><span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200 text-[10px] font-bold"><span class="material-symbols-outlined text-[12px]">check_circle</span>Confirmado</span></div><span class="text-sm font-bold text-blue-700 font-mono text-right shrink-0">USD 500,00</span></div><div class="text-slate-500 text-[11px] font-medium">09/09/2024 • Efectivo en Caja</div><div class="flex items-center justify-between pt-1.5 border-t border-slate-200/70 text-[11px] font-sans"><span class="text-emerald-700 font-medium text-[11px]">Impactado por Caja Central</span><a class="text-blue-600 hover:text-blue-800 font-bold inline-flex items-center gap-1 text-xs" href="#">Ver comprobante<span class="material-symbols-outlined text-[13px]">open_in_new</span></a></div></div></div>
+</div>
+</div>
+</div>
+<div class="bg-white rounded-2xl border border-slate-200/80 shadow-[0_2px_10px_rgba(15,23,42,0.03)] p-6 space-y-6">
+<div class="flex flex-wrap items-center justify-between gap-4 pb-4 border-b border-slate-100">
+<div>
+<h3 class="font-heading font-bold text-slate-900 text-base">Datos del Lote</h3>
+</div>
+<div class="flex items-center gap-2.5">
+<button class="px-5 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold transition-all shadow-md shadow-blue-600/20 active:scale-95" type="button">
+                Guardar Cambios</button>
+</div>
+</div>
+<form class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4" onsubmit="event.preventDefault();">
+<div class="flex flex-col space-y-1.5">
+<label class="text-[11px] font-bold text-slate-600 uppercase tracking-wider">Identificador de Sistema</label>
+<input class="bg-slate-50 hover:bg-slate-100/60 focus:bg-white text-slate-900 font-medium text-xs rounded-xl px-3.5 py-2.5 border border-slate-200 focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none transition-all" type="text" value="ALTOS-MZB-L14">
+</div>
+<div class="flex flex-col space-y-1.5">
+<label class="text-[11px] font-bold text-slate-600 uppercase tracking-wider">UBICACIÓN</label>
+<input class="bg-slate-50 hover:bg-slate-100/60 focus:bg-white text-slate-900 font-medium text-xs rounded-xl px-3.5 py-2.5 border border-slate-200 focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none transition-all" type="text" value="Altos de la Ribera - Etapa 2">
+</div>
+<div class="flex flex-col space-y-1.5">
+<label class="text-[11px] font-bold text-slate-600 uppercase tracking-wider">Superficie Total (m²)</label>
+<div class="relative flex items-center">
+<input class="w-full bg-slate-50 hover:bg-slate-100/60 focus:bg-white text-slate-900 font-medium text-xs rounded-xl px-3.5 py-2.5 border border-slate-200 focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none transition-all pr-10" type="text" value="480.50">
+<span class="absolute right-3.5 text-xs text-slate-400 font-semibold pointer-events-none">m²</span>
+</div>
+</div>
+<div class="grid grid-cols-2 gap-2">
+<div class="flex flex-col space-y-1.5">
+<label class="text-[11px] font-bold text-slate-600 uppercase tracking-wider">Manzana</label>
+<input class="w-full bg-slate-50 hover:bg-slate-100/60 focus:bg-white text-slate-900 font-medium text-xs rounded-xl px-3 py-2.5 border border-slate-200 focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none text-center transition-all" type="text" value="B">
+</div>
+<div class="flex flex-col space-y-1.5">
+<label class="text-[11px] font-bold text-slate-600 uppercase tracking-wider">LOTE</label>
+<input class="w-full bg-slate-50 hover:bg-slate-100/60 focus:bg-white text-slate-900 font-medium text-xs rounded-xl px-3 py-2.5 border border-slate-200 focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none text-center transition-all" type="text" value="14">
+</div>
+</div>
+<div class="flex flex-col space-y-1.5">
+<label class="text-[11px] font-bold text-slate-600 uppercase tracking-wider">Nomenclatura Catastral</label>
+<input class="bg-slate-50 hover:bg-slate-100/60 focus:bg-white text-slate-900 font-mono text-xs rounded-xl px-3.5 py-2.5 border border-slate-200 focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none transition-all" type="text" value="Circ. 04 - Secc. B - Ch. 12 - Parc. 14">
+</div>
+<div class="flex flex-col space-y-1.5">
+<label class="text-[11px] font-bold text-slate-600 uppercase tracking-wider">Cuenta Rentas</label>
+<input class="bg-slate-50 hover:bg-slate-100/60 focus:bg-white text-slate-900 font-mono text-xs rounded-xl px-3.5 py-2.5 border border-slate-200 focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none transition-all" type="text" value="23-09418294-1">
+</div>
+<div class="flex flex-col space-y-1.5">
+<label class="text-[11px] font-bold text-slate-600 uppercase tracking-wider">Matrícula / Folio Real</label>
+<input class="bg-slate-50 hover:bg-slate-100/60 focus:bg-white text-slate-900 font-mono text-xs rounded-xl px-3.5 py-2.5 border border-slate-200 focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none transition-all" type="text" value="FR-184.290 (Tomo 44 / 2021)">
+</div>
+<div class="flex flex-col space-y-1.5">
+</div>
+</form>
+</div></div>
+</main>
+</div>
+
+
+
+
+
+
+
+
+
+
+
+
+</body></html>

@@ -1,0 +1,560 @@
+<!DOCTYPE html><html lang="es" style=""><head>
+<meta charset="utf-8">
+<meta content="width=device-width, initial-scale=1.0" name="viewport">
+<title>SIMACOR - Reservar Lote MZ 14 - Lote 08</title>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&amp;family=Inter:wght@400;500;600;700&amp;display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet">
+<style>
+    @layer base {
+      html, body { margin: 0; padding: 0; }
+      body { overscroll-behavior: none; }
+    }
+    ::-webkit-scrollbar { width: 6px; height: 6px; }
+    ::-webkit-scrollbar-track { background: #f1f5f9; }
+    ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
+    ::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+  </style>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<script id="tailwind-config">
+    tailwind.config = {
+      darkMode: "class",
+      theme: {
+        extend: {
+          colors: {
+            brand: {
+              navy: '#0b1736',
+              navyDark: '#070f24',
+              navyLight: '#16234b',
+              blue: '#004ac6',
+              cobalt: '#0053db',
+              accent: '#2563eb',
+            }
+          },
+          fontFamily: {
+            sans: ['Inter', 'sans-serif'],
+            heading: ['Plus Jakarta Sans', 'sans-serif'],
+          }
+        }
+      }
+    };
+  </script>
+</head>
+<body class="bg-[#f4f7fb] font-sans text-slate-800 antialiased selection:bg-blue-600 selection:text-white min-h-screen">
+<!-- SIDEBAR (Exacta a Screen 8: Azul Marino Corporativo #0b1736 con Logo oficial en caja blanca) -->
+<aside class="fixed left-0 top-0 h-screen w-64 bg-[#0b1736] text-slate-300 z-50 flex flex-col justify-between border-r border-slate-800 shadow-xl">
+<div class="flex flex-col h-full overflow-hidden">
+<!-- Encabezado Sidebar & Logo Oficial con contenedor blanco -->
+<div class="h-16 flex items-center justify-between px-4 border-b border-white/10 shrink-0 bg-[#070f24]">
+<div class="flex-1 mr-2 rounded-lg bg-white px-3 py-1.5 flex items-center justify-center shadow-sm border border-slate-100/10">
+<img alt="SIMACOR Desarrollos Inmobiliarios" class="block h-7 w-auto object-contain" src="https://lh3.googleusercontent.com/aida-public/AB6AXuDVgIpLfA394eSTlN4yrjOzdXSRBMsYuIXYzIK5DOBhx4GjHgO4g8A7TgmC9CjXJ2xPdIGQueHgFn2NOFqzz812kh0rmo4kl6mqGUxRcTx1--5DJgZncj6RMc3wJR8xrq0WBGYLQBuVBPjIaeIOuqvTZrwCndXJ4fBRTIP5ka5u0AD9omNkySt8isZD3yiqlwjixQF_5tvhJLSpt_M1lSZnK9ranQEZMkJe1735ud6evNXUVtiIJnF8rU26DS0g68xcYbw">
+</div>
+<button class="shrink-0 rounded-lg p-1.5 text-white/60 transition-colors hover:bg-white/[0.08] hover:text-white flex items-center justify-center" title="Contraer menú" type="button">
+<svg class="h-[18px] w-[18px]" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" viewBox="0 0 24 24">
+<rect height="18" rx="2" width="18" x="3" y="3"></rect>
+<path d="M9 3v18"></path>
+<path d="m16 15-3-3 3-3"></path>
+</svg>
+</button>
+</div>
+<!-- Menú de Navegación Agrupado -->
+<div class="flex-1 overflow-y-auto px-3.5 py-4 space-y-4">
+<nav class="space-y-1">
+<a class="flex items-center gap-3 px-3 py-2 rounded-lg text-slate-400 hover:bg-white/5 hover:text-white transition-all group" href="#">
+<span class="material-symbols-outlined text-[20px] group-hover:text-blue-400 transition-colors">dashboard</span>
+<span class="text-sm font-medium">Inicio</span>
+</a>
+<!-- Sección Operación -->
+<div class="pt-3 pb-1 px-3">
+<span class="text-[10px] uppercase font-bold tracking-widest text-slate-400/80">Operación</span>
+</div>
+<a aria-current="page" class="flex items-center gap-3 px-3 py-2 rounded-lg bg-blue-600 text-white font-semibold shadow-md shadow-blue-900/40 relative" href="#">
+<span class="material-symbols-outlined text-[20px]">pin_drop</span>
+<span class="text-sm">Lotes</span>
+</a>
+<a class="flex items-center gap-3 px-3 py-2 rounded-lg text-slate-400 hover:bg-white/5 hover:text-white transition-all group" href="#">
+<span class="material-symbols-outlined text-[20px] group-hover:text-blue-400 transition-colors">layers</span>
+<span class="text-sm font-medium">Loteos</span>
+</a>
+<a class="flex items-center gap-3 px-3 py-2 rounded-lg text-slate-400 hover:bg-white/5 hover:text-white transition-all group" href="#">
+<span class="material-symbols-outlined text-[20px] group-hover:text-blue-400 transition-colors">group</span>
+<span class="text-sm font-medium">Clientes</span>
+</a>
+<a class="flex items-center gap-3 px-3 py-2 rounded-lg text-slate-400 hover:bg-white/5 hover:text-white transition-all group" href="#">
+<span class="material-symbols-outlined text-[20px] group-hover:text-blue-400 transition-colors">draw</span>
+<span class="text-sm font-medium">Boletos de compraventa</span>
+</a>
+<!-- Sección Cobranza -->
+<div class="pt-3 pb-1 px-3">
+<span class="text-[10px] uppercase font-bold tracking-widest text-slate-400/80">Cobranza</span>
+</div>
+<a class="flex items-center justify-between px-3 py-2 rounded-lg text-slate-400 hover:bg-white/5 hover:text-white transition-all group" href="#">
+<div class="flex items-center gap-3">
+<span class="material-symbols-outlined text-[20px] group-hover:text-blue-400 transition-colors">payments</span>
+<span class="text-sm font-medium">Pagos</span>
+</div>
+<span class="bg-amber-500 text-[#3b1d02] text-[11px] font-extrabold px-2 py-0.5 rounded-full shadow-sm animate-pulse">12</span>
+</a>
+<a class="flex items-center gap-3 px-3 py-2 rounded-lg text-slate-400 hover:bg-white/5 hover:text-white transition-all group" href="#">
+<span class="material-symbols-outlined text-[20px] group-hover:text-blue-400 transition-colors">warning</span>
+<span class="text-sm font-medium">Panel de cuotas</span>
+</a>
+<a class="flex items-center gap-3 px-3 py-2 rounded-lg text-slate-400 hover:bg-white/5 hover:text-white transition-all group" href="#">
+<span class="material-symbols-outlined text-[20px] group-hover:text-blue-400 transition-colors">account_balance_wallet</span>
+<span class="text-sm font-medium">Efectivo</span>
+</a>
+<a class="flex items-center gap-3 px-3 py-2 rounded-lg text-slate-400 hover:bg-white/5 hover:text-white transition-all group" href="#">
+<span class="material-symbols-outlined text-[20px] group-hover:text-blue-400 transition-colors">calculate</span>
+<span class="text-sm font-medium">Cierre de caja</span>
+</a>
+<!-- Sección Finanzas -->
+<div class="pt-3 pb-1 px-3">
+<span class="text-[10px] uppercase font-bold tracking-widest text-slate-400/80">Finanzas</span>
+</div>
+<a class="flex items-center gap-3 px-3 py-2 rounded-lg text-slate-400 hover:bg-white/5 hover:text-white transition-all group" href="#">
+<span class="material-symbols-outlined text-[20px] group-hover:text-blue-400 transition-colors">menu_book</span>
+<span class="text-sm font-medium">Cuentas corrientes</span>
+</a>
+<a class="flex items-center gap-3 px-3 py-2 rounded-lg text-slate-400 hover:bg-white/5 hover:text-white transition-all group" href="#">
+<span class="material-symbols-outlined text-[20px] group-hover:text-blue-400 transition-colors">domain</span>
+<span class="text-sm font-medium">Cuentas externas</span>
+</a>
+<a class="flex items-center gap-3 px-3 py-2 rounded-lg text-slate-400 hover:bg-white/5 hover:text-white transition-all group" href="#">
+<span class="material-symbols-outlined text-[20px] group-hover:text-blue-400 transition-colors">trending_up</span>
+<span class="text-sm font-medium">Índices</span>
+</a>
+<!-- Sección Sistema -->
+<div class="pt-3 pb-1 px-3">
+<span class="text-[10px] uppercase font-bold tracking-widest text-slate-400/80">Sistema</span>
+</div>
+<a class="flex items-center gap-3 px-3 py-2 rounded-lg text-slate-400 hover:bg-white/5 hover:text-white transition-all group" href="#">
+<span class="material-symbols-outlined text-[20px] group-hover:text-blue-400 transition-colors">badge</span>
+<span class="text-sm font-medium">Mi perfil</span>
+</a>
+<a class="flex items-center gap-3 px-3 py-2 rounded-lg text-slate-400 hover:bg-white/5 hover:text-white transition-all group" href="#">
+<span class="material-symbols-outlined text-[20px] group-hover:text-blue-400 transition-colors">manage_accounts</span>
+<span class="text-sm font-medium">Usuarios</span>
+</a>
+<a class="flex items-center gap-3 px-3 py-2 rounded-lg text-slate-400 hover:bg-white/5 hover:text-white transition-all group" href="#">
+<span class="material-symbols-outlined text-[20px] group-hover:text-blue-400 transition-colors">history</span>
+<span class="text-sm font-medium">Historial</span>
+</a>
+<a class="flex items-center gap-3 px-3 py-2 rounded-lg text-slate-400 hover:bg-white/5 hover:text-white transition-all group" href="#">
+<span class="material-symbols-outlined text-[20px] group-hover:text-blue-400 transition-colors">verified_user</span>
+<span class="text-sm font-medium">Historial de ingresos</span>
+</a>
+</nav>
+</div>
+<!-- Pie de Sidebar: Perfil de Nicolás (Administrador) -->
+<div class="p-3 border-t border-white/10 bg-[#070f24] shrink-0">
+<div class="flex items-center justify-between gap-2 p-2 rounded-lg bg-white/5 border border-white/5">
+<div class="flex items-center gap-2.5 min-w-0">
+<div class="w-8 h-8 rounded-full bg-gradient-to-tr from-blue-600 to-indigo-500 text-white font-bold text-xs flex items-center justify-center shrink-0 ring-2 ring-blue-400/30">
+              N
+            </div>
+<div class="flex flex-col truncate">
+<span class="text-xs font-bold text-white truncate">Nicolás</span>
+<span class="text-[11px] text-slate-400 truncate">Administrador</span>
+</div>
+</div>
+<button class="p-1.5 text-slate-400 hover:text-rose-400 hover:bg-white/10 rounded-lg transition-colors shrink-0" title="Cerrar sesión" type="button">
+<span class="material-symbols-outlined text-[18px]">logout</span>
+</button>
+</div>
+</div>
+</div>
+</aside>
+<!-- CONTENEDOR PRINCIPAL CON TOPBAR EXACTA -->
+<div class="pl-64 min-h-screen flex flex-col">
+<!-- Topbar Corporativa Limpia e Idéntica -->
+<header class="h-16 bg-white border-b border-slate-200/80 sticky top-0 z-40 px-6 flex items-center justify-between shadow-[0_1px_4px_rgba(15,23,42,0.03)]">
+<div class="flex items-center gap-3 w-96 max-w-md">
+<div class="relative w-full flex items-center">
+
+
+</div>
+</div>
+<div class="flex items-center gap-4"><div class="flex items-center gap-2 px-3 py-1.5 rounded-full bg-emerald-50 border border-emerald-200 text-emerald-800 shadow-sm">
+<span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+<span class="text-xs font-semibold tracking-wide">Dólar $1.420 ARS</span>
+</div><button type="button" class="relative p-2 text-slate-500 hover:text-slate-700 hover:bg-slate-100 rounded-lg transition-colors" title="Notificaciones"><svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" viewBox="0 0 24 24"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"></path><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"></path></svg><span class="absolute top-1.5 right-1.5 w-2 h-2 bg-blue-600 rounded-full ring-2 ring-white"></span></button></div>
+</header>
+<!-- ÁREA DE CONTENIDO FLUIDA Y FULL-WIDTH (ERP MODERNO) -->
+<main class="w-full flex-1 bg-[#f4f7fb] p-4 md:p-5"><div class="max-w-[1720px] mx-auto space-y-4">
+  <!-- 1. BREADCRUMBS & ENCABEZADO SUPERIOR -->
+  <div class="flex flex-wrap items-center justify-between gap-3">
+    <div class="space-y-1">
+      <div class="flex items-center gap-2 text-xs text-slate-500 font-medium tracking-wide uppercase">
+        <a class="hover:text-blue-600 transition-colors" href="#">SIMACOR</a>
+        <span class="text-slate-300">›</span>
+        <a class="hover:text-blue-600 transition-colors" href="#">LOTES</a>
+        <span class="text-slate-300">›</span>
+        <a class="hover:text-blue-600 transition-colors" href="#">LOTE MZ 14 - LOTE 08</a>
+        <span class="text-slate-300">›</span>
+        <span class="text-slate-800 font-bold">RESERVAR</span>
+      </div>
+      <div class="flex items-center gap-3 pt-0.5">
+        <a class="inline-flex items-center justify-center w-8 h-8 rounded-xl bg-white border border-slate-200 text-slate-600 hover:text-blue-600 hover:border-blue-300 transition-all shadow-sm" href="#" title="Volver a Lotes">
+          <span class="material-symbols-outlined text-[18px]">arrow_back</span>
+        </a>
+        <div>
+          <h1 class="font-heading text-lg md:text-xl font-extrabold text-slate-900 tracking-tight flex items-center gap-2">
+            Reservar Lote MZ 14 - Lote 08
+          </h1>
+          
+        </div>
+      </div>
+    </div>
+    <div class="flex items-center gap-2.5">
+      
+    </div>
+  </div>
+
+  <!-- 2. LAYOUT DE DOS COLUMNAS PRINCIPALES (FORMULARIO + FICHA LATERAL) -->
+  <div class="grid grid-cols-1 lg:grid-cols-12 gap-5 items-start">
+    <!-- COLUMNA IZQUIERDA: FORMULARIO COMPLETO EN 3 SECCIONES (8 COLS) -->
+    <div class="lg:col-span-7 space-y-4">
+      <!-- SECCIÓN 1: DATOS DEL COMPRADOR / TITULAR -->
+      <section class="bg-white rounded-2xl border border-slate-200/80 shadow-[0_2px_10px_rgba(15,23,42,0.03)] p-4 md:p-5 space-y-4">
+        <div class="flex items-center justify-between pb-3 border-b border-slate-100">
+          <div class="flex items-center gap-2.5">
+            <div class="w-8 h-8 rounded-xl bg-blue-50 text-blue-700 flex items-center justify-center font-bold shadow-sm">
+              <span class="material-symbols-outlined text-[18px]">person</span>
+            </div>
+            <div>
+              <h2 class="font-heading font-bold text-slate-900 text-sm md:text-base leading-tight">1. Datos del Comprador / Titular</h2>
+              
+            </div>
+          </div>
+          <span class="px-2 py-0.5 rounded-full bg-blue-50 text-blue-700 border border-blue-200 text-[10px] uppercase font-bold tracking-wide">
+            Obligatorio
+          </span>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-3.5">
+          <!-- Nombre Completo -->
+          <div class="md:col-span-2 space-y-1">
+            <label class="text-xs font-bold text-slate-700 flex items-center justify-between">
+              <span class="">Nombre Completo y Apellido <span class="text-rose-500">*</span></span>
+              <span class="text-[10px] text-slate-400 font-normal">Según DNI</span>
+            </label>
+            <div class="relative flex items-center">
+              <input class="w-full bg-slate-50 hover:bg-slate-100/60 focus:bg-white text-slate-900 font-medium text-xs rounded-xl px-3.5 py-2 border border-slate-200 focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none transition-all pr-10" placeholder="Ingrese nombre y apellido completo" type="text" value="Mariana Sofía Gómez">
+              <span class="material-symbols-outlined absolute right-3 text-[18px] text-emerald-600 pointer-events-none">check_circle</span>
+            </div>
+          </div>
+
+          <!-- DNI / CUIL / CUIT -->
+          <div class="space-y-1">
+            <label class="text-xs font-bold text-slate-700">
+              DNI / CUIL / CUIT <span class="text-rose-500">*</span>
+            </label>
+            <input class="w-full bg-slate-50 hover:bg-slate-100/60 focus:bg-white text-slate-900 font-mono text-xs rounded-xl px-3.5 py-2 border border-slate-200 focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none transition-all" type="text" value="32.456.789">
+          </div>
+
+          <!-- Estado Civil -->
+          <div class="space-y-1">
+            <label class="text-xs font-bold text-slate-700">
+              Estado Civil <span class="text-rose-500">*</span>
+            </label>
+            <select class="w-full bg-slate-50 hover:bg-slate-100/60 focus:bg-white text-slate-800 text-xs rounded-xl px-3.5 py-2 border border-slate-200 focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none transition-all cursor-pointer">
+              <option selected="" value="soltero">Soltero/a</option>
+              <option value="casado">Casado/a (requiere DNI cónyuge)</option>
+              <option value="divorciado">Divorciado/a legalmente</option>
+              <option value="viudo">Viudo/a</option>
+              <option value="union">Unión Convivencial Registrada</option>
+            </select>
+          </div>
+
+          <!-- Domicilio Real -->
+          <div class="md:col-span-2 space-y-1">
+            <label class="text-xs font-bold text-slate-700">
+              Domicilio Real y Legal <span class="text-rose-500">*</span>
+            </label>
+            <input class="w-full bg-slate-50 hover:bg-slate-100/60 focus:bg-white text-slate-900 text-xs rounded-xl px-3.5 py-2 border border-slate-200 focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none transition-all" placeholder="Calle, Número, Piso, Ciudad, Provincia" type="text" value="Av. San Martín 1420, Piso 4 B, Río Cuarto, Córdoba">
+          </div>
+
+          <!-- Teléfono WhatsApp -->
+          <div class="space-y-1">
+            <label class="text-xs font-bold text-slate-700">
+              Teléfono Celular (WhatsApp) <span class="text-rose-500">*</span>
+            </label>
+            <div class="relative flex items-center">
+              <span class="material-symbols-outlined absolute left-3 text-[18px] text-slate-400 pointer-events-none">phone_iphone</span>
+              <input class="w-full bg-slate-50 hover:bg-slate-100/60 focus:bg-white text-slate-900 font-mono text-xs rounded-xl pl-9 pr-3.5 py-2 border border-slate-200 focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none transition-all" type="text" value="+54 9 358 412-3456">
+            </div>
+          </div>
+
+          <!-- Teléfono Fijo -->
+          <div class="space-y-1">
+            <label class="text-xs font-bold text-slate-700">
+              Teléfono Alternativo / Fijo
+            </label>
+            <input class="w-full bg-slate-50 hover:bg-slate-100/60 focus:bg-white text-slate-900 font-mono text-xs rounded-xl px-3.5 py-2 border border-slate-200 focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none transition-all" placeholder="(Opcional)" type="text" value="">
+          </div>
+
+          <!-- Correo Notificaciones -->
+          <div class="md:col-span-2 space-y-1">
+            <label class="text-xs font-bold text-slate-700">
+              Correo Electrónico&nbsp;<span class="text-rose-500">*</span>
+            </label>
+            <div class="relative flex items-center">
+              <span class="material-symbols-outlined absolute left-3 text-[18px] text-slate-400 pointer-events-none">mail</span>
+              <input class="w-full bg-slate-50 hover:bg-slate-100/60 focus:bg-white text-slate-900 text-xs rounded-xl pl-9 pr-3.5 py-2 border border-slate-200 focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none transition-all" type="email" value="mariana.gomez@gmail.com">
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- SECCIÓN 2: CONDICIONES Y PAGO DE LA SEÑA -->
+      <section class="bg-white rounded-2xl border border-slate-200/80 shadow-[0_2px_10px_rgba(15,23,42,0.03)] p-4 md:p-5 space-y-4">
+        <div class="flex items-center justify-between pb-3 border-b border-slate-100">
+          <div class="flex items-center gap-2.5">
+            <div class="w-8 h-8 rounded-xl bg-blue-50 text-blue-700 flex items-center justify-center font-bold shadow-sm">
+              <span class="material-symbols-outlined text-[18px]">payments</span>
+            </div>
+            <div>
+              <h2 class="font-heading font-bold text-slate-900 text-sm md:text-base leading-tight">2. Condiciones y Pago de la Seña</h2>
+              <p class="text-[11px] text-slate-500">Definición de valores de bloqueo, canal receptor e instrumento contractual</p>
+            </div>
+          </div>
+          
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <!-- Monto Seña -->
+          <div class="space-y-1.5">
+            <label class="text-xs font-bold text-slate-700 block">
+              Monto de la Seña Acordado <span class="text-rose-500">*</span>
+            </label>
+            <div class="flex items-center gap-2">
+              <select class="bg-slate-100 text-slate-800 text-xs font-bold rounded-xl px-2.5 py-2 border border-slate-200 outline-none cursor-pointer hover:bg-slate-200/70 transition-colors shrink-0">
+                <option selected="">USD ($)</option>
+                <option>ARS ($)</option>
+              </select>
+              <input class="w-full min-w-0 bg-slate-50 hover:bg-slate-100/60 focus:bg-white text-slate-900 font-mono font-bold text-sm rounded-xl px-3.5 py-2 border border-slate-200 focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none transition-all" type="text" value="1.500,00">
+            </div>
+            <p class="text-[11px] text-slate-500 pt-0.5">Equivalente aprox: $2.130.000 ARS (TC Ref. $1.420)</p>
+          </div>
+
+          <!-- Forma de Pago (Nuevo Campo Solicitado) -->
+          <div class="space-y-1.5">
+            <label class="text-xs font-bold text-slate-700 block">
+              Modalidad de Pago / Operación <span class="text-rose-500">*</span>
+            </label>
+            <select class="w-full bg-slate-50 hover:bg-slate-100/60 focus:bg-white text-slate-800 text-xs rounded-xl px-3.5 py-2.5 border border-slate-200 focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none transition-all cursor-pointer font-medium">
+              <option value="contado">Contado (Pago total)</option>
+              <option selected="" value="financiado">Financiado (Entrega + Cuotas)</option>
+            </select>
+            <p class="text-[11px] text-slate-500 pt-0.5">Modalidad acordada para la compra (Contado o Financiado)</p>
+          </div>
+
+          <!-- Instrumentación Prevista -->
+          <div class="space-y-1.5">
+            <label class="text-xs font-bold text-slate-700 block">
+              Instrumentación Prevista <span class="text-rose-500">*</span>
+            </label>
+            <select class="w-full bg-slate-50 hover:bg-slate-100/60 focus:bg-white text-slate-800 text-xs rounded-xl px-3.5 py-2.5 border border-slate-200 focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none transition-all cursor-pointer font-medium"><option selected="" value="boleto" class="">Boleto de Compraventa</option>
+<option value="escritura" class="">Escritura</option></select>
+            <p class="text-[11px] text-slate-500 pt-0.5">Determina el modelo legal de contrato a pre-cargar</p>
+          </div>
+
+          <!-- Recibido por -->
+          <div class="space-y-1.5">
+            <label class="text-xs font-bold text-slate-700 block">
+              Recibido por <span class="text-rose-500">*</span>
+            </label>
+            <select class="w-full bg-slate-50 hover:bg-slate-100/60 focus:bg-white text-slate-800 text-xs rounded-xl px-3.5 py-2.5 border border-slate-200 focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none transition-all cursor-pointer font-medium">
+              <option selected="" value="nicolas">Nicolás Admin (Administrador Central)</option>
+              <option value="gestor2">Martín Gómez (Ventas)</option>
+            </select>
+            <p class="text-[11px] text-slate-500 pt-0.5">Responsable de tesorería / firma asignado</p>
+          </div>
+
+          <!-- Comprobante de Pago de Seña -->
+          <div class="md:col-span-2 space-y-1.5 pt-2">
+            <label class="text-xs font-bold text-slate-700 block">
+              Comprobante de Pago de Seña / Boleta de Depósito <span class="text-rose-500">*</span>
+            </label>
+            <div class="flex items-center justify-between p-3.5 rounded-xl bg-slate-50 border border-slate-200/80 hover:bg-slate-100/50 transition-colors shadow-sm">
+              <div class="flex items-center gap-3 min-w-0">
+                <div class="w-9 h-9 rounded-lg bg-blue-100/70 text-blue-700 flex items-center justify-center shrink-0">
+                  <span class="material-symbols-outlined text-[20px]">receipt_long</span>
+                </div>
+                <div class="truncate">
+                  <div class="text-xs font-bold text-slate-800 truncate">comprobante_sena_1500usd.pdf</div>
+                  <div class="text-[11px] text-slate-500 truncate">Cargado hoy a las 11:24 hs • 1.4 MB</div>
+                </div>
+              </div>
+              <div class="flex items-center gap-2 shrink-0">
+                <button class="px-2.5 py-1 text-xs font-semibold text-blue-700 bg-white border border-blue-200 rounded-lg hover:bg-blue-50 transition-colors shadow-sm" type="button">
+                  Ver documento
+                </button>
+                <button class="p-1 text-slate-400 hover:text-rose-500 rounded-lg transition-colors" title="Eliminar comprobante" type="button">
+                  <span class="material-symbols-outlined text-[18px]">delete</span>
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- SECCIÓN 3: LEGAJO Y DOCUMENTACIÓN ADJUNTA -->
+      <section class="bg-white rounded-2xl border border-slate-200/80 shadow-[0_2px_10px_rgba(15,23,42,0.03)] p-4 md:p-5 space-y-4">
+        <div class="flex items-center justify-between pb-3 border-b border-slate-100">
+          <div class="flex items-center gap-2.5">
+            <div class="w-8 h-8 rounded-xl bg-blue-50 text-blue-700 flex items-center justify-center font-bold shadow-sm">
+              <span class="material-symbols-outlined text-[18px]">folder_shared</span>
+            </div>
+            <div>
+              <h2 class="font-heading font-bold text-slate-900 text-sm md:text-base leading-tight">3. Documentación Adjunta</h2>
+              
+            </div>
+          </div>
+        </div>
+
+        <!-- Tarjetas DNI Frente / Dorso -->
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+          <!-- DNI Frente -->
+          <div class="border border-slate-200 rounded-xl p-3 bg-slate-50/50 space-y-2">
+            <div class="flex items-center justify-between">
+              <span class="text-xs font-bold text-slate-800">DNI Titular - Frente</span>
+              <span class="inline-flex items-center gap-1 text-[10px] font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200">
+                <span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span> Aprobado
+              </span>
+            </div>
+            <div class="h-28 rounded-lg bg-slate-200 overflow-hidden border border-slate-200/80 flex items-center justify-center relative group">
+              <img alt="DNI Frente" class="w-full h-full object-cover" src="https://images.unsplash.com/photo-1633409302455-58e18bb4204c?w=400&amp;auto=format&amp;fit=crop&amp;q=80">
+              <div class="absolute inset-0 bg-slate-900/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2">
+                <button class="px-2 py-1 bg-white text-slate-800 text-[11px] font-bold rounded shadow-sm hover:bg-slate-100" type="button">Ampliar</button>
+              </div>
+            </div>
+            <div class="text-[11px] text-slate-500 truncate">dni_gomez_mariana_fr.jpg (2.1 MB)</div>
+          </div>
+
+          <!-- DNI Dorso -->
+          <div class="border border-slate-200 rounded-xl p-3 bg-slate-50/50 space-y-2">
+            <div class="flex items-center justify-between">
+              <span class="text-xs font-bold text-slate-800">DNI Titular - Dorso</span>
+              <span class="inline-flex items-center gap-1 text-[10px] font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200">
+                <span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span> Aprobado
+              </span>
+            </div>
+            <div class="h-28 rounded-lg bg-slate-200 overflow-hidden border border-slate-200/80 flex items-center justify-center relative group">
+              <img alt="DNI Dorso" class="w-full h-full object-cover" src="https://images.unsplash.com/photo-1589829545856-d10d557cf95f?w=400&amp;auto=format&amp;fit=crop&amp;q=80">
+              <div class="absolute inset-0 bg-slate-900/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2">
+                <button class="px-2 py-1 bg-white text-slate-800 text-[11px] font-bold rounded shadow-sm hover:bg-slate-100" type="button">Ampliar</button>
+              </div>
+            </div>
+            <div class="text-[11px] text-slate-500 truncate">dni_gomez_mariana_dr.jpg (1.9 MB)</div>
+          </div>
+        </div>
+
+        <!-- Callout Azul de Información Conyugal -->
+        <div class="p-3 rounded-xl bg-blue-50/70 border border-blue-200/70 text-slate-700 text-xs flex items-start gap-2.5">
+          <span class="material-symbols-outlined text-blue-600 text-[20px] shrink-0 mt-0.5">info</span>
+          <div class="space-y-1">
+            <p class="font-bold text-blue-900">Documentación conyugal / accesoria (No requerida)</p>
+            <p class="text-slate-600 leading-relaxed">
+              El titular figura como estado civil <span class="font-semibold text-slate-800">Soltera</span>. Si existiera apoderado o poder especial, adjunte la escritura de mandato en este apartado complementario.
+            </p>
+            <a class="inline-flex items-center gap-1 text-blue-600 font-bold hover:text-blue-700 transition-colors pt-0.5 text-xs" href="#">
+              <span class="">+ Adjuntar poder notarial o sentencia</span>
+            </a>
+          </div>
+        </div>
+      </section>
+
+      <!-- BARRA DE ACCIONES INFERIOR -->
+      <div class="bg-white rounded-2xl border border-slate-200/80 p-4 shadow-[0_2px_10px_rgba(15,23,42,0.03)] flex flex-wrap items-center justify-between gap-3">
+        <div class="flex items-center gap-2 text-xs text-slate-500">
+          <span class="material-symbols-outlined text-amber-500 text-[18px]">lock</span>
+          <span class="">Al confirmar, el lote cambiará inmediatamente a estado "Reservado".</span>
+        </div>
+        <div class="flex items-center gap-2.5">
+          <a class="px-4 py-2 rounded-xl bg-white hover:bg-slate-50 text-slate-700 border border-slate-200 text-xs font-bold transition-all shadow-sm" href="#">
+            Cancelar y volver
+          </a>
+          <button class="px-5 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold transition-all shadow-md shadow-blue-600/30 active:scale-95 flex items-center gap-2" type="button">
+            <span class="material-symbols-outlined text-[18px]">bookmark_added</span>
+            Confirmar y Asignar Reserva
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- COLUMNA DERECHA: FICHA TÉCNICA DEL LOTE & ESTRUCTURA FINANCIERA (5 COLS) -->
+    <div class="lg:col-span-5 space-y-4">
+      <!-- FICHA TÉCNICA VISUAL -->
+      <div class="bg-white rounded-2xl border border-slate-200/80 shadow-[0_2px_10px_rgba(15,23,42,0.03)] overflow-hidden">
+        <!-- Tarjeta Gráfica con Badge -->
+        <div class="relative h-36 bg-gradient-to-tr from-slate-900 to-[#0b1736] p-4 flex flex-col justify-between text-white overflow-hidden">
+          <div class="absolute inset-0 opacity-20 bg-[radial-gradient(#fff_1px,transparent_1px)] [background-size:16px_16px]"></div>
+          <div class="relative z-10 flex items-center justify-between">
+            
+            <span class="px-2.5 py-0.5 rounded-full bg-emerald-500/20 border border-emerald-400/40 text-emerald-300 text-[11px] font-bold backdrop-blur-sm">
+              Manzana 14 • Lote 08
+            </span>
+          </div>
+          <div class="relative z-10">
+            <h3 class="font-heading text-lg font-bold text-white">La Arboleda Residencial</h3>
+            <p class="text-xs text-slate-300">Río Cuarto, Córdoba • Sector Noreste</p>
+          </div>
+        </div>
+
+        <!-- Especificaciones Técnicas del Lote -->
+        <div class="p-4 space-y-3">
+          <div class="text-xs font-bold uppercase tracking-wider text-slate-400 pb-1 border-b border-slate-100">
+            Especificaciones Técnicas
+          </div>
+
+          <div class="space-y-2.5 text-xs">
+            <div class="flex items-center justify-between py-1 border-b border-slate-50">
+              <span class="text-slate-500">Estado Técnico</span>
+              <span class="inline-flex items-center gap-1.5 font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-full">
+                <span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span> Disponible
+              </span>
+            </div>
+
+            <div class="flex items-center justify-between py-1 border-b border-slate-50">
+              <span class="text-slate-500">Superficie Total</span>
+              <span class="font-bold text-slate-800 font-mono">450.00 m² </span>
+            </div>
+
+            
+
+            <div class="flex items-center justify-between py-1 border-b border-slate-50">
+              <span class="text-slate-500">Moneda Base</span>
+              <span class="font-medium text-slate-800">Dólares Estadounidenses (USD)</span>
+            </div>
+
+            <div class="flex items-center justify-between py-1.5 bg-slate-50 px-2.5 rounded-xl">
+              <span class="text-xs font-bold text-slate-700">Precio de Lista</span>
+              <span class="text-base font-extrabold text-blue-700 font-heading">$24.000 USD</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ESTRUCTURA FINANCIERA TENTATIVA -->
+      
+
+      <!-- APROBACIÓN CATASTRAL VIGENTE -->
+      
+
+      <!-- BANNER DE ASISTENCIA ESCRIBANÍA -->
+      
+    </div>
+  </div>
+</div></main>
+</div>
+
+
+
+
+
+
+
+
+
+
+</body></html>
