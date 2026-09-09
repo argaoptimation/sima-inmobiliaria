@@ -71,6 +71,9 @@ export function CentroNotificaciones({ notificaciones }: { notificaciones: Notif
         >
           <p className="border-b border-blue-100 px-4 py-3 text-sm font-semibold text-blue-900">
             Para resolver
+            {notificaciones.length > 0 && (
+              <span className="ml-1 font-normal text-slate-500">({notificaciones.length})</span>
+            )}
           </p>
 
           {notificaciones.length === 0 ? (
@@ -78,7 +81,7 @@ export function CentroNotificaciones({ notificaciones }: { notificaciones: Notif
               No hay nada pendiente. Todas las cuotas que vencen tienen a dónde pagarse.
             </p>
           ) : (
-            <ul className="max-h-[26rem] overflow-y-auto">
+            <ul className="max-h-[min(70vh,40rem)] overflow-y-auto">
               {notificaciones.map((aviso) => (
                 <li key={aviso.id} className="border-b border-blue-50 last:border-b-0">
                   <Link

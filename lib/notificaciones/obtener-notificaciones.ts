@@ -27,10 +27,16 @@ export interface Notificacion {
 // que recién hay que resolver en marzo.
 const DIAS_DE_ANTICIPO = 35
 
-// Tope por tipo de aviso. Con 200 lotes, "todas las cuotas sin alias" puede
-// ser una lista de cien líneas que nadie lee; se muestran las primeras y se
-// dice cuántas más hay.
-const MAXIMO_POR_TIPO = 5
+// Sin tope (08/09, pedido de Gabriel). La primera versión mostraba 5 por
+// tipo y resumía el resto en "y 12 lote(s) más", con dos consecuencias
+// malas: al resolver uno entraba otro y el contador no bajaba nunca (parecía
+// roto), y sobre todo la lista dejaba de ser una lista de trabajo. Su
+// criterio, textual: "todo lo que requiera atención para el funcionamiento
+// correcto de la plataforma tiene que estar ahí, no importa si son muchas".
+//
+// El costo es de render, no de consultas: las cuotas y los lotes ya se
+// traían enteros para poder contarlos, lo único que hacía el tope era
+// esconderlos. El panel de la campana scrollea.
 
 const IDS_POR_TANDA = 100
 
@@ -108,7 +114,7 @@ export async function obtenerNotificaciones(
       else porLote.set(cuota.loteId, { identificador: cuota.loteIdentificador, numeros: [cuota.numero] })
     }
 
-    for (const [loteId, { identificador, numeros }] of [...porLote].slice(0, MAXIMO_POR_TIPO)) {
+    for (const [loteId, { identificador, numeros }] of porLote) {
       notificaciones.push({
         id: `sin-distribucion-${loteId}`,
         titulo: `${identificador}: cobraste ${numeros.length === 1 ? 'una cuota' : `${numeros.length} cuotas`} sin repartir`,
@@ -118,22 +124,13 @@ export async function obtenerNotificaciones(
       })
     }
 
-    if (porLote.size > MAXIMO_POR_TIPO) {
-      notificaciones.push({
-        id: 'sin-distribucion-resto',
-        titulo: `Y ${porLote.size - MAXIMO_POR_TIPO} lote(s) más con cuotas cobradas sin repartir`,
-        detalle: 'Se listan en Cuentas corrientes.',
-        href: '/admin/cuentas-corrientes',
-        urgencia: 'media',
-      })
-    }
   }
 
   // --- Índices del mes sin cargar --------------------------------------
   if (esAdministrador || esCobrador) {
     const faltantes = await obtenerMesesIndiceFaltantes(supabase)
 
-    for (const faltante of faltantes.slice(0, MAXIMO_POR_TIPO)) {
+    for (const faltante of faltantes) {
       notificaciones.push({
         id: `indice-${faltante.nombre}-${faltante.periodo}`,
         titulo: `Falta cargar el índice ${faltante.nombre} de ${faltante.periodo}`,
@@ -306,28 +303,16 @@ async function cuotasSinDondePagar(
     ([, a], [, b]) => a.primerVencimiento.localeCompare(b.primerVencimiento)
   )
 
-  const notificaciones: Notificacion[] = ordenados
-    .slice(0, MAXIMO_POR_TIPO)
-    .map(([loteId, problema]) => ({
+  const notificaciones: Notificacion[] = ordenados.map(([loteId, problema]) => ({
       id: `sin-donde-pagar-${loteId}`,
       titulo: `${problema.identificador}: no hay a dónde pagar la cuota ${problema.numeros.sort((a, b) => a - b).join(', ')}`,
       detalle:
         problema.motivo === 'nadie'
           ? `Vence el ${formatearFechaCorta(problema.primerVencimiento)} y todavía no elegiste quién la cobra, así que el cliente no ve ningún alias en su portal.`
           : `Vence el ${formatearFechaCorta(problema.primerVencimiento)} y a quien la cobra le faltan alias, banco o titular, así que el cliente no ve dónde transferir.`,
-      href: `/admin/lotes/${loteId}/distribucion`,
-      urgencia: 'alta',
-    }))
-
-  if (ordenados.length > MAXIMO_POR_TIPO) {
-    notificaciones.push({
-      id: 'sin-donde-pagar-resto',
-      titulo: `Y ${ordenados.length - MAXIMO_POR_TIPO} lote(s) más sin a dónde pagar`,
-      detalle: 'Revisalos desde el listado de lotes.',
-      href: '/admin/lotes',
-      urgencia: 'media',
-    })
-  }
+    href: `/admin/lotes/${loteId}/distribucion`,
+    urgencia: 'alta',
+  }))
 
   return notificaciones
 }
