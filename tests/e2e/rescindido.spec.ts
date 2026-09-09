@@ -113,7 +113,7 @@ test.describe('Rescindido de lote (24/08)', () => {
 
     await page.reload()
 
-    await expect(page.getByText('Estado: disponible')).toBeVisible()
+    await expect(page.getByTestId('estado-lote')).toHaveText('disponible')
     // Ya no hay ningún botón para "volver a disponible": no queda nada que
     // volver.
     await expect(page.getByRole('button', { name: 'Volver a disponible' })).toHaveCount(0)
@@ -261,12 +261,10 @@ test.describe('Rescindido de lote (24/08)', () => {
     // El detalle del lote solo muestra las cuotas del ciclo VIGENTE (2),
     // no mezcla la deuda vieja del ciclo 1 en la tabla activa.
     await page.goto(`/admin/lotes/${lote.id}`)
-    // La tabla de cuotas vive dentro del div contenedor (TABLA_CONTENEDOR,
-    // rediseño 28/08) que sigue al <h2>, no como <table> directo hermano.
-    const tablaCuotas = page
-      .locator('h2', { hasText: 'Cuotas' })
-      .locator('xpath=following-sibling::div[1]')
-      .getByRole('table')
+    // La tabla de cuotas se ubica por testid y no por su posicion en el
+    // arbol: desde el 09/09 vive adentro de un panel y el xpath por hermano
+    // ya no llegaba.
+    const tablaCuotas = page.getByTestId('tabla-cuotas').getByRole('table')
     await expect(tablaCuotas.locator('tbody tr')).toHaveCount(2)
 
     // Regresión 26/08 (bug real encontrado revisando refinanciación): el

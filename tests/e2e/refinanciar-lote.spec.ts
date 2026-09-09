@@ -115,12 +115,10 @@ test.describe('Refinanciar cuotas (26/08)', () => {
 
     await page.reload()
 
-    // La tabla de cuotas vive dentro del div contenedor (TABLA_CONTENEDOR,
-    // rediseño 28/08) que sigue al <h2>, no como <table> directo hermano.
-    const tablaCuotas = page
-      .locator('h2', { hasText: 'Cuotas' })
-      .locator('xpath=following-sibling::div[1]')
-      .getByRole('table')
+    // La tabla de cuotas se ubica por testid y no por su posicion en el
+    // arbol: desde el rediseno del 09/09 vive adentro de un panel y el
+    // xpath por hermano dejo de llegar.
+    const tablaCuotas = page.getByTestId('tabla-cuotas').getByRole('table')
     const filaCuota2 = tablaCuotas.locator('tbody tr').nth(1)
     await expect(filaCuota2.getByText('Refinanció')).toBeVisible()
     const filaCuota4 = tablaCuotas.locator('tbody tr').nth(3)

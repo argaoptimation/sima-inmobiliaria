@@ -209,7 +209,7 @@ test.describe('Reserva de lote (fase 1: texto + comprobante de seña)', () => {
 
     await page.goto(`/admin/lotes/${loteId}`)
     await expect(page).toHaveURL(new RegExp(`/admin/lotes/${loteId}$`))
-    await expect(page.getByText('Estado: disponible')).toBeVisible()
+    await expect(page.getByTestId('estado-lote')).toHaveText('disponible')
     await expect(page.getByRole('heading', { name: 'Datos generales' })).toHaveCount(0)
     await expect(page.getByRole('heading', { name: 'Cobro' })).toHaveCount(0)
     await expect(page.getByText('Otros participantes del cobro')).toHaveCount(0)

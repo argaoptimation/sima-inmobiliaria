@@ -35,12 +35,52 @@ import { FiltroEnVivo } from '@/components/FiltroEnVivo'
 import { RefinanciarCuotas } from './RefinanciarCuotas'
 import { EnlaceBoton } from '@/components/EnlaceBoton'
 import { BotonEnvio } from '@/components/BotonEnvio'
+import {
+  MapPin,
+  Pencil,
+  CircleDollarSign,
+  ShieldCheck,
+  FileText,
+  CalendarDays,
+  Wallet,
+  Receipt,
+} from 'lucide-react'
 import { COLUMNA_LECTURA,
   ENTRADA,
   BOTON_PRIMARIO,
   BOTON_SECUNDARIO,
   ENLACE,
-  TITULO_H1,
+  CABECERA_LOTE,
+  CABECERA_LOTE_ICONO,
+  CABECERA_LOTE_TITULO,
+  CABECERA_LOTE_SUBTITULO,
+  BOTON_CABECERA_AZUL,
+  TARJETA_KPI,
+  LOTE_KPI_ETIQUETA,
+  LOTE_KPI_ICONO,
+  LOTE_KPI_VALOR,
+  LOTE_KPI_DATO,
+  LOTE_KPI_PILL,
+  BARRA_FONDO,
+  BARRA_RELLENO,
+  AVATAR_INICIALES,
+  PILL_ESTADO,
+  PILL_ESTADO_NEUTRO,
+  PILL_COBRANZA,
+  GRILLA_DETALLE,
+  COLUMNA_PRINCIPAL,
+  COLUMNA_LATERAL,
+  PANEL,
+  PANEL_SIN_PADDING,
+  PANEL_HEADER,
+  PANEL_HEADER_ICONO,
+  PANEL_TITULO,
+  TIRA_DESTACADA,
+  TIRA_DESTACADA_ICONO,
+  TABLA_EMBEBIDA,
+  TARJETA_PAGO,
+  TARJETA_PAGO_PENDIENTE,
+  BOTON_FILA_AZUL,
   TITULO_H2,
   BANNER_ERROR,
   BANNER_OK,
@@ -210,8 +250,32 @@ export default async function LoteDetallePage({
       : null
 
   const { data: cliente } = lote!.cliente_id
-    ? await supabase.from('profiles').select('full_name').eq('id', lote!.cliente_id).single()
+    ? await supabase
+        .from('profiles')
+        .select('full_name, dni, email')
+        .eq('id', lote!.cliente_id)
+        .single()
     : { data: null }
+
+  // Nombres del acreedor y del vendedor para la tarjeta de la cabecera
+  // (09/09, mockup 2). Antes esa informacion solo se veia bajando hasta la
+  // seccion de Cobro, al final de la pantalla.
+  const idsCabecera = [lote!.acreedor_id, lote!.vendedor_id].filter(
+    (id): id is string => Boolean(id)
+  )
+  const { data: personasCabecera } =
+    idsCabecera.length > 0
+      ? await supabase.from('profiles').select('id, full_name').in('id', idsCabecera)
+      : { data: [] }
+  const nombrePersonaCabecera = new Map(
+    (personasCabecera ?? []).map((persona) => [persona.id, persona.full_name])
+  )
+  const acreedorNombre = lote!.acreedor_id
+    ? (nombrePersonaCabecera.get(lote!.acreedor_id) ?? null)
+    : null
+  const vendedorNombre = lote!.vendedor_id
+    ? (nombrePersonaCabecera.get(lote!.vendedor_id) ?? null)
+    : null
 
   const { data: reserva } = await supabase
     .from('reservas')
@@ -503,6 +567,37 @@ export default async function LoteDetallePage({
   // tiene una plantilla cargada, para mostrar el botón habilitado o el
   // aviso de "cargá una plantilla primero" en vez de dejar que falle recién
   // al hacer clic.
+  // Datos derivados de la cabecera (mockup 2). Todos salen de cosas que la
+  // pantalla ya tenia; lo unico nuevo es juntarlas arriba en vez de
+  // obligar a recorrer la tabla para sacar la cuenta a ojo.
+  const cuotasDelCiclo = cuotas ?? []
+  const cuotasPagadas = cuotasDelCiclo.filter((cuota) => cuota.saldo_pendiente <= 0).length
+  const proximaCuota = cuotasDelCiclo.find((cuota) => cuota.saldo_pendiente > 0) ?? null
+  const cuotasQueRestan = cuotasDelCiclo.length - cuotasPagadas
+  // Cuanto del plan ya entro. Sale de las cuotas (lo pactado menos lo que
+  // sigue debiendo), NO de totalCobradoHistorico: ese numero solo se calcula
+  // para lotes que pasaron por una rescision, asi que en un lote normal es
+  // null y la tarjeta terminaba diciendo "sin precio pactado cargado" con el
+  // precio a la vista.
+  //
+  // Se mide contra la suma de las cuotas y no contra el precio del lote
+  // porque son dos cosas distintas: el precio puede incluir una entrega o
+  // una sena que nunca fueron cuota. Comparar el plan contra si mismo es lo
+  // unico que da un porcentaje que cierra.
+  const totalDelPlan =
+    Math.round(
+      cuotasDelCiclo.reduce((acum, cuota) => acum + (cuota.monto_ajustado || cuota.monto_base), 0) * 100
+    ) / 100
+  const cobradoDelPlan = Math.round((totalDelPlan - saldoPendienteTotal) * 100) / 100
+  const porcentajeCobrado =
+    totalDelPlan > 0 ? Math.min(100, Math.max(0, Math.round((cobradoDelPlan / totalDelPlan) * 100))) : null
+  const inicialesCliente = (cliente?.full_name ?? '')
+    .split(' ')
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((parte: string) => parte[0]?.toUpperCase() ?? '')
+    .join('')
+
   const loteoDelLote =
     (loteosDisponibles ?? []).find((loteo) => loteo.id === lote!.loteo_id) ?? null
 
@@ -512,86 +607,240 @@ export default async function LoteDetallePage({
           cómodo de lectura -- un input de 1800px no le sirve a nadie. Lo
           que se despliega a todo el ancho es lo que son tablas: cuotas,
           historial de pagos, índice y contratos. */}
-      <div className={COLUMNA_LECTURA}>
-      <EnlaceBoton href="/admin/lotes" className={`mb-4 inline-block ${ENLACE}`}>
-        ← Volver a Lotes
-      </EnlaceBoton>
-      <div className="mb-6 flex items-center justify-between">
-        <h1 className={TITULO_H1}>{lote!.identificador}</h1>
-        <div className="flex gap-2">
-          {perfilPropio!.role === 'administrador' && lote!.estado === 'reservado' && (
-            <>
-              <EnlaceBoton
-                href={`/admin/lotes/${id}/reservar/editar`}
-                className="rounded-lg border border-blue-100 px-3 py-2 text-sm font-medium text-blue-800 transition-colors hover:bg-blue-50"
-              >
-                Editar reserva →
-              </EnlaceBoton>
-              <BotonCancelarReserva cancelarReservaAction={cancelarReservaConId} />
-            </>
-          )}
-          {perfilPropio!.role === 'administrador' && lote!.estado === 'vendido' && (
-            <>
-              {lote!.marcado_prejudicial ? (
-                <BotonDesmarcarPrejudicial desmarcarPrejudicialAction={desmarcarPrejudicialConId} />
-              ) : (
-                <BotonMarcarPrejudicial marcarPrejudicialAction={marcarPrejudicialConId} />
+      {/* Cabecera y tarjetas a TODO el ancho: son de un vistazo, no de
+          lectura. El ancho comodo de lectura arranca despues, en las
+          fichas y los formularios. */}
+      <div className="mb-6 flex flex-col gap-6">
+        <EnlaceBoton href="/admin/lotes" className={`inline-flex w-fit items-center gap-1.5 ${ENLACE}`}>
+          ← Volver a Lotes
+        </EnlaceBoton>
+
+        <div className={CABECERA_LOTE}>
+          <div className="flex min-w-0 items-center gap-4">
+            <span className={CABECERA_LOTE_ICONO}>
+              <MapPin className="h-6 w-6" />
+            </span>
+            <div className="min-w-0">
+              <div className="flex flex-wrap items-center gap-2.5">
+                <h1 className={CABECERA_LOTE_TITULO}>{lote!.identificador}</h1>
+                <span
+                  data-testid="estado-lote"
+                  className={PILL_ESTADO[lote!.estado] ?? PILL_ESTADO_NEUTRO}
+                >
+                  {lote!.estado}
+                </span>
+                {estado && (
+                  <span
+                    data-testid="estado-cobranza"
+                    className={
+                      lote!.marcado_prejudicial
+                        ? PILL_COBRANZA.prejudicial
+                        : estado === 'normal'
+                          ? PILL_COBRANZA.alDia
+                          : estado === 'atrasado'
+                            ? PILL_COBRANZA.atrasado
+                            : estado === 'moroso'
+                              ? PILL_COBRANZA.moroso
+                              : PILL_COBRANZA.prejudicial
+                    }
+                  >
+                    {lote!.marcado_prejudicial
+                      ? 'Prejudicial'
+                      : estado === 'normal'
+                        ? 'Al día'
+                        : estado === 'atrasado'
+                          ? 'Atrasado'
+                          : estado === 'moroso'
+                            ? 'Moroso'
+                            : 'Posible prejudicial'}
+                  </span>
+                )}
+              </div>
+              <p className={CABECERA_LOTE_SUBTITULO}>
+                {lote!.ubicacion && <span>{lote!.ubicacion}</span>}
+                {lote!.ubicacion && <span className="text-slate-300">·</span>}
+                <span>Moneda {lote!.moneda}</span>
+                {cuotasDelCiclo.length > 0 && (
+                  <>
+                    <span className="text-slate-300">·</span>
+                    <span>Plan de {cuotasDelCiclo.length} cuotas</span>
+                  </>
+                )}
+              </p>
+            </div>
+          </div>
+
+          <div className="flex flex-wrap items-center gap-2">
+            {perfilPropio!.role === 'administrador' && lote!.estado === 'reservado' && (
+              <>
+                <EnlaceBoton
+                  href={`/admin/lotes/${id}/reservar/editar`}
+                  className={BOTON_CABECERA_AZUL}
+                >
+                  <Pencil className="h-[15px] w-[15px]" />
+                  Editar reserva
+                </EnlaceBoton>
+                <BotonCancelarReserva cancelarReservaAction={cancelarReservaConId} />
+              </>
+            )}
+            {perfilPropio!.role === 'administrador' && lote!.estado === 'vendido' && (
+              <>
+                {lote!.marcado_prejudicial ? (
+                  <BotonDesmarcarPrejudicial desmarcarPrejudicialAction={desmarcarPrejudicialConId} />
+                ) : (
+                  <BotonMarcarPrejudicial marcarPrejudicialAction={marcarPrejudicialConId} />
+                )}
+                <BotonRescindir rescindirAction={rescindirConId} />
+              </>
+            )}
+            {perfilPropio!.role === 'administrador' && (
+              <BotonEliminarLote eliminarLoteAction={eliminarLoteConId} />
+            )}
+          </div>
+        </div>
+
+        {error && <p className={BANNER_ERROR}>{error}</p>}
+        {ok && <p className={BANNER_OK}>{ok}</p>}
+
+        {/* Las cuatro tarjetas: precio, comprador, saldo y quien cobra.
+            Contestan las cuatro preguntas que uno se hace al abrir un lote,
+            sin tener que recorrer la pantalla entera. */}
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
+          <div className={TARJETA_KPI}>
+            <div className="flex items-center justify-between gap-2">
+              <span className={LOTE_KPI_ETIQUETA}>Precio total pactado</span>
+              <span className={LOTE_KPI_ICONO}>
+                <CircleDollarSign className="h-4 w-4" />
+              </span>
+            </div>
+            <div className="flex items-baseline gap-2">
+              <span className={LOTE_KPI_VALOR}>
+                {lote!.precio_total ? lote!.precio_total.toLocaleString('es-AR') : '—'}
+              </span>
+              <span className={LOTE_KPI_PILL}>{lote!.moneda}</span>
+            </div>
+            {porcentajeCobrado !== null ? (
+              <div className="space-y-1">
+                <div className="flex justify-between text-[11px] text-slate-500">
+                  <span className="tabular-nums">
+                    Cobrado {cobradoDelPlan.toLocaleString('es-AR')} de{' '}
+                    {totalDelPlan.toLocaleString('es-AR')}
+                  </span>
+                  <span className="font-bold text-blue-700 tabular-nums">{porcentajeCobrado}%</span>
+                </div>
+                <div className={BARRA_FONDO}>
+                  <div className={BARRA_RELLENO} style={{ width: `${porcentajeCobrado}%` }} />
+                </div>
+              </div>
+            ) : (
+              <p className="text-[11px] text-slate-500">Todavía no hay cuotas cargadas.</p>
+            )}
+          </div>
+
+          <div className={TARJETA_KPI}>
+            <div className="flex items-center justify-between gap-2">
+              <span className={LOTE_KPI_ETIQUETA}>Cliente</span>
+              {cliente && lote!.cliente_id && (
+                <EnlaceBoton
+                  href={`/admin/clientes/${lote!.cliente_id}`}
+                  className="text-[11px] font-bold text-blue-600 hover:text-blue-800"
+                >
+                  Ficha →
+                </EnlaceBoton>
               )}
-              <BotonRescindir rescindirAction={rescindirConId} />
-            </>
-          )}
-          {perfilPropio!.role === 'administrador' && (
-            <BotonEliminarLote eliminarLoteAction={eliminarLoteConId} />
-          )}
+            </div>
+            {cliente ? (
+              <div className="flex min-w-0 items-center gap-3">
+                <span className={AVATAR_INICIALES}>{inicialesCliente || '—'}</span>
+                <div className="min-w-0">
+                  <p className="truncate text-sm font-bold text-slate-900">{cliente.full_name}</p>
+                  {cliente.dni && (
+                    <p className={`${LOTE_KPI_DATO} tabular-nums`}>DNI {cliente.dni}</p>
+                  )}
+                </div>
+              </div>
+            ) : (
+              <p className={LOTE_KPI_DATO}>Todavía no hay cliente asignado.</p>
+            )}
+            {cliente?.email && (
+              <p className="truncate text-[12px] text-slate-500" title={cliente.email}>
+                {cliente.email}
+              </p>
+            )}
+          </div>
+
+          <div className={TARJETA_KPI}>
+            <div className="flex items-center justify-between gap-2">
+              <span className={LOTE_KPI_ETIQUETA}>Saldo pendiente</span>
+              {cuotasDelCiclo.length > 0 && (
+                <span className="rounded-full border border-emerald-200/60 bg-emerald-50 px-2.5 py-0.5 text-[11px] font-bold text-emerald-700 tabular-nums">
+                  {cuotasPagadas} / {cuotasDelCiclo.length} pagadas
+                </span>
+              )}
+            </div>
+            <div className="flex items-baseline gap-2">
+              <span className={LOTE_KPI_VALOR}>
+                {saldoPendienteTotal.toLocaleString('es-AR')}
+              </span>
+              <span className={LOTE_KPI_PILL}>{lote!.moneda}</span>
+            </div>
+            <div className="space-y-0.5">
+              {proximaCuota && (
+                <p className={LOTE_KPI_DATO}>
+                  Próx. vencimiento:{' '}
+                  <span className="font-semibold tabular-nums">
+                    {formatearFechaCorta(proximaCuota.fecha_vencimiento)}
+                  </span>
+                </p>
+              )}
+              {cuotasQueRestan > 0 && (
+                <p className="text-[11px] text-slate-500">
+                  {cuotasQueRestan} {cuotasQueRestan === 1 ? 'cuota' : 'cuotas'} por cobrar
+                </p>
+              )}
+            </div>
+          </div>
+
+          <div className={TARJETA_KPI}>
+            <div className="flex items-center justify-between gap-2">
+              <span className={LOTE_KPI_ETIQUETA}>Acreedor</span>
+              <span className={LOTE_KPI_ICONO}>
+                <ShieldCheck className="h-4 w-4" />
+              </span>
+            </div>
+            <div className="space-y-0.5">
+              <p className="truncate text-sm font-bold text-slate-900">
+                {acreedorNombre ?? 'Sin asignar'}
+              </p>
+              <p className={LOTE_KPI_DATO}>
+                Vendedor: <span className="font-semibold">{vendedorNombre ?? '—'}</span>
+              </p>
+            </div>
+            {lote!.estado === 'vendido' &&
+              (documentoFirmadoUrl ? (
+                <a
+                  href={documentoFirmadoUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className={BOTON_CABECERA_AZUL}
+                >
+                  <FileText className="h-[15px] w-[15px]" />
+                  Ver documento firmado
+                </a>
+              ) : (
+                <p className="text-[11px] text-slate-500">Documento firmado no disponible</p>
+              ))}
+          </div>
         </div>
       </div>
 
-      {error && <p className={BANNER_ERROR}>{error}</p>}
-      {ok && <p className={BANNER_OK}>{ok}</p>}
-
-      <p className="mb-1 text-sm">Moneda: {lote!.moneda}</p>
-      <p className="mb-1 text-sm">Estado: {lote!.estado}</p>
-      {lote!.ubicacion && <p className="mb-1 text-sm">Ubicación: {lote!.ubicacion}</p>}
-      {lote!.precio_total && (
-        <p className="mb-1 text-sm">
-          Precio total: {lote!.precio_total} {lote!.moneda}
-        </p>
-      )}
-      {cliente && <p className="mb-1 text-sm">Cliente: {cliente.full_name}</p>}
-      {estado && (
-        <p className="mb-4 text-sm">
-          Estado de cobranza:{' '}
-          <span
-            className={
-              lote!.marcado_prejudicial
-                ? 'font-semibold text-red-800'
-                : estado === 'normal'
-                  ? 'text-green-700'
-                  : estado === 'atrasado'
-                    ? 'text-amber-700'
-                    : estado === 'moroso'
-                      ? 'text-red-700'
-                      : 'text-orange-700'
-            }
-          >
-            {lote!.marcado_prejudicial
-              ? 'Prejudicial'
-              : estado === 'normal'
-                ? 'Normal'
-                : estado === 'atrasado'
-                  ? 'Atrasado'
-                  : estado === 'moroso'
-                    ? 'Moroso'
-                    : 'Posible prejudicial'}
-          </span>
-        </p>
-      )}
+      <div className={COLUMNA_LECTURA}>
 
       {/* Destinos = reparto entre acreedor/vendedor/participantes -- Nicolás
           confirmó 25/08 que el cobrador puede ver todo lo de si el cliente
           pagó o no, pero NO el reparto entre acreedores. */}
       {destinosOrdenados.length > 0 && perfilPropio!.role !== 'cobrador' && (
-        <div className="mb-6 rounded border border-blue-100 bg-blue-50/40 p-3 text-sm">
+        <div className={`mb-6 text-sm ${PANEL}`}>
           <h2 className="mb-2 text-base font-bold text-blue-900">Destinos (a quién se distribuyó)</h2>
           {/* Mismo texto que el link de abajo de la tabla de cuotas (08/09,
               pedido de Gabriel): son dos puertas a la MISMA pantalla y
@@ -686,17 +935,9 @@ export default async function LoteDetallePage({
         </>
       )}
 
-      {lote!.estado === 'vendido' && (
-        <p className="mb-4 text-sm">
-          {documentoFirmadoUrl ? (
-            <a href={documentoFirmadoUrl} target="_blank" className={ENLACE}>
-              Ver documento firmado
-            </a>
-          ) : (
-            <span className="text-slate-500">Documento firmado no disponible</span>
-          )}
-        </p>
-      )}
+      {/* El link al documento firmado se mudo a la tarjeta de Acreedor de la
+          cabecera (09/09): estaba suelto en el medio de la pantalla y ahora
+          vive al lado de quien firmo. */}
 
       </div>
 
@@ -713,39 +954,72 @@ export default async function LoteDetallePage({
           reparto arranca recién en 2xl: abajo de eso no entran las dos sin
           que alguna quede con scroll horizontal, así que van una debajo de
           la otra usando el ancho completo. */}
-      <div className="grid gap-6 2xl:grid-cols-[minmax(0,1fr)_minmax(0,34rem)] 2xl:items-start">
-        <div>
-      <h2 className={`mb-2 mt-6 ${TITULO_H2}`}>Cuotas</h2>
-      {/* El link va para cualquier estado, no solo 'vendido': desde el
-          06/09 esa pantalla también tiene la sección de cobro (quién es el
-          admin, el acreedor, el vendedor y qué cuenta cobra), que hace falta
-          poder editar en un lote reservado o disponible -- si no, quedaba sin
-          ninguna puerta de entrada desde la UI. El texto cambia según haya o
-          no cuotas que repartir. */}
-      {perfilPropio!.role === 'administrador' && (
-        <p className="mb-2 text-sm">
-          <EnlaceBoton href={`/admin/lotes/${id}/distribucion`} className={ENLACE}>
+      {/* Cuotas a la izquierda, pagos a la derecha (05/09, pedido de Nico
+          vía Gabriel): antes había que scrollear hasta abajo de la tabla de
+          cuotas para ver qué se cobró, y desde ahí volver a subir. En
+          pantallas angostas siguen uno debajo del otro.
+
+          09/09: pasa a la grilla de 12 columnas del mockup 2 (7-8 para las
+          cuotas, 4-5 para los pagos) y arranca en lg. Antes eran dos anchos
+          fijos y el reparto no empezaba hasta 2xl, porque la tabla de pagos
+          necesitaba 515px de ancho; ahora los pagos son tarjetas apiladas y
+          entran cómodas en una columna angosta. */}
+      <div className={GRILLA_DETALLE}>
+        <div className={COLUMNA_PRINCIPAL}>
+      <div className={PANEL_SIN_PADDING}>
+      <div className={PANEL_HEADER}>
+        <div className="flex items-center gap-3">
+          <span className={PANEL_HEADER_ICONO}>
+            <CalendarDays className="h-5 w-5" />
+          </span>
+          <h2 className={PANEL_TITULO}>Cuotas</h2>
+        </div>
+        {/* El link va para cualquier estado, no solo 'vendido': desde el
+            06/09 esa pantalla también tiene la sección de cobro (quién es el
+            admin, el acreedor, el vendedor y qué cuenta cobra), que hace falta
+            poder editar en un lote reservado o disponible -- si no, quedaba sin
+            ninguna puerta de entrada desde la UI. El texto cambia según haya o
+            no cuotas que repartir. */}
+        {perfilPropio!.role === 'administrador' && (
+          <EnlaceBoton href={`/admin/lotes/${id}/distribucion`} className={BOTON_CABECERA_AZUL}>
             {lote!.estado === 'vendido'
               ? 'Cobro y distribución de cuotas →'
               : 'Cobro: quiénes participan de este lote →'}
           </EnlaceBoton>
-        </p>
-      )}
+        )}
+      </div>
+      <div className="space-y-4 p-5">
       {perfilPropio!.role === 'administrador' && lote!.estado === 'vendido' && saldoPendienteTotal > 0 && (
-        <PanelSaldar
-          saldarAction={saldarLoteConId}
-          saldoPendienteTotal={saldoPendienteTotal}
-          moneda={lote!.moneda}
-        />
+        <div className={TIRA_DESTACADA}>
+          <div className="flex items-center gap-3">
+            <span className={TIRA_DESTACADA_ICONO}>
+              <Wallet className="h-5 w-5" />
+            </span>
+            <div>
+              <p className="text-sm font-bold text-slate-900">Saldar lote</p>
+              <p className="text-xs text-slate-600">
+                Monto a liquidar:{' '}
+                <span className="font-bold text-blue-800 tabular-nums">
+                  {saldoPendienteTotal.toLocaleString('es-AR')} {lote!.moneda}
+                </span>
+              </p>
+            </div>
+          </div>
+          <PanelSaldar
+            saldarAction={saldarLoteConId}
+            saldoPendienteTotal={saldoPendienteTotal}
+            moneda={lote!.moneda}
+          />
+        </div>
       )}
       {lote!.estado !== 'vendido' && (
-        <p className="mb-2 text-sm text-amber-700">
+        <p className="rounded-xl border border-amber-200/70 bg-amber-50/60 p-3 text-sm text-amber-800">
           Este lote todavía no está vendido — la tabla de abajo es la estructura de cuotas
           planificada, no una deuda real. Todavía no hay ningún cliente que la deba, así que
           ninguna cuota puede estar &quot;vencida&quot; hasta que el lote pase a vendido.
         </p>
       )}
-      <div className={TABLA_CONTENEDOR}>
+      <div data-testid="tabla-cuotas" className={TABLA_EMBEBIDA}>
       <table className="w-full text-sm">
         <thead>
           <tr className={TABLA_HEADER_FILA}>
@@ -960,77 +1234,95 @@ export default async function LoteDetallePage({
             </div>
           </details>
         )}
+      </div>
+      </div>
         </div>
 
-        <div>
+        <div className={COLUMNA_LATERAL}>
       {pagosConComprobante.length > 0 && (
-        <>
-          <h2 className={`mb-2 mt-6 ${TITULO_H2}`}>Historial de pagos</h2>
-          {/* Cuatro columnas, no siete (06/09): al lado de la tabla de
-              cuotas no entran Fecha + Motivo + Medio + Monto + Comprobante
-              + Estado + botón sin scroll horizontal, y una tabla con
-              scroll no se lee. El medio de pago y el motivo pasan a ser
-              renglones chicos dentro de las columnas que sí importan. */}
-          <div className={`mb-2 ${TABLA_CONTENEDOR}`}>
-          <table className="w-full text-sm">
-            <thead>
-              <tr className={TABLA_HEADER_FILA}>
-                <th className={TABLA_HEADER_CELDA}>Fecha</th>
-                <th className={TABLA_HEADER_CELDA}>Monto</th>
-                <th className={TABLA_HEADER_CELDA}>Comprobante</th>
-                <th className={TABLA_HEADER_CELDA}>Estado</th>
-              </tr>
-            </thead>
-            <tbody>
-              {pagosConComprobante.map((pago) => {
-                const confirmarEstePago = confirmarPago.bind(null, pago.id)
-                return (
-                  <tr key={pago.id} className={TABLA_FILA}>
-                    <td className={`${TABLA_CELDA} whitespace-nowrap`}>
-                      {new Date(pago.created_at).toLocaleDateString('es-AR')}
-                      <span className="block text-xs text-slate-500">
-                        {pago.medio_pago === 'efectivo' ? 'Efectivo' : 'Transferencia'}
-                      </span>
-                    </td>
-                    <td className={`${TABLA_CELDA} whitespace-nowrap`}>
-                      {pago.monto} {pago.moneda}
-                      <span className="block text-xs text-slate-500">
-                        {MOTIVO_PAGO_ETIQUETA[pago.motivo] ?? pago.motivo}
-                      </span>
-                    </td>
-                    <td className={TABLA_CELDA}>
-                      {pago.comprobanteUrl ? (
-                        <a
-                          href={pago.comprobanteUrl}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className={ENLACE_TABLA}
-                        >
-                          Ver
-                        </a>
-                      ) : pago.medio_pago === 'efectivo' ? (
-                        <span className="text-slate-500">Efectivo</span>
-                      ) : (
-                        <span className="text-slate-400">—</span>
-                      )}
-                    </td>
-                    <td className={`${TABLA_CELDA} whitespace-nowrap`}>
-                      {pago.estado === 'confirmado' ? 'Confirmado' : 'Pendiente'}
-                      {puedeConfirmarPagoDesdeLote && pago.estado === 'pendiente' && (
-                        <form action={confirmarEstePago}>
-                          <input type="hidden" name="montoVisto" value={pago.monto} />
-                          <input type="hidden" name="monto" value={pago.monto} />
-                          <BotonEnvio className={`block ${ENLACE_TABLA}`}>Confirmar</BotonEnvio>
-                        </form>
-                      )}
-                    </td>
-                  </tr>
-                )
-              })}
-            </tbody>
-          </table>
+        <div className={PANEL_SIN_PADDING}>
+          <div className={PANEL_HEADER}>
+            <div className="flex items-center gap-3">
+              <span className={PANEL_HEADER_ICONO}>
+                <Receipt className="h-5 w-5" />
+              </span>
+              <h2 className={PANEL_TITULO}>Historial de pagos</h2>
+            </div>
+            {totalCobradoHistorico !== null && (
+              <span className="rounded-full border border-blue-200/70 bg-blue-50 px-2.5 py-1 text-xs font-bold text-blue-800 tabular-nums">
+                Total: {totalCobradoHistorico.toLocaleString('es-AR')} {lote!.moneda}
+              </span>
+            )}
           </div>
-        </>
+          {/* Tarjetas y no filas (09/09, mockup 2): en esta columna angosta
+              no entran fecha + medio + motivo + monto + comprobante +
+              estado en una fila, y lo que hay que poder leer de un pago
+              pendiente es justamente lo que no entraba. Cada tarjeta lleva
+              data-testid="pago-lote" para que los tests no dependan de si
+              esto es una tabla o una lista. */}
+          <div className="space-y-3 p-5">
+            {pagosConComprobante.map((pago) => {
+              const confirmarEstePago = confirmarPago.bind(null, pago.id)
+              const pendiente = pago.estado !== 'confirmado'
+              return (
+                <div
+                  key={pago.id}
+                  data-testid="pago-lote"
+                  className={pendiente ? TARJETA_PAGO_PENDIENTE : TARJETA_PAGO}
+                >
+                  <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
+                    <span className="text-sm font-bold text-slate-900">
+                      {MOTIVO_PAGO_ETIQUETA[pago.motivo] ?? pago.motivo}
+                    </span>
+                    <span className="text-sm font-bold text-blue-900 tabular-nums">
+                      {pago.monto} {pago.moneda}
+                    </span>
+                  </div>
+
+                  <p className="text-xs text-slate-600 tabular-nums">
+                    {new Date(pago.created_at).toLocaleDateString('es-AR')}
+                    <span className="text-slate-400"> · </span>
+                    {pago.medio_pago === 'efectivo' ? 'Efectivo' : 'Transferencia'}
+                  </p>
+
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <span
+                      className={
+                        pendiente
+                          ? 'inline-flex items-center gap-1 rounded-full border border-amber-300/70 bg-amber-100 px-2.5 py-0.5 text-[11px] font-bold text-amber-800'
+                          : 'inline-flex items-center gap-1 rounded-full border border-emerald-200/60 bg-emerald-50 px-2.5 py-0.5 text-[11px] font-bold text-emerald-700'
+                      }
+                    >
+                      {pendiente ? 'Pendiente' : 'Confirmado'}
+                    </span>
+                    {pago.comprobanteUrl ? (
+                      <a
+                        href={pago.comprobanteUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className={`text-xs font-semibold ${ENLACE_TABLA}`}
+                      >
+                        Ver comprobante →
+                      </a>
+                    ) : pago.medio_pago === 'efectivo' ? (
+                      <span className="text-xs text-slate-500">Sin comprobante (efectivo)</span>
+                    ) : null}
+                  </div>
+
+                  {puedeConfirmarPagoDesdeLote && pendiente && (
+                    <form action={confirmarEstePago} className="pt-1">
+                      <input type="hidden" name="montoVisto" value={pago.monto} />
+                      <input type="hidden" name="monto" value={pago.monto} />
+                      <BotonEnvio className={`w-full cursor-pointer ${BOTON_FILA_AZUL} justify-center`}>
+                        Confirmar
+                      </BotonEnvio>
+                    </form>
+                  )}
+                </div>
+              )
+            })}
+          </div>
+        </div>
       )}
         </div>
       </div>

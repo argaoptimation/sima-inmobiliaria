@@ -127,16 +127,13 @@ test.describe('Efectivo y cierre de caja (25/08)', () => {
     await login(page, fixtures.cobrador.email, fixtures.password)
     await page.goto(`/admin/lotes/${loteId}`)
 
-    // Scoped a la tabla de "Historial de pagos" en particular -- la de
-    // Cuotas también tiene una columna con "1000 USD" (monto base).
-    const filaHistorialPago = page
-      .locator('h2:has-text("Historial de pagos") ~ div table tbody tr')
-      .filter({ hasText: '1000 USD' })
-    await expect(filaHistorialPago).toBeVisible()
-    // La fila muestra "Efectivo" dos veces desde el rediseño (el medio de
-    // pago y su etiqueta), así que alcanza con la primera.
-    await expect(filaHistorialPago.getByText('Efectivo', { exact: true }).first()).toBeVisible()
-    await expect(filaHistorialPago.getByText('Confirmado', { exact: true }).first()).toBeVisible()
+    // Desde el rediseno del 09/09 cada pago es una tarjeta y no una fila:
+    // en la columna angosta no entraba la doble confirmacion. El testid es
+    // deliberado, para que el assert no vuelva a depender del maquetado.
+    const tarjetaPago = page.getByTestId('pago-lote').filter({ hasText: '1000 USD' })
+    await expect(tarjetaPago).toBeVisible()
+    await expect(tarjetaPago.getByText('Efectivo', { exact: false }).first()).toBeVisible()
+    await expect(tarjetaPago.getByText('Confirmado', { exact: true })).toBeVisible()
   })
 
   test('un vendedor o un acreedor NO pueden acceder a /admin/efectivo ni a /admin/cierre-caja (solo admin o cobrador)', async ({

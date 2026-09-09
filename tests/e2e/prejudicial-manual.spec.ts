@@ -58,7 +58,7 @@ test.describe('Prejudicial manual (26/08)', () => {
     await page.waitForURL(`**/admin/lotes/${fixtures.loteId}**`)
 
     await expect(page.getByText('Lote marcado como Prejudicial')).toBeVisible()
-    await expect(page.getByText('Estado de cobranza:')).toContainText('Prejudicial')
+    await expect(page.getByTestId('estado-cobranza')).toHaveText('Prejudicial')
     await expect(page.getByRole('button', { name: 'Sacar de Prejudicial' })).toBeVisible()
 
     await page.getByText(/Historial de estados del lote/).click()
@@ -75,7 +75,7 @@ test.describe('Prejudicial manual (26/08)', () => {
     await page.waitForURL(`**/admin/lotes/${fixtures.loteId}**`)
 
     await expect(page.getByText('Lote sacado de Prejudicial')).toBeVisible()
-    await expect(page.getByText('Estado de cobranza:')).toContainText('Posible prejudicial')
+    await expect(page.getByTestId('estado-cobranza')).toHaveText('Posible prejudicial')
 
     await page.getByText(/Historial de estados del lote/).click()
     await expect(page.getByText('Salió de Prejudicial')).toBeVisible()

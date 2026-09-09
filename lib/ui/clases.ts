@@ -358,3 +358,99 @@ export const PUNTO_COBRANZA = {
   moroso: 'h-1.5 w-1.5 rounded-full bg-rose-500',
   prejudicial: 'h-1.5 w-1.5 rounded-full bg-rose-200',
 }
+
+// ---------------------------------------------------------------------------
+// Rediseno Stitch 2026-09 -- MOCKUP 2 (detalle del lote)
+//
+// Las clases salen del code.html del mockup, no de mirar la captura: ahi
+// estan los valores exactos (radios, sombras, gradientes) en vez de una
+// estimacion a ojo. Los iconos del mockup son de Material Symbols y aca se
+// mapean a lucide-react, que es lo que ya usa la app.
+// ---------------------------------------------------------------------------
+
+// Cabecera: el nombre del lote con su icono y, al lado, las acciones
+// destructivas o de estado. Una sola tarjeta en vez de un h1 suelto con
+// botones flotando a la derecha.
+export const CABECERA_LOTE =
+  'flex flex-wrap items-center justify-between gap-5 rounded-2xl border border-slate-200/80 bg-white p-5 shadow-[0_2px_10px_rgba(15,23,42,0.03)] md:p-6'
+export const CABECERA_LOTE_ICONO =
+  'flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-blue-600 to-indigo-700 text-white shadow-md shadow-blue-500/20'
+export const CABECERA_LOTE_TITULO =
+  'font-heading text-2xl font-bold tracking-tight text-slate-900'
+export const CABECERA_LOTE_SUBTITULO =
+  'mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs font-medium text-slate-500'
+
+// Botones de la cabecera. Neutro por defecto; el de peligro solo se pinta
+// de rojo al pasar por encima, para que la fila no se lea como una alarma.
+export const BOTON_CABECERA =
+  'inline-flex cursor-pointer items-center gap-1.5 rounded-xl border border-slate-200 bg-slate-50 px-3.5 py-2 text-xs font-semibold text-slate-600 transition-all hover:bg-slate-100 hover:text-slate-900 disabled:cursor-not-allowed disabled:opacity-60'
+export const BOTON_CABECERA_AMBAR =
+  'inline-flex cursor-pointer items-center gap-1.5 rounded-xl border border-amber-200 bg-amber-50 px-3.5 py-2 text-xs font-semibold text-amber-700 transition-all hover:border-amber-300 hover:bg-amber-100 disabled:cursor-not-allowed disabled:opacity-60'
+export const BOTON_CABECERA_PELIGRO =
+  'inline-flex cursor-pointer items-center gap-1.5 rounded-xl border border-slate-200 bg-slate-50 px-3.5 py-2 text-xs font-semibold text-slate-600 transition-all hover:border-rose-600 hover:bg-rose-600 hover:text-white disabled:cursor-not-allowed disabled:opacity-60'
+export const BOTON_CABECERA_AZUL =
+  'inline-flex cursor-pointer items-center gap-1.5 rounded-xl border border-blue-200 bg-blue-50 px-3.5 py-2 text-xs font-semibold text-blue-700 transition-all hover:border-blue-300 hover:bg-blue-100'
+
+// Las 4 tarjetas de arriba: precio, cliente, saldo y acreedor. Sombra mas
+// suave que la cabecera -- son informacion de apoyo, no el titulo.
+export const TARJETA_KPI =
+  'flex flex-col justify-between gap-3 rounded-2xl border border-slate-200/80 bg-white p-5 shadow-[0_1px_4px_rgba(15,23,42,0.03)]'
+export const LOTE_KPI_ETIQUETA = 'text-[11px] font-bold tracking-wider text-slate-500 uppercase'
+export const LOTE_KPI_ICONO =
+  'flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-blue-50 text-blue-600'
+export const LOTE_KPI_VALOR =
+  'font-heading text-2xl font-extrabold tracking-tight text-slate-900 tabular-nums'
+export const LOTE_KPI_DATO = 'text-[13px] text-slate-600'
+export const LOTE_KPI_PILL =
+  'rounded border border-blue-200 bg-blue-50 px-1.5 py-0.5 text-[10px] font-extrabold text-blue-700 uppercase'
+
+// Barra de progreso de cobranza (cuanto del precio ya se cobro).
+export const BARRA_FONDO = 'h-2 w-full overflow-hidden rounded-full bg-slate-100'
+export const BARRA_RELLENO =
+  'h-full rounded-full bg-gradient-to-r from-blue-600 to-indigo-600 transition-all'
+
+// Avatar con las iniciales del cliente, para reconocerlo de un vistazo sin
+// leer el nombre completo.
+export const AVATAR_INICIALES =
+  'flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[#0b1736] text-sm font-bold text-white ring-2 ring-blue-500/20'
+
+// El cuerpo: cuotas a la izquierda (mas ancho), pagos a la derecha.
+export const GRILLA_DETALLE = 'grid grid-cols-1 items-start gap-6 lg:grid-cols-12'
+export const COLUMNA_PRINCIPAL = 'space-y-6 lg:col-span-7 xl:col-span-8'
+export const COLUMNA_LATERAL = 'space-y-6 lg:col-span-5 xl:col-span-4'
+
+// Encabezado de un panel: icono cuadrado + titulo + accion a la derecha.
+export const PANEL_HEADER =
+  'flex flex-wrap items-center justify-between gap-3 border-b border-slate-100 px-5 py-4'
+export const PANEL_HEADER_ICONO =
+  'flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-blue-50 text-blue-700'
+export const PANEL_TITULO = 'font-heading text-lg font-bold text-slate-900'
+
+// La tira de "Saldar lote": destaca sin gritar, porque es una accion que se
+// usa poco pero que cuando se usa mueve todo el saldo del lote.
+export const TIRA_DESTACADA =
+  'flex flex-wrap items-center justify-between gap-4 rounded-xl border border-blue-100 bg-gradient-to-r from-blue-50 via-indigo-50/50 to-white p-4'
+export const TIRA_DESTACADA_ICONO =
+  'flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-blue-600 text-white shadow-md shadow-blue-500/20'
+
+// Tabla dentro de un panel: bordes propios, porque va embebida y no puede
+// apoyarse en los del panel.
+export const TABLA_EMBEBIDA = 'overflow-x-auto rounded-xl border border-slate-200/90 shadow-sm'
+
+// Estado de una cuota. Son los cuatro que existen de verdad en el sistema.
+const PILL_CUOTA_BASE = 'inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-xs font-semibold whitespace-nowrap'
+export const PILL_CUOTA = {
+  pagada: `${PILL_CUOTA_BASE} bg-emerald-50 text-emerald-700 border border-emerald-200/60`,
+  vencida: `${PILL_CUOTA_BASE} bg-red-50 text-red-700 border border-red-200/60`,
+  porVencer: `${PILL_CUOTA_BASE} bg-amber-50 text-amber-800 border border-amber-200/60`,
+  esperando: `${PILL_CUOTA_BASE} bg-slate-100 text-slate-600 border border-slate-200/60`,
+  refinanciada: `${PILL_CUOTA_BASE} bg-purple-50 text-purple-700 border border-purple-200/60`,
+}
+
+// Cada pago, como tarjeta y no como fila: en la columna angosta no entran
+// fecha + medio + monto + comprobante + doble confirmacion en una fila, y
+// el estado de la doble validacion es justo lo que hay que poder leer.
+export const TARJETA_PAGO =
+  'space-y-2 rounded-xl border border-slate-200/80 bg-slate-50 p-3.5 transition-colors hover:bg-slate-100/60'
+export const TARJETA_PAGO_PENDIENTE =
+  'space-y-3 rounded-xl border border-amber-200/80 bg-amber-50/60 p-3.5 ring-1 ring-amber-300/60'
