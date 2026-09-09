@@ -454,3 +454,37 @@ export const TARJETA_PAGO =
   'space-y-2 rounded-xl border border-slate-200/80 bg-slate-50 p-3.5 transition-colors hover:bg-slate-100/60'
 export const TARJETA_PAGO_PENDIENTE =
   'space-y-3 rounded-xl border border-amber-200/80 bg-amber-50/60 p-3.5 ring-1 ring-amber-300/60'
+
+// ---------------------------------------------------------------------------
+// Rediseno Stitch 2026-09 -- MOCKUP 3 (reservar) y 4 (vender)
+//
+// Los dos son formularios largos. El mockup los parte en secciones
+// numeradas con una ficha del lote fija al costado, para que se vea que se
+// esta comprando mientras se cargan los datos del que compra.
+// ---------------------------------------------------------------------------
+
+export const SECCION_FORM =
+  'space-y-4 rounded-2xl border border-slate-200/80 bg-white p-4 shadow-[0_2px_10px_rgba(15,23,42,0.03)] md:p-5'
+export const SECCION_FORM_NUMERO =
+  'flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-blue-50 text-sm font-bold text-blue-700 shadow-sm'
+export const SECCION_FORM_TITULO =
+  'font-heading text-sm leading-tight font-bold text-slate-900 md:text-base'
+export const SECCION_FORM_BAJADA = 'text-xs text-slate-500'
+
+// Dos columnas de campos adentro de cada seccion. Los campos largos
+// (domicilio, mail) ocupan las dos con CAMPO_ANCHO.
+export const GRILLA_CAMPOS = 'grid grid-cols-1 gap-3.5 md:grid-cols-2'
+export const CAMPO_ANCHO = 'md:col-span-2'
+export const ETIQUETA_CAMPO =
+  'mb-1 block text-[11px] font-bold tracking-wider text-slate-500 uppercase'
+
+// Ficha del lote: una tapa oscura con el loteo y la ubicacion, y debajo las
+// especificaciones como filas etiqueta/valor.
+export const FICHA_LOTE_TAPA =
+  'relative flex h-32 flex-col justify-between overflow-hidden bg-gradient-to-tr from-slate-900 to-[#0b1736] p-4 text-white'
+export const FICHA_LOTE_BADGE =
+  'rounded-full border border-emerald-400/40 bg-emerald-500/20 px-2.5 py-0.5 text-[11px] font-bold text-emerald-300 backdrop-blur-sm'
+export const FICHA_LOTE_FILA =
+  'flex items-center justify-between gap-3 border-b border-slate-50 py-1 text-xs'
+export const FICHA_LOTE_DESTACADO =
+  'flex items-center justify-between gap-3 rounded-xl bg-slate-50 px-2.5 py-1.5'

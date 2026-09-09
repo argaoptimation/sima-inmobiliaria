@@ -303,9 +303,10 @@ test.describe('Reserva de lote (fase 1: texto + comprobante de seña)', () => {
     await page.goto(`/admin/lotes/${loteId}/reservar`)
 
     await page.selectOption('select[name="recibidoPor"]', '')
-    await page
-      .getByPlaceholder('Si no está en la lista: nombre de quien la recibió')
-      .fill('Persona Externa Sin Cuenta')
+    // Por etiqueta y no por placeholder: desde el rediseno del 09/09 la
+    // aclaracion ('Si no esta en la lista') es la etiqueta del campo y el
+    // placeholder quedo como ejemplo corto.
+    await page.getByLabel('Si no está en la lista').fill('Persona Externa Sin Cuenta')
 
     await completarDatosBasicosDeReserva(page)
     await elegirFormaPago(page)
