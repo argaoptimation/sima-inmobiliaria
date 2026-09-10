@@ -724,7 +724,14 @@ export default async function LoteDetallePage({
                 <ChevronDown className="h-[15px] w-[15px]" />
               </summary>
 
-              <div className="absolute top-full right-0 z-20 mt-2 w-[min(26rem,calc(100vw-3rem))] space-y-3 rounded-2xl border border-slate-200 bg-white p-4 text-left shadow-xl shadow-slate-900/10">
+              {/* Se abre hacia la DERECHA (`left-0`) y no hacia la izquierda
+                  (10/09, lo vio Gabriel): el boton vive pegado al borde
+                  izquierdo del contenido, asi que un panel de 26rem anclado
+                  a la derecha arrancaba 181px DETRAS del menu lateral y se
+                  cortaba. Medido a 1440, 1180, 1000 y 820 de ancho: se
+                  cortaba en los cuatro. Hacia la derecha entra entero,
+                  porque de ese lado el contenido llega hasta el borde. */}
+              <div className="absolute top-full left-0 z-20 mt-2 w-[min(26rem,calc(100vw-3rem))] space-y-3 rounded-2xl border border-slate-200 bg-white p-4 text-left shadow-xl shadow-slate-900/10">
                 {documentosSinContrato.length === 0 ? (
                   <p className="text-sm text-slate-500">
                     Todavía no se subió ningún documento a este lote.

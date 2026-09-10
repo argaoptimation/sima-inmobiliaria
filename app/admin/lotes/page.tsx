@@ -627,7 +627,10 @@ export default async function LotesPage({
                   {misLotesReservados!.map((lote, indice) => {
                     const cancelarReservaConId = cancelarReserva.bind(null, lote.id)
                     return (
-                      <tr key={lote.id} className={indice % 2 === 1 ? TABLA_PANEL_TR_ALTERNA : TABLA_PANEL_TR}>
+                      <tr
+                      key={lote.id}
+                      className={`group ${indice % 2 === 1 ? TABLA_PANEL_TR_ALTERNA : TABLA_PANEL_TR}`}
+                    >
                         <td className={`${TABLA_PANEL_TD} font-semibold text-slate-900 tabular-nums`}>
                           {lote.manzana ?? <span className="text-slate-400">—</span>}
                         </td>
@@ -848,7 +851,18 @@ export default async function LotesPage({
                   {!esVendedor && <th className={TABLA_PANEL_TH}>Acreedor</th>}
                   {!esVendedor && <th className={`${TABLA_PANEL_TH} text-center`}>Cuotas</th>}
                   {!esVendedor && <th className={TABLA_PANEL_TH}>Cobranza</th>}
-                  <th className={`${TABLA_PANEL_TH} min-w-[180px] text-right`}>Acciones</th>
+                  {/* Acciones queda CONGELADA a la derecha (10/09, pedido
+                      de Gabriel: "como la opcion de excel"). Sin esto, en una
+                      pantalla angosta hay que scrollear hasta el final para
+                      reservar o vender, y al llegar ya no se ve de que lote se
+                      trata. La celda necesita fondo propio y opaco: el de la
+                      fila no se pinta debajo de una celda sticky, se
+                      transparenta y se ve pasar el contenido por atras. */}
+                  <th
+                    className={`${TABLA_PANEL_TH} sticky right-0 z-20 min-w-[180px] bg-blue-800 text-right`}
+                  >
+                    Acciones
+                  </th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100 text-xs text-slate-700">
@@ -856,7 +870,10 @@ export default async function LotesPage({
                   const eliminarLoteConId = eliminarLote.bind(null, lote.id)
                   const cobranza = cobranzaPorLote.get(lote.id)
                   return (
-                    <tr key={lote.id} className={indice % 2 === 1 ? TABLA_PANEL_TR_ALTERNA : TABLA_PANEL_TR}>
+                    <tr
+                      key={lote.id}
+                      className={`group ${indice % 2 === 1 ? TABLA_PANEL_TR_ALTERNA : TABLA_PANEL_TR}`}
+                    >
                       {!esVendedor && (
                         <td className={`${TABLA_PANEL_TD} max-w-[170px] truncate font-semibold text-slate-900`}>
                           {lote.loteo_id ? (nombreLoteoPorId.get(lote.loteo_id) ?? '—') : '— sin asignar —'}
@@ -957,7 +974,13 @@ export default async function LotesPage({
                           )}
                         </td>
                       )}
-                      <td className={`${TABLA_PANEL_TD} text-right`}>
+                      {/* #f7fbff es exactamente `blue-50` al 50% sobre
+                          blanco, que es el hover de la fila: la celda fija
+                          no puede usar un color translucido porque dejaria
+                          ver el contenido que pasa por debajo. */}
+                      <td
+                        className={`${TABLA_PANEL_TD} sticky right-0 z-10 bg-white text-right shadow-[-10px_0_12px_-10px_rgba(15,23,42,0.25)] group-hover:bg-[#f7fbff]`}
+                      >
                         <div className="inline-flex items-center justify-end gap-1.5">
                           {lote.estado === 'disponible' && (
                             <EnlaceBoton href={`/admin/lotes/${lote.id}/reservar`} className={BOTON_FILA_VERDE}>

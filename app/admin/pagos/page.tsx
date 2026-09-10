@@ -6,9 +6,10 @@ import { FiltroEnVivo } from '@/components/FiltroEnVivo'
 import { EnlaceBoton } from '@/components/EnlaceBoton'
 import { BotonEnvio } from '@/components/BotonEnvio'
 import { EncabezadoPagina } from '@/components/EncabezadoPagina'
+import { Paginador } from '@/components/Paginador'
+import { leerPagina } from '@/lib/ui/paginacion'
 import {
   ENTRADA,
-  BOTON_SECUNDARIO,
   ENLACE,
   BANNER_ERROR,
   BADGE_BASE,
@@ -84,8 +85,10 @@ export default async function PagosPage({
     motivo?: string
     desde?: string
     hasta?: string
+    pagina?: string
   }>
 }) {
+  const parametros = await searchParams
   const {
     error,
     q: filtroTexto,
@@ -94,7 +97,9 @@ export default async function PagosPage({
     motivo: filtroMotivo,
     desde: filtroDesde,
     hasta: filtroHasta,
-  } = await searchParams
+  } = parametros
+
+  const pagina = leerPagina(parametros.pagina)
 
   // Cobrador ahora entra acá también (03/09, confirmado con Nico) -- ya
   // veía el link "Pagos" en el sidebar pero la página lo bloqueaba igual.
@@ -165,7 +170,10 @@ export default async function PagosPage({
 
   const loteIdsFiltro = interseccionDeLoteIds([loteIdsBusqueda, loteIdsFiltroAcreedor])
 
-  let pagos: Pago[] = []
+  // A qué lotes se puede mirar, ya con todos los filtros aplicados.
+  // `null` quiere decir "sin restricción de lote"; un array vacío, "ningún
+  // lote pasa el filtro", que no es lo mismo.
+  let loteIdsPermitidos: string[] | null = loteIdsFiltro
 
   if (perfilPropio!.role === 'acreedor') {
     const { data: misLotes } = await supabase
@@ -180,44 +188,53 @@ export default async function PagosPage({
       loteIds = loteIds.filter((id) => filtroSet.has(id))
     }
 
-    if (loteIds.length > 0) {
-      let query = supabase
-        .from('pagos')
-        .select(columnasPago)
-        .in('lote_id', loteIds)
-        .order('created_at', { ascending: false })
-      if (estadoParaQuery) query = query.eq('estado', estadoParaQuery)
-      if (filtroMotivo) query = query.eq('motivo', filtroMotivo)
-      if (filtroDesde) query = query.gte('created_at', `${filtroDesde}T00:00:00`)
-      if (filtroHasta) query = query.lte('created_at', `${filtroHasta}T23:59:59`)
-      const { data } = await query
-      pagos = data ?? []
-    }
-  } else {
-    if (loteIdsFiltro !== null) {
-      if (loteIdsFiltro.length > 0) {
-        let query = supabase
-          .from('pagos')
-          .select(columnasPago)
-          .in('lote_id', loteIdsFiltro)
-          .order('created_at', { ascending: false })
-        if (estadoParaQuery) query = query.eq('estado', estadoParaQuery)
-        if (filtroMotivo) query = query.eq('motivo', filtroMotivo)
-        if (filtroDesde) query = query.gte('created_at', `${filtroDesde}T00:00:00`)
-        if (filtroHasta) query = query.lte('created_at', `${filtroHasta}T23:59:59`)
-        const { data } = await query
-        pagos = data ?? []
-      }
-    } else {
-      let query = supabase.from('pagos').select(columnasPago).order('created_at', { ascending: false })
-      if (estadoParaQuery) query = query.eq('estado', estadoParaQuery)
-      if (filtroMotivo) query = query.eq('motivo', filtroMotivo)
-      if (filtroDesde) query = query.gte('created_at', `${filtroDesde}T00:00:00`)
-      if (filtroHasta) query = query.lte('created_at', `${filtroHasta}T23:59:59`)
-      const { data } = await query
-      pagos = data ?? []
-    }
+    loteIdsPermitidos = loteIds
   }
+
+  // Los cuatro caminos que había antes (acreedor / resto, con filtro de lote
+  // o sin él) armaban la misma consulta copiada cuatro veces. Ahora es una
+  // sola: si mañana se agrega un filtro, se agrega en un lugar y no en
+  // cuatro -- que es como se cuelan las diferencias entre lo que se ve y lo
+  // que se cuenta.
+  function consultaDePagos(columnas: string, contar = false) {
+    let query = contar
+      ? supabase.from('pagos').select(columnas, { count: 'exact', head: false })
+      : supabase.from('pagos').select(columnas)
+
+    if (loteIdsPermitidos !== null) query = query.in('lote_id', loteIdsPermitidos)
+    if (filtroMotivo) query = query.eq('motivo', filtroMotivo)
+    if (filtroDesde) query = query.gte('created_at', `${filtroDesde}T00:00:00`)
+    if (filtroHasta) query = query.lte('created_at', `${filtroHasta}T23:59:59`)
+
+    return query
+  }
+
+  const sinNingunLote = loteIdsPermitidos !== null && loteIdsPermitidos.length === 0
+
+  // PAGINACIÓN (10/09). Pagos es el único listado que crece con el tiempo y
+  // no tiene techo: unas 200 filas por mes, para siempre. A los dos años son
+  // 4.800 tarjetas en la pantalla que Nicolás abre todos los días. Ahora se
+  // piden de a 50 y las demás recién cuando aprieta "Siguiente".
+  //
+  // La pestaña "Esperando mi confirmación" NO se pagina, y es a propósito:
+  // ese filtro no se puede resolver en la base (depende de a qué cuenta se
+  // cobra cada cuota, con herencia del lote) así que se calcula acá; pero es
+  // una cola de trabajo, no un historial -- si tiene 4.800 pagos adentro el
+  // problema no es la pantalla.
+  async function traerPagos({ paginado }: { paginado: boolean }) {
+    if (sinNingunLote) return { filas: [] as Pago[], total: 0 }
+
+    let query = consultaDePagos(columnasPago, true).order('created_at', { ascending: false })
+    if (estadoParaQuery) query = query.eq('estado', estadoParaQuery)
+    if (paginado) query = query.range(pagina.desde, pagina.hasta)
+
+    const { data, count } = await query
+    return { filas: (data ?? []) as unknown as Pago[], total: count ?? 0 }
+  }
+
+  const { filas: pagos, total: totalDePagos } = await traerPagos({
+    paginado: !soloEsperandoMiConfirmacion,
+  })
 
   const idsPagos = pagos.map((pago) => pago.id)
 
@@ -390,7 +407,30 @@ export default async function PagosPage({
     })
   )
 
-  const cantidadPendientes = pagos.filter((p) => p.estado === 'pendiente').length
+  // Los contadores de las pestañas se cuentan APARTE, con su propia
+  // consulta. Antes salían de `pagos`, o sea de lo que estaba en pantalla:
+  // parado en "Confirmados" el contador de pendientes decía 0, y ahora que
+  // la lista viene paginada habría dicho "los pendientes de esta página".
+  // Un contador que cambia según dónde estás parado no sirve para decidir
+  // si hay trabajo esperando.
+  const { data: pendientesData } = sinNingunLote
+    ? { data: [] }
+    : await consultaDePagos(
+        'id, estado, comprobante_path, medio_pago, confirmado_admin_por, confirmado_acreedor_por, lote_id, cuota_origen_id'
+      ).eq('estado', 'pendiente')
+
+  const pendientes = (pendientesData ?? []) as unknown as Array<{
+    id: string
+    estado: string
+    comprobante_path: string | null
+    medio_pago: 'efectivo' | 'transferencia'
+    confirmado_admin_por: string | null
+    confirmado_acreedor_por: string | null
+    lote_id: string
+    cuota_origen_id: string | null
+  }>
+
+  const cantidadPendientes = pendientes.length
 
   // Un pago cuyo destino no se pudo resolver: se trata como si no hubiera
   // nadie del otro lado, así que lo confirma solo el admin.
@@ -410,23 +450,38 @@ export default async function PagosPage({
   // Para el admin es el segundo check, y siempre le toca. Para el resto solo
   // le toca si el pago se cobra en SU cuenta -- ver un pago de un lote donde
   // participa no lo habilita a confirmar el cobro de otro.
-  function esperaMiConfirmacion(pago: (typeof pagosConLink)[number]): boolean {
+  interface PagoParaEsperar {
+    id: string
+    estado: string
+    comprobante_path: string | null
+    medio_pago: 'efectivo' | 'transferencia'
+    confirmado_admin_por: string | null
+    confirmado_acreedor_por: string | null
+  }
+
+  function esperaMiConfirmacion(
+    pago: PagoParaEsperar,
+    destinatarios: Map<string, { perfilId: string | null }> = destinatarioPorPago
+  ): boolean {
     if (pago.estado !== 'pendiente') return false
     if (!pago.comprobante_path && pago.medio_pago !== 'efectivo') return false
     if (pago.medio_pago === 'efectivo' && !esAdministrador) return false
 
     if (esAdministrador) return !pago.confirmado_admin_por
 
-    const destinatario = destinatarioPorPago.get(pago.id)
+    const destinatario = destinatarios.get(pago.id)
 
     return destinatario?.perfilId === perfilPropio!.id && !pago.confirmado_acreedor_por
   }
 
   const pagosVisibles = soloEsperandoMiConfirmacion
-    ? pagosConLink.filter(esperaMiConfirmacion)
+    ? pagosConLink.filter((pago) => esperaMiConfirmacion(pago))
     : pagosConLink
 
-  const cantidadEsperandoMiConfirmacion = pagosConLink.filter(esperaMiConfirmacion).length
+  const destinatarioDePendientes = await resolverDestinatariosDePagos(supabase, pendientes)
+  const cantidadEsperandoMiConfirmacion = pendientes.filter((pago) =>
+    esperaMiConfirmacion(pago, destinatarioDePendientes)
+  ).length
 
   return (
     <main className="flex flex-col gap-5">
@@ -834,6 +889,20 @@ export default async function PagosPage({
           })
         )}
       </div>
+
+      {/* El pie con "Mostrando 51-100 de 322" y Anterior/Siguiente. No se
+          dibuja en la pestaña "Esperando mi confirmación", que no se pagina
+          (ver el comentario de la consulta), ni cuando entra todo en una
+          sola página. */}
+      {!soloEsperandoMiConfirmacion && (
+        <Paginador
+          ruta="/admin/pagos"
+          searchParams={parametros}
+          pagina={pagina.numero}
+          total={totalDePagos}
+          queSonLasFilas="pagos"
+        />
+      )}
 
       {perfilPropio!.role === 'administrador' && (
         <p className="mt-3 text-xs text-slate-400">
