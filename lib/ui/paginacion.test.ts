@@ -7,7 +7,7 @@ describe('leerPagina', () => {
   })
 
   it('la página 3 pide el rango que le toca', () => {
-    expect(leerPagina('3')).toEqual({ numero: 3, desde: 100, hasta: 149 })
+    expect(leerPagina('3')).toEqual({ numero: 3, desde: 60, hasta: 89 })
   })
 
   it.each(['0', '-4', 'hola', '2.5', '', '99999999999'])(
@@ -22,15 +22,17 @@ describe('estadoDePaginado', () => {
   it('cuenta las filas que se están viendo, 1-based e inclusivo', () => {
     const estado = estadoDePaginado(2, 322)
 
-    expect(estado.primeraFila).toBe(51)
-    expect(estado.ultimaFila).toBe(100)
-    expect(estado.totalPaginas).toBe(7)
+    expect(estado.primeraFila).toBe(31)
+    expect(estado.ultimaFila).toBe(60)
+    expect(estado.totalPaginas).toBe(11)
+    expect(estado.desde).toBe(30)
+    expect(estado.hasta).toBe(59)
     expect(estado.hayAnterior).toBe(true)
     expect(estado.haySiguiente).toBe(true)
   })
 
   it('la última página no miente sobre cuántas filas tiene', () => {
-    const estado = estadoDePaginado(7, 322)
+    const estado = estadoDePaginado(11, 322)
 
     expect(estado.primeraFila).toBe(301)
     expect(estado.ultimaFila).toBe(322)
@@ -57,6 +59,11 @@ describe('estadoDePaginado', () => {
 
     expect(estado.pagina).toBe(1)
     expect(estado.ultimaFila).toBe(30)
+    // Y el rango que se le pide a la base es el de esa última página, no el
+    // de la que se pidió: si no, la pantalla queda vacía diciendo
+    // "página 1 de 1".
+    expect(estado.desde).toBe(0)
+    expect(estado.hasta).toBe(29)
   })
 })
 

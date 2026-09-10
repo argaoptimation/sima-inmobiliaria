@@ -10,9 +10,12 @@
 // su manera, un día el Excel exporta otra página que la que se está
 // mirando.
 
-// 50 filas: entra más de una pantalla de scroll (así no se siente que
-// "falta" contenido) y sigue siendo una respuesta chica.
-export const TAMANIO_PAGINA = 50
+// 30 filas (10/09, Gabriel: "50 es muchisimo igual y mas va a usar los
+// filtros"). Tiene razón: el que entra a Pagos o a Lotes filtra primero y
+// mira después, así que la primera página casi nunca se recorre entera.
+// Menos de 30 empieza a molestar en el otro sentido -- con 15 hay que pasar
+// de página para ver un mes de pagos, y pasar de página cuesta una recarga.
+export const TAMANIO_PAGINA = 30
 
 export interface Pagina {
   // 1-based, que es lo que ve el usuario en la URL.
@@ -47,6 +50,12 @@ export interface EstadoDePaginado {
   total: number
   hayAnterior: boolean
   haySiguiente: boolean
+  // El mismo rango 0-based que `leerPagina`, pero ya corregido si la página
+  // pedida no existe. Se usa para el `.range()` de Supabase: así lo que se
+  // trae de la base es siempre lo mismo que dice el pie de la tabla, en vez
+  // de traer una página vacía y anunciar "página 3 de 3".
+  desde: number
+  hasta: number
 }
 
 export function estadoDePaginado(pagina: number, total: number): EstadoDePaginado {
@@ -57,7 +66,8 @@ export function estadoDePaginado(pagina: number, total: number): EstadoDePaginad
   // un filtro que achicó la lista después de haber navegado.
   const paginaReal = Math.min(pagina, totalPaginas)
 
-  const primeraFila = total === 0 ? 0 : (paginaReal - 1) * TAMANIO_PAGINA + 1
+  const desde = (paginaReal - 1) * TAMANIO_PAGINA
+  const primeraFila = total === 0 ? 0 : desde + 1
   const ultimaFila = Math.min(paginaReal * TAMANIO_PAGINA, total)
 
   return {
@@ -68,6 +78,8 @@ export function estadoDePaginado(pagina: number, total: number): EstadoDePaginad
     total,
     hayAnterior: paginaReal > 1,
     haySiguiente: paginaReal < totalPaginas,
+    desde,
+    hasta: desde + TAMANIO_PAGINA - 1,
   }
 }
 

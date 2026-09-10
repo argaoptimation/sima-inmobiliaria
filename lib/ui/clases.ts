@@ -314,12 +314,19 @@ export const CAMPO_FILTRO =
 export const TABLA_PANEL_HEADER =
   'bg-gradient-to-r from-blue-900 to-blue-800 text-left text-[11px] font-bold tracking-wider text-white uppercase select-none'
 export const TABLA_PANEL_TH = 'px-4 py-3.5 whitespace-nowrap'
+// Encabezado que queda fijo al bajar (10/09, pedido de Gabriel: "cuando vas
+// bajando perdes nocion de cual columna es cual"). Va en cada <th> y no en
+// el <tr>: el fondo de la fila NO se pinta debajo de una celda sticky -- se
+// transparenta y se ven pasar las filas por atras. Por eso tambien el color
+// es plano y no el degrade de TABLA_PANEL_HEADER: un degrade repetido celda
+// por celda se ve como rayas verticales.
+export const TABLA_PANEL_TH_FIJO = 'sticky top-0 z-20 bg-blue-800'
 export const TABLA_PANEL_TH_ORDEN = 'flex items-center gap-1 transition-colors hover:text-blue-200'
 export const TABLA_PANEL_TR = 'transition-colors hover:bg-blue-50/50'
 export const TABLA_PANEL_TR_ALTERNA = 'bg-slate-50/30 transition-colors hover:bg-blue-50/50'
 export const TABLA_PANEL_TD = 'px-4 py-3.5 whitespace-nowrap'
 export const TABLA_PANEL_PIE =
-  'flex flex-col items-center justify-between gap-4 border-t border-slate-100 bg-slate-50/60 px-5 py-4 text-xs text-slate-500 sm:flex-row'
+  'flex shrink-0 flex-col items-center justify-between gap-4 border-t border-slate-100 bg-slate-50/60 px-5 py-4 text-xs text-slate-500 sm:flex-row'
 
 // Acciones por fila: íconos cuadrados de 28px con tooltip, para que la
 // columna no crezca con cada acción nueva.

@@ -1,8 +1,16 @@
 import { createAdminClient } from '@/lib/supabase/admin'
+import { posicionesDelPlan, type PosicionEnElPlan } from '@/lib/cuotas/plan-de-cuotas'
 
 export interface CuotaDelRecibo {
   numero: number
   fechaVencimiento: string
+  // Que lugar ocupa esta cuota adentro del plan que el cliente esta pagando
+  // (10/09). En un lote que nunca se refinancio es "3 de 24" y no aporta
+  // nada; en uno refinanciado es la diferencia entre "Cuota N° 25" -- que
+  // el cliente no entiende -- y "25, la 2 de 20 del plan refinanciado".
+  // null si la cuota no aparece en su propio ciclo, que no deberia pasar:
+  // mejor no decir nada que inventar una posicion.
+  posicion: PosicionEnElPlan | null
 }
 
 export interface DatosRecibo {
@@ -61,16 +69,43 @@ export async function obtenerDatosRecibo(pagoId: string): Promise<DatosRecibo | 
 
   const { data: imputaciones } = await admin
     .from('pago_imputaciones')
-    .select('cuotas(numero, fecha_vencimiento)')
+    .select('cuotas(numero, fecha_vencimiento, ciclo)')
     .eq('pago_id', pagoId)
 
-  const cuotas = ((imputaciones ?? []) as unknown as Array<{
-    cuotas: { numero: number; fecha_vencimiento: string } | null
+  interface CuotaImputada {
+    numero: number
+    fecha_vencimiento: string
+    ciclo: number
+  }
+
+  const cuotasImputadas = ((imputaciones ?? []) as unknown as Array<{
+    cuotas: CuotaImputada | null
   }>)
     .map((imputacion) => imputacion.cuotas)
-    .filter((cuota): cuota is { numero: number; fecha_vencimiento: string } => cuota !== null)
+    .filter((cuota): cuota is CuotaImputada => cuota !== null)
     .sort((a, b) => a.numero - b.numero)
-    .map((cuota) => ({ numero: cuota.numero, fechaVencimiento: cuota.fecha_vencimiento }))
+
+  // Para saber que lugar ocupa la cuota adentro de su plan hace falta ver
+  // TODAS las cuotas de ese ciclo, no solo las que pago este pago: la
+  // posicion es relativa al plan entero. Una consulta mas por recibo, y
+  // solo cuando el pago imputa a alguna cuota.
+  const cicloDelPago = cuotasImputadas[0]?.ciclo
+  const { data: cuotasDelCiclo } =
+    cicloDelPago === undefined
+      ? { data: [] }
+      : await admin
+          .from('cuotas')
+          .select('numero, plan')
+          .eq('lote_id', pago.lote_id)
+          .eq('ciclo', cicloDelPago)
+
+  const posiciones = posicionesDelPlan(cuotasDelCiclo ?? [])
+
+  const cuotas = cuotasImputadas.map((cuota) => ({
+    numero: cuota.numero,
+    fechaVencimiento: cuota.fecha_vencimiento,
+    posicion: posiciones.get(cuota.numero) ?? null,
+  }))
 
   const loteosRelacion = lote.loteos as { nombre: string } | { nombre: string }[] | null
   const loteoNombre = Array.isArray(loteosRelacion)

@@ -34,9 +34,12 @@ test.describe('Vista de clientes desde Admin', () => {
     fixtures = await ensureTestFixtures()
   })
 
+  // El listado de clientes se pagina de a 30 desde el 10/09: hay que buscar
+  // al cliente en vez de esperar que aparezca solo. Es tambien lo que hace
+  // una persona cuando la cartera tiene cientos de compradores.
   test('el administrador ve el listado de clientes con su cantidad de lotes', async ({ page }) => {
     await login(page, fixtures.admin.email, fixtures.password)
-    await page.goto('/admin/clientes')
+    await page.goto(`/admin/clientes?q=${encodeURIComponent(fixtures.cliente.email)}`)
 
     const fila = page.getByRole('row', { name: new RegExp(fixtures.cliente.email) })
     await expect(fila).toBeVisible()
@@ -53,7 +56,7 @@ test.describe('Vista de clientes desde Admin', () => {
 
   test('el detalle de un cliente muestra sus lotes con saldo pendiente', async ({ page }) => {
     await login(page, fixtures.admin.email, fixtures.password)
-    await page.goto('/admin/clientes')
+    await page.goto(`/admin/clientes?q=${encodeURIComponent(fixtures.cliente.email)}`)
 
     const fila = page.getByRole('row', { name: new RegExp(fixtures.cliente.email) })
     await fila.getByRole('link', { name: 'Ver detalle' }).click()

@@ -242,13 +242,13 @@ test.describe('Pase a vendido (fase 2)', () => {
     // fuera de la app, y sin esto el listado puede servir un render cacheado
     // de antes del insert (o de antes del cambio de estado) y el test falla
     // por una fila que en la base ya existe.
-    await page.goto(`/admin/lotes?t=${Date.now()}`)
+    await page.goto(`/admin/lotes?q=${encodeURIComponent(identificadorDisponible)}&t=${Date.now()}`)
 
     const fila = page.getByRole('table').last().getByRole('row', { name: identificadorDisponible })
     await expect(fila.getByRole('link', { name: 'Vender / asignar cliente' })).toHaveCount(0)
 
     await createAdminClient().from('lotes').update({ estado: 'reservado' }).eq('id', loteId)
-    await page.goto(`/admin/lotes?t=${Date.now()}`)
+    await page.goto(`/admin/lotes?q=${encodeURIComponent(identificadorDisponible)}&t=${Date.now()}`)
     const filaReservada = page.getByRole('table').last().getByRole('row', { name: identificadorDisponible })
     // Timeout más largo que el default de 5s: contra la base compartida de
     // e2e este listado ya trae más de 130 lotes y en modo dev tarda en

@@ -1,6 +1,7 @@
 import type { DatosRecibo } from '@/lib/comprobantes/datos-recibo'
 import { formatearFechaCorta } from '@/lib/fecha/formatear-fecha-corta'
 import { mesYAnioEnLetras } from '@/lib/fecha/mes-en-letras'
+import { textoDelPlanEnUnRecibo } from '@/lib/cuotas/plan-de-cuotas'
 import { DIRECCION_EMPRESA, TELEFONO_EMPRESA } from '@/lib/config/empresa'
 
 const ETIQUETA_MOTIVO: Record<DatosRecibo['motivo'], string> = {
@@ -32,6 +33,9 @@ function montoFormateado(monto: number, moneda: string) {
 export function ReciboPago({ datos }: { datos: DatosRecibo }) {
   const tieneCuotas = datos.motivo === 'cuota' && datos.cuotas.length > 0
   const numerosCuota = datos.cuotas.map((cuota) => cuota.numero).join(', ')
+  const planRefinanciado = tieneCuotas
+    ? textoDelPlanEnUnRecibo(datos.cuotas.map((cuota) => cuota.posicion))
+    : null
 
   const mesesUnicos = tieneCuotas
     ? [...new Set(datos.cuotas.map((cuota) => JSON.stringify(mesYAnioEnLetras(cuota.fechaVencimiento))))].map(
@@ -84,6 +88,11 @@ export function ReciboPago({ datos }: { datos: DatosRecibo }) {
           {tieneCuotas ? (
             <>
               <span className="font-bold">Cuota:</span> N°{numerosCuota}{' '}
+              {planRefinanciado && (
+                <span className="block text-[11px] leading-tight text-slate-500">
+                  {planRefinanciado}
+                </span>
+              )}
             </>
           ) : (
             <>
@@ -104,7 +113,8 @@ export function ReciboPago({ datos }: { datos: DatosRecibo }) {
         <br />
         {tieneCuotas ? (
           <>
-            Cuota n°{numerosCuota} correspondiente al mes de{' '}
+            Cuota n°{numerosCuota}
+            {planRefinanciado && ` (${planRefinanciado})`} correspondiente al mes de{' '}
             <span className="font-semibold">{textoMeses}</span>.{' '}
           </>
         ) : (

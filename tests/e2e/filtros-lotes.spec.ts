@@ -46,11 +46,14 @@ test.describe('Filtros de Cliente, Loteo y Cobranza en /admin/lotes', () => {
     await admin.from('cuotas').update({ fecha_vencimiento: '2020-01-01' }).eq('id', fixtures.cuotaIds[0])
 
     await login(page, fixtures.admin.email, fixtures.password)
-    await page.goto('/admin/lotes?cobranza=al_dia')
+    // Con el listado paginado (10/09) el buscador va SIEMPRE, incluso para
+    // los toHaveCount(0): sin él, "no está" y "está en la página 3" se ven
+    // exactamente igual y el test pasaría sin probar nada.
+    await page.goto('/admin/lotes?cobranza=al_dia&q=E2E+Test+Lote')
 
     await expect(page.getByRole('row', { name: /E2E Test Lote/ })).toHaveCount(0)
 
-    await page.goto('/admin/lotes?cobranza=atrasado')
+    await page.goto('/admin/lotes?cobranza=atrasado&q=E2E+Test+Lote')
     await expect(page.getByRole('row', { name: /E2E Test Lote/ })).toBeVisible()
   })
 

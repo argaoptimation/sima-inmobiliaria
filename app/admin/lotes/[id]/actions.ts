@@ -379,11 +379,17 @@ export async function refinanciarLote(loteId: string, formData: FormData) {
   // lote_id+ciclo+numero).
   const { data: cuotasDelCiclo } = await admin
     .from('cuotas')
-    .select('numero')
+    .select('numero, plan')
     .eq('lote_id', loteId)
     .eq('ciclo', lote!.ciclo_actual)
 
   const numeroInicial = Math.max(0, ...(cuotasDelCiclo ?? []).map((cuota) => cuota.numero)) + 1
+
+  // El PLAN, en cambio, sí arranca uno más arriba (migración 0063). Es lo
+  // que después permite decirle al cliente "cuota 25 — 2 de 20 del plan
+  // refinanciado" en vez de un 25 suelto que no le dice nada al lado de la
+  // 10 que acaba de terminar de pagar.
+  const planNuevo = Math.max(1, ...(cuotasDelCiclo ?? []).map((cuota) => cuota.plan)) + 1
 
   const cuotasNuevas =
     modo === 'manual'
@@ -395,6 +401,7 @@ export async function refinanciarLote(loteId: string, formData: FormData) {
       lote_id: loteId,
       numero: numeroInicial + cuota.numero - 1,
       ciclo: lote!.ciclo_actual,
+      plan: planNuevo,
       monto_base: cuota.montoBase,
       saldo_pendiente: cuota.montoBase,
       fecha_vencimiento: cuota.fechaVencimiento,

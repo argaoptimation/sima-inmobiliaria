@@ -4,6 +4,7 @@ import { calcularEstadoCobranza } from '@/lib/cobranza/estado-cliente'
 import { calcularInteresMoratorio } from '@/lib/cobranza/interes-moratorio'
 import { convertirUsdAPesos } from '@/lib/cobranza/cotizacion-dolar'
 import { formatearFechaCorta } from '@/lib/fecha/formatear-fecha-corta'
+import { posicionesDelPlan } from '@/lib/cuotas/plan-de-cuotas'
 import { hoyArgentina } from '@/lib/fecha/hoy-argentina'
 import { notFound, redirect } from 'next/navigation'
 import { eliminarPago } from './actions'
@@ -126,10 +127,16 @@ export default async function PortalClienteLotePage({
   // criterio que ya usa el detalle del lote en /admin.
   const { data: cuotas } = await supabase
     .from('cuotas')
-    .select('id, numero, monto_base, saldo_pendiente, fecha_vencimiento, refinanciada, interes_condonado')
+    .select('id, numero, plan, monto_base, saldo_pendiente, fecha_vencimiento, refinanciada, interes_condonado')
     .eq('lote_id', lote!.id)
     .eq('ciclo', lote!.ciclo_actual)
     .order('numero', { ascending: true })
+
+  // Que lugar ocupa cada cuota adentro del plan que el cliente esta pagando
+  // hoy (10/09). Si el lote se refinancio, el numero suelto ("Cuota 25")
+  // no le dice nada al cliente que venia pagando la 10: al lado va "2 de 20
+  // del plan refinanciado", que es lo que si entiende.
+  const posicionesDelPlanDeCuotas = posicionesDelPlan(cuotas ?? [])
 
   const hoy = hoyArgentina()
   const estado = calcularEstadoCobranza(
@@ -275,7 +282,14 @@ export default async function PortalClienteLotePage({
           >
             <div className="mb-2 flex items-center gap-3">
               <IconoEstadoCuota estado={cuota.estadoCuota} />
-              <span className="font-semibold text-blue-900">Cuota {cuota.numero}</span>
+              <span className="font-semibold text-blue-900">
+                Cuota {cuota.numero}
+                {posicionesDelPlanDeCuotas.get(cuota.numero)?.esDeUnPlanRefinanciado && (
+                  <span className="block text-[11px] leading-tight font-normal text-slate-500">
+                    {posicionesDelPlanDeCuotas.get(cuota.numero)!.textoCorto}
+                  </span>
+                )}
+              </span>
               <span className="ml-auto">
                 {cuota.estadoCuota === 'actual' ? (
                   <EnlaceBoton
@@ -351,7 +365,14 @@ export default async function PortalClienteLotePage({
                 <td className="px-4 py-3">
                   <span className="flex items-center gap-2.5 font-medium text-slate-800">
                     <IconoEstadoCuota estado={cuota.estadoCuota} />
-                    {cuota.numero}
+                    <span>
+                      {cuota.numero}
+                      {posicionesDelPlanDeCuotas.get(cuota.numero)?.esDeUnPlanRefinanciado && (
+                        <span className="block text-[11px] leading-tight font-normal text-slate-500">
+                          {posicionesDelPlanDeCuotas.get(cuota.numero)!.textoCorto}
+                        </span>
+                      )}
+                    </span>
                   </span>
                 </td>
                 <td className="px-4 py-3 text-slate-600">{formatearFechaCorta(cuota.fecha_vencimiento)}</td>

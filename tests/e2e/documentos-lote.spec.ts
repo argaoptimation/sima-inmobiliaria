@@ -225,7 +225,9 @@ test.describe('Documentos del lote', () => {
   // ya no arrastra la flecha que tenía cuando era texto.
   test('el acceso a "Ver documentación del lote" aparece en /admin/lotes para un vendedor', async ({ page }) => {
     await login(page, fixtures.vendedorLoteA.email, fixtures.password)
-    await page.goto('/admin/lotes')
+    // Con el listado paginado (10/09) hay que buscarlo: no hay garantía de
+    // que caiga en la primera página.
+    await page.goto('/admin/lotes?q=E2E+Lote+Secundario')
 
     const fila = page.locator('tr', { has: page.getByText('E2E Lote Secundario') })
     await expect(fila.getByRole('link', { name: 'Ver documentación del lote' })).toBeVisible()

@@ -233,15 +233,16 @@ test.describe('Reserva de lote (fase 1: texto + comprobante de seña)', () => {
   test('el listado de lotes de un vendedor muestra disponibles y reservados (por cualquiera), pero "Reservar" solo aparece en los disponibles', async ({
     page,
   }) => {
-    const identificadorDisponible = `E2E Lote Visible Para Vendedor ${Date.now()}`
-    const identificadorReservado = `E2E Lote Oculto Para Vendedor ${Date.now()}`
+    const marca = Date.now()
+    const identificadorDisponible = `E2E Lote Visible Para Vendedor ${marca}`
+    const identificadorReservado = `E2E Lote Oculto Para Vendedor ${marca}`
     await crearLoteDisponible(identificadorDisponible)
     const loteReservadoId = await crearLoteDisponible(identificadorReservado)
     const admin = createAdminClient()
     await admin.from('lotes').update({ estado: 'reservado' }).eq('id', loteReservadoId)
 
     await login(page, fixtures.vendedorSinLotes.email, fixtures.password)
-    await page.goto('/admin/lotes')
+    await page.goto(`/admin/lotes?q=${marca}`)
 
     const tablaGeneral = page.getByRole('table').last()
     const filaDisponible = tablaGeneral.getByRole('row', { name: identificadorDisponible })
@@ -401,7 +402,7 @@ test.describe('Reserva de lote (fase 1: texto + comprobante de seña)', () => {
     // La action redirige a la MISMA url (/admin/lotes) donde ya estábamos --
     // forzamos una navegación real para confirmar que la UI también refleja
     // el cambio, no solo la base de datos.
-    await page.goto('/admin/lotes')
+    await page.goto(`/admin/lotes?q=${encodeURIComponent(identificadorLote)}`)
     await expect(page.getByRole('table').first().getByRole('row', { name: identificadorLote })).toHaveCount(0)
   })
 
@@ -424,7 +425,7 @@ test.describe('Reserva de lote (fase 1: texto + comprobante de seña)', () => {
     // de "Cancelar reserva" (esa acción solo existe en la tabla de arriba).
     await logout(page)
     await login(page, fixtures.cobrador.email, fixtures.password)
-    await page.goto('/admin/lotes')
+    await page.goto(`/admin/lotes?q=${encodeURIComponent(identificadorLote)}`)
 
     const tablaGeneral = page.getByRole('table').last()
     const filaDelLote = tablaGeneral.getByRole('row', { name: identificadorLote })

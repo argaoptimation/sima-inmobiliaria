@@ -7,7 +7,7 @@ import { EnlaceBoton } from '@/components/EnlaceBoton'
 import { BotonEnvio } from '@/components/BotonEnvio'
 import { EncabezadoPagina } from '@/components/EncabezadoPagina'
 import { Paginador } from '@/components/Paginador'
-import { leerPagina } from '@/lib/ui/paginacion'
+import { leerPagina, estadoDePaginado } from '@/lib/ui/paginacion'
 import {
   ENTRADA,
   ENLACE,
@@ -224,12 +224,31 @@ export default async function PagosPage({
   async function traerPagos({ paginado }: { paginado: boolean }) {
     if (sinNingunLote) return { filas: [] as Pago[], total: 0 }
 
-    let query = consultaDePagos(columnasPago, true).order('created_at', { ascending: false })
-    if (estadoParaQuery) query = query.eq('estado', estadoParaQuery)
-    if (paginado) query = query.range(pagina.desde, pagina.hasta)
+    function armarConsulta() {
+      let query = consultaDePagos(columnasPago, true).order('created_at', { ascending: false })
+      if (estadoParaQuery) query = query.eq('estado', estadoParaQuery)
+      return query
+    }
 
-    const { data, count } = await query
-    return { filas: (data ?? []) as unknown as Pago[], total: count ?? 0 }
+    if (!paginado) {
+      const { data, count } = await armarConsulta()
+      return { filas: (data ?? []) as unknown as Pago[], total: count ?? 0 }
+    }
+
+    const { data, count } = await armarConsulta().range(pagina.desde, pagina.hasta)
+    const total = count ?? 0
+
+    // Un ?pagina= viejo -- un favorito, el botón de atrás, un link que se
+    // pasaron por WhatsApp -- puede caer fuera de la lista. En vez de una
+    // pantalla vacía anunciando "página 3 de 3" se trae la última que sí
+    // existe, que es la que el pie va a decir que está mostrando.
+    if ((data ?? []).length === 0 && total > 0) {
+      const ultima = estadoDePaginado(pagina.numero, total)
+      const { data: dataUltima } = await armarConsulta().range(ultima.desde, ultima.hasta)
+      return { filas: (dataUltima ?? []) as unknown as Pago[], total }
+    }
+
+    return { filas: (data ?? []) as unknown as Pago[], total }
   }
 
   const { filas: pagos, total: totalDePagos } = await traerPagos({

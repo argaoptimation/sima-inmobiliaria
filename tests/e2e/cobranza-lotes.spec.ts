@@ -1,6 +1,13 @@
 import { test, expect } from '@playwright/test'
 import { ensureTestFixtures, createAdminClient, TestFixtures } from './fixtures/test-data'
 import { login } from './utils/login'
+// El listado de lotes se pagina de a 30 desde el 10/09, asi que estos tests
+// buscan el lote por el buscador en vez de esperar que aparezca solo. No es
+// una concesion al test: con 322 lotes en la cartera de Nicolas, buscarlo es
+// tambien lo que hace una persona. Y ademas arregla algo que ya estaba mal
+// antes -- un `toHaveCount(0)` sobre una lista sin filtrar pasaba igual si
+// la fila estaba, pero mas abajo.
+
 
 test.describe('Estado de cobranza en /admin/lotes', () => {
   let fixtures: TestFixtures
@@ -19,7 +26,7 @@ test.describe('Estado de cobranza en /admin/lotes', () => {
       .eq('id', fixtures.cliente.id)
 
     await login(page, fixtures.admin.email, fixtures.password)
-    await page.goto('/admin/lotes')
+    await page.goto('/admin/lotes?q=E2E+Test+Lote')
 
     // "E2E Test Lote" arranca con sus 3 cuotas sin pagar y ninguna vencida
     // todavía (la primera vence hoy) -- estado "normal" pero con deuda.
@@ -52,7 +59,7 @@ test.describe('Estado de cobranza en /admin/lotes', () => {
     await admin.from('cuotas').update({ fecha_vencimiento: '2020-01-01' }).eq('id', fixtures.cuotaIds[0])
 
     await login(page, fixtures.admin.email, fixtures.password)
-    await page.goto('/admin/lotes')
+    await page.goto('/admin/lotes?q=E2E+Test+Lote')
 
     const fila = page.getByRole('row', { name: /E2E Test Lote/ })
     await expect(fila.getByText('Atrasado')).toBeVisible()
@@ -70,7 +77,7 @@ test.describe('Estado de cobranza en /admin/lotes', () => {
       .in('id', [fixtures.cuotaIds[0], fixtures.cuotaIds[1]])
 
     await login(page, fixtures.admin.email, fixtures.password)
-    await page.goto('/admin/lotes')
+    await page.goto('/admin/lotes?q=E2E+Test+Lote')
 
     const fila = page.getByRole('row', { name: /E2E Test Lote/ })
     await expect(fila.getByText('Moroso')).toBeVisible()
@@ -89,14 +96,14 @@ test.describe('Estado de cobranza en /admin/lotes', () => {
     page,
   }) => {
     await login(page, fixtures.admin.email, fixtures.password)
-    await page.goto('/admin/lotes')
+    await page.goto('/admin/lotes?q=E2E+Test+Lote')
 
     const fila = page.getByRole('row', { name: /E2E Test Lote/ })
 
     await fila.getByRole('link', { name: 'E2E Cliente' }).click()
     await page.waitForURL(new RegExp(`/admin/clientes/${fixtures.cliente.id}`))
 
-    await page.goto('/admin/lotes')
+    await page.goto('/admin/lotes?q=E2E+Test+Lote')
     const filaOtraVez = page.getByRole('row', { name: /E2E Test Lote/ })
     await filaOtraVez.getByRole('link', { name: 'E2E Acreedor Con Datos' }).click()
     await page.waitForURL(/\/admin\/usuarios\?editar=/)
@@ -118,7 +125,7 @@ test.describe('Estado de cobranza en /admin/lotes', () => {
       .single()
 
     await login(page, fixtures.admin.email, fixtures.password)
-    await page.goto('/admin/lotes')
+    await page.goto('/admin/lotes?q=E2E+Lote+Reservado+Cobranza')
 
     const fila = page.getByRole('row', { name: /E2E Lote Reservado Cobranza/ })
     await expect(fila.getByRole('link', { name: /E2E Cliente/ })).toHaveCount(0)

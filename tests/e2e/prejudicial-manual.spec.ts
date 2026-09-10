@@ -3,6 +3,13 @@ import { ensureTestFixtures, createAdminClient, TestFixtures } from './fixtures/
 import { login, logout } from './utils/login'
 import { hoyArgentina } from '../../lib/fecha/hoy-argentina'
 import { sumarDias } from '../../lib/fecha/sumar-dias'
+// El listado de lotes se pagina de a 30 desde el 10/09, asi que estos tests
+// buscan el lote por el buscador en vez de esperar que aparezca solo. No es
+// una concesion al test: con 322 lotes en la cartera de Nicolas, buscarlo es
+// tambien lo que hace una persona. Y ademas arregla algo que ya estaba mal
+// antes -- un `toHaveCount(0)` sobre una lista sin filtrar pasaba igual si
+// la fila estaba, pero mas abajo.
+
 
 // Prejudicial pasa a ser un paso MANUAL del admin (Nicolás: "es un caso
 // importante"; reforzado 26/08 -- lo que calcula el sistema por cantidad de
@@ -28,17 +35,17 @@ test.describe('Prejudicial manual (26/08)', () => {
     page,
   }) => {
     await login(page, fixtures.admin.email, fixtures.password)
-    await page.goto('/admin/lotes')
+    await page.goto('/admin/lotes?q=E2E+Test+Lote')
 
     const fila = page.getByRole('row', { name: /E2E Test Lote/ })
     await expect(fila).toContainText('Posible prejudicial')
     await expect(fila).not.toContainText(/(?<!Posible )Prejudicial/)
 
     // El filtro "Posible prejudicial" lo encuentra, "Prejudicial" (oficial) no.
-    await page.goto('/admin/lotes?cobranza=posible_prejudicial')
+    await page.goto('/admin/lotes?cobranza=posible_prejudicial&q=E2E+Test+Lote')
     await expect(page.getByRole('row', { name: /E2E Test Lote/ })).toBeVisible()
 
-    await page.goto('/admin/lotes?cobranza=prejudicial')
+    await page.goto('/admin/lotes?cobranza=prejudicial&q=E2E+Test+Lote')
     await expect(page.getByRole('row', { name: /E2E Test Lote/ })).toHaveCount(0)
 
     // En el detalle del lote también dice "Posible prejudicial".
@@ -64,9 +71,9 @@ test.describe('Prejudicial manual (26/08)', () => {
     await page.getByText(/Historial de estados del lote/).click()
     await expect(page.getByText('Pasó a Prejudicial')).toBeVisible()
 
-    await page.goto('/admin/lotes?cobranza=prejudicial')
+    await page.goto('/admin/lotes?cobranza=prejudicial&q=E2E+Test+Lote')
     await expect(page.getByRole('row', { name: /E2E Test Lote/ })).toBeVisible()
-    await page.goto('/admin/lotes?cobranza=posible_prejudicial')
+    await page.goto('/admin/lotes?cobranza=posible_prejudicial&q=E2E+Test+Lote')
     await expect(page.getByRole('row', { name: /E2E Test Lote/ })).toHaveCount(0)
 
     // Desmarcar vuelve a "Posible prejudicial" (las cuotas siguen vencidas).

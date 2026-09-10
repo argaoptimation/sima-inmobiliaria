@@ -20,6 +20,9 @@ import { BotonEliminarLote } from './[id]/BotonEliminarLote'
 import { guardarCotizacionDolar } from './cotizacion-dolar-actions'
 import { calcularEstadoCobranza } from '@/lib/cobranza/estado-cliente'
 import { FiltroEnVivo } from '@/components/FiltroEnVivo'
+import { Paginador } from '@/components/Paginador'
+import { TablaDesplazable } from '@/components/TablaDesplazable'
+import { leerPagina, estadoDePaginado } from '@/lib/ui/paginacion'
 import { hoyArgentina } from '@/lib/fecha/hoy-argentina'
 import { formatearFechaCorta } from '@/lib/fecha/formatear-fecha-corta'
 import { EnlaceBoton } from '@/components/EnlaceBoton'
@@ -39,6 +42,7 @@ import {
   CAMPO_FILTRO,
   TABLA_PANEL_HEADER,
   TABLA_PANEL_TH,
+  TABLA_PANEL_TH_FIJO,
   TABLA_PANEL_TH_ORDEN,
   TABLA_PANEL_TR,
   TABLA_PANEL_TR_ALTERNA,
@@ -79,6 +83,63 @@ const ETIQUETAS_COLUMNA: Record<ColumnaOrdenable, string> = {
   estado: 'Estado',
 }
 
+// Las columnas que necesita el listado. Estan afuera de la funcion porque
+// la consulta se arma varias veces (la pagina, los contadores) y una lista
+// de columnas copiada es una lista que un dia se desincroniza.
+const COLUMNAS_DEL_LISTADO =
+  'id, identificador, manzana, numero_lote, moneda, estado, cantidad_cuotas, ubicacion, ' +
+  'precio_total, acreedor_id, loteo_id, cliente_id, ciclo_actual, marcado_prejudicial'
+
+interface LoteDelListado {
+  id: string
+  identificador: string
+  manzana: string | null
+  numero_lote: string | null
+  moneda: string
+  estado: string
+  cantidad_cuotas: number | null
+  ubicacion: string | null
+  precio_total: number | null
+  acreedor_id: string | null
+  loteo_id: string | null
+  cliente_id: string | null
+  ciclo_actual: number
+  marcado_prejudicial: boolean
+}
+
+interface LoteParaCobranza {
+  id: string
+  ciclo_actual: number
+  marcado_prejudicial: boolean
+}
+
+interface CuotaDeCobranza {
+  lote_id: string
+  ciclo: number
+  saldo_pendiente: number
+  fecha_vencimiento: string
+}
+
+interface CobranzaDelLote {
+  saldoPendiente: number
+  estadoCobranza: string
+  marcadoPrejudicial: boolean
+}
+
+// El valor del <select> "Cobranza" que le corresponde a un lote. Es la
+// traduccion entre lo que calcula calcularEstadoCobranza (que no sabe nada
+// de la marca manual de prejudicial ni de si el lote ya esta pagado) y las
+// seis opciones que ve Nicolas en pantalla.
+function etiquetaDeFiltroCobranza(cobranza: CobranzaDelLote | undefined): string | null {
+  if (!cobranza) return null
+  if (cobranza.saldoPendiente === 0) return 'pagado'
+  if (cobranza.marcadoPrejudicial) return 'prejudicial'
+  if (cobranza.estadoCobranza === 'normal') return 'al_dia'
+  if (cobranza.estadoCobranza === 'atrasado') return 'atrasado'
+  if (cobranza.estadoCobranza === 'moroso') return 'moroso'
+  return 'posible_prejudicial'
+}
+
 // Pestañas de estado (rediseño Stitch 2026-09, MOCKUP 1): reemplazan al
 // <select> "Estado" de la barra de filtros. El estado del lote es el corte
 // que Nicolás hace todo el tiempo -- vale un click, no dos.
@@ -102,6 +163,7 @@ export default async function LotesPage({
     cobranza?: string
     estado?: string
     q?: string
+    pagina?: string
     error?: string
     ok?: string
   }>
@@ -116,6 +178,7 @@ export default async function LotesPage({
     cobranza: filtroCobranza,
     estado: filtroEstado,
     q: filtroTexto,
+    pagina: paginaParam,
     error,
     ok,
   } = await searchParams
@@ -162,12 +225,6 @@ export default async function LotesPage({
     : 'manzana'
   const ordenAscendente = dir !== 'desc'
 
-  let queryLotes = supabase
-    .from('lotes')
-    .select(
-      'id, identificador, manzana, numero_lote, moneda, estado, cantidad_cuotas, ubicacion, precio_total, acreedor_id, loteo_id, cliente_id, ciclo_actual, marcado_prejudicial'
-    )
-
   // Manzana y lote se ordenan por su parte numerica y despues por el texto
   // (migracion 0060): son columnas de texto -- una manzana puede ser "B" --
   // y ordenar texto pone "10" antes que "2". Las que no tienen numero
@@ -179,56 +236,180 @@ export default async function LotesPage({
         ? ['numero_lote_orden', 'numero_lote']
         : [columnaOrden]
 
-  for (const columna of columnasDeOrden) {
-    queryLotes = queryLotes.order(columna, { ascending: ordenAscendente, nullsFirst: false })
+  // El filtro de Cliente ya no se resuelve en memoria (10/09). Con la lista
+  // paginada no da: un filtro aplicado DESPUES de cortar la pagina deja una
+  // pagina con 3 filas y la siguiente con 30. Se resuelve a una lista de
+  // ids con una consulta a profiles y vuelve como un `.in()`.
+  let clienteIdsDelFiltro: string[] | null = null
+  if (filtroCliente) {
+    const nombreSeguro = filtroCliente.replace(/[,()]/g, ' ').trim()
+    const { data: clientesQueCoinciden } = await supabase
+      .from('profiles')
+      .select('id')
+      .eq('role', 'cliente')
+      .ilike('full_name', `%${nombreSeguro}%`)
+    clienteIdsDelFiltro = (clientesQueCoinciden ?? []).map((persona) => persona.id)
   }
 
-  // Desempate fijo despues de la columna elegida: dos lotes de la misma
-  // manzana tienen que salir siempre en el mismo orden entre si, si no la
-  // lista "baila" de una carga a la otra.
-  queryLotes = queryLotes.order('identificador', { ascending: true })
+  // Se llena mas abajo, y a proposito despues de definir `consultaDeLotes`:
+  // para saber que lotes cumplen el filtro de cobranza hay que aplicar
+  // primero todos los demas filtros, asi que la primera llamada a
+  // `consultaDeLotes` se hace con esto todavia en null.
+  let loteIdsDeCobranza: string[] | null = null
 
-  if (perfilPropio!.role === 'acreedor') {
-    queryLotes = queryLotes.eq('acreedor_id', user!.id)
+  // Todos los filtros que SI son columnas de `lotes`, en un solo lugar: la
+  // consulta se arma seis veces (el total, un contador por pestania, y la
+  // pagina que se muestra) y cada copia seria una oportunidad de que un
+  // filtro entre en unas y no en otras -- que es exactamente como un
+  // contador termina diciendo un numero que no se corresponde con la lista.
+  function consultaDeLotes(columnas: string, contar = false) {
+    let query = contar
+      ? supabase.from('lotes').select(columnas, { count: 'exact', head: true })
+      : supabase.from('lotes').select(columnas)
+
+    if (perfilPropio!.role === 'acreedor') query = query.eq('acreedor_id', user!.id)
+    if (esVendedor) query = query.in('estado', ['disponible', 'reservado'])
+    if (filtroMoneda) query = query.eq('moneda', filtroMoneda)
+    if (filtroAcreedorId && perfilPropio!.role !== 'acreedor') {
+      query = query.eq('acreedor_id', filtroAcreedorId)
+    }
+    if (filtroLoteoId) query = query.eq('loteo_id', filtroLoteoId)
+    if (clienteIdsDelFiltro !== null) query = query.in('cliente_id', clienteIdsDelFiltro)
+    if (loteIdsDeCobranza !== null) query = query.in('id', loteIdsDeCobranza)
+
+    if (filtroTexto) {
+      // Ahora que en pantalla se ve la manzana y el numero por separado, el
+      // buscador tiene que encontrarlos por separado tambien (09/09): buscar
+      // "12" tiene que traer el lote 12 de cualquier manzana.
+      // La coma y los parentesis son la sintaxis del `.or()` de PostgREST,
+      // asi que se sacan del texto antes de armarlo -- si no, buscar "Mza 5,
+      // lote 12" se interpreta como dos condiciones y explota.
+      const textoSeguro = filtroTexto.replace(/[,()]/g, ' ').trim()
+      query = query.or(
+        ['identificador', 'manzana', 'numero_lote', 'ubicacion']
+          .map((columna) => `${columna}.ilike.%${textoSeguro}%`)
+          .join(',')
+      )
+    }
+
+    return query
   }
 
-  if (esVendedor) {
-    queryLotes = queryLotes.in('estado', ['disponible', 'reservado'])
+  // Las cuotas de un grupo de lotes, de a tandas. La lista de ids viaja en
+  // la URL de PostgREST, asi que pedir 300 lotes de una es una direccion de
+  // 12 KB -- funciona hasta el dia que no.
+  async function traerCuotasDeLotes(loteIds: string[]) {
+    const cuotas: CuotaDeCobranza[] = []
+    for (let i = 0; i < loteIds.length; i += 150) {
+      const { data } = await supabase
+        .from('cuotas')
+        .select('lote_id, ciclo, saldo_pendiente, fecha_vencimiento')
+        .in('lote_id', loteIds.slice(i, i + 150))
+        .order('fecha_vencimiento', { ascending: true })
+      cuotas.push(...((data ?? []) as CuotaDeCobranza[]))
+    }
+    return cuotas
   }
 
-  if (filtroMoneda) {
-    queryLotes = queryLotes.eq('moneda', filtroMoneda)
-  }
+  // El estado de cobranza de cada lote vendido: para pintar la columna, y
+  // para el filtro. Acotado al ciclo de venta VIGENTE de cada lote (ver
+  // migracion 0039): un lote rescindido-y-revendido puede tener cuotas
+  // viejas sin cobrar de un ciclo anterior, que no tienen que contar para
+  // el estado de cobranza del cliente ACTUAL.
+  function cobranzaDeLotes(lotesVendidos: LoteParaCobranza[], cuotas: CuotaDeCobranza[]) {
+    const cicloActualPorLoteId = new Map(lotesVendidos.map((lote) => [lote.id, lote.ciclo_actual]))
 
-  if (filtroAcreedorId && perfilPropio!.role !== 'acreedor') {
-    queryLotes = queryLotes.eq('acreedor_id', filtroAcreedorId)
-  }
+    const porLote = new Map<string, { saldo_pendiente: number; fecha_vencimiento: string }[]>()
+    for (const cuota of cuotas) {
+      if (cuota.ciclo !== cicloActualPorLoteId.get(cuota.lote_id)) continue
+      const lista = porLote.get(cuota.lote_id) ?? []
+      lista.push(cuota)
+      porLote.set(cuota.lote_id, lista)
+    }
 
-  if (filtroTexto) {
-    // Ahora que en pantalla se ve la manzana y el numero por separado, el
-    // buscador tiene que encontrarlos por separado tambien (09/09): buscar
-    // "12" tiene que traer el lote 12 de cualquier manzana.
-    // La coma y los parentesis son la sintaxis del `.or()` de PostgREST,
-    // asi que se sacan del texto antes de armarlo -- si no, buscar "Mza 5,
-    // lote 12" se interpreta como dos condiciones y explota.
-    const textoSeguro = filtroTexto.replace(/[,()]/g, ' ').trim()
-    queryLotes = queryLotes.or(
-      ['identificador', 'manzana', 'numero_lote', 'ubicacion']
-        .map((columna) => `${columna}.ilike.%${textoSeguro}%`)
-        .join(',')
+    return new Map(
+      lotesVendidos.map((lote) => {
+        const cuotasDelLote = porLote.get(lote.id) ?? []
+        return [
+          lote.id,
+          {
+            saldoPendiente: cuotasDelLote.reduce((acum, cuota) => acum + cuota.saldo_pendiente, 0),
+            estadoCobranza: calcularEstadoCobranza(
+              cuotasDelLote.map((cuota) => ({
+                saldoPendiente: cuota.saldo_pendiente,
+                fechaVencimiento: cuota.fecha_vencimiento,
+              })),
+              hoy
+            ),
+            marcadoPrejudicial: lote.marcado_prejudicial,
+          },
+        ]
+      })
     )
   }
 
-  if (filtroLoteoId) {
-    queryLotes = queryLotes.eq('loteo_id', filtroLoteoId)
+  // Cobranza tampoco es una columna de `lotes`: sale de mirar las cuotas de
+  // cada uno. No la empujo a SQL a proposito -- habria que reescribir
+  // calcularEstadoCobranza adentro de la base, y una regla de negocio
+  // escrita en dos lugares es una regla que algun dia va a decir dos cosas
+  // distintas. Se resuelve en dos pasos, y solo cuando el filtro esta
+  // puesto: primero que lotes cumplen, despues la pagina de esos.
+  if (filtroCobranza) {
+    const { data: candidatos } = await consultaDeLotes('id, ciclo_actual, marcado_prejudicial')
+      .eq('estado', 'vendido')
+      .not('cliente_id', 'is', null)
+
+    const lotesCandidatos = (candidatos ?? []) as unknown as LoteParaCobranza[]
+    const cobranzas = cobranzaDeLotes(
+      lotesCandidatos,
+      await traerCuotasDeLotes(lotesCandidatos.map((lote) => lote.id))
+    )
+
+    loteIdsDeCobranza = lotesCandidatos
+      .filter((lote) => etiquetaDeFiltroCobranza(cobranzas.get(lote.id)) === filtroCobranza)
+      .map((lote) => lote.id)
   }
 
-  // El filtro de estado ya NO va en la consulta: las pestañas de arriba
-  // muestran cuántos lotes hay en cada estado, y ese número tiene que
-  // contar sobre el resto de los filtros ya aplicados. Si el estado se
-  // filtrara en SQL, la pestaña activa sería la única con número real y
-  // las otras dirían siempre cero.
-  const { data: lotes } = await queryLotes
+  // Los contadores de las pestanias cuentan sobre TODO lo que pasa los
+  // filtros, no sobre la pagina: si contaran la pagina, "Vendidos" diria
+  // siempre 30. Van en una sola vuelta porque son consultas independientes.
+  // El vendedor no ve pestanias (esta clavado a disponible/reservado), asi
+  // que para el no se cuenta nada.
+  const [totalDeLotes, ...conteosPorEstado] = await Promise.all([
+    consultaDeLotes('id', true),
+    ...(esVendedor
+      ? []
+      : PESTANIAS_ESTADO.map((pestania) => consultaDeLotes('id', true).eq('estado', pestania.valor))),
+  ])
+
+  const cantidadSinFiltroEstado = totalDeLotes.count ?? 0
+  const conteoPorEstado = new Map<string, number>(
+    esVendedor
+      ? []
+      : PESTANIAS_ESTADO.map((pestania, indice) => [pestania.valor, conteosPorEstado[indice].count ?? 0])
+  )
+
+  const estadoElegido = filtroEstado && !esVendedor ? filtroEstado : null
+  const cantidadFiltrada = estadoElegido
+    ? (conteoPorEstado.get(estadoElegido) ?? 0)
+    : cantidadSinFiltroEstado
+
+  const paginado = estadoDePaginado(leerPagina(paginaParam).numero, cantidadFiltrada)
+
+  let queryPagina = consultaDeLotes(COLUMNAS_DEL_LISTADO)
+  for (const columna of columnasDeOrden) {
+    queryPagina = queryPagina.order(columna, { ascending: ordenAscendente, nullsFirst: false })
+  }
+  // Desempate fijo despues de la columna elegida: dos lotes de la misma
+  // manzana tienen que salir siempre en el mismo orden entre si. Sin lista
+  // paginada eso solo hacia que la lista "bailara" de una carga a la otra;
+  // con paginado es peor, porque un lote puede caer en dos paginas o en
+  // ninguna.
+  queryPagina = queryPagina.order('identificador', { ascending: true })
+  if (estadoElegido) queryPagina = queryPagina.eq('estado', estadoElegido)
+
+  const { data: lotesCrudos } = await queryPagina.range(paginado.desde, paginado.hasta)
+  const lotes = (lotesCrudos ?? []) as unknown as LoteDelListado[]
 
   const { data: todosLosAcreedores } =
     perfilPropio!.role !== 'acreedor'
@@ -259,8 +440,11 @@ export default async function LotesPage({
   // Gabriel: "tener todo centralizado" en un solo lugar) -- ahora manda
   // siempre desde /admin/panel-morosos, que ya permite filtrar por tramo
   // (deben 1/2/posible prejudicial/etc.) antes de escribirle a cada uno.
-  const lotesVendidos = (lotes ?? []).filter((lote) => lote.estado === 'vendido' && lote.cliente_id)
-  const loteVendidoIds = lotesVendidos.map((lote) => lote.id)
+  //
+  // Ahora se calcula solo para los lotes de ESTA página (10/09): antes se
+  // traían las cuotas de todos los vendidos en cada carga -- con 322 lotes
+  // eso son unas 7.700 filas de cuotas para pintar una columna de pastillas.
+  const lotesVendidos = lotes.filter((lote) => lote.estado === 'vendido' && lote.cliente_id)
   const clienteIds = [...new Set(lotesVendidos.map((lote) => lote.cliente_id as string))]
 
   const { data: clientes } =
@@ -277,93 +461,10 @@ export default async function LotesPage({
   // El candado real está en cotizacion-dolar-actions.ts; esto es lo visual.
   const puedeCargarCotizacion = esAdministrador || perfilPropio!.role === 'cobrador'
 
-  const cicloActualPorLoteId = new Map(lotesVendidos.map((lote) => [lote.id, lote.ciclo_actual]))
-
-  const { data: cuotasPorLoteSinFiltrar } =
-    loteVendidoIds.length > 0
-      ? await supabase
-          .from('cuotas')
-          .select('lote_id, ciclo, saldo_pendiente, fecha_vencimiento')
-          .in('lote_id', loteVendidoIds)
-          .order('fecha_vencimiento', { ascending: true })
-      : { data: [] }
-
-  // Acotado al ciclo de venta VIGENTE de cada lote (ver migración 0039):
-  // un lote rescindido-y-revendido puede tener cuotas viejas sin cobrar de
-  // un ciclo anterior, que no tienen que contar para el estado de cobranza
-  // del cliente ACTUAL.
-  const cuotasPorLote = (cuotasPorLoteSinFiltrar ?? []).filter(
-    (cuota) => cuota.ciclo === cicloActualPorLoteId.get(cuota.lote_id)
+  const cobranzaPorLote = cobranzaDeLotes(
+    lotesVendidos,
+    await traerCuotasDeLotes(lotesVendidos.map((lote) => lote.id))
   )
-
-  const cuotasAgrupadasPorLote = new Map<string, { saldo_pendiente: number; fecha_vencimiento: string }[]>()
-  for (const cuota of cuotasPorLote ?? []) {
-    const listaActual = cuotasAgrupadasPorLote.get(cuota.lote_id) ?? []
-    listaActual.push(cuota)
-    cuotasAgrupadasPorLote.set(cuota.lote_id, listaActual)
-  }
-
-  const cobranzaPorLote = new Map(
-    lotesVendidos.map((lote) => {
-      const cuotasDelLote = cuotasAgrupadasPorLote.get(lote.id) ?? []
-      const saldoPendiente = cuotasDelLote.reduce((acum, cuota) => acum + cuota.saldo_pendiente, 0)
-      const estadoCobranza = calcularEstadoCobranza(
-        cuotasDelLote.map((cuota) => ({
-          saldoPendiente: cuota.saldo_pendiente,
-          fechaVencimiento: cuota.fecha_vencimiento,
-        })),
-        hoy
-      )
-      return [
-        lote.id,
-        {
-          saldoPendiente,
-          estadoCobranza,
-          marcadoPrejudicial: lote.marcado_prejudicial,
-        },
-      ]
-    })
-  )
-
-  // Cliente y Cobranza no son columnas de "lotes" (cliente ya viene resuelto
-  // arriba, cobranza es calculada) -- se filtran en JS después de tener
-  // clientePorId/cobranzaPorLote, en vez de en la consulta SQL.
-  const lotesSinFiltroEstado = (lotes ?? []).filter((lote) => {
-    if (filtroCliente) {
-      const nombreCliente = lote.cliente_id ? clientePorId.get(lote.cliente_id)?.full_name : null
-      if (!nombreCliente || !nombreCliente.toLowerCase().includes(filtroCliente.toLowerCase())) {
-        return false
-      }
-    }
-    if (filtroCobranza) {
-      const cobranza = cobranzaPorLote.get(lote.id)
-      const etiquetaCobranza = !cobranza
-        ? null
-        : cobranza.saldoPendiente === 0
-          ? 'pagado'
-          : cobranza.marcadoPrejudicial
-            ? 'prejudicial'
-            : cobranza.estadoCobranza === 'normal'
-              ? 'al_dia'
-              : cobranza.estadoCobranza === 'atrasado'
-                ? 'atrasado'
-                : cobranza.estadoCobranza === 'moroso'
-                  ? 'moroso'
-                  : 'posible_prejudicial'
-      if (etiquetaCobranza !== filtroCobranza) return false
-    }
-    return true
-  })
-
-  const conteoPorEstado = new Map<string, number>()
-  for (const lote of lotesSinFiltroEstado) {
-    conteoPorEstado.set(lote.estado, (conteoPorEstado.get(lote.estado) ?? 0) + 1)
-  }
-
-  const lotesFiltrados =
-    filtroEstado && !esVendedor
-      ? lotesSinFiltroEstado.filter((lote) => lote.estado === filtroEstado)
-      : lotesSinFiltroEstado
 
   let reservasPropias: { lote_id: string }[] = []
 
@@ -388,6 +489,26 @@ export default async function LotesPage({
           .order('created_at', { ascending: false })
       : { data: [] }
 
+  // Los filtros que el paginador tiene que arrastrar de una página a la
+  // otra. Sin esto, apretar "Siguiente" con un filtro puesto muestra la
+  // página 2 de TODOS los lotes y parece que el filtro se hubiera aplicado
+  // mal -- ver el test de paginación.
+  const parametrosDelPaginador: Record<string, string | undefined> = {
+    moneda: filtroMoneda,
+    acreedor: filtroAcreedorId,
+    loteo: filtroLoteoId,
+    cliente: filtroCliente,
+    cobranza: filtroCobranza,
+    estado: filtroEstado,
+    q: filtroTexto,
+    sort,
+    dir,
+  }
+
+  // Cambiar de pestaña o de orden vuelve a la página 1 a propósito: la
+  // página 4 de "Vendidos" no tiene nada que ver con la página 4 de
+  // "Disponibles", y quedarse en la 4 al cambiar de orden es la forma más
+  // rápida de creer que se perdieron lotes.
   function parametrosBase() {
     const params = new URLSearchParams()
     if (filtroMoneda) params.set('moneda', filtroMoneda)
@@ -412,7 +533,7 @@ export default async function LotesPage({
           : 'flex'
 
     return (
-      <th className={`${TABLA_PANEL_TH} ${alineacion}`}>
+      <th className={`${TABLA_PANEL_TH} ${TABLA_PANEL_TH_FIJO} ${alineacion}`}>
         <EnlaceBoton
           href={urlOrden(columna)}
           className={alineacionInterna}
@@ -490,7 +611,7 @@ export default async function LotesPage({
           <div className="flex flex-wrap items-center gap-3 pt-0.5">
             <h1 className={TITULO_PANTALLA}>Gestión de Lotes</h1>
             <span className={CONTADOR_PILL}>
-              {lotesSinFiltroEstado.length} {lotesSinFiltroEstado.length === 1 ? 'lote' : 'lotes'}
+              {cantidadSinFiltroEstado} {cantidadSinFiltroEstado === 1 ? 'lote' : 'lotes'}
             </span>
           </div>
         </div>
@@ -691,7 +812,7 @@ export default async function LotesPage({
             ) : (
               <>
                 <EnlaceBoton href={urlEstado(null)} className={filtroEstado ? TAB_FILTRO : TAB_FILTRO_ACTIVO}>
-                  Todos ({lotesSinFiltroEstado.length})
+                  Todos ({cantidadSinFiltroEstado})
                 </EnlaceBoton>
                 {PESTANIAS_ESTADO.filter(
                   (pestania) => pestania.valor !== 'rescindido' || (conteoPorEstado.get('rescindido') ?? 0) > 0
@@ -828,11 +949,11 @@ export default async function LotesPage({
       </div>
 
       {/* TABLA MAESTRA DE LOTES */}
-      {lotesFiltrados.length === 0 && (filtroCliente || filtroCobranza || filtroEstado) ? (
+      {lotes.length === 0 && (filtroCliente || filtroCobranza || filtroEstado) ? (
         <p className="text-sm text-slate-600">Ningún lote coincide con los filtros.</p>
       ) : (
         <div className={PANEL_SIN_PADDING}>
-          <div className="w-full overflow-x-auto">
+          <TablaDesplazable>
             <table className="w-full border-collapse text-left">
               <thead className="border-b border-slate-200/80">
                 {/* Loteo, Manzana, Lote, Comprador -- y despues el resto
@@ -840,17 +961,25 @@ export default async function LotesPage({
                     "Comprador" va entre medio, asi que cada una se pone
                     donde corresponde. */}
                 <tr className={TABLA_PANEL_HEADER}>
-                  {!esVendedor && <th className={TABLA_PANEL_TH}>Loteo</th>}
+                  {!esVendedor && <th className={`${TABLA_PANEL_TH} ${TABLA_PANEL_TH_FIJO}`}>Loteo</th>}
                   {cabeceraOrdenable('manzana')}
                   {cabeceraOrdenable('numero_lote')}
-                  {esAdministrador && <th className={TABLA_PANEL_TH}>Comprador</th>}
+                  {esAdministrador && (
+                    <th className={`${TABLA_PANEL_TH} ${TABLA_PANEL_TH_FIJO}`}>Comprador</th>
+                  )}
                   {cabeceraOrdenable('ubicacion')}
                   {cabeceraOrdenable('precio_total')}
                   {cabeceraOrdenable('moneda')}
                   {cabeceraOrdenable('estado')}
-                  {!esVendedor && <th className={TABLA_PANEL_TH}>Acreedor</th>}
-                  {!esVendedor && <th className={`${TABLA_PANEL_TH} text-center`}>Cuotas</th>}
-                  {!esVendedor && <th className={TABLA_PANEL_TH}>Cobranza</th>}
+                  {!esVendedor && (
+                    <th className={`${TABLA_PANEL_TH} ${TABLA_PANEL_TH_FIJO}`}>Acreedor</th>
+                  )}
+                  {!esVendedor && (
+                    <th className={`${TABLA_PANEL_TH} ${TABLA_PANEL_TH_FIJO} text-center`}>Cuotas</th>
+                  )}
+                  {!esVendedor && (
+                    <th className={`${TABLA_PANEL_TH} ${TABLA_PANEL_TH_FIJO}`}>Cobranza</th>
+                  )}
                   {/* Acciones queda CONGELADA a la derecha (10/09, pedido
                       de Gabriel: "como la opcion de excel"). Sin esto, en una
                       pantalla angosta hay que scrollear hasta el final para
@@ -859,14 +988,14 @@ export default async function LotesPage({
                       fila no se pinta debajo de una celda sticky, se
                       transparenta y se ve pasar el contenido por atras. */}
                   <th
-                    className={`${TABLA_PANEL_TH} sticky right-0 z-20 min-w-[180px] bg-blue-800 text-right`}
+                    className={`${TABLA_PANEL_TH} sticky top-0 right-0 z-30 min-w-[180px] bg-blue-800 text-right`}
                   >
                     Acciones
                   </th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100 text-xs text-slate-700">
-                {lotesFiltrados.map((lote, indice) => {
+                {lotes.map((lote, indice) => {
                   const eliminarLoteConId = eliminarLote.bind(null, lote.id)
                   const cobranza = cobranzaPorLote.get(lote.id)
                   return (
@@ -977,9 +1106,17 @@ export default async function LotesPage({
                       {/* #f7fbff es exactamente `blue-50` al 50% sobre
                           blanco, que es el hover de la fila: la celda fija
                           no puede usar un color translucido porque dejaria
-                          ver el contenido que pasa por debajo. */}
+                          ver el contenido que pasa por debajo.
+
+                          El borde es una linea de 1px y no la sombra
+                          difuminada que tenia antes (10/09, Gabriel: "la
+                          tabla va como mas tildada"): una sombra con blur
+                          sobre una celda sticky se vuelve a dibujar en cada
+                          cuadro del desplazamiento, y eran 322 de esas.
+                          Excel tambien marca la columna congelada con una
+                          linea. */}
                       <td
-                        className={`${TABLA_PANEL_TD} sticky right-0 z-10 bg-white text-right shadow-[-10px_0_12px_-10px_rgba(15,23,42,0.25)] group-hover:bg-[#f7fbff]`}
+                        className={`${TABLA_PANEL_TD} sticky right-0 z-10 border-l border-slate-200 bg-white text-right group-hover:bg-[#f7fbff]`}
                       >
                         <div className="inline-flex items-center justify-end gap-1.5">
                           {lote.estado === 'disponible' && (
@@ -1028,21 +1165,31 @@ export default async function LotesPage({
                 })}
               </tbody>
             </table>
-          </div>
-          {/* El mockup dibuja acá un paginador (1 · 2 · 3 … 26). No lo puse:
-              la pantalla trae todos los lotes de una y filtra cliente/cobranza
-              en memoria, así que unos botones de página serían decorado que no
-              pagina nada. Queda anotado para cuando se corte de verdad por
-              rango en la consulta. */}
-          <div className={TABLA_PANEL_PIE}>
-            <div className="flex items-center gap-1.5">
-              <span>Mostrando</span>
-              <span className="font-bold text-slate-800 tabular-nums">{lotesFiltrados.length}</span>
-              <span>de</span>
-              <span className="font-bold text-slate-800 tabular-nums">{lotesSinFiltroEstado.length}</span>
-              <span>{lotesSinFiltroEstado.length === 1 ? 'lote registrado' : 'lotes registrados'}</span>
+          </TablaDesplazable>
+          {/* El paginador que el mockup dibujaba acá (10/09). Hasta ahora el
+              pie solo contaba: la pantalla traía TODOS los lotes de una y
+              filtraba cliente/cobranza en memoria, así que unos botones de
+              página hubieran sido decorado. Ahora el corte se hace de verdad
+              en la consulta y los botones llevan a otra página. */}
+          {paginado.totalPaginas > 1 ? (
+            <Paginador
+              ruta="/admin/lotes"
+              searchParams={parametrosDelPaginador}
+              pagina={paginado.pagina}
+              total={cantidadFiltrada}
+              queSonLasFilas="lotes"
+            />
+          ) : (
+            <div className={TABLA_PANEL_PIE}>
+              <div className="flex items-center gap-1.5">
+                <span>Mostrando</span>
+                <span className="font-bold text-slate-800 tabular-nums">{lotes.length}</span>
+                <span>de</span>
+                <span className="font-bold text-slate-800 tabular-nums">{cantidadSinFiltroEstado}</span>
+                <span>{cantidadSinFiltroEstado === 1 ? 'lote registrado' : 'lotes registrados'}</span>
+              </div>
             </div>
-          </div>
+          )}
         </div>
       )}
     </main>

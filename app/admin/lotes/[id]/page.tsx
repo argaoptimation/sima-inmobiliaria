@@ -1,6 +1,7 @@
 import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { calcularEstadoCobranza } from '@/lib/cobranza/estado-cliente'
+import { posicionesDelPlan } from '@/lib/cuotas/plan-de-cuotas'
 import { calcularInteresMoratorio } from '@/lib/cobranza/interes-moratorio'
 import { formatearFechaCorta } from '@/lib/fecha/formatear-fecha-corta'
 import { hoyArgentina } from '@/lib/fecha/hoy-argentina'
@@ -192,11 +193,20 @@ export default async function LoteDetallePage({
   const { data: cuotas } = await supabase
     .from('cuotas')
     .select(
-      'id, numero, monto_base, monto_ajustado, saldo_pendiente, fecha_vencimiento, refinanciada, migrada, interes_condonado, interes_condonado_motivo'
+      'id, numero, plan, monto_base, monto_ajustado, saldo_pendiente, fecha_vencimiento, refinanciada, migrada, interes_condonado, interes_condonado_motivo'
     )
     .eq('lote_id', id)
     .eq('ciclo', lote!.ciclo_actual)
     .order('numero', { ascending: true })
+
+  // Que lugar ocupa cada cuota adentro de su plan (10/09). Al refinanciar,
+  // las cuotas nuevas continuan la numeracion -- un lote de 24 que se
+  // refinancio pasa a tener las cuotas 25 a 44 -- asi que el numero suelto
+  // deja de decir "cuantas faltan". Esto lo ve el staff de SIMACOR; el
+  // cliente ve lo mismo en su portal.
+  const posicionesDelPlanDeCuotas = posicionesDelPlan(cuotas ?? [])
+  const planesDelLote = new Set((cuotas ?? []).map((cuota) => cuota.plan))
+  const seRefinancio = planesDelLote.size > 1
 
   // Historial de pagos del lote -- pedido de Gabriel 25/08 para que se vea
   // acá mismo (sin ir a /admin/pagos) qué se cobró, cuándo y por qué medio
@@ -1166,6 +1176,15 @@ export default async function LoteDetallePage({
           ninguna cuota puede estar &quot;vencida&quot; hasta que el lote pase a vendido.
         </p>
       )}
+      {seRefinancio && (
+        <p className="rounded-xl border border-slate-200 bg-slate-50 p-3 text-sm text-slate-600">
+          Este lote se refinanció. Las cuotas viejas quedan acá con la etiqueta
+          &quot;Refinanció&quot; porque son el historial de lo que el cliente debía y de lo que
+          pagó — no se borran. Las cuotas nuevas siguen la numeración en vez de arrancar de uno,
+          así que debajo de cada número va su lugar dentro del plan refinanciado, que es lo que
+          también ve el cliente en su portal y en el recibo.
+        </p>
+      )}
       <div data-testid="tabla-cuotas" className={TABLA_EMBEBIDA}>
       <table className="w-full text-sm">
         <thead>
@@ -1197,7 +1216,21 @@ export default async function LoteDetallePage({
             const ajusteDeEstaCuota = ajustePorMesCuota.get(mesDeFecha(cuota.fecha_vencimiento))
             return (
               <tr key={cuota.id} className={TABLA_FILA}>
-                <td className={TABLA_CELDA}>{cuota.numero}</td>
+                <td className={TABLA_CELDA}>
+                  {cuota.numero}
+                  {/* La posicion dentro del plan refinanciado (10/09). Va
+                      abreviada porque la columna es angosta; el texto
+                      completo esta en el tooltip y arriba de la tabla. */}
+                  {posicionesDelPlanDeCuotas.get(cuota.numero)?.esDeUnPlanRefinanciado && (
+                    <span
+                      className="block text-[10px] leading-tight text-slate-500"
+                      title={posicionesDelPlanDeCuotas.get(cuota.numero)!.textoCorto}
+                    >
+                      {posicionesDelPlanDeCuotas.get(cuota.numero)!.posicion} de{' '}
+                      {posicionesDelPlanDeCuotas.get(cuota.numero)!.totalDelPlan}
+                    </span>
+                  )}
+                </td>
                 <td className={TABLA_CELDA}>{formatearFechaCorta(cuota.fecha_vencimiento)}</td>
                 <td className={TABLA_CELDA}>
                   {cuota.monto_base} {lote!.moneda}

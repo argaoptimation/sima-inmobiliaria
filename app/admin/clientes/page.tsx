@@ -3,6 +3,8 @@ import { requireAdministrador } from '@/lib/auth/require-admin'
 import { FiltroEnVivo } from '@/components/FiltroEnVivo'
 import { EnlaceBoton } from '@/components/EnlaceBoton'
 import { EncabezadoPagina } from '@/components/EncabezadoPagina'
+import { Paginador } from '@/components/Paginador'
+import { leerPagina, estadoDePaginado } from '@/lib/ui/paginacion'
 import {
   ENTRADA,
   BOTON_SECUNDARIO,
@@ -18,31 +20,49 @@ import {
 export default async function ClientesPage({
   searchParams,
 }: {
-  searchParams: Promise<{ q?: string }>
+  searchParams: Promise<{ q?: string; pagina?: string }>
 }) {
   await requireAdministrador()
 
-  const { q: filtroTexto } = await searchParams
+  const { q: filtroTexto, pagina: paginaParam } = await searchParams
 
   const supabase = await createClient()
 
-  let queryClientes = supabase
-    .from('profiles')
-    .select('id, full_name, email')
-    .eq('role', 'cliente')
-    .order('full_name')
+  // Clientes crece para siempre: cada persona que compra un lote queda acá
+  // aunque haya terminado de pagar hace años. Por eso se pagina (10/09) --
+  // no por lo que hay hoy, sino porque no tiene techo.
+  function consultaDeClientes(columnas: string, contar = false) {
+    let query = contar
+      ? supabase.from('profiles').select(columnas, { count: 'exact', head: true })
+      : supabase.from('profiles').select(columnas)
 
-  if (filtroTexto) {
-    // .or() arma un filtro PostgREST crudo -- ",()" tienen significado
-    // especial ahí (separan condiciones), así que se sacan del texto
-    // buscado antes de interpolarlo para no romper ni alterar el filtro.
-    const textoSaneado = filtroTexto.replace(/[,()]/g, '')
-    queryClientes = queryClientes.or(`full_name.ilike.%${textoSaneado}%,email.ilike.%${textoSaneado}%`)
+    query = query.eq('role', 'cliente')
+
+    if (filtroTexto) {
+      // .or() arma un filtro PostgREST crudo -- ",()" tienen significado
+      // especial ahí (separan condiciones), así que se sacan del texto
+      // buscado antes de interpolarlo para no romper ni alterar el filtro.
+      const textoSaneado = filtroTexto.replace(/[,()]/g, '')
+      query = query.or(`full_name.ilike.%${textoSaneado}%,email.ilike.%${textoSaneado}%`)
+    }
+
+    return query
   }
 
-  const { data: clientes } = await queryClientes
+  const { count } = await consultaDeClientes('id', true)
+  const paginado = estadoDePaginado(leerPagina(paginaParam).numero, count ?? 0)
 
-  const clienteIds = (clientes ?? []).map((cliente) => cliente.id)
+  const { data: clientesCrudos } = await consultaDeClientes('id, full_name, email')
+    .order('full_name')
+    .range(paginado.desde, paginado.hasta)
+
+  const clientes = (clientesCrudos ?? []) as unknown as {
+    id: string
+    full_name: string
+    email: string | null
+  }[]
+
+  const clienteIds = clientes.map((cliente) => cliente.id)
 
   const { data: lotes } =
     clienteIds.length > 0
@@ -80,7 +100,7 @@ export default async function ClientesPage({
         )}
       </FiltroEnVivo>
 
-      {(clientes ?? []).length === 0 ? (
+      {clientes.length === 0 ? (
         <p className="text-sm text-slate-600">
           {filtroTexto ? 'Ningún cliente coincide con la búsqueda.' : 'Todavía no hay ningún cliente cargado.'}
         </p>
@@ -96,7 +116,7 @@ export default async function ClientesPage({
             </tr>
           </thead>
           <tbody>
-            {clientes!.map((cliente) => (
+            {clientes.map((cliente) => (
               <tr key={cliente.id} className={TABLA_FILA}>
                 <td className={TABLA_CELDA}>{cliente.full_name}</td>
                 <td className={TABLA_CELDA}>{cliente.email ?? '—'}</td>
@@ -110,6 +130,13 @@ export default async function ClientesPage({
             ))}
           </tbody>
         </table>
+        <Paginador
+          ruta="/admin/clientes"
+          searchParams={{ q: filtroTexto }}
+          pagina={paginado.pagina}
+          total={count ?? 0}
+          queSonLasFilas="clientes"
+        />
         </div>
       )}
     </main>

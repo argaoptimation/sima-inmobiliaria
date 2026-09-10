@@ -2,8 +2,8 @@ import { test, expect } from '@playwright/test'
 import { ensureTestFixtures, createAdminClient, TestFixtures } from './fixtures/test-data'
 import { login } from './utils/login'
 
-// Paginación de Pagos (10/09). Es el único listado que crece con el tiempo
-// y no tiene techo: unas 200 filas por mes, para siempre.
+// Paginación de Pagos (10/09). Es el listado que más crece y no tiene
+// techo: unas 200 filas por mes, para siempre. Se pagina de a 30.
 //
 // Lo que cuidan estos tests no es que aparezcan los botones: es que el
 // TOTAL sea el de verdad y no el de la página, y que al pasar de página no
@@ -17,9 +17,9 @@ test.describe('Paginación de Pagos', () => {
     fixtures = await ensureTestFixtures()
 
     const admin = createAdminClient()
-    // 60 pagos confirmados sobre el lote de prueba: más de una página de 50,
+    // 50 pagos confirmados sobre el lote de prueba: más de una página de 30
     // y menos de dos, para que la última quede incompleta a propósito.
-    const filas = Array.from({ length: 60 }, (_, i) => ({
+    const filas = Array.from({ length: 50 }, (_, i) => ({
       cliente_id: fixtures.cliente.id,
       lote_id: fixtures.loteId,
       monto: 100 + i,
@@ -46,16 +46,21 @@ test.describe('Paginación de Pagos', () => {
     page,
   }) => {
     await login(page, fixtures.admin.email, fixtures.password)
-    // Filtrado al lote de prueba para que el conteo sea el de estos 60 y no
+    // Filtrado al lote de prueba para que el conteo sea el de estos 50 y no
     // el de todo lo que haya quedado en la base.
     await page.goto('/admin/pagos?q=E2E+Test+Lote&estado=confirmado')
 
-    await expect(page.getByText(/Mostrando\s*1-50\s*de\s*60\s*pagos/)).toBeVisible()
+    await expect(page.getByText(/Mostrando\s*1-30\s*de\s*50\s*pagos/)).toBeVisible()
     await expect(page.getByText('Página 1 de 2')).toBeVisible()
+    // Y hay 30 tarjetas en pantalla, no 50: si el pie dijera "1-30" pero la
+    // consulta siguiera trayendo todo, el paginador sería un cartel
+    // decorativo y la pantalla no habría mejorado en nada.
+    await expect(page.getByTestId('tarjeta-pago')).toHaveCount(30)
 
     await page.getByRole('link', { name: 'Siguiente' }).click()
 
-    await expect(page.getByText(/Mostrando\s*51-60\s*de\s*60\s*pagos/)).toBeVisible()
+    await expect(page.getByText(/Mostrando\s*31-50\s*de\s*50\s*pagos/)).toBeVisible()
+    await expect(page.getByTestId('tarjeta-pago')).toHaveCount(20)
     await expect(page).toHaveURL(/pagina=2/)
     // El filtro tiene que seguir puesto: sin esto, la página 2 mostraría
     // pagos de cualquier lote.
