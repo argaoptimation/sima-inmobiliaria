@@ -127,17 +127,30 @@ export async function guardarDistribucionLote(loteId: string, formData: FormData
     )
   }
 
-  const { data: cuotas } = await supabase
+  // Solo las cuotas VIVAS (10/09, bug encontrado por Gabriel). Una cuota
+  // refinanciada ya no la va a pagar nadie: su deuda se mudo a las cuotas
+  // nuevas, y su distribucion es historia -- dice a quien le correspondia
+  // esa plata cuando la cuota estaba viva, que es de donde sale la cuenta
+  // corriente de los acreedores.
+  //
+  // Que no aparezcan en el formulario no alcanza: esta accion es un
+  // REEMPLAZO COMPLETO, asi que si el bucle de abajo las recorriera, no
+  // encontraria nada en el formulario para ellas y les borraria el destino.
+  // El mismo cuidado esta adentro de guardar_distribucion_lote (migracion
+  // 0064), que es la garantia de ultimo recurso.
+  const { data: todasLasCuotas } = await supabase
     .from('cuotas')
-    .select('id, numero, cuenta_cobro_id, cuenta_cobro_externa_id')
+    .select('id, numero, refinanciada, cuenta_cobro_id, cuenta_cobro_externa_id')
     .eq('lote_id', loteId)
     .eq('ciclo', lote.ciclo_actual)
 
-  if (!cuotas) {
+  if (!todasLasCuotas) {
     redirect(
       `/admin/lotes/${loteId}/distribucion?error=${encodeURIComponent('No se encontraron las cuotas de este lote')}`
     )
   }
+
+  const cuotas = todasLasCuotas.filter((cuota) => !cuota.refinanciada)
 
   // Reemplazo completo (no diff): se borra todo lo que había guardado
   // antes para este lote y se inserta de nuevo exactamente lo que llegó en

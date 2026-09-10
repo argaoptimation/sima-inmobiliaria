@@ -14,4 +14,5 @@ export const EVENTO_HISTORIAL_ETIQUETA: Record<string, string> = {
   cargado_en_curso: 'Cargado ya vendido',
   interes_condonado: 'Interés condonado',
   interes_restituido: 'Interés restituido',
+  monto_cuota_cambiado: 'Monto de cuota cambiado',
 }

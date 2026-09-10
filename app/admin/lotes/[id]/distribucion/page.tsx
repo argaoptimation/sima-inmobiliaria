@@ -36,12 +36,26 @@ export default async function DistribucionLotePage({
     notFound()
   }
 
-  const { data: cuotas } = await supabase
+  const { data: todasLasCuotas } = await supabase
     .from('cuotas')
-    .select('id, numero, monto_base, fecha_vencimiento, cuenta_cobro_id, cuenta_cobro_externa_id')
+    .select(
+      'id, numero, monto_base, fecha_vencimiento, refinanciada, cuenta_cobro_id, cuenta_cobro_externa_id'
+    )
     .eq('lote_id', id)
     .eq('ciclo', lote.ciclo_actual)
     .order('numero', { ascending: true })
+
+  // Las refinanciadas NO se reparten (10/09, Gabriel: "no deberia permitir
+  // seleccionar quien cobra cuotas refinanciadas, directamente deberian
+  // desaparecer de la distribucion"). Tiene razon: esas cuotas ya no las va
+  // a pagar nadie, su deuda se mudo a las cuotas nuevas, y ofrecerlas hacia
+  // que la pantalla pidiera repartir plata que no va a entrar nunca.
+  //
+  // Lo que YA tenian repartido no se toca ni se borra: es la historia de a
+  // quien le correspondia esa plata cuando la cuota estaba viva. Ver la
+  // accion y la migracion 0064.
+  const cuotas = (todasLasCuotas ?? []).filter((cuota) => !cuota.refinanciada)
+  const cuantasRefinanciadas = (todasLasCuotas ?? []).length - cuotas.length
 
   // Integrantes de ESTE lote, no todo el staff (05/09, pedido de Gabriel:
   // "cuando hagamos la distribución de cuotas me va a dejar seleccionar
@@ -175,7 +189,7 @@ export default async function DistribucionLotePage({
     monto: String(objetivo.monto_objetivo),
   }))
 
-  const cuotaIds = (cuotas ?? []).map((cuota) => cuota.id)
+  const cuotaIds = cuotas.map((cuota) => cuota.id)
   const { data: distribuciones } =
     cuotaIds.length > 0
       ? await supabase
@@ -185,7 +199,7 @@ export default async function DistribucionLotePage({
       : { data: [] }
 
   const distribucionesIniciales: Record<number, { participanteKey: string; monto: string }[]> = {}
-  for (const cuota of cuotas ?? []) {
+  for (const cuota of cuotas) {
     distribucionesIniciales[cuota.numero] = (distribuciones ?? [])
       .filter((distribucion) => distribucion.cuota_id === cuota.id)
       .map((distribucion) => ({
@@ -203,7 +217,7 @@ export default async function DistribucionLotePage({
   // sigue respetando como resguardo para las cuotas que quedaron sin destino
   // propio.
   const cuentaCobroInicialPorCuota: Record<number, string> = {}
-  for (const cuota of cuotas ?? []) {
+  for (const cuota of cuotas) {
     cuentaCobroInicialPorCuota[cuota.numero] = cuota.cuenta_cobro_id
       ? `profile:${cuota.cuenta_cobro_id}`
       : cuota.cuenta_cobro_externa_id
@@ -316,13 +330,11 @@ export default async function DistribucionLotePage({
       <h1 className={`mb-2 ${TITULO_H1}`}>Distribución de cuotas — {lote!.identificador}</h1>
       <p className="mb-6 text-sm text-slate-600">
         Precio total del lote: <span className="font-medium">{lote!.precio_total}</span> {lote!.moneda}
-        {(cuotas ?? []).length > 0 && (
+        {cuotas.length > 0 && (
           <>
             {' '}
-            (suma de las {(cuotas ?? []).length} cuotas:{' '}
-            {Math.round(
-              (cuotas ?? []).reduce((acc, cuota) => acc + cuota.monto_base, 0) * 100
-            ) / 100}{' '}
+            (suma de las {cuotas.length} cuotas a repartir:{' '}
+            {Math.round(cuotas.reduce((acc, cuota) => acc + cuota.monto_base, 0) * 100) / 100}{' '}
             {lote!.moneda})
           </>
         )}
@@ -370,6 +382,16 @@ export default async function DistribucionLotePage({
         </p>
       )}
 
+      {cuantasRefinanciadas > 0 && (
+        <p className="mb-4 rounded-lg border border-slate-200 bg-slate-50 p-3 text-sm text-slate-600">
+          Este lote se refinanció: {cuantasRefinanciadas} cuota
+          {cuantasRefinanciadas === 1 ? '' : 's'} quedaron marcadas &quot;Refinanció&quot; y no
+          aparecen acá. Su deuda pasó a las cuotas nuevas, así que repartirlas otra vez sería
+          repartir plata que no va a entrar. Lo que ya tenían repartido queda guardado tal cual —
+          se ve en el detalle del lote y sigue contando en las cuentas corrientes.
+        </p>
+      )}
+
       {lote!.estado !== 'vendido' ? (
         <p className="mb-4 rounded-lg bg-amber-50 p-3 text-sm text-amber-800">
           Este lote no está vendido (estado actual: {lote!.estado}), todavía no tiene cuotas para
@@ -379,7 +401,7 @@ export default async function DistribucionLotePage({
         <form action={guardarDistribucionConId}>
           <DistribucionCuotas
             moneda={lote!.moneda}
-            cuotas={(cuotas ?? []).map((cuota) => ({
+            cuotas={cuotas.map((cuota) => ({
               numero: cuota.numero,
               montoBase: cuota.monto_base,
               fechaVencimiento: cuota.fecha_vencimiento,

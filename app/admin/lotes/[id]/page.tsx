@@ -20,6 +20,7 @@ import {
   saldarLote,
   condonarInteresMoratorio,
 } from './actions'
+import { cambiarMontoDeCuotas, cuotasConMontoEditable } from './actions'
 import { cancelarReserva } from '../actions'
 import { confirmarPago } from '../../pagos/actions'
 import { BotonEliminarLote } from './BotonEliminarLote'
@@ -263,6 +264,20 @@ export default async function LoteDetallePage({
   const saldarLoteConId = saldarLote.bind(null, id)
 
   const hoy = hoyArgentina()
+
+  // Que cuotas se les puede cambiar el monto sin refinanciar (10/09). La
+  // cuenta la hace la MISMA funcion que usa la accion al guardar: si la
+  // pantalla ofreciera una cuota que la accion despues rechaza, el resultado
+  // seria un error incomprensible despues de haber tipeado.
+  const cuotasEditables =
+    perfilPropio!.role === 'administrador' && (cuotas ?? []).length > 0
+      ? await cuotasConMontoEditable(createAdminClient(), id, lote!.ciclo_actual, cuotas ?? [], hoy)
+      : new Map()
+
+  const cuotasQueSePuedenEditar = (cuotas ?? []).filter((cuota) =>
+    cuotasEditables.has(cuota.numero)
+  )
+
   const estado =
     lote!.estado === 'vendido'
       ? calcularEstadoCobranza(
@@ -573,6 +588,7 @@ export default async function LoteDetallePage({
   const marcarPrejudicialConId = marcarPrejudicial.bind(null, id, undefined)
   const desmarcarPrejudicialConId = desmarcarPrejudicial.bind(null, id)
   const refinanciarConId = refinanciarLote.bind(null, id)
+  const cambiarMontoDeCuotasConId = cambiarMontoDeCuotas.bind(null, id)
   const condonarInteresConId = condonarInteresMoratorio.bind(null, id)
   const generarContratoConId = generarContratoLote.bind(null, id)
 
@@ -1215,9 +1231,26 @@ export default async function LoteDetallePage({
               : 0
             const ajusteDeEstaCuota = ajustePorMesCuota.get(mesDeFecha(cuota.fecha_vencimiento))
             return (
-              <tr key={cuota.id} className={TABLA_FILA}>
+              /* La fila de una cuota refinanciada va apagada (10/09, pedido
+                 de Gabriel de marcarlas mejor). No es decoracion: en un lote
+                 refinanciado las cuotas muertas pueden ser 36 y las vivas 10,
+                 y con todas del mismo color la tabla se lee como "este
+                 cliente debe 46 cuotas". */
+              <tr key={cuota.id} className={cuota.refinanciada ? FILA_APAGADA : TABLA_FILA}>
                 <td className={TABLA_CELDA}>
                   {cuota.numero}
+                  {/* El cartel va JUNTO AL NUMERO y no en la columna de saldo
+                      (10/09). La fila se lee de izquierda a derecha: para
+                      cuando llegabas a "Saldo pendiente" ya habias leido el
+                      monto como si se debiera. */}
+                  {cuota.refinanciada && (
+                    <span
+                      className="mt-0.5 block w-fit rounded bg-slate-200 px-1.5 py-px text-[10px] font-bold tracking-wide text-slate-600 uppercase"
+                      title="Esta cuota se refinanció: su deuda pasó a las cuotas del plan nuevo. Queda acá como historial."
+                    >
+                      Refinanció
+                    </span>
+                  )}
                   {/* La posicion dentro del plan refinanciado (10/09). Va
                       abreviada porque la columna es angosta; el texto
                       completo esta en el tooltip y arriba de la tabla. */}
@@ -1256,7 +1289,10 @@ export default async function LoteDetallePage({
                 </td>
                 <td className={TABLA_CELDA}>
                   {cuota.refinanciada ? (
-                    <span className="italic text-slate-500">Refinanció</span>
+                    /* Ya no dice "Refinanció" acá: el cartel esta al lado del
+                       numero. Lo que importa en esta columna es que no debe
+                       nada, y que lo que debia se mudo. */
+                    <span className="text-slate-400">— pasó al plan nuevo</span>
                   ) : cuota.migrada ? (
                     /* Cobrada antes de usar la plataforma: no hay pago ni
                        reparto detras, y el monto es el de hoy. Decirlo acá
@@ -1414,6 +1450,88 @@ export default async function LoteDetallePage({
             </div>
           </details>
         )}
+
+      {/* Cambiar el monto de una cuota que todavia no paso por nada (10/09,
+          pedido de Gabriel: "poder modificar sin necesidad de refinanciar,
+          para darle flexibilidad a Nico").
+
+          Es a proposito un panel aparte de Refinanciar y no una columna
+          editable en la tabla: refinanciar renegocia una deuda entera y esto
+          corrige un numero. Meterlos en el mismo lugar invita a usar el
+          mazazo para clavar un clavito. */}
+      {perfilPropio!.role === 'administrador' && (cuotas ?? []).length > 0 && (
+        <details className="mb-6 rounded border border-blue-100 text-sm">
+          <summary className="cursor-pointer select-none p-3 font-medium">
+            Cambiar el monto de una cuota
+            {cuotasQueSePuedenEditar.length > 0 && (
+              <span className="ml-2 text-xs font-normal text-slate-500">
+                ({cuotasQueSePuedenEditar.length} se{' '}
+                {cuotasQueSePuedenEditar.length === 1 ? 'puede' : 'pueden'} cambiar)
+              </span>
+            )}
+          </summary>
+          <div className="flex flex-col gap-4 border-t border-blue-100 p-3">
+            {cuotasQueSePuedenEditar.length === 0 ? (
+              <p className="text-slate-600">
+                Ninguna cuota de este lote se puede cambiar hoy. Solo se puede tocar el monto de
+                una cuota que todavía no venció, que no tiene ningún pago ni comprobante encima y a
+                la que no se le aplicó un ajuste por índice. Para el resto, la herramienta es{' '}
+                <strong>Refinanciar cuotas</strong>: toma la deuda que quedó y la vuelve a armar.
+              </p>
+            ) : (
+              <form action={cambiarMontoDeCuotasConId} className="flex flex-col gap-3">
+                <p className="text-slate-600">
+                  Se cambia el monto y listo: no se genera ninguna cuota nueva ni se toca la
+                  numeración. Aparecen solo las cuotas que todavía no vencieron, sin ningún pago ni
+                  comprobante encima y sin ajuste por índice &mdash; una vez que entró plata o
+                  venció, el monto deja de ser un número editable y pasa a ser parte de una cuenta
+                  que ya está hecha.
+                </p>
+                <fieldset className="flex flex-col gap-1">
+                  <legend className="mb-1 text-sm font-medium">
+                    Dejá en blanco las que no querés tocar
+                  </legend>
+                  <div className="flex max-h-72 flex-col gap-1.5 overflow-y-auto rounded border border-blue-100 p-2">
+                    {cuotasQueSePuedenEditar.map((cuota) => (
+                      <label key={cuota.id} className="flex flex-wrap items-center gap-2 text-sm">
+                        <span className="w-56 shrink-0 text-slate-700">
+                          Cuota {cuota.numero} &mdash; vence el{' '}
+                          {formatearFechaCorta(cuota.fecha_vencimiento)}
+                        </span>
+                        <span className="text-slate-500">
+                          hoy {cuota.monto_ajustado} {lote!.moneda} &rarr;
+                        </span>
+                        <input
+                          type="number"
+                          step="0.01"
+                          min="0.01"
+                          name={`montoCuota${cuota.numero}`}
+                          placeholder="monto nuevo"
+                          aria-label={`Monto nuevo de la cuota ${cuota.numero}`}
+                          className={`${ENTRADA} w-36`}
+                        />
+                      </label>
+                    ))}
+                  </div>
+                </fieldset>
+                <label className="text-sm">
+                  Por qué (opcional, queda en el historial)
+                  <input
+                    type="text"
+                    name="motivo"
+                    maxLength={200}
+                    placeholder="Ej: se acordó un monto distinto con el comprador"
+                    className={`${ENTRADA} w-full`}
+                  />
+                </label>
+                <BotonEnvio className={`cursor-pointer self-start ${BOTON_PRIMARIO}`}>
+                  Guardar los montos nuevos
+                </BotonEnvio>
+              </form>
+            )}
+          </div>
+        </details>
+      )}
       </div>
       </div>
         </div>
@@ -1908,6 +2026,10 @@ export default async function LoteDetallePage({
     </main>
   )
 }
+
+// Una fila de cuota que ya no esta viva (refinanciada): en gris y sin el
+// hover, para que la vista se apoye en las que si hay que cobrar.
+const FILA_APAGADA = 'bg-slate-50/60 text-slate-400'
 
 // Un adjunto: link si el archivo esta, chip apagado si no se pudo firmar la
 // URL. Antes cada uno era un parrafo con "Ver X" o "X no disponible", y con

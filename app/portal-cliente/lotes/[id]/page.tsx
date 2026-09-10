@@ -282,8 +282,13 @@ export default async function PortalClienteLotePage({
           >
             <div className="mb-2 flex items-center gap-3">
               <IconoEstadoCuota estado={cuota.estadoCuota} />
-              <span className="font-semibold text-blue-900">
+              <span className={cuota.refinanciada ? 'font-semibold text-slate-400' : 'font-semibold text-blue-900'}>
                 Cuota {cuota.numero}
+                {cuota.refinanciada && (
+                  <span className="mt-0.5 block w-fit rounded bg-slate-200 px-1.5 py-px text-[10px] font-bold tracking-wide text-slate-600 uppercase">
+                    Refinanció
+                  </span>
+                )}
                 {posicionesDelPlanDeCuotas.get(cuota.numero)?.esDeUnPlanRefinanciado && (
                   <span className="block text-[11px] leading-tight font-normal text-slate-500">
                     {posicionesDelPlanDeCuotas.get(cuota.numero)!.textoCorto}
@@ -360,13 +365,24 @@ export default async function PortalClienteLotePage({
             {cuotasConDatos.map((cuota) => (
               <tr
                 key={cuota.id}
-                className={`border-t border-blue-100 hover:bg-blue-50/40 ${ACENTO_FILA[cuota.estadoCuota]}`}
+                className={`border-t border-blue-100 hover:bg-blue-50/40 ${
+                  cuota.refinanciada ? 'bg-slate-50/60 text-slate-400' : ACENTO_FILA[cuota.estadoCuota]
+                }`}
               >
                 <td className="px-4 py-3">
                   <span className="flex items-center gap-2.5 font-medium text-slate-800">
                     <IconoEstadoCuota estado={cuota.estadoCuota} />
                     <span>
                       {cuota.numero}
+                      {/* El cartel va al lado del numero y no en la columna
+                          del saldo: la fila se lee de izquierda a derecha, y
+                          si el aviso llega al final ya leiste el monto como
+                          si lo debieras. */}
+                      {cuota.refinanciada && (
+                        <span className="mt-0.5 block w-fit rounded bg-slate-200 px-1.5 py-px text-[10px] font-bold tracking-wide text-slate-600 uppercase">
+                          Refinanció
+                        </span>
+                      )}
                       {posicionesDelPlanDeCuotas.get(cuota.numero)?.esDeUnPlanRefinanciado && (
                         <span className="block text-[11px] leading-tight font-normal text-slate-500">
                           {posicionesDelPlanDeCuotas.get(cuota.numero)!.textoCorto}
@@ -381,7 +397,7 @@ export default async function PortalClienteLotePage({
                 </td>
                 <td className="px-4 py-3">
                   {cuota.refinanciada ? (
-                    <span className="italic text-slate-500">Refinanció</span>
+                    <span className="text-slate-400">— pasó al plan nuevo</span>
                   ) : (
                     <>
                       <span className="font-medium text-slate-800">

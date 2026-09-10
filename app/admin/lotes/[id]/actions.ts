@@ -10,6 +10,13 @@ import { generarYGuardarContrato } from '@/lib/contratos/generar-y-guardar'
 import { generarCuotas, generarCuotasManual } from '@/lib/lotes/generar-cuotas'
 import { calcularMontoCuota } from '@/lib/lotes/calcular-monto-cuota'
 import { listarNumerosDeCuota } from '@/lib/cuotas/listar-numeros'
+import {
+  leerMontosNuevos,
+  sePuedeEditarElMonto,
+  type CuotaEditable,
+} from '@/lib/cuotas/editar-monto'
+import { mesDeFecha } from '@/lib/lotes/aplicar-indexacion'
+import { hoyArgentina } from '@/lib/fecha/hoy-argentina'
 import { revalidarNotificaciones } from '@/lib/notificaciones/revalidar'
 
 function idOVacio(valor: FormDataEntryValue | null): string | null {
@@ -816,4 +823,196 @@ export async function condonarInteresMoratorio(loteId: string, formData: FormDat
         : `Interés moratorio condonado en la cuota ${numeros}`
     )}`
   )
+}
+
+
+// Cambiar el monto de cuotas que todavia no pasaron por nada (10/09, pedido
+// de Gabriel: "poder modificar sin necesidad de refinanciar, para darle
+// flexibilidad a Nico").
+//
+// Las condiciones de que cuota se puede tocar viven en lib/cuotas/editar-monto
+// y se vuelven a chequear ACA, no solo en la pantalla: entre que Nicolas abrio
+// el lote y apreto Guardar pudo entrar un pago del cliente. El <select> de la
+// pantalla limita lo que se ve, no lo que llega.
+export async function cambiarMontoDeCuotas(loteId: string, formData: FormData) {
+  await requireAdministrador()
+
+  const supabase = await createClient()
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
+
+  const destino = `/admin/lotes/${loteId}`
+
+  const { data: lote } = await supabase
+    .from('lotes')
+    .select('estado, ciclo_actual, moneda')
+    .eq('id', loteId)
+    .single()
+
+  if (!lote) {
+    redirect(`${destino}?error=${encodeURIComponent('No se encontro el lote')}`)
+  }
+
+  const admin = createAdminClient()
+  const hoy = hoyArgentina()
+
+  const { data: cuotas } = await admin
+    .from('cuotas')
+    .select(
+      'id, numero, monto_base, monto_ajustado, saldo_pendiente, fecha_vencimiento, refinanciada, migrada'
+    )
+    .eq('lote_id', loteId)
+    .eq('ciclo', lote!.ciclo_actual)
+    .order('numero', { ascending: true })
+
+  if (!cuotas || cuotas.length === 0) {
+    redirect(`${destino}?error=${encodeURIComponent('Este lote no tiene cuotas')}`)
+  }
+
+  const editables = await cuotasConMontoEditable(admin, loteId, lote!.ciclo_actual, cuotas!, hoy)
+
+  const entradas = cuotas!.map((cuota) => ({
+    numero: cuota.numero,
+    montoTexto: ((formData.get(`montoCuota${cuota.numero}`) as string) || '').trim(),
+  }))
+
+  const { cambios, errores } = leerMontosNuevos(entradas, editables)
+
+  if (errores.length > 0) {
+    redirect(
+      `${destino}?error=${encodeURIComponent(
+        `No se cambio nada. Revisa: ${errores
+          .map((error) => `cuota ${error.numero} (${error.motivo})`)
+          .join(', ')}`
+      )}`
+    )
+  }
+
+  if (cambios.length === 0) {
+    redirect(
+      `${destino}?error=${encodeURIComponent('Escribi el monto nuevo de al menos una cuota')}`
+    )
+  }
+
+  const cuotaPorNumero = new Map(cuotas!.map((cuota) => [cuota.numero, cuota]))
+
+  // Todo o nada: si falla una, se corta y se avisa cual. Se hace en orden de
+  // numero de cuota para que el mensaje sea reconstruible.
+  for (const cambio of cambios) {
+    const cuota = cuotaPorNumero.get(cambio.numero)!
+    const { error } = await admin
+      .from('cuotas')
+      .update({
+        monto_base: cambio.montoNuevo,
+        monto_ajustado: cambio.montoNuevo,
+        saldo_pendiente: cambio.montoNuevo,
+      })
+      .eq('id', cuota.id)
+      // Candado final contra una carrera: si entre la lectura de arriba y
+      // este update alguien imputo plata, el saldo ya no es el que leimos y
+      // esta condicion no matchea ninguna fila.
+      .eq('saldo_pendiente', cuota.saldo_pendiente)
+
+    if (error) {
+      redirect(
+        `${destino}?error=${encodeURIComponent(
+          `Se cambiaron las cuotas anteriores, pero fallo la ${cambio.numero}: ${mensajeDeError(error)}`
+        )}`
+      )
+    }
+  }
+
+  const detalle = cambios
+    .map((cambio) => {
+      const cuota = cuotaPorNumero.get(cambio.numero)!
+      return `cuota ${cambio.numero}: ${cuota.monto_ajustado} -> ${cambio.montoNuevo}`
+    })
+    .join(', ')
+
+  const motivo = ((formData.get('motivo') as string) || '').trim()
+
+  await admin.from('lote_historial_estados').insert({
+    lote_id: loteId,
+    evento: 'monto_cuota_cambiado',
+    cambiado_por: user!.id,
+    detalle: `${detalle} ${lote!.moneda}${motivo ? ` — ${motivo}` : ''}`,
+  })
+
+  // El monto de una cuota es lo que el cliente ve en su portal y lo que se
+  // reparte entre los acreedores: la campana tiene que volver a mirar.
+  revalidarNotificaciones()
+
+  redirect(
+    `${destino}?ok=${encodeURIComponent(
+      cambios.length === 1
+        ? `Monto de la cuota ${cambios[0].numero} actualizado`
+        : `Monto actualizado en ${cambios.length} cuotas`
+    )}`
+  )
+}
+
+// Que cuotas del lote se pueden editar HOY. Es la misma cuenta que hace la
+// pantalla, y vive en una funcion sola para que las dos miren exactamente lo
+// mismo: si la pantalla ofreciera una cuota que la accion rechaza, el
+// resultado seria un error incomprensible despues de haber tipeado.
+export async function cuotasConMontoEditable(
+  admin: ReturnType<typeof createAdminClient>,
+  loteId: string,
+  ciclo: number,
+  cuotas: {
+    id: string
+    numero: number
+    monto_base: number
+    monto_ajustado: number
+    saldo_pendiente: number
+    fecha_vencimiento: string
+    refinanciada: boolean
+    migrada: boolean
+  }[],
+  hoy: string
+): Promise<Map<number, CuotaEditable>> {
+  const cuotaIds = cuotas.map((cuota) => cuota.id)
+
+  const [imputaciones, imputacionesMora, pagosPendientes, ajustes] = await Promise.all([
+    admin.from('pago_imputaciones').select('cuota_id').in('cuota_id', cuotaIds),
+    admin.from('pago_imputaciones_mora').select('cuota_id').in('cuota_id', cuotaIds),
+    admin
+      .from('pagos')
+      .select('cuota_origen_id')
+      .eq('lote_id', loteId)
+      .not('cuota_origen_id', 'is', null)
+      .neq('estado', 'rechazado'),
+    admin.from('ajustes_indexacion').select('fecha_desde').eq('lote_id', loteId).eq('ciclo', ciclo),
+  ])
+
+  const conPlata = new Set<string>([
+    ...(imputaciones.data ?? []).map((fila) => fila.cuota_id),
+    ...(imputacionesMora.data ?? []).map((fila) => fila.cuota_id),
+  ])
+  const conComprobante = new Set<string>(
+    (pagosPendientes.data ?? []).map((fila) => fila.cuota_origen_id as string)
+  )
+  const mesesIndexados = new Set<string>((ajustes.data ?? []).map((fila) => fila.fecha_desde))
+
+  const editables = new Map<number, CuotaEditable>()
+
+  for (const cuota of cuotas) {
+    const candidata: CuotaEditable = {
+      numero: cuota.numero,
+      montoBase: cuota.monto_base,
+      montoAjustado: cuota.monto_ajustado,
+      saldoPendiente: cuota.saldo_pendiente,
+      fechaVencimiento: cuota.fecha_vencimiento,
+      refinanciada: cuota.refinanciada,
+      migrada: cuota.migrada,
+      tieneAjustePorIndice: mesesIndexados.has(mesDeFecha(cuota.fecha_vencimiento)),
+      tienePlataImputada: conPlata.has(cuota.id),
+      tieneComprobantePendiente: conComprobante.has(cuota.id),
+    }
+
+    if (sePuedeEditarElMonto(candidata, hoy)) editables.set(cuota.numero, candidata)
+  }
+
+  return editables
 }
