@@ -45,6 +45,7 @@ import {
 } from '@/lib/ui/clases'
 import { ETIQUETA_ORIGEN } from '@/lib/cuenta-corriente/etiquetas'
 import { armarFilasDeMovimiento } from '@/lib/cuenta-corriente/filas-movimiento'
+import { traerTodasLasFilas } from '@/lib/supabase/traer-todas-las-filas'
 import {
   traerDatosDeLotes,
   traerDatosDeCuotas,
@@ -126,16 +127,11 @@ export default async function CuentaCorrienteDetallePage({
   // Se trae TODO sin filtrar -- el saldo mostrado arriba siempre tiene que
   // ser el real (todos los movimientos), los filtros de abajo son solo
   // para acotar qué se lista en la tabla, no para qué se suma.
-  const { data: movimientosData } = await supabase
-    .from('movimientos_cuenta_corriente')
-    .select(
-      'id, tipo, monto, moneda, cotizacion_dia, origen, fecha_evento, de_parte_de, detalle, lote_id, cuota_id, lotes(identificador)'
-    )
-    .eq('profile_id', id)
-    .order('fecha_evento', { ascending: false })
-    .order('created_at', { ascending: false })
-
-  const movimientos = (movimientosData ?? []) as unknown as Array<{
+  //
+  // Y paginado (11/09): PostgREST corta en 1000 filas sin avisar, y un
+  // saldo que suma solo las primeras 1000 no es el real. Ver
+  // traer-todas-las-filas.ts.
+  const movimientos = await traerTodasLasFilas<{
     id: string
     tipo: 'debe' | 'haber'
     monto: number
@@ -148,7 +144,18 @@ export default async function CuentaCorrienteDetallePage({
     lote_id: string | null
     cuota_id: string | null
     lotes: { identificador: string } | null
-  }>
+  }>((inicio, fin) =>
+    supabase
+      .from('movimientos_cuenta_corriente')
+      .select(
+        'id, tipo, monto, moneda, cotizacion_dia, origen, fecha_evento, de_parte_de, detalle, lote_id, cuota_id, lotes(identificador)'
+      )
+      .eq('profile_id', id)
+      .order('fecha_evento', { ascending: false })
+      .order('created_at', { ascending: false })
+      .order('id')
+      .range(inicio, fin)
+  )
 
   const { data: lotes } = await supabase.from('lotes').select('id, identificador').order('identificador')
 

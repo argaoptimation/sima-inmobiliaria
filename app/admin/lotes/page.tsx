@@ -25,6 +25,7 @@ import { TablaDesplazable } from '@/components/TablaDesplazable'
 import { leerPagina, estadoDePaginado } from '@/lib/ui/paginacion'
 import { hoyArgentina } from '@/lib/fecha/hoy-argentina'
 import { formatearFechaCorta } from '@/lib/fecha/formatear-fecha-corta'
+import { traerTodasLasFilasPorTandas } from '@/lib/supabase/traer-todas-las-filas'
 import { EnlaceBoton } from '@/components/EnlaceBoton'
 import { BotonEnvio } from '@/components/BotonEnvio'
 import {
@@ -298,17 +299,21 @@ export default async function LotesPage({
   // Las cuotas de un grupo de lotes, de a tandas. La lista de ids viaja en
   // la URL de PostgREST, asi que pedir 300 lotes de una es una direccion de
   // 12 KB -- funciona hasta el dia que no.
+  // En tandas (la lista de ids viaja en la URL) y paginado dentro de cada
+  // tanda: 150 lotes vendidos son miles de cuotas, y PostgREST corta en 1000
+  // filas sin avisar. Sin paginar, los lotes cuyas cuotas caían después de
+  // la fila 1000 se calculaban como si no tuvieran ninguna (11/09, ver
+  // traer-todas-las-filas.ts).
   async function traerCuotasDeLotes(loteIds: string[]) {
-    const cuotas: CuotaDeCobranza[] = []
-    for (let i = 0; i < loteIds.length; i += 150) {
-      const { data } = await supabase
+    return traerTodasLasFilasPorTandas<CuotaDeCobranza>(loteIds, (tanda, inicio, fin) =>
+      supabase
         .from('cuotas')
         .select('lote_id, ciclo, saldo_pendiente, fecha_vencimiento')
-        .in('lote_id', loteIds.slice(i, i + 150))
+        .in('lote_id', tanda)
         .order('fecha_vencimiento', { ascending: true })
-      cuotas.push(...((data ?? []) as CuotaDeCobranza[]))
-    }
-    return cuotas
+        .order('id')
+        .range(inicio, fin)
+    )
   }
 
   // El estado de cobranza de cada lote vendido: para pintar la columna, y

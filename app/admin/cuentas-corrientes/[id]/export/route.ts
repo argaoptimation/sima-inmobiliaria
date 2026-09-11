@@ -3,9 +3,11 @@ import ExcelJS from 'exceljs'
 import { createClient } from '@/lib/supabase/server'
 import { requireAdminOTitularCuenta } from '@/lib/auth/require-admin'
 import {
+  anchosDeLaPlanilla,
   armarFilasDeMovimiento,
   celdasDeFila,
   COLUMNAS_PLANILLA,
+  type MovimientoCrudo,
 } from '@/lib/cuenta-corriente/filas-movimiento'
 import {
   traerDatosDeLotes,
@@ -17,6 +19,17 @@ import {
   describirDiferencia,
 } from '@/lib/cuenta-corriente/mes-a-mes'
 import { etiquetaMes, etiquetaMesCorta, ultimoDiaDelMes, mesRelativoAHoy } from '@/lib/fecha/meses'
+import {
+  anchoDeNroCuota,
+  celdasDeLaCuota,
+  celdasDelLote,
+  compararLotes,
+  COLUMNAS_DE_LA_CUOTA,
+  COLUMNAS_DEL_LOTE,
+} from '@/lib/planillas/columnas-del-lote'
+import { fechaDePlanilla } from '@/lib/planillas/fechas'
+import { encabezar, respuestaExcel, ESTILO_SUBTITULO, ESTILO_TITULO } from '@/lib/planillas/excel'
+import { traerTodasLasFilas } from '@/lib/supabase/traer-todas-las-filas'
 
 // EL ÚNICO EXCEL DEL ACREEDOR (10/09, pedido de Gabriel: "cuando
 // descargamos el Excel, descargar ambos: el Excel de los movimientos más
@@ -41,20 +54,11 @@ import { etiquetaMes, etiquetaMesCorta, ultimoDiaDelMes, mesRelativoAHoy } from 
 // regional Argentina/Español espera punto y coma como separador de listas
 // (usa la coma como decimal), así que un CSV separado por comas entraba
 // todo amontonado en una sola columna.
-
-const ESTILO_TITULO = { bold: true, size: 14 } as const
-const ESTILO_SUBTITULO = { bold: true, size: 12 } as const
-const ESTILO_ENCABEZADO = {
-  font: { bold: true, color: { argb: 'FFFFFFFF' } },
-  fill: { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF1F2937' } } as const,
-}
-
-function encabezar(fila: ExcelJS.Row) {
-  fila.eachCell((celda) => {
-    celda.font = ESTILO_ENCABEZADO.font
-    celda.fill = ESTILO_ENCABEZADO.fill
-  })
-}
+//
+// 11/09 (pedido de Gabriel): las hojas identifican el lote con las mismas
+// columnas que el resto de los Excel -- Loteo | Mza | Lote | Cliente, y Mes
+// de | Nro cuota cuando la fila es una cuota -- y las fechas salen DD/MM/AA.
+// Ver lib/planillas/columnas-del-lote.ts y lib/planillas/fechas.ts.
 
 export async function GET(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params
@@ -92,6 +96,18 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
 
   const mesAMes = await obtenerMesAMesDelAcreedor(supabase, id, desde, hasta)
   const proyeccion = pivotarPorLote(mesAMes.filas, mesAMes.meses)
+
+  // Loteo, manzana, número y cliente de cada lote, y el "3/24" de cada
+  // cuota, de los mismos resolvedores que usa la hoja de movimientos: así
+  // ninguna hoja puede escribir el mismo lote de otra manera.
+  const lotePorId = await traerDatosDeLotes(
+    supabase,
+    mesAMes.filas.map((fila) => fila.loteId)
+  )
+  const cuotaPorId = await traerDatosDeCuotas(
+    supabase,
+    mesAMes.filas.map((fila) => fila.cuotaId)
+  )
 
   const workbook = new ExcelJS.Workbook()
 
@@ -156,18 +172,19 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
 
   encabezar(
     hojaProyeccion.addRow([
-      'Lote',
-      'Comprador',
+      ...COLUMNAS_DEL_LOTE,
       'Moneda',
       ...proyeccion.meses.map(etiquetaMesCorta),
       'Total',
     ])
   )
 
-  for (const fila of proyeccion.filas) {
+  const filasProyeccion = [...proyeccion.filas].sort((a, b) =>
+    compararLotes(lotePorId.get(a.loteId), lotePorId.get(b.loteId))
+  )
+  for (const fila of filasProyeccion) {
     hojaProyeccion.addRow([
-      fila.loteIdentificador,
-      fila.compradorNombre ?? '',
+      ...celdasDelLote(lotePorId.get(fila.loteId), fila.compradorNombre),
       fila.moneda,
       // Números "pelados" a propósito (sin la moneda pegada al valor): en
       // una planilla tienen que poder sumarse. La moneda va en su columna.
@@ -181,8 +198,10 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
   } else {
     const filaTotal = hojaProyeccion.addRow([
       'TOTAL',
-      '',
-      '',
+      '', // Mza
+      '', // Lote
+      '', // Cliente
+      '', // Moneda
       ...proyeccion.meses.map((mes) =>
         Object.entries(proyeccion.totalesPorMes[mes] ?? {})
           .map(([moneda, monto]) => `${monto} ${moneda}`)
@@ -196,11 +215,13 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
   }
 
   hojaProyeccion.columns = [
-    { width: 30 },
-    { width: 26 },
-    { width: 10 },
+    { width: 20 }, // Loteo
+    { width: 8 }, // Mza
+    { width: 12 }, // Lote
+    { width: 26 }, // Cliente
+    { width: 10 }, // Moneda
     ...proyeccion.meses.map(() => ({ width: 14 })),
-    { width: 16 },
+    { width: 16 }, // Total
   ]
 
   // ----------------------------------------------- hoja 3: órdenes de pago
@@ -215,9 +236,8 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
   encabezar(
     hojaOrdenes.addRow([
       'Vence',
-      'Lote',
-      'Comprador',
-      'Cuota',
+      ...COLUMNAS_DEL_LOTE,
+      ...COLUMNAS_DE_LA_CUOTA,
       'Monto de la cuota',
       'Moneda',
       'La cobra',
@@ -228,12 +248,20 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
     ])
   )
 
-  for (const fila of mesAMes.filas) {
+  const filasOrdenes = [...mesAMes.filas]
+    .sort(
+      (a, b) =>
+        a.fechaVencimiento.localeCompare(b.fechaVencimiento) ||
+        compararLotes(lotePorId.get(a.loteId), lotePorId.get(b.loteId)) ||
+        a.numero - b.numero
+    )
+    .map((fila) => ({ fila, deLaCuota: celdasDeLaCuota(cuotaPorId.get(fila.cuotaId)) }))
+
+  for (const { fila, deLaCuota } of filasOrdenes) {
     hojaOrdenes.addRow([
-      fila.fechaVencimiento,
-      fila.loteIdentificador,
-      fila.compradorNombre ?? '',
-      fila.numero,
+      fechaDePlanilla(fila.fechaVencimiento),
+      ...celdasDelLote(lotePorId.get(fila.loteId), fila.compradorNombre),
+      ...deLaCuota,
       fila.montoCuota,
       fila.moneda,
       fila.cobraEl ? 'Él' : 'Otro',
@@ -249,10 +277,13 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
   }
 
   hojaOrdenes.columns = [
-    { width: 12 }, // Vence
-    { width: 30 }, // Lote
-    { width: 26 }, // Comprador
-    { width: 8 }, // Cuota
+    { width: 11 }, // Vence
+    { width: 20 }, // Loteo
+    { width: 8 }, // Mza
+    { width: 12 }, // Lote
+    { width: 26 }, // Cliente
+    { width: 10 }, // Mes de
+    { width: anchoDeNroCuota(filasOrdenes.map(({ deLaCuota }) => deLaCuota[1])) }, // Nro cuota
     { width: 18 }, // Monto de la cuota
     { width: 10 }, // Moneda
     { width: 10 }, // La cobra
@@ -263,28 +294,21 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
   ]
 
   // --------------------------------------------- hoja 4: cuenta corriente
-  const { data: movimientosData } = await supabase
-    .from('movimientos_cuenta_corriente')
-    .select(
-      'id, tipo, monto, moneda, cotizacion_dia, origen, fecha_evento, de_parte_de, detalle, lote_id, cuota_id'
-    )
-    .eq('profile_id', id)
-    .order('fecha_evento', { ascending: false })
-    .order('created_at', { ascending: false })
-
-  const movimientos = (movimientosData ?? []) as unknown as Array<{
-    id: string
-    tipo: 'debe' | 'haber'
-    monto: number
-    moneda: string
-    cotizacion_dia: number | null
-    origen: string
-    fecha_evento: string
-    de_parte_de: string | null
-    detalle: string | null
-    lote_id: string | null
-    cuota_id: string | null
-  }>
+  const movimientos = await traerTodasLasFilas<MovimientoCrudo>((inicio, fin) =>
+    supabase
+      .from('movimientos_cuenta_corriente')
+      .select(
+        'id, tipo, monto, moneda, cotizacion_dia, origen, fecha_evento, de_parte_de, detalle, lote_id, cuota_id'
+      )
+      .eq('profile_id', id)
+      .order('fecha_evento', { ascending: false })
+      .order('created_at', { ascending: false })
+      // El id al final es para poder paginar: sin un orden único, dos
+      // movimientos cargados en el mismo instante podrían cambiar de página
+      // (ver traer-todas-las-filas.ts).
+      .order('id')
+      .range(inicio, fin)
+  )
 
   // Mismo filtro que la pantalla (ver page.tsx) -- la descarga tiene que
   // respetar lo que el admin está viendo en ese momento, no volcar siempre
@@ -301,20 +325,21 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
   // fecha, tipo de movimiento, concepto, loteo, mza, lote, cliente, mes de,
   // nro cuota, monto. Antes salía "Debe / Haber / Lote" y había que ir al
   // sistema para saber de qué cuota y de qué comprador se hablaba.
-  const lotePorId = await traerDatosDeLotes(
-    supabase,
-    movimientosFiltrados
-      .map((movimiento) => movimiento.lote_id)
-      .filter((loteId): loteId is string => Boolean(loteId))
+  const filas = armarFilasDeMovimiento(
+    movimientosFiltrados,
+    await traerDatosDeLotes(
+      supabase,
+      movimientosFiltrados
+        .map((movimiento) => movimiento.lote_id)
+        .filter((loteId): loteId is string => Boolean(loteId))
+    ),
+    await traerDatosDeCuotas(
+      supabase,
+      movimientosFiltrados
+        .map((movimiento) => movimiento.cuota_id)
+        .filter((cuotaId): cuotaId is string => Boolean(cuotaId))
+    )
   )
-  const cuotaPorId = await traerDatosDeCuotas(
-    supabase,
-    movimientosFiltrados
-      .map((movimiento) => movimiento.cuota_id)
-      .filter((cuotaId): cuotaId is string => Boolean(cuotaId))
-  )
-
-  const filas = armarFilasDeMovimiento(movimientosFiltrados, lotePorId, cuotaPorId)
 
   // Resumen por moneda. El saldo es la suma de la columna Monto (crédito
   // positivo, débito negativo), así que la planilla se puede verificar sola:
@@ -357,30 +382,10 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
     hoja.addRow(['Ningún movimiento con estos filtros.'])
   }
 
-  hoja.columns = [
-    { width: 12 }, // Fecha
-    { width: 18 }, // Tipo de movimiento
-    { width: 24 }, // Concepto
-    { width: 20 }, // Loteo
-    { width: 8 }, // Mza
-    { width: 12 }, // Lote
-    { width: 24 }, // Cliente
-    { width: 10 }, // Mes de
-    { width: 12 }, // Nro cuota
-    { width: 14 }, // Monto
-    { width: 10 }, // Moneda
-    { width: 16 }, // Cotización del día
-    { width: 34 }, // Detalle
-  ]
+  hoja.columns = anchosDeLaPlanilla(filas)
 
-  const buffer = await workbook.xlsx.writeBuffer()
-
-  const nombreArchivo = `cuenta-corriente-${persona.full_name.replace(/[^a-zA-Z0-9]+/g, '-')}.xlsx`
-
-  return new NextResponse(buffer, {
-    headers: {
-      'Content-Type': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-      'Content-Disposition': `attachment; filename="${nombreArchivo}"`,
-    },
-  })
+  return respuestaExcel(
+    workbook,
+    `cuenta-corriente-${persona.full_name.replace(/[^a-zA-Z0-9]+/g, '-')}.xlsx`
+  )
 }

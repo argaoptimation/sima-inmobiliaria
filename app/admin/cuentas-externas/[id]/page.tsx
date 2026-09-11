@@ -3,6 +3,7 @@ import { requireAdministrador } from '@/lib/auth/require-admin'
 import { notFound } from 'next/navigation'
 import { calcularSaldoPorMoneda } from '@/lib/cuentas-externas/calcular-saldo'
 import { armarFilasDeMovimiento } from '@/lib/cuenta-corriente/filas-movimiento'
+import { traerTodasLasFilas } from '@/lib/supabase/traer-todas-las-filas'
 import {
   traerDatosDeLotes,
   traerDatosDeCuotasPorPago,
@@ -101,18 +102,9 @@ export default async function CuentaExternaDetallePage({
     notFound()
   }
 
-  const { data: movimientosData } = await supabase
-    .from('cuentas_externas_movimientos')
-    .select(
-      'id, tipo, monto, moneda, concepto, fecha_evento, lote_id, de_parte_de, origen, created_at, pago_id'
-    )
-    .eq('cuenta_externa_id', id)
-    .order('fecha_evento', { ascending: false })
-    .order('created_at', { ascending: false })
-
-  // Mismo cast que en la cuenta corriente de una persona: el tipo generado
-  // trata el join como un array aunque la FK sea a-uno.
-  const movimientos = (movimientosData ?? []) as unknown as Array<{
+  // Paginado (11/09): el saldo de arriba suma TODOS los movimientos, y
+  // PostgREST corta en 1000 filas sin avisar (ver traer-todas-las-filas.ts).
+  const movimientos = await traerTodasLasFilas<{
     id: string
     tipo: 'debito' | 'credito'
     monto: number
@@ -124,7 +116,18 @@ export default async function CuentaExternaDetallePage({
     origen: string | null
     created_at: string
     pago_id: string | null
-  }>
+  }>((inicio, fin) =>
+    supabase
+      .from('cuentas_externas_movimientos')
+      .select(
+        'id, tipo, monto, moneda, concepto, fecha_evento, lote_id, de_parte_de, origen, created_at, pago_id'
+      )
+      .eq('cuenta_externa_id', id)
+      .order('fecha_evento', { ascending: false })
+      .order('created_at', { ascending: false })
+      .order('id')
+      .range(inicio, fin)
+  )
 
   // Para el formulario compartido: el buscador de lotes y las sugerencias de
   // "de quién vino la plata".

@@ -1,5 +1,8 @@
 import { describe, it, expect } from 'vitest'
+import { posicionesDelPlan } from '@/lib/cuotas/plan-de-cuotas'
+import { fechaDePlanilla } from '@/lib/planillas/fechas'
 import {
+  anchosDeLaPlanilla,
   armarFilasDeMovimiento,
   celdasDeFila,
   COLUMNAS_PLANILLA,
@@ -25,9 +28,20 @@ const LOTES = new Map<string, DatosDeLote>([
   ],
 ])
 
+// Un lote de 24 cuotas que se refinancio: las 24 del plan original, y 20 del
+// plan refinanciado que continuan la numeracion (de la 25 a la 44).
+const POSICIONES = posicionesDelPlan([
+  ...Array.from({ length: 24 }, (_, indice) => ({ numero: indice + 1, plan: 1 })),
+  ...Array.from({ length: 20 }, (_, indice) => ({ numero: indice + 25, plan: 2 })),
+])
+
 const CUOTAS = new Map<string, DatosDeCuota>([
-  ['cuota-3', { numeros: [3], fechaVencimiento: '2026-09-08', totalDelPlan: 24 }],
-  ['pago-fifo', { numeros: [3, 4], fechaVencimiento: '2026-09-08', totalDelPlan: 24 }],
+  ['cuota-3', { fechaVencimiento: '2026-09-08', cuotas: [POSICIONES.get(3)!] }],
+  [
+    'pago-fifo',
+    { fechaVencimiento: '2026-09-08', cuotas: [POSICIONES.get(3)!, POSICIONES.get(4)!] },
+  ],
+  ['cuota-25', { fechaVencimiento: '2026-10-08', cuotas: [POSICIONES.get(25)!] }],
 ])
 
 function movimiento(extra: Partial<MovimientoCrudo>): MovimientoCrudo {
@@ -143,22 +157,47 @@ describe('armarFilasDeMovimiento', () => {
     expect(fila.nroCuota).toBe('3-4/24')
   })
 
+  it('una cuota del plan refinanciado dice su número y su lugar en el plan nuevo, no "25/44"', () => {
+    const [fila] = armarFilasDeMovimiento([movimiento({ cuota_id: 'cuota-25' })], LOTES, CUOTAS)
+    expect(fila.nroCuota).toBe('25 (1/20 del plan refinanciado)')
+    expect(fila.mesDe).toBe('oct-26')
+  })
+
   // Los encabezados y las celdas se arman en dos funciones distintas (una la
   // usa la pantalla, la otra la hoja de calculo). Si alguien agrega una
   // columna en una sola de las dos, el Excel sale corrido sin que nada falle.
-  it('los encabezados y las celdas tienen la misma cantidad de columnas', () => {
+  it('los encabezados, las celdas y los anchos tienen la misma cantidad de columnas', () => {
     const [fila] = armarFilasDeMovimiento([movimiento({})], LOTES, CUOTAS)
     expect(celdasDeFila(fila)).toHaveLength(COLUMNAS_PLANILLA.length)
+    expect(anchosDeLaPlanilla([fila])).toHaveLength(COLUMNAS_PLANILLA.length)
   })
 
-  it('las celdas salen en el orden de la planilla de Nicolas', () => {
+  it('los encabezados son los de la planilla de Nicolas, con el bloque del lote de todos los Excel', () => {
+    expect([...COLUMNAS_PLANILLA]).toEqual([
+      'Fecha',
+      'Tipo de movimiento',
+      'Concepto',
+      'Loteo',
+      'Mza',
+      'Lote',
+      'Cliente',
+      'Mes de',
+      'Nro cuota',
+      'Monto',
+      'Moneda',
+      'Cotización del día',
+      'Detalle',
+    ])
+  })
+
+  it('las celdas salen en el orden de la planilla, con la fecha como fecha y no como texto', () => {
     const [fila] = armarFilasDeMovimiento(
       [movimiento({ detalle: 'Cuota 3 de Q-M4-L1', de_parte_de: 'Cliente 1' })],
       LOTES,
       CUOTAS
     )
     expect(celdasDeFila(fila)).toEqual([
-      '2026-09-08',
+      fechaDePlanilla('2026-09-08'),
       'crédito',
       'cobro de cuota',
       'Quintana',

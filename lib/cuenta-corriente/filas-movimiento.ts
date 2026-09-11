@@ -1,4 +1,15 @@
-import { etiquetaMesCorta } from '@/lib/fecha/meses'
+import { fechaDePlanilla } from '@/lib/planillas/fechas'
+import {
+  anchoDeNroCuota,
+  celdasDelLote,
+  celdasDeLaCuota,
+  COLUMNAS_DEL_LOTE,
+  COLUMNAS_DE_LA_CUOTA,
+  type DatosDeLote,
+  type DatosDeCuota,
+} from '@/lib/planillas/columnas-del-lote'
+
+export type { DatosDeLote, DatosDeCuota }
 
 // El formato de planilla que ya usaba Nicolás, replicado tal cual de la
 // captura que pasó Gabriel el 08/09:
@@ -11,6 +22,10 @@ import { etiquetaMesCorta } from '@/lib/fecha/meses'
 // "todas estas tablas que podríamos exportar deberían estar también
 // visibles"). Si el armado viviera en el export, las dos vistas se
 // separarían a la primera corrección.
+//
+// Desde el 11/09 las columnas del lote y de la cuota salen de
+// lib/planillas/columnas-del-lote.ts, que es de donde las sacan también los
+// otros Excel: esta planilla es el modelo que siguen todos.
 export interface FilaMovimientoPlanilla {
   id: string
   fecha: string
@@ -59,34 +74,6 @@ export interface MovimientoCrudo {
   cuota_id: string | null
 }
 
-export interface DatosDeLote {
-  loteo: string | null
-  manzana: string | null
-  numeroLote: string | null
-  identificador: string
-  clienteNombre: string | null
-}
-
-export interface DatosDeCuota {
-  // Casi siempre una sola. Son varias en las cuentas externas, donde el
-  // movimiento cuelga de un PAGO y un pago puede haberse imputado por FIFO
-  // a más de una cuota: ahí la fila dice "3-4/24" y no miente diciendo "3".
-  numeros: number[]
-  fechaVencimiento: string
-  // Cuántas cuotas tiene el plan, para poder escribir "3/24" y no "3".
-  totalDelPlan: number
-}
-
-function etiquetaNumeroDeCuota(cuota: DatosDeCuota): string {
-  const ordenados = [...cuota.numeros].sort((a, b) => a - b)
-  if (ordenados.length === 0) return ''
-  const nombre =
-    ordenados.length === 1
-      ? `${ordenados[0]}`
-      : `${ordenados[0]}-${ordenados[ordenados.length - 1]}`
-  return `${nombre}/${cuota.totalDelPlan}`
-}
-
 export function armarFilasDeMovimiento(
   movimientos: MovimientoCrudo[],
   lotePorId: Map<string, DatosDeLote>,
@@ -98,21 +85,21 @@ export function armarFilasDeMovimiento(
 
     // Una transferencia suelta no tiene lote ni cuota: esas columnas quedan
     // vacías y la fila igual vale (es el caso "pepe | -80" de la captura).
-    // No se rellenan con guiones: en una planilla, una celda vacía se filtra
-    // y se suma; un "—" rompe cualquier fórmula que le apliquen encima.
+    // Sin lote, "de parte de" es lo más parecido a un cliente que hay.
+    const [loteo, manzana, numeroDeLote, cliente] = celdasDelLote(lote, movimiento.de_parte_de)
+    const [mesDe, nroCuota] = celdasDeLaCuota(cuota)
+
     return {
       id: movimiento.id,
       fecha: movimiento.fecha_evento,
       tipoMovimiento: movimiento.tipo === 'debe' ? 'crédito' : 'débito',
       concepto: CONCEPTO_ORIGEN[movimiento.origen] ?? movimiento.origen,
-      loteo: lote?.loteo ?? '',
-      manzana: lote?.manzana ?? '',
-      // Sin número de lote cargado cae al identificador, que es el nombre
-      // con el que el lote se conoce en el resto del sistema.
-      lote: lote ? (lote.numeroLote ?? lote.identificador) : '',
-      cliente: lote?.clienteNombre ?? movimiento.de_parte_de ?? '',
-      mesDe: cuota ? etiquetaMesCorta(cuota.fechaVencimiento.slice(0, 7)) : '',
-      nroCuota: cuota ? etiquetaNumeroDeCuota(cuota) : '',
+      loteo,
+      manzana,
+      lote: numeroDeLote,
+      cliente,
+      mesDe,
+      nroCuota,
       // El signo hace legible la columna sin tener que mirar la de al lado:
       // lo que suma es lo que le queda a favor, lo que resta es lo que ya
       // cobró. La suma de la columna ES el saldo.
@@ -133,12 +120,8 @@ export const COLUMNAS_PLANILLA = [
   'Fecha',
   'Tipo de movimiento',
   'Concepto',
-  'Loteo',
-  'Mza',
-  'Lote',
-  'Cliente',
-  'Mes de',
-  'Nro cuota',
+  ...COLUMNAS_DEL_LOTE,
+  ...COLUMNAS_DE_LA_CUOTA,
   'Monto',
   'Moneda',
   'Cotización del día',
@@ -150,9 +133,11 @@ export const COLUMNAS_PLANILLA = [
   'Detalle',
 ] as const
 
-export function celdasDeFila(fila: FilaMovimientoPlanilla): (string | number)[] {
+export function celdasDeFila(fila: FilaMovimientoPlanilla): (string | number | Date)[] {
   return [
-    fila.fecha,
+    // Una fecha de verdad y no el texto de la base: se ve DD/MM/AA y se
+    // puede ordenar (ver lib/planillas/fechas.ts).
+    fechaDePlanilla(fila.fecha),
     fila.tipoMovimiento,
     fila.concepto,
     fila.loteo,
@@ -165,5 +150,26 @@ export function celdasDeFila(fila: FilaMovimientoPlanilla): (string | number)[] 
     fila.moneda,
     fila.cotizacionDia ?? '',
     fila.detalle,
+  ]
+}
+
+// Los anchos de las columnas, en el mismo orden que COLUMNAS_PLANILLA. Van
+// acá, al lado de los encabezados, por lo mismo: los tres Excel que usan
+// esta planilla tenían cada uno su copia de la lista.
+export function anchosDeLaPlanilla(filas: FilaMovimientoPlanilla[]): { width: number }[] {
+  return [
+    { width: 11 }, // Fecha
+    { width: 18 }, // Tipo de movimiento
+    { width: 24 }, // Concepto
+    { width: 20 }, // Loteo
+    { width: 8 }, // Mza
+    { width: 12 }, // Lote
+    { width: 24 }, // Cliente
+    { width: 10 }, // Mes de
+    { width: anchoDeNroCuota(filas.map((fila) => fila.nroCuota)) }, // Nro cuota
+    { width: 14 }, // Monto
+    { width: 10 }, // Moneda
+    { width: 16 }, // Cotización del día
+    { width: 34 }, // Detalle
   ]
 }

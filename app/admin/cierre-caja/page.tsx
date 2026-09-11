@@ -1,7 +1,8 @@
 import { createClient } from '@/lib/supabase/server'
 import { requireAdminOCobrador } from '@/lib/auth/require-admin'
 import { FiltroEnVivo } from '@/components/FiltroEnVivo'
-import { hoyArgentina as hoyISO, fechaEnArgentina } from '@/lib/fecha/hoy-argentina'
+import { hoyArgentina as hoyISO } from '@/lib/fecha/hoy-argentina'
+import { obtenerPagosDelDia, MOTIVO_ETIQUETA } from '@/lib/caja/pagos-del-dia'
 import { EnlaceBoton } from '@/components/EnlaceBoton'
 import { EncabezadoPagina } from '@/components/EncabezadoPagina'
 import {
@@ -31,41 +32,9 @@ export default async function CierreCajaPage({
 
   const supabase = await createClient()
 
-  const { data: pagosData } = await supabase
-    .from('pagos')
-    .select(
-      'id, monto, moneda, medio_pago, motivo, cliente_id, confirmado_acreedor_at, confirmado_admin_at, lote_id, lotes(identificador)'
-    )
-    .eq('estado', 'confirmado')
-
-  const pagos = (pagosData ?? []) as unknown as Array<{
-    id: string
-    monto: number
-    moneda: string
-    medio_pago: 'efectivo' | 'transferencia'
-    motivo: string
-    cliente_id: string
-    confirmado_acreedor_at: string | null
-    confirmado_admin_at: string | null
-    lote_id: string
-    lotes: { identificador: string } | null
-  }>
-
-  // "Recibido el día X" = el día en que la confirmación TERMINÓ de
-  // cerrarse -- el toque más tardío entre acreedor y admin (para
-  // transferencia, que necesita ambos) o directamente el de admin (para
-  // efectivo/cuenta externa, que solo necesita uno). No hay una columna
-  // única "confirmado_at" en la tabla, se calcula acá.
-  function fechaDeConfirmacion(pago: (typeof pagos)[number]): string | null {
-    const candidatos = [pago.confirmado_acreedor_at, pago.confirmado_admin_at].filter(
-      (valor): valor is string => valor !== null
-    )
-    if (candidatos.length === 0) return null
-    const masTardio = candidatos.reduce((a, b) => (a > b ? a : b))
-    return fechaEnArgentina(masTardio)
-  }
-
-  const pagosDelDia = pagos.filter((pago) => fechaDeConfirmacion(pago) === fecha)
+  // La consulta y la regla de "recibido el día X" viven en lib: el Excel de
+  // este mismo día tiene que traer exactamente estos pagos.
+  const pagosDelDia = await obtenerPagosDelDia(supabase, fecha)
 
   const clienteIds = [...new Set(pagosDelDia.map((pago) => pago.cliente_id))]
   const { data: clientes } =
@@ -86,14 +55,6 @@ export default async function CierreCajaPage({
   const totalesTransferencia = [...totalesPorMedioYMoneda.entries()].filter(([clave]) =>
     clave.startsWith('transferencia|')
   )
-
-  const MOTIVO_ETIQUETA: Record<string, string> = {
-    cuota: 'Cuota',
-    sena: 'Seña',
-    entrega: 'Entrega',
-    ajuste: 'Corrección',
-    saldar: 'Pago total anticipado',
-  }
 
   return (
     <main>

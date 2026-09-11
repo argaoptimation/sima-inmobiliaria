@@ -1,4 +1,8 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
+import {
+  traerTodasLasFilas,
+  traerTodasLasFilasPorTandas,
+} from '@/lib/supabase/traer-todas-las-filas'
 
 export interface FilaProyeccion {
   loteId: string
@@ -45,6 +49,21 @@ export function mesesEntre(desde: string, hasta: string): string[] {
   return meses
 }
 
+interface DistribucionCruda {
+  monto: number
+  cuotas: {
+    fecha_vencimiento: string
+    lote_id: string
+    ciclo: number
+    lotes: {
+      identificador: string
+      moneda: string
+      cliente_id: string | null
+      ciclo_actual: number
+    }
+  }
+}
+
 // Proyección de cobranza para una persona (acreedor/vendedor/etc.): cuánto
 // le toca cobrar mes a mes, lote por lote, según los vencimientos ya
 // cargados -- pedido de Gabriel tras la llamada con Nico (ver memoria
@@ -66,28 +85,25 @@ export async function obtenerProyeccionCobranza(
   // saldo 0 y con su distribucion intacta (ver refinanciarLote), asi que
   // proyectarla seria contar dos veces la misma plata -- una por la cuota
   // vieja y otra por la nueva que la reemplazo.
-  const { data } = await supabase
-    .from('cuota_distribuciones')
-    .select(
-      'monto, cuotas!inner(fecha_vencimiento, lote_id, ciclo, lotes!inner(identificador, moneda, cliente_id, ciclo_actual))'
-    )
-    .eq('profile_id', profileId)
-    .eq('cuotas.refinanciada', false)
-
-  const distribuciones = (data ?? []) as unknown as Array<{
-    monto: number
-    cuotas: {
-      fecha_vencimiento: string
-      lote_id: string
-      ciclo: number
-      lotes: {
-        identificador: string
-        moneda: string
-        cliente_id: string | null
-        ciclo_actual: number
-      }
-    }
-  }>
+  //
+  // 11/09: el rango de fechas va en la consulta y no solo en el filtro de
+  // abajo, y la consulta va paginada. Antes se traian TODAS las
+  // distribuciones de la persona, de toda la historia, en un solo pedido:
+  // el acreedor principal de Nico pasa las 1000 filas con pocos lotes, y
+  // PostgREST corta ahi sin avisar (ver traer-todas-las-filas.ts).
+  const distribuciones = await traerTodasLasFilas<DistribucionCruda>((inicio, fin) =>
+    supabase
+      .from('cuota_distribuciones')
+      .select(
+        'monto, cuotas!inner(fecha_vencimiento, lote_id, ciclo, lotes!inner(identificador, moneda, cliente_id, ciclo_actual))'
+      )
+      .eq('profile_id', profileId)
+      .eq('cuotas.refinanciada', false)
+      .gte('cuotas.fecha_vencimiento', desde)
+      .lte('cuotas.fecha_vencimiento', hasta)
+      .order('id')
+      .range(inicio, fin)
+  )
 
   const meses = mesesEntre(desde, hasta)
   const mesesValidos = new Set(meses)
@@ -135,18 +151,16 @@ export async function obtenerProyeccionCobranza(
     if (clienteId) clienteIdPorLote.set(distribucion.cuotas.lote_id, clienteId)
   }
 
-  const clienteIds = [...new Set(clienteIdPorLote.values())]
-  if (clienteIds.length > 0) {
-    const { data: clientes } = await supabase
-      .from('profiles')
-      .select('id, full_name')
-      .in('id', clienteIds)
+  const clientes = await traerTodasLasFilasPorTandas<{ id: string; full_name: string }>(
+    [...clienteIdPorLote.values()],
+    (tanda, inicio, fin) =>
+      supabase.from('profiles').select('id, full_name').in('id', tanda).order('id').range(inicio, fin)
+  )
 
-    const nombrePorClienteId = new Map((clientes ?? []).map((c) => [c.id, c.full_name]))
-    for (const fila of porLote.values()) {
-      const clienteId = clienteIdPorLote.get(fila.loteId)
-      fila.compradorNombre = clienteId ? (nombrePorClienteId.get(clienteId) ?? null) : null
-    }
+  const nombrePorClienteId = new Map(clientes.map((c) => [c.id, c.full_name]))
+  for (const fila of porLote.values()) {
+    const clienteId = clienteIdPorLote.get(fila.loteId)
+    fila.compradorNombre = clienteId ? (nombrePorClienteId.get(clienteId) ?? null) : null
   }
 
   const filas = [...porLote.values()]

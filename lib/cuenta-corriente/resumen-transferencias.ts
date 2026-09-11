@@ -1,6 +1,7 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
 import { resumirCuentaCorrientePorMoneda, type SituacionCuenta } from './situacion'
 import { totalesATransferirPorMoneda, type TotalesATransferir } from './totales-a-transferir'
+import { traerTodasLasFilas } from '@/lib/supabase/traer-todas-las-filas'
 
 // "¿A quién le tengo que girar plata hoy, y cuánta?" -- la pregunta con la
 // que Nicolás abre la pantalla todos los meses antes de ir al banco.
@@ -45,15 +46,30 @@ export async function obtenerResumenDeTransferencias(
 
   const { data: personasData } = await queryPersonas
 
-  const { data: movimientos } = await supabase
-    .from('movimientos_cuenta_corriente')
-    .select('profile_id, tipo, monto, moneda')
+  // TODOS los movimientos de todas las personas: es la consulta de la
+  // plataforma que antes pasa las 1000 filas (cada cobro genera un
+  // movimiento por cada parte de la distribución), y de acá sale cuánto se
+  // le gira a cada uno. Sin paginar, PostgREST la cortaba en 1000 sin
+  // avisar y el monto a transferir salía mal (11/09, ver
+  // traer-todas-las-filas.ts).
+  const movimientos = await traerTodasLasFilas<{
+    profile_id: string
+    tipo: 'debe' | 'haber'
+    monto: number
+    moneda: string
+  }>((inicio, fin) =>
+    supabase
+      .from('movimientos_cuenta_corriente')
+      .select('profile_id, tipo, monto, moneda')
+      .order('id')
+      .range(inicio, fin)
+  )
 
   const movimientosPorPersona = new Map<
     string,
     { tipo: 'debe' | 'haber'; monto: number; moneda: string }[]
   >()
-  for (const movimiento of movimientos ?? []) {
+  for (const movimiento of movimientos) {
     const lista = movimientosPorPersona.get(movimiento.profile_id) ?? []
     lista.push({ tipo: movimiento.tipo, monto: movimiento.monto, moneda: movimiento.moneda })
     movimientosPorPersona.set(movimiento.profile_id, lista)

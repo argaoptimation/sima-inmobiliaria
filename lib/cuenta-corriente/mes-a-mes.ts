@@ -1,5 +1,9 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
 import { resolverDestinoDeCobro } from '@/lib/pagos/quien-cobra'
+import {
+  traerTodasLasFilas,
+  traerTodasLasFilasPorTandas,
+} from '@/lib/supabase/traer-todas-las-filas'
 import { mesesEntre, type ProyeccionCobranza, type FilaProyeccion } from './proyeccion'
 
 // LAS DOS COLUMNAS QUE NICOLÁS PIDIÓ VER JUNTAS (llamada del 09/09).
@@ -102,6 +106,10 @@ export async function obtenerMesAMesDelAcreedor(
   const meses = mesesEntre(desde, hasta)
   const mesesValidos = new Set(meses)
 
+  // Todas las consultas de esta función van paginadas (11/09): un acreedor
+  // con muchos lotes y un rango de un año pasa las 1000 filas, y PostgREST
+  // corta ahí sin avisar (ver lib/supabase/traer-todas-las-filas.ts).
+
   // --- 1. Lo que le CORRESPONDE: su parte de cada cuota ------------------
   //
   // `refinanciada = false` va acá y en las dos consultas de abajo: una
@@ -109,18 +117,18 @@ export async function obtenerMesAMesDelAcreedor(
   // intacta (ver refinanciarLote), así que contarla sería sumar dos veces
   // la misma plata -- una por la cuota vieja y otra por la nueva que la
   // reemplazó.
-  const { data: distribucionesData } = await supabase
-    .from('cuota_distribuciones')
-    .select(`monto, cuotas!inner(${CAMPOS_CUOTA})`)
-    .eq('profile_id', profileId)
-    .eq('cuotas.refinanciada', false)
-    .gte('cuotas.fecha_vencimiento', desde)
-    .lte('cuotas.fecha_vencimiento', hasta)
-
-  const distribuciones = (distribucionesData ?? []) as unknown as Array<{
-    monto: number
-    cuotas: CuotaCruda
-  }>
+  const distribuciones = await traerTodasLasFilas<{ monto: number; cuotas: CuotaCruda }>(
+    (inicio, fin) =>
+      supabase
+        .from('cuota_distribuciones')
+        .select(`monto, cuotas!inner(${CAMPOS_CUOTA})`)
+        .eq('profile_id', profileId)
+        .eq('cuotas.refinanciada', false)
+        .gte('cuotas.fecha_vencimiento', desde)
+        .lte('cuotas.fecha_vencimiento', hasta)
+        .order('id')
+        .range(inicio, fin)
+  )
 
   // --- 2. Lo ASIGNADO: las cuotas que cobra él --------------------------
   //
@@ -129,37 +137,44 @@ export async function obtenerMesAMesDelAcreedor(
   // la que el portal del cliente le muestra a quién transferir). Por eso
   // son dos consultas y no una: las suyas explícitas, y las de "sus" lotes
   // que no tienen destino propio.
-  const { data: cuotasPropiasData } = await supabase
-    .from('cuotas')
-    .select(CAMPOS_CUOTA)
-    .eq('cuenta_cobro_id', profileId)
-    .eq('refinanciada', false)
-    .gte('fecha_vencimiento', desde)
-    .lte('fecha_vencimiento', hasta)
+  const cuotasPropias = await traerTodasLasFilas<CuotaCruda>((inicio, fin) =>
+    supabase
+      .from('cuotas')
+      .select(CAMPOS_CUOTA)
+      .eq('cuenta_cobro_id', profileId)
+      .eq('refinanciada', false)
+      .gte('fecha_vencimiento', desde)
+      .lte('fecha_vencimiento', hasta)
+      .order('id')
+      .range(inicio, fin)
+  )
 
-  const { data: lotesSuyos } = await supabase
-    .from('lotes')
-    .select('id')
-    .eq('cuenta_cobro_id', profileId)
+  const lotesSuyos = await traerTodasLasFilas<{ id: string }>((inicio, fin) =>
+    supabase
+      .from('lotes')
+      .select('id')
+      .eq('cuenta_cobro_id', profileId)
+      .order('id')
+      .range(inicio, fin)
+  )
 
-  const idsLotesSuyos = (lotesSuyos ?? []).map((lote) => lote.id as string)
-
-  const { data: cuotasHeredadasData } = idsLotesSuyos.length
-    ? await supabase
+  const cuotasHeredadas = await traerTodasLasFilasPorTandas<CuotaCruda>(
+    lotesSuyos.map((lote) => lote.id),
+    (tanda, inicio, fin) =>
+      supabase
         .from('cuotas')
         .select(CAMPOS_CUOTA)
-        .in('lote_id', idsLotesSuyos)
+        .in('lote_id', tanda)
         .is('cuenta_cobro_id', null)
         .is('cuenta_cobro_externa_id', null)
         .eq('refinanciada', false)
         .gte('fecha_vencimiento', desde)
         .lte('fecha_vencimiento', hasta)
-    : { data: [] }
+        .order('id')
+        .range(inicio, fin)
+  )
 
-  const cuotasQueCobra = [
-    ...((cuotasPropiasData ?? []) as unknown as CuotaCruda[]),
-    ...((cuotasHeredadasData ?? []) as unknown as CuotaCruda[]),
-  ]
+  const cuotasQueCobra = [...cuotasPropias, ...cuotasHeredadas]
 
   // --- 3. Unión: una fila por cuota -------------------------------------
   const porCuota = new Map<string, FilaCuotaMesAMes>()
@@ -216,18 +231,16 @@ export async function obtenerMesAMesDelAcreedor(
     if (cuota.lotes.cliente_id) clienteIdPorLote.set(cuota.lote_id, cuota.lotes.cliente_id)
   }
 
-  const clienteIds = [...new Set(clienteIdPorLote.values())]
-  if (clienteIds.length > 0) {
-    const { data: clientes } = await supabase
-      .from('profiles')
-      .select('id, full_name')
-      .in('id', clienteIds)
+  const clientes = await traerTodasLasFilasPorTandas<{ id: string; full_name: string }>(
+    [...clienteIdPorLote.values()],
+    (tanda, inicio, fin) =>
+      supabase.from('profiles').select('id, full_name').in('id', tanda).order('id').range(inicio, fin)
+  )
 
-    const nombrePorClienteId = new Map((clientes ?? []).map((c) => [c.id, c.full_name]))
-    for (const fila of porCuota.values()) {
-      const clienteId = clienteIdPorLote.get(fila.loteId)
-      fila.compradorNombre = clienteId ? (nombrePorClienteId.get(clienteId) ?? null) : null
-    }
+  const nombrePorClienteId = new Map(clientes.map((c) => [c.id, c.full_name]))
+  for (const fila of porCuota.values()) {
+    const clienteId = clienteIdPorLote.get(fila.loteId)
+    fila.compradorNombre = clienteId ? (nombrePorClienteId.get(clienteId) ?? null) : null
   }
 
   const filas = [...porCuota.values()]

@@ -2,15 +2,14 @@ import { NextRequest, NextResponse } from 'next/server'
 import ExcelJS from 'exceljs'
 import { createClient } from '@/lib/supabase/server'
 import { requireAdministrador } from '@/lib/auth/require-admin'
-import {
-  obtenerResumenDeTransferencias,
-  type PersonaEnResumen,
-} from '@/lib/cuenta-corriente/resumen-transferencias'
+import { obtenerResumenDeTransferencias } from '@/lib/cuenta-corriente/resumen-transferencias'
 import { monedasOrdenadas } from '@/lib/cuenta-corriente/totales-a-transferir'
 import {
+  anchosDeLaPlanilla,
   armarFilasDeMovimiento,
   celdasDeFila,
   COLUMNAS_PLANILLA,
+  type FilaMovimientoPlanilla,
   type MovimientoCrudo,
 } from '@/lib/cuenta-corriente/filas-movimiento'
 import {
@@ -19,6 +18,15 @@ import {
 } from '@/lib/cuenta-corriente/traer-datos-planilla'
 import { obtenerProyeccionCobranza } from '@/lib/cuenta-corriente/proyeccion'
 import { etiquetaMesCorta, ultimoDiaDelMes, mesRelativoAHoy } from '@/lib/fecha/meses'
+import { hoyArgentina } from '@/lib/fecha/hoy-argentina'
+import { formatearFechaConAnioCorto } from '@/lib/fecha/formatear-fecha-corta'
+import {
+  celdasDelLote,
+  compararLotes,
+  COLUMNAS_DEL_LOTE,
+} from '@/lib/planillas/columnas-del-lote'
+import { encabezar, respuestaExcel, ESTILO_SUBTITULO, ESTILO_TITULO } from '@/lib/planillas/excel'
+import { traerTodasLasFilasPorTandas } from '@/lib/supabase/traer-todas-las-filas'
 
 // El Excel del "Resumen de transferencias por acreedor" (add-on confirmado
 // por Nicolás el 09/09). Un archivo con dos hojas:
@@ -34,20 +42,9 @@ import { etiquetaMesCorta, ultimoDiaDelMes, mesRelativoAHoy } from '@/lib/fecha/
 // Las dos hojas salen de los mismos módulos que usa la pantalla
 // (resumen-transferencias.ts, filas-movimiento.ts, proyeccion.ts): el Excel
 // no recalcula nada por su cuenta.
-
-const ESTILO_TITULO = { bold: true, size: 14 } as const
-const ESTILO_SUBTITULO = { bold: true, size: 12 } as const
-const ESTILO_ENCABEZADO = {
-  font: { bold: true, color: { argb: 'FFFFFFFF' } },
-  fill: { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF1F2937' } } as const,
-}
-
-function encabezar(fila: ExcelJS.Row) {
-  fila.eachCell((celda) => {
-    celda.font = ESTILO_ENCABEZADO.font
-    celda.fill = ESTILO_ENCABEZADO.fill
-  })
-}
+//
+// 11/09: el lote se identifica con las mismas columnas que en el resto de
+// los Excel (Loteo | Mza | Lote | Cliente) y las fechas salen DD/MM/AA.
 
 export async function GET(request: NextRequest) {
   await requireAdministrador()
@@ -83,7 +80,9 @@ export async function GET(request: NextRequest) {
   const hoja = workbook.addWorksheet('A transferir')
 
   hoja.addRow(['Resumen de transferencias por acreedor']).font = ESTILO_TITULO
-  hoja.addRow([`Generado el ${new Date().toLocaleDateString('es-AR')}`])
+  // El día de Argentina y no el del servidor, que corre en UTC: entre las 21
+  // y la medianoche el archivo diría que se generó mañana.
+  hoja.addRow([`Generado el ${formatearFechaConAnioCorto(hoyArgentina())}`])
   if (filtroNombre) hoja.addRow([`Filtrado por: ${filtroNombre}`])
   if (soloPendientes) hoja.addRow(['Solo las personas a las que hay que girarles plata'])
   hoja.addRow([])
@@ -141,21 +140,22 @@ export async function GET(request: NextRequest) {
 
   // El detalle: los mismos movimientos que se ven en la cuenta corriente de
   // cada uno, con una columna más adelante para saber de quién es la fila.
-  const idsDePersonas = personas.map((persona) => persona.id)
-  const { data: movimientosData } = idsDePersonas.length
-    ? await supabase
+  // Paginado y en tandas: son los movimientos de TODOS, justo la consulta
+  // que antes pasa las 1000 filas (ver traer-todas-las-filas.ts).
+  const movimientos = await traerTodasLasFilasPorTandas<MovimientoCrudo & { profile_id: string }>(
+    personas.map((persona) => persona.id),
+    (tanda, inicio, fin) =>
+      supabase
         .from('movimientos_cuenta_corriente')
         .select(
           'id, profile_id, tipo, monto, moneda, cotizacion_dia, origen, fecha_evento, de_parte_de, detalle, lote_id, cuota_id'
         )
-        .in('profile_id', idsDePersonas)
+        .in('profile_id', tanda)
         .order('fecha_evento', { ascending: false })
         .order('created_at', { ascending: false })
-    : { data: [] }
-
-  const movimientos = (movimientosData ?? []) as unknown as Array<
-    MovimientoCrudo & { profile_id: string }
-  >
+        .order('id')
+        .range(inicio, fin)
+  )
 
   const lotePorId = await traerDatosDeLotes(
     supabase,
@@ -166,41 +166,35 @@ export async function GET(request: NextRequest) {
     movimientos.map((m) => m.cuota_id).filter((id): id is string => Boolean(id))
   )
 
-  const nombrePorPersona = new Map(personas.map((persona) => [persona.id, persona.nombre]))
-
-  hoja.addRow([])
-  hoja.addRow(['Detalle de los movimientos que forman cada saldo']).font = ESTILO_SUBTITULO
-  encabezar(hoja.addRow(['Acreedor', ...COLUMNAS_PLANILLA]))
+  const movimientosPorPersona = new Map<string, MovimientoCrudo[]>()
+  for (const movimiento of movimientos) {
+    const lista = movimientosPorPersona.get(movimiento.profile_id) ?? []
+    lista.push(movimiento)
+    movimientosPorPersona.set(movimiento.profile_id, lista)
+  }
 
   // Se arman por persona y no todos juntos para que el Excel salga agrupado:
   // el que lo recibe lee su bloque de corrido, no busca sus filas entre las
   // de los demás.
-  let hayDetalle = false
+  const filasDelDetalle: { acreedor: string; fila: FilaMovimientoPlanilla }[] = []
   for (const persona of personas) {
-    const suyos = movimientos.filter((movimiento) => movimiento.profile_id === persona.id)
-    if (suyos.length === 0) continue
+    const suyos = movimientosPorPersona.get(persona.id) ?? []
     for (const fila of armarFilasDeMovimiento(suyos, lotePorId, cuotaPorId)) {
-      hoja.addRow([nombrePorPersona.get(persona.id) ?? '', ...celdasDeFila(fila)])
-      hayDetalle = true
+      filasDelDetalle.push({ acreedor: persona.nombre, fila })
     }
   }
-  if (!hayDetalle) hoja.addRow(['Sin movimientos para estos filtros.'])
+
+  hoja.addRow([])
+  hoja.addRow(['Detalle de los movimientos que forman cada saldo']).font = ESTILO_SUBTITULO
+  encabezar(hoja.addRow(['Acreedor', ...COLUMNAS_PLANILLA]))
+  for (const { acreedor, fila } of filasDelDetalle) {
+    hoja.addRow([acreedor, ...celdasDeFila(fila)])
+  }
+  if (filasDelDetalle.length === 0) hoja.addRow(['Sin movimientos para estos filtros.'])
 
   hoja.columns = [
     { width: 24 }, // Acreedor
-    { width: 12 }, // Fecha
-    { width: 18 }, // Tipo de movimiento
-    { width: 24 }, // Concepto
-    { width: 20 }, // Loteo
-    { width: 8 }, // Mza
-    { width: 12 }, // Lote
-    { width: 24 }, // Cliente
-    { width: 10 }, // Mes de
-    { width: 12 }, // Nro cuota
-    { width: 14 }, // Monto
-    { width: 10 }, // Moneda
-    { width: 16 }, // Cotización del día
-    { width: 34 }, // Detalle
+    ...anchosDeLaPlanilla(filasDelDetalle.map(({ fila }) => fila)),
   ]
 
   // ---------------------------------------------------------------- hoja 2
@@ -218,7 +212,7 @@ export async function GET(request: NextRequest) {
   // Las proyecciones se piden en paralelo: son N consultas independientes y
   // en serie el Excel de veinte acreedores tardaría veinte veces más.
   const proyecciones = await Promise.all(
-    personas.map(async (persona: PersonaEnResumen) => ({
+    personas.map(async (persona) => ({
       persona,
       proyeccion: await obtenerProyeccionCobranza(supabase, persona.id, desde, hasta),
     }))
@@ -226,11 +220,15 @@ export async function GET(request: NextRequest) {
 
   const meses = proyecciones.find(({ proyeccion }) => proyeccion.meses.length)?.proyeccion.meses ?? []
 
+  const lotesDeLaProyeccion = await traerDatosDeLotes(
+    supabase,
+    proyecciones.flatMap(({ proyeccion }) => proyeccion.filas.map((fila) => fila.loteId))
+  )
+
   encabezar(
     hojaProyeccion.addRow([
       'Acreedor',
-      'Lote',
-      'Comprador',
+      ...COLUMNAS_DEL_LOTE,
       'Moneda',
       ...meses.map(etiquetaMesCorta),
       'Total',
@@ -239,11 +237,13 @@ export async function GET(request: NextRequest) {
 
   let hayProyeccion = false
   for (const { persona, proyeccion } of proyecciones) {
-    for (const fila of proyeccion.filas) {
+    const filas = [...proyeccion.filas].sort((a, b) =>
+      compararLotes(lotesDeLaProyeccion.get(a.loteId), lotesDeLaProyeccion.get(b.loteId))
+    )
+    for (const fila of filas) {
       hojaProyeccion.addRow([
         persona.nombre,
-        fila.loteIdentificador,
-        fila.compradorNombre ?? '',
+        ...celdasDelLote(lotesDeLaProyeccion.get(fila.loteId), fila.compradorNombre),
         fila.moneda,
         ...meses.map((mes) => fila.porMes[mes] ?? 0),
         fila.total,
@@ -257,19 +257,14 @@ export async function GET(request: NextRequest) {
 
   hojaProyeccion.columns = [
     { width: 24 }, // Acreedor
-    { width: 24 }, // Lote
-    { width: 24 }, // Comprador
+    { width: 20 }, // Loteo
+    { width: 8 }, // Mza
+    { width: 12 }, // Lote
+    { width: 24 }, // Cliente
     { width: 10 }, // Moneda
     ...meses.map(() => ({ width: 12 })),
     { width: 14 }, // Total
   ]
 
-  const buffer = await workbook.xlsx.writeBuffer()
-
-  return new NextResponse(buffer, {
-    headers: {
-      'Content-Type': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-      'Content-Disposition': 'attachment; filename="resumen-transferencias-por-acreedor.xlsx"',
-    },
-  })
+  return respuestaExcel(workbook, 'resumen-transferencias-por-acreedor.xlsx')
 }

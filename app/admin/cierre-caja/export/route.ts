@@ -1,20 +1,34 @@
-import { NextRequest, NextResponse } from 'next/server'
+import { NextRequest } from 'next/server'
 import ExcelJS from 'exceljs'
 import { createClient } from '@/lib/supabase/server'
 import { requireAdminOCobrador } from '@/lib/auth/require-admin'
-import { hoyArgentina as hoyISO, fechaEnArgentina } from '@/lib/fecha/hoy-argentina'
-
-const MOTIVO_ETIQUETA: Record<string, string> = {
-  cuota: 'Cuota',
-  sena: 'Seña',
-  entrega: 'Entrega',
-  ajuste: 'Corrección',
-}
+import { hoyArgentina as hoyISO } from '@/lib/fecha/hoy-argentina'
+import { formatearFechaConAnioCorto } from '@/lib/fecha/formatear-fecha-corta'
+import { obtenerPagosDelDia, MOTIVO_ETIQUETA } from '@/lib/caja/pagos-del-dia'
+import {
+  traerDatosDeLotes,
+  traerDatosDeCuotasPorPago,
+} from '@/lib/cuenta-corriente/traer-datos-planilla'
+import {
+  anchoDeNroCuota,
+  celdasDeLaCuota,
+  celdasDelLote,
+  compararLotes,
+  COLUMNAS_DE_LA_CUOTA,
+  COLUMNAS_DEL_LOTE,
+} from '@/lib/planillas/columnas-del-lote'
+import { fechaDePlanilla } from '@/lib/planillas/fechas'
+import { encabezar, respuestaExcel, ESTILO_SUBTITULO, ESTILO_TITULO } from '@/lib/planillas/excel'
+import { traerTodasLasFilasPorTandas } from '@/lib/supabase/traer-todas-las-filas'
 
 // Descarga en .xlsx (planilla real, con columnas separadas -- no un CSV
 // aplanado) del mismo resumen que muestra /admin/cierre-caja para un día
 // puntual -- pedido de Gabriel (25-26/08) para poder compartirle a Nico un
 // detalle completo del día sin tener que transcribirlo a mano.
+//
+// 11/09: el detalle usa las columnas de todos los Excel (Loteo | Mza | Lote
+// | Cliente | Mes de | Nro cuota) en vez de una sola columna "Lote" con el
+// identificador interno, y las fechas salen DD/MM/AA.
 export async function GET(request: NextRequest) {
   await requireAdminOCobrador()
 
@@ -24,45 +38,24 @@ export async function GET(request: NextRequest) {
 
   const supabase = await createClient()
 
-  const { data: pagosData } = await supabase
-    .from('pagos')
-    .select(
-      'id, monto, moneda, medio_pago, motivo, cliente_id, confirmado_acreedor_at, confirmado_admin_at, lote_id, lotes(identificador)'
-    )
-    .eq('estado', 'confirmado')
+  // Los mismos pagos que muestra la pantalla: salen de la misma función.
+  const pagosDelDia = await obtenerPagosDelDia(supabase, fecha)
 
-  const pagos = (pagosData ?? []) as unknown as Array<{
-    id: string
-    monto: number
-    moneda: string
-    medio_pago: 'efectivo' | 'transferencia'
-    motivo: string
-    cliente_id: string
-    confirmado_acreedor_at: string | null
-    confirmado_admin_at: string | null
-    lote_id: string
-    lotes: { identificador: string } | null
-  }>
+  const clientes = await traerTodasLasFilasPorTandas<{ id: string; full_name: string }>(
+    pagosDelDia.map((pago) => pago.cliente_id),
+    (tanda, inicio, fin) =>
+      supabase.from('profiles').select('id, full_name').in('id', tanda).order('id').range(inicio, fin)
+  )
+  const nombreClientePorId = new Map(clientes.map((persona) => [persona.id, persona.full_name]))
 
-  // Mismo cálculo que la pantalla (ver page.tsx): "recibido el día X" es el
-  // toque de confirmación más tardío entre acreedor y admin.
-  function fechaDeConfirmacion(pago: (typeof pagos)[number]): string | null {
-    const candidatos = [pago.confirmado_acreedor_at, pago.confirmado_admin_at].filter(
-      (valor): valor is string => valor !== null
-    )
-    if (candidatos.length === 0) return null
-    const masTardio = candidatos.reduce((a, b) => (a > b ? a : b))
-    return fechaEnArgentina(masTardio)
-  }
-
-  const pagosDelDia = pagos.filter((pago) => fechaDeConfirmacion(pago) === fecha)
-
-  const clienteIds = [...new Set(pagosDelDia.map((pago) => pago.cliente_id))]
-  const { data: clientes } =
-    clienteIds.length > 0
-      ? await supabase.from('profiles').select('id, full_name').in('id', clienteIds)
-      : { data: [] }
-  const nombreClientePorId = new Map((clientes ?? []).map((persona) => [persona.id, persona.full_name]))
+  const lotePorId = await traerDatosDeLotes(
+    supabase,
+    pagosDelDia.map((pago) => pago.lote_id)
+  )
+  const cuotaPorPago = await traerDatosDeCuotasPorPago(
+    supabase,
+    pagosDelDia.map((pago) => pago.id)
+  )
 
   const totalesPorMedioYMoneda = new Map<string, number>()
   for (const pago of pagosDelDia) {
@@ -70,25 +63,30 @@ export async function GET(request: NextRequest) {
     totalesPorMedioYMoneda.set(clave, (totalesPorMedioYMoneda.get(clave) ?? 0) + pago.monto)
   }
 
+  const filasDelDetalle = pagosDelDia
+    .map((pago) => {
+      const lote = lotePorId.get(pago.lote_id)
+      // El cliente es el que PAGÓ y no el dueño actual del lote: si el lote
+      // se rescindió y se volvió a vender, este pago sigue siendo del
+      // primero.
+      const quienPago = nombreClientePorId.get(pago.cliente_id) ?? null
+      return {
+        pago,
+        lote,
+        delLote: celdasDelLote(lote && quienPago ? { ...lote, clienteNombre: quienPago } : lote, quienPago),
+        deLaCuota: celdasDeLaCuota(cuotaPorPago.get(pago.id)),
+      }
+    })
+    .sort((a, b) => compararLotes(a.lote, b.lote))
+
   const workbook = new ExcelJS.Workbook()
   const hoja = workbook.addWorksheet('Cierre de caja')
 
-  const ESTILO_TITULO = { font: { bold: true, size: 14 } } as const
-  const ESTILO_SUBTITULO = { font: { bold: true, size: 12 } } as const
-  const ESTILO_ENCABEZADO = {
-    font: { bold: true, color: { argb: 'FFFFFFFF' } },
-    fill: { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF1F2937' } } as const,
-  }
-
-  hoja.addRow([`Cierre de caja — ${fecha}`]).font = ESTILO_TITULO.font
+  hoja.addRow([`Cierre de caja — ${formatearFechaConAnioCorto(fecha)}`]).font = ESTILO_TITULO
   hoja.addRow([])
 
-  hoja.addRow(['Resumen']).font = ESTILO_SUBTITULO.font
-  const filaEncabezadoResumen = hoja.addRow(['Medio', 'Moneda', 'Total'])
-  filaEncabezadoResumen.eachCell((celda) => {
-    celda.font = ESTILO_ENCABEZADO.font
-    celda.fill = ESTILO_ENCABEZADO.fill
-  })
+  hoja.addRow(['Resumen']).font = ESTILO_SUBTITULO
+  encabezar(hoja.addRow(['Medio', 'Moneda', 'Total']))
   for (const [clave, total] of totalesPorMedioYMoneda.entries()) {
     const [medio, moneda] = clave.split('|')
     hoja.addRow([medio === 'efectivo' ? 'Efectivo' : 'Transferencia', moneda, total])
@@ -98,41 +96,50 @@ export async function GET(request: NextRequest) {
   }
 
   hoja.addRow([])
-  hoja.addRow(['Detalle']).font = ESTILO_SUBTITULO.font
-  const filaEncabezadoDetalle = hoja.addRow(['Lote', 'Cliente', 'Medio', 'Motivo', 'Monto', 'Moneda'])
-  filaEncabezadoDetalle.eachCell((celda) => {
-    celda.font = ESTILO_ENCABEZADO.font
-    celda.fill = ESTILO_ENCABEZADO.fill
-  })
-  for (const pago of pagosDelDia) {
+  hoja.addRow(['Detalle']).font = ESTILO_SUBTITULO
+  encabezar(
     hoja.addRow([
-      pago.lotes?.identificador ?? '—',
-      nombreClientePorId.get(pago.cliente_id) ?? '—',
-      pago.medio_pago === 'efectivo' ? 'Efectivo' : 'Transferencia',
-      MOTIVO_ETIQUETA[pago.motivo] ?? pago.motivo,
-      pago.monto,
-      pago.moneda,
+      'Fecha',
+      'Medio',
+      'Motivo',
+      ...COLUMNAS_DEL_LOTE,
+      ...COLUMNAS_DE_LA_CUOTA,
+      'Monto',
+      'Moneda',
+    ])
+  )
+  for (const fila of filasDelDetalle) {
+    hoja.addRow([
+      fechaDePlanilla(fecha),
+      fila.pago.medio_pago === 'efectivo' ? 'Efectivo' : 'Transferencia',
+      MOTIVO_ETIQUETA[fila.pago.motivo] ?? fila.pago.motivo,
+      ...fila.delLote,
+      ...fila.deLaCuota,
+      fila.pago.monto,
+      fila.pago.moneda,
     ])
   }
-  if (pagosDelDia.length === 0) {
+  if (filasDelDetalle.length === 0) {
     hoja.addRow(['Ningún pago confirmado este día.'])
   }
 
   hoja.columns = [
-    { width: 26 },
-    { width: 26 },
-    { width: 16 },
-    { width: 14 },
-    { width: 14 },
-    { width: 10 },
+    { width: 14 }, // Fecha (y el medio, en el resumen de arriba)
+    { width: 14 }, // Medio
+    { width: 22 }, // Motivo
+    { width: 20 }, // Loteo
+    { width: 8 }, // Mza
+    { width: 12 }, // Lote
+    { width: 26 }, // Cliente
+    { width: 10 }, // Mes de
+    { width: anchoDeNroCuota(filasDelDetalle.map((fila) => fila.deLaCuota[1])) }, // Nro cuota
+    { width: 14 }, // Monto
+    { width: 10 }, // Moneda
   ]
 
-  const buffer = await workbook.xlsx.writeBuffer()
-
-  return new NextResponse(buffer, {
-    headers: {
-      'Content-Type': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-      'Content-Disposition': `attachment; filename="cierre-caja-${fecha}.xlsx"`,
-    },
-  })
+  // Sin barras en el nombre del archivo, que no las admite: "cierre-caja-10-09-26.xlsx".
+  return respuestaExcel(
+    workbook,
+    `cierre-caja-${formatearFechaConAnioCorto(fecha).replaceAll('/', '-')}.xlsx`
+  )
 }

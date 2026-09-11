@@ -145,11 +145,15 @@ test.describe('Cambiar el monto de una cuota', () => {
       .select('id')
       .single()
 
-    await admin.from('pago_imputaciones').insert({
+    // `monto_imputado` y no `monto`: con el nombre equivocado el insert
+    // fallaba en silencio y el test pasaba igual, por el saldo en 800 y no
+    // por la imputación que dice probar (encontrado el 11/09).
+    const { error: errorImputacion } = await admin.from('pago_imputaciones').insert({
       pago_id: pago!.id,
       cuota_id: cuota2.id,
-      monto: 200,
+      monto_imputado: 200,
     })
+    expect(errorImputacion).toBeNull()
     await admin.from('cuotas').update({ saldo_pendiente: 800 }).eq('id', cuota2.id)
 
     await login(page, fixtures.admin.email, fixtures.password)

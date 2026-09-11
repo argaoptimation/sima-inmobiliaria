@@ -7,3 +7,12 @@ export function formatearFechaCorta(fechaISO: string): string {
   const [anio, mes, dia] = fechaISO.split('-')
   return `${dia}/${mes}/${anio}`
 }
+
+// "2026-09-10" -> "10/09/26". Para el texto suelto de los Excel (el titulo
+// del cierre de caja, "Generado el ..."), que tiene que leerse igual que las
+// celdas de fecha de esas mismas planillas (ver lib/planillas/fechas.ts).
+// Las pantallas siguen con el anio completo.
+export function formatearFechaConAnioCorto(fechaISO: string): string {
+  const [anio, mes, dia] = fechaISO.slice(0, 10).split('-')
+  return `${dia}/${mes}/${anio.slice(2)}`
+}
