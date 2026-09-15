@@ -101,7 +101,7 @@ test.describe('Distribución de un lote refinanciado', () => {
 
     // Se guarda sin tocar nada. Es el momento peligroso: el guardado es un
     // reemplazo completo.
-    await page.getByRole('button', { name: /Guardar distribución/ }).click()
+    await page.getByRole('button', { name: /Guardar distribución/ }).first().click()
     await page.waitForURL(/distribucion\?ok=/, { timeout: 30_000 })
 
     // La distribución de la cuota refinanciada sigue ahí, con su monto.

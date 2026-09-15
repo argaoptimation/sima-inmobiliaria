@@ -37,7 +37,7 @@ test.describe('A quién se le transfiere cada cuota', () => {
       await page.selectOption('select[name="cuota1CuentaCobro"]', {
         label: 'E2E Acreedor Con Datos (acreedor)',
       })
-      await page.getByRole('button', { name: 'Guardar distribución' }).click()
+      await page.getByRole('button', { name: 'Guardar distribución' }).first().click()
 
       // Se espera el aviso que devuelve el server action, no el valor del
       // <select>: ese valor lo acaba de poner el propio test, así que leerlo
@@ -107,7 +107,7 @@ test.describe('A quién se le transfiere cada cuota', () => {
     await page.selectOption('[data-testid="cuenta-cobro-todas"]', {
       label: 'E2E Vendedor A (vendedor)',
     })
-    await page.getByRole('button', { name: 'Guardar distribución' }).click()
+    await page.getByRole('button', { name: 'Guardar distribución' }).first().click()
     await expect(page.getByText('Distribución guardada.')).toBeVisible()
 
     const { data: cuotas } = await admin

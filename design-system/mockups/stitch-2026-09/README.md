@@ -15,7 +15,7 @@ lo que dibuja y la pantalla no hace queda anotado abajo, como pregunta.
 | 3 | `stitch_project_repository_redesign3` | Reservar lote (`/admin/lotes/[id]/reservar`) | `3-lote-reservar.html` | Aplicado (09/09/2026) |
 | 4 | `stitch_project_repository_redesign4` | Vender lote (`/admin/lotes/[id]/vender`) | `4-lote-vender.html` | Aplicado (09/09/2026) |
 | 5 | `stitch_project_repository_redesign 5` | Loteos (`/admin/loteos`) | `5-loteos.html` | Aplicado (15/09/2026) |
-| 6 | `stitch_project_repository_redesign 6` | Distribución de cuotas (`/admin/lotes/[id]/distribucion`) | `6-distribucion-cuotas.html` | Pendiente |
+| 6 | `stitch_project_repository_redesign 6` | Distribución de cuotas (`/admin/lotes/[id]/distribucion`) | `6-distribucion-cuotas.html` | Aplicado (15/09/2026) |
 
 `1-DESIGN.md` es el sistema de diseño completo ("SIMA Core ERP"): paleta,
 tipografía, elevación, geometría y componentes. Vale para todas las pantallas
@@ -86,3 +86,42 @@ encabezado claro.
   (FiltroEnVivo): es para quien aprieta Enter o no usa mouse.
 - El selector de archivo de la plantilla muestra solo su botón: el texto
   "Ningún archivo seleccionado" del navegador empujaba "Subir" a otro renglón.
+
+## Pantalla 6 — Distribución de cuotas (15/09/2026)
+
+Clases nuevas en el mismo bloque de `lib/ui/clases.ts`: pasos numerados, fichas de
+integrante por papel, control de suma y tarjetas de impacto. La lógica del control de
+suma y del paginado está en `lib/lotes/control-de-suma.ts`.
+
+**Lo que el mockup dibuja y la pantalla no hace** (quedó afuera, a preguntar):
+
+- **Exportar XLS** de la distribución.
+- **Cargar el reparto en porcentaje.** El porcentaje se muestra, calculado, al lado de
+  cada monto; lo que se carga y se guarda sigue siendo el monto.
+- **"Regla rápida de asignación".**
+- **Agrupar cuotas consecutivas iguales** en un bloque ("#06 - #15, regla replicada").
+- **"Cierre de cuentas: $0 balance neto"**, el ID de cuota ("QTA-01-2024") y
+  "Anticipo/Seña" en la cabecera: son datos que el sistema no tiene así.
+- Los rótulos **"Debe responder / Saldo a favor / Resta cobrar"**: se dejaron los que
+  la pantalla ya usaba (Le debés / Cobra de más / Al día), que están atados a cómo se
+  calcula el saldo.
+
+**Desvíos de diseño:**
+
+- **"Guardar distribución" arriba y abajo de la matriz**, no en la cabecera de la
+  página: la cabecera queda fuera del formulario (entre medio están los formularios de
+  roles y participantes, y un formulario no puede ir dentro de otro).
+- **El integrante de cada fila sigue siendo un buscador** con lista, no un desplegable:
+  lo pidió Nico para no recorrer una lista larga.
+- **Roles del lote (admin, acreedor, vendedor) y "Otros participantes"** no aparecen en
+  el mockup; quedaron en la tarjeta 1, debajo de las fichas de los integrantes.
+- **Objetivos (opcional)** quedó al pie de la tarjeta de impacto, que es donde se ven.
+- **"Le transfieren todas las cuotas a"** (el atajo que ya existía) va en la barra de
+  la matriz.
+- **El destino de cada cuota muestra solo el nombre** (el banco y el alias están en las
+  fichas de arriba); debajo, una línea con cómo le queda la cuenta a esa persona.
+- **El control de suma avisa, no bloquea:** repartir menos que la cuota se puede guardar
+  desde siempre.
+- **El paginado esconde con CSS** las cuotas de las otras páginas en vez de sacarlas del
+  DOM: el guardado reemplaza todo el reparto del lote y una cuota que no viajara en el
+  formulario lo perdería. Lo cubre `tests/e2e/distribucion-paginada.spec.ts`.

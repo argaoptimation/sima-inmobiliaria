@@ -47,7 +47,7 @@ test.describe('Distribución manual por cuota', () => {
 
     // Cuota 1 es de 1000 -- 400 + 300 = 700, suma distinta al monto de la
     // cuota, y el guardado tiene que funcionar igual sin ningún error.
-    await page.getByRole('button', { name: 'Guardar distribución' }).click()
+    await page.getByRole('button', { name: 'Guardar distribución' }).first().click()
     await page.waitForURL(/ok=1/)
 
     await expect(page.getByText('Distribución guardada.')).toBeVisible()
@@ -65,7 +65,7 @@ test.describe('Distribución manual por cuota', () => {
 
     // Ninguno de los dos tiene objetivo cargado -- el resumen tiene que
     // mostrar solo el acumulado, sin comparar contra nada ("—").
-    const filaResumen = page.locator('tr', { hasText: 'E2E Vendedor A (vendedor)' })
+    const filaResumen = page.getByTestId('resumen-participante').filter({ hasText: 'E2E Vendedor A (vendedor)' })
     await expect(filaResumen.getByText('—')).toBeVisible()
 
     await page.reload()
@@ -118,7 +118,7 @@ test.describe('Distribución manual por cuota', () => {
     await expect(page.locator('input[name="cuota2Monto"]').nth(0)).toHaveValue('700')
 
     await page.locator('input[name="cuota1Monto"]').nth(0).fill('600')
-    await page.getByRole('button', { name: 'Guardar distribución' }).click()
+    await page.getByRole('button', { name: 'Guardar distribución' }).first().click()
     await page.waitForURL(/ok=1/)
 
     const { data: distribucionCuota1 } = await admin
@@ -174,7 +174,7 @@ test.describe('Distribución manual por cuota', () => {
       await seleccionarParticipante(page, 'cuota1Participante', 1, 'E2E Vendedor A (vendedor)')
       await page.locator('input[name="cuota1Monto"]').nth(1).fill('150')
 
-      await page.getByRole('button', { name: 'Guardar distribución' }).click()
+      await page.getByRole('button', { name: 'Guardar distribución' }).first().click()
       await page.waitForURL(/ok=1/)
 
       const { data: distribuciones } = await admin
@@ -210,7 +210,7 @@ test.describe('Distribución manual por cuota', () => {
     await seleccionarParticipante(page, 'cuota1Participante', 1, 'E2E Vendedor A (vendedor)')
     await page.locator('input[name="cuota1Monto"]').nth(1).fill('300')
 
-    await page.getByRole('button', { name: 'Guardar distribución' }).click()
+    await page.getByRole('button', { name: 'Guardar distribución' }).first().click()
     await page.waitForURL(/ok=1/)
 
     const { data: distribuciones } = await admin
@@ -296,7 +296,7 @@ test.describe('Distribución manual por cuota', () => {
         )
         .toBe('reservado')
 
-      await page.getByRole('button', { name: 'Guardar distribución' }).click()
+      await page.getByRole('button', { name: 'Guardar distribución' }).first().click()
 
       await expect(page.getByText('Este lote no está vendido, no se puede guardar una distribución')).toBeVisible()
 
@@ -329,7 +329,7 @@ test.describe('Distribución manual por cuota', () => {
     await expect(page.locator('input[name="cuota1Monto"]').nth(0)).toHaveValue('500')
 
     await page.getByRole('button', { name: 'Quitar' }).first().click()
-    await page.getByRole('button', { name: 'Guardar distribución' }).click()
+    await page.getByRole('button', { name: 'Guardar distribución' }).first().click()
     await page.waitForURL(/ok=1/)
 
     const { data: distribuciones } = await admin

@@ -303,7 +303,7 @@ test.describe('Múltiples participantes por lote', () => {
       await page.selectOption('select[name="cuota1CuentaCobro"]', {
         label: 'E2E Vendedor B (participante)',
       })
-      await page.getByRole('button', { name: 'Guardar distribución' }).click()
+      await page.getByRole('button', { name: 'Guardar distribución' }).first().click()
 
       // El submit exitoso de un Server Action no dispara una navegación de
       // browser tradicional que Playwright pueda esperar automáticamente

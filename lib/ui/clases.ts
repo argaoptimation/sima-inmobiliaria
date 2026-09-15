@@ -563,8 +563,13 @@ export const CABECERA_MODULO_RESUMEN =
   'flex w-fit items-center gap-2 rounded-xl border border-blue-200 bg-blue-50 px-3.5 py-2 text-xs font-medium text-blue-800 tabular-nums'
 
 // Controles compactos (12px) para barras de filtro y celdas de tabla.
-export const CAMPO_COMPACTO =
-  'w-full rounded-lg border border-slate-200 bg-slate-50/80 px-2.5 py-1.5 text-xs text-slate-700 transition placeholder:text-slate-400 focus:border-blue-600 focus:ring-2 focus:ring-blue-600/20 focus:outline-none'
+// Sin ancho: para cuando el ancho lo pone quien lo usa (w-28, flex-1).
+// Sumarle un w-28 a CAMPO_COMPACTO no alcanza: con w-full y w-28 en la misma
+// clase gana el que Tailwind escribe despues en el CSS, no el ultimo de la
+// lista, y en la matriz de distribucion el buscador quedaba de 0px.
+export const CAMPO_COMPACTO_SIN_ANCHO =
+  'rounded-lg border border-slate-200 bg-slate-50/80 px-2.5 py-1.5 text-xs text-slate-700 transition placeholder:text-slate-400 focus:border-blue-600 focus:ring-2 focus:ring-blue-600/20 focus:outline-none'
+export const CAMPO_COMPACTO = `w-full ${CAMPO_COMPACTO_SIN_ANCHO}`
 export const ETIQUETA_COMPACTA = 'mb-1 block text-[10px] font-bold tracking-wide text-slate-500 uppercase'
 export const BOTON_CHICO_PRIMARIO =
   'inline-flex items-center gap-1.5 rounded-lg bg-blue-600 px-4 py-2 text-xs font-semibold whitespace-nowrap text-white shadow-xs transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-60'

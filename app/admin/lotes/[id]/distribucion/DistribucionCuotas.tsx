@@ -1,19 +1,34 @@
 'use client'
 
-import { useState } from 'react'
+import { useId, useState } from 'react'
+import { BarChart3, Check, Trash2 } from 'lucide-react'
 import { BotonEnvio } from '@/components/BotonEnvio'
 import {
-  ENTRADA,
-  BOTON_PRIMARIO,
-  TITULO_H2,
-  TABLA_CONTENEDOR,
-  TABLA_HEADER_FILA,
-  TABLA_HEADER_CELDA,
-  TABLA_FILA,
-  TABLA_CELDA,
-  NUMERO_TABULAR,
+  PANEL,
+  PANEL_SIN_PADDING,
+  PASO_NUMERO,
+  PASO_TITULO,
+  CAMPO_COMPACTO,
+  CAMPO_COMPACTO_SIN_ANCHO,
+  ETIQUETA_COMPACTA,
+  BOTON_CHICO_PRIMARIO,
+  BOTON_CHICO_NEUTRO,
+  BOTON_AGREGAR_TEXTO,
+  TABLA_CLARA_HEADER,
+  PILL_SUMA,
+  NUMERO_CUOTA_SUMA,
+  FILA_CUOTA_SUMA,
+  TARJETA_IMPACTO,
+  PILL_IMPACTO,
 } from '@/lib/ui/clases'
 import { formatearFechaCorta } from '@/lib/fecha/formatear-fecha-corta'
+import {
+  controlDeSuma,
+  porcentajeDeLaCuota,
+  paginasDeCuotas,
+  CUOTAS_POR_PAGINA,
+  type ControlDeSuma,
+} from '@/lib/lotes/control-de-suma'
 
 interface Fila {
   id: string
@@ -73,16 +88,22 @@ function conId<T extends { participanteKey: string; monto: string }>(fila: T): F
 // texto se inicializa una sola vez a partir de `valor`: la fila que lo usa
 // tiene un `id` estable como key (ver más abajo), así que React nunca
 // reutiliza esta instancia para una fila lógica distinta al reordenar.
+//
+// El mockup 6 lo dibuja como un <select>; se queda como buscador porque es
+// lo que pidió Nico. Los dos inputs tienen que seguir siendo hermanos: los
+// e2e llegan al visible desde el oculto.
 function SelectorParticipante({
   name,
   valor,
   onChange,
   opciones,
+  className = '',
 }: {
   name: string
   valor: string
   onChange: (valor: string) => void
   opciones: Participante[]
+  className?: string
 }) {
   const [texto, setTexto] = useState(
     () => opciones.find((participante) => participante.key === valor)?.nombre ?? ''
@@ -100,11 +121,21 @@ function SelectorParticipante({
           const encontrado = opciones.find((participante) => participante.nombre === nuevoTexto)
           onChange(encontrado ? encontrado.key : '')
         }}
-        className={`w-56 ${ENTRADA}`}
+        className={`${CAMPO_COMPACTO_SIN_ANCHO} bg-white font-semibold text-slate-800 ${className}`}
       />
       <input type="hidden" name={name} value={valor} />
     </>
   )
+}
+
+function textoDelControl(control: ControlDeSuma, montoCuota: number, moneda: string): string {
+  if (control.estado === 'completa') return 'Repartida completa ✓'
+  if (control.estado === 'sin_repartir') return 'Sin repartir'
+  if (control.estado === 'falta') {
+    const porcentaje = montoCuota > 0 ? Math.round((control.diferencia / montoCuota) * 100) : null
+    return `Faltan ${control.diferencia} ${moneda}${porcentaje === null ? '' : ` (${porcentaje}%)`}`
+  }
+  return `De más: ${Math.abs(control.diferencia)} ${moneda}`
 }
 
 export function DistribucionCuotas({
@@ -127,6 +158,23 @@ export function DistribucionCuotas({
   const [cuentasCobro, setCuentasCobro] = useState<Record<number, string>>(
     () => cuentaCobroInicialPorCuota
   )
+
+  // De a 15 cuotas por página, como el mockup. Las de las otras páginas se
+  // esconden con CSS y NO se sacan del DOM: el guardado es un reemplazo
+  // completo del lote, y una cuota que no viajara en el formulario perdería
+  // su reparto al apretar Guardar.
+  const [pagina, setPagina] = useState(0)
+  const [verTodas, setVerTodas] = useState(false)
+  const idMatriz = useId()
+  const cantidadPaginas = paginasDeCuotas(cuotas.length)
+  const paginado = cuotas.length > CUOTAS_POR_PAGINA
+  const desde = pagina * CUOTAS_POR_PAGINA
+  const hasta = Math.min(desde + CUOTAS_POR_PAGINA, cuotas.length)
+
+  function irAPagina(nueva: number) {
+    setPagina(nueva)
+    document.getElementById(idMatriz)?.scrollIntoView({ block: 'start', behavior: 'smooth' })
+  }
 
   const clavesSinDatos = new Set(sinDatosTransferencia)
 
@@ -253,6 +301,12 @@ export function DistribucionCuotas({
     return resumen.find((fila) => fila.clave === clave) ?? null
   }
 
+  const sumaDeLasCuotas = Math.round(cuotas.reduce((acum, cuota) => acum + cuota.montoBase, 0) * 100) / 100
+  const controlDelLote = controlDeSuma(
+    sumaDeLasCuotas,
+    cuotas.flatMap((cuota) => distribuciones[cuota.numero] ?? [])
+  )
+
   return (
     <>
       <datalist id="lista-participantes">
@@ -261,289 +315,458 @@ export function DistribucionCuotas({
         ))}
       </datalist>
 
-      <h2 className={`mb-2 mt-6 ${TITULO_H2}`}>Objetivos (opcional)</h2>
-      <p className="mb-3 text-sm text-slate-600">
-        Cuánto le corresponde en total a cada participante de este lote. Sin objetivo cargado, el
-        resumen de abajo solo muestra lo acumulado, sin comparar contra nada.
-      </p>
-      <div className="mb-6 flex flex-col gap-2">
-        {objetivos.map((fila, indice) => (
-          <div key={fila.id} className="flex items-center gap-2">
-            <SelectorParticipante
-              name="objetivoParticipante"
-              valor={fila.participanteKey}
-              onChange={(valor) => modificarObjetivo(indice, 'participanteKey', valor)}
-              opciones={participantesElegibles}
-            />
-            <input
-              type="number"
-              step="0.01"
-              min="0"
-              placeholder="Monto objetivo"
-              value={fila.monto}
-              onChange={(evento) => modificarObjetivo(indice, 'monto', evento.target.value)}
-              name="objetivoMonto"
-              className={`w-40 ${ENTRADA}`}
-            />
-            <button
-              type="button"
-              onClick={() => quitarObjetivo(indice)}
-              className="cursor-pointer text-sm text-red-700 underline-offset-2 hover:underline"
-            >
-              Quitar
-            </button>
-          </div>
-        ))}
-        <button
-          type="button"
-          onClick={agregarObjetivo}
-          className="cursor-pointer self-start text-sm font-medium text-blue-800 underline-offset-4 hover:text-blue-900 hover:underline"
-        >
-          + Agregar objetivo
-        </button>
-      </div>
-
-      <h2 className={`mb-2 ${TITULO_H2}`}>Cuotas — distribución</h2>
-
-      {/* Elegir de una sola vez a quién se le transfieren TODAS las cuotas.
-          Reemplaza a la "cuenta de cobro actual" que estaba en la sección
-          de arriba (08/09, pedido de Gabriel): el destino ahora vive en la
-          cuota, que es donde se cobra, y este atajo cubre el caso normal de
-          que siempre cobre el mismo. */}
-      <div className="mb-4 rounded-lg border border-blue-100 bg-blue-50/40 p-3">
-        <label className="block text-sm font-medium text-blue-900">
-          Le transfieren todas las cuotas a
-          <select
-            data-testid="cuenta-cobro-todas"
-            value=""
-            onChange={(evento) => {
-              if (evento.target.value) aplicarATodasLasCuotas(evento.target.value)
-            }}
-            className={`mt-1 w-full max-w-md ${ENTRADA}`}
-          >
-            <option value="">— elegir para aplicar a todas —</option>
-            {participantesElegibles.map((participante) => (
-              <option key={participante.key} value={participante.key}>
-                {participante.nombre}
-                {clavesSinDatos.has(participante.key) && ' — sin datos de transferencia'}
-              </option>
-            ))}
-          </select>
-        </label>
-        <p className="mt-1 text-xs text-slate-600">
-          Pisa lo elegido en todas las cuotas de abajo. Después podés cambiar una por una las que
-          cobre otro. Se guarda recién al apretar &quot;Guardar distribución&quot;.
-        </p>
-      </div>
-
-      {cuotasSinDestino.length > 0 && (
-        <p className="mb-4 rounded-lg bg-amber-50 p-3 text-sm text-amber-800">
-          {cuotasSinDestino.length === cuotas.length
-            ? 'Ninguna cuota tiene a quién transferirle todavía: el cliente no va a ver ningún alias para pagar.'
-            : `Sin destino todavía: cuota ${cuotasSinDestino.map((cuota) => cuota.numero).join(', ')}. El cliente no va a ver ningún alias para pagar esas.`}
-        </p>
-      )}
-
-      {cuotasConDestinoSinDatos.length > 0 && (
-        <p className="mb-4 rounded-lg bg-amber-50 p-3 text-sm text-amber-800">
-          La cuota {cuotasConDestinoSinDatos.map((cuota) => cuota.numero).join(', ')} le toca a
-          alguien que todavía no tiene alias, banco y titular cargados, así que el cliente no va a
-          ver dónde pagarla. Cargale los datos en Usuarios (o en Cuentas externas) y listo.
-        </p>
-      )}
-
-      <div className="mb-6 flex flex-col gap-4">
-        {cuotas.map((cuota) => {
-          const claveQueCobra = cuentasCobro[cuota.numero] || cuentaCobroDelLote
-          const resumenQueCobra = claveQueCobra ? resumenDe(claveQueCobra) : null
-
-          return (
-            <div key={cuota.numero} className="rounded-lg border border-blue-100 p-3">
-              {/* La fecha de vencimiento al lado del monto (08/09, pedido de
-                  Nico): esta pantalla se recorre cuota por cuota decidiendo
-                  quién cobra cada una, y sin la fecha había que salir al
-                  detalle del lote para saber de qué mes se estaba hablando. */}
-              <p className="mb-2 text-sm font-semibold text-blue-900">
-                Cuota {cuota.numero} —{' '}
-                <span className={NUMERO_TABULAR}>{cuota.montoBase}</span> {moneda}
-                <span className="ml-2 font-normal text-slate-500">
-                  vence el <span className={NUMERO_TABULAR}>{formatearFechaCorta(cuota.fechaVencimiento)}</span>
-                </span>
+      {/* Cómo le queda la cuenta a cada uno, en vivo (mockup 6: "Impacto en
+          cuentas corrientes"). Antes era la tabla "Resumen del lote" al final
+          de todas las cuotas; ahora va arriba, antes de empezar a cargar. */}
+      <section className={`${PANEL} space-y-4`}>
+        <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-100 pb-3">
+          <div className="flex items-center gap-2.5">
+            <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-indigo-100 text-indigo-700">
+              <BarChart3 className="h-3.5 w-3.5" />
+            </span>
+            <div>
+              <h2 className={PASO_TITULO}>Impacto en cuentas corrientes, en vivo</h2>
+              <p className="max-w-3xl text-xs text-slate-500">
+                &quot;Le corresponde&quot; es lo que suma para esa persona en el reparto de las cuotas.
+                &quot;Cobra directo&quot; es lo que le entra a su cuenta por las cuotas que le
+                asignaste. &quot;Cómo queda la cuenta&quot; cruza las dos con el saldo de cuenta
+                corriente que ya tiene hoy. Se recalcula mientras cargás, sin guardar.
               </p>
+            </div>
+          </div>
+          <div className="flex flex-wrap items-center gap-2 text-xs">
+            <span className="rounded bg-slate-100 px-2.5 py-1 font-mono font-medium text-slate-700">
+              Total de las cuotas: {sumaDeLasCuotas} {moneda}
+            </span>
+          </div>
+        </div>
 
-              {/* Dos columnas: a la izquierda cómo se reparte la comisión de
-                  esta cuota, a la derecha a quién se le transfiere y cómo le
-                  queda la cuenta a esa persona. Antes era todo un formulario
-                  vertical larguísimo (05/09, pedido de Gabriel: "empezar a
-                  utilizar más el ancho de la pantalla"). */}
-              <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(0,20rem)]">
-                <div className="flex flex-col gap-2">
-                  <p className="text-xs font-medium uppercase tracking-wide text-slate-500">
-                    Se reparte entre
-                  </p>
-                  {(distribuciones[cuota.numero] ?? []).map((fila, indice) => (
-                    <div key={fila.id} className="flex items-center gap-2">
-                      <SelectorParticipante
-                        name={`cuota${cuota.numero}Participante`}
-                        valor={fila.participanteKey}
-                        onChange={(valor) =>
-                          modificarFilaCuota(cuota.numero, indice, 'participanteKey', valor)
-                        }
-                        opciones={participantesElegibles}
-                      />
-                      <input
-                        type="number"
-                        step="0.01"
-                        min="0"
-                        placeholder="Monto"
-                        value={fila.monto}
-                        onChange={(evento) =>
-                          modificarFilaCuota(cuota.numero, indice, 'monto', evento.target.value)
-                        }
-                        name={`cuota${cuota.numero}Monto`}
-                        className={`w-40 ${ENTRADA}`}
-                      />
-                      <button
-                        type="button"
-                        onClick={() => quitarFilaCuota(cuota.numero, indice)}
-                        className="cursor-pointer text-sm text-red-700 underline-offset-2 hover:underline"
-                      >
-                        Quitar
-                      </button>
+        {resumen.length === 0 ? (
+          <p className="text-sm text-slate-600">Sin distribución cargada todavía.</p>
+        ) : (
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
+            {resumen.map((fila) => {
+              const estado =
+                fila.saldoProyectado > 0 ? 'leDebes' : fila.saldoProyectado < 0 ? 'cobraDeMas' : 'alDia'
+              return (
+                <div key={fila.clave} data-testid="resumen-participante" className={TARJETA_IMPACTO}>
+                  <div className="mb-2 flex items-center justify-between gap-2">
+                    <div className="flex min-w-0 items-center gap-2">
+                      <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-slate-300 text-xs font-bold text-slate-800">
+                        {fila.nombre.trim().charAt(0).toUpperCase()}
+                      </span>
+                      <span className="truncate text-xs font-bold text-slate-900" title={fila.nombre}>
+                        {fila.nombre}
+                      </span>
                     </div>
-                  ))}
-                  <button
-                    type="button"
-                    onClick={() => agregarFilaCuota(cuota.numero)}
-                    className="cursor-pointer self-start text-sm font-medium text-blue-800 underline-offset-4 hover:text-blue-900 hover:underline"
-                  >
-                    + Agregar participante a esta cuota
-                  </button>
+                    <span className={PILL_IMPACTO[estado]}>
+                      {estado === 'leDebes' ? 'Le debés' : estado === 'cobraDeMas' ? 'Cobra de más' : 'Al día'}
+                    </span>
+                  </div>
+                  <dl className="space-y-1.5 pt-1 text-xs">
+                    <div className="flex justify-between gap-2 text-slate-600">
+                      <dt>Le corresponde:</dt>
+                      <dd className="font-mono font-bold text-slate-800">
+                        {fila.acumulado} {moneda}
+                      </dd>
+                    </div>
+                    <div className="flex justify-between gap-2 text-slate-600">
+                      <dt>Cobra directo:</dt>
+                      <dd className="font-mono font-bold text-blue-700">
+                        {fila.cobraDirecto} {moneda}
+                      </dd>
+                    </div>
+                    <div className="flex items-center justify-between gap-2 border-t border-slate-200 pt-2">
+                      <dt className="text-[11px] font-semibold text-slate-700">Cómo queda la cuenta:</dt>
+                      <dd
+                        className={`font-mono font-bold ${
+                          estado === 'leDebes'
+                            ? 'text-amber-700'
+                            : estado === 'cobraDeMas'
+                              ? 'text-rose-700'
+                              : 'text-emerald-700'
+                        }`}
+                      >
+                        {estado === 'leDebes'
+                          ? `Le debés ${fila.saldoProyectado} ${moneda}`
+                          : estado === 'cobraDeMas'
+                            ? `Cobra de más ${Math.abs(fila.saldoProyectado)} ${moneda}`
+                            : 'Al día'}
+                      </dd>
+                    </div>
+                    {fila.saldoActual !== 0 && (
+                      <p className="text-[10px] text-slate-500 italic">
+                        Incluye su saldo de cuenta corriente de hoy: {fila.saldoActual} {moneda}.
+                      </p>
+                    )}
+                    <div className="flex justify-between gap-2 text-slate-600">
+                      <dt>Objetivo:</dt>
+                      <dd className="text-right font-medium text-slate-800">
+                        {fila.objetivo === null
+                          ? '—'
+                          : fila.acumulado >= fila.objetivo
+                            ? 'Saldado'
+                            : `${fila.acumulado} de ${fila.objetivo}, faltan ${
+                                Math.round((fila.objetivo - fila.acumulado) * 100) / 100
+                              }`}
+                      </dd>
+                    </div>
+                  </dl>
                 </div>
+              )
+            })}
+          </div>
+        )}
 
-                <div className="rounded-lg bg-blue-50/50 p-3">
-                  <label className="block text-xs font-medium uppercase tracking-wide text-slate-500">
-                    Le transfieren esta cuota a
-                    <select
-                      name={`cuota${cuota.numero}CuentaCobro`}
-                      value={cuentasCobro[cuota.numero] ?? ''}
-                      onChange={(evento) =>
-                        setCuentasCobro((anteriores) => ({
-                          ...anteriores,
-                          [cuota.numero]: evento.target.value,
-                        }))
-                      }
-                      className={`mt-1 w-full ${ENTRADA}`}
-                    >
-                      {/* Los lotes anteriores al 08/09 pueden tener todavía
-                          una cuenta cargada a nivel lote: se nombra para que
-                          no sea un resguardo invisible. En los nuevos no hay
-                          ninguna y la opción vacía es lisa y llanamente
-                          "sin asignar". */}
-                      <option value="">
-                        {cuentaCobroDelLote
-                          ? `— la cuenta del lote (${nombrePorClave(cuentaCobroDelLote)}) —`
-                          : '— sin asignar —'}
-                      </option>
-                      {participantesElegibles.map((participante) => (
-                        <option key={participante.key} value={participante.key}>
-                          {participante.nombre}
-                          {clavesSinDatos.has(participante.key) && ' — sin datos de transferencia'}
+        {/* Objetivos: cuánto le corresponde en total a cada uno. Son lo que
+            alimenta la línea "Objetivo" de las tarjetas de arriba. */}
+        <div className="space-y-2 border-t border-slate-100 pt-3">
+          <div>
+            <p className="text-xs font-bold text-slate-800">Objetivos (opcional)</p>
+            <p className="text-[11px] text-slate-500">
+              Cuánto le corresponde en total a cada participante de este lote. Sin objetivo cargado,
+              la tarjeta solo muestra lo acumulado, sin comparar contra nada.
+            </p>
+          </div>
+          {objetivos.map((fila, indice) => (
+            <div key={fila.id} className="flex flex-wrap items-center gap-2">
+              <SelectorParticipante
+                name="objetivoParticipante"
+                valor={fila.participanteKey}
+                onChange={(valor) => modificarObjetivo(indice, 'participanteKey', valor)}
+                opciones={participantesElegibles}
+                className="w-64"
+              />
+              <input
+                type="number"
+                step="0.01"
+                min="0"
+                placeholder="Monto objetivo"
+                value={fila.monto}
+                onChange={(evento) => modificarObjetivo(indice, 'monto', evento.target.value)}
+                name="objetivoMonto"
+                className={`${CAMPO_COMPACTO_SIN_ANCHO} w-40 bg-white font-mono`}
+              />
+              <button
+                type="button"
+                onClick={() => quitarObjetivo(indice)}
+                aria-label="Quitar"
+                title="Quitar objetivo"
+                className="cursor-pointer rounded p-1 text-slate-400 transition hover:text-red-500"
+              >
+                <Trash2 className="h-3.5 w-3.5" />
+              </button>
+            </div>
+          ))}
+          <button type="button" onClick={agregarObjetivo} className={BOTON_AGREGAR_TEXTO}>
+            + Agregar objetivo
+          </button>
+        </div>
+      </section>
+
+      {/* Paso 2: la matriz cuota a cuota. */}
+      <section id={idMatriz} className={`${PANEL_SIN_PADDING} scroll-mt-4`}>
+        <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-200 bg-slate-50/50 p-4">
+          <div className="flex items-center gap-3">
+            <span className={PASO_NUMERO}>2</span>
+            <div>
+              <div className="flex flex-wrap items-center gap-2">
+                <h2 className={PASO_TITULO}>
+                  Distribución cuota a cuota ({cuotas.length} {cuotas.length === 1 ? 'cuota' : 'cuotas'})
+                </h2>
+                <span className={PILL_SUMA[controlDelLote.estado]}>
+                  Repartido {controlDelLote.repartido} / {sumaDeLasCuotas} {moneda}
+                </span>
+              </div>
+              <p className="text-[11px] text-slate-500">
+                Para cada cuota: entre quiénes se reparte y a quién se le transfiere. Se guarda todo
+                junto, recién al apretar &quot;Guardar distribución&quot;.
+              </p>
+            </div>
+          </div>
+          <div className="flex flex-wrap items-center gap-2.5">
+            {paginado && (
+              <button
+                type="button"
+                onClick={() => setVerTodas((valor) => !valor)}
+                className="cursor-pointer rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 shadow-2xs transition hover:bg-slate-50"
+              >
+                {verTodas ? `Ver de a ${CUOTAS_POR_PAGINA}` : `Ver todas las ${cuotas.length} cuotas`}
+              </button>
+            )}
+            <BotonEnvio className={`cursor-pointer ${BOTON_CHICO_PRIMARIO}`}>
+              <Check className="h-3.5 w-3.5" />
+              Guardar distribución
+            </BotonEnvio>
+          </div>
+        </div>
+
+        {/* Elegir de una sola vez a quién se le transfieren TODAS las cuotas.
+            Reemplaza a la "cuenta de cobro actual" que estaba en la sección
+            de arriba (08/09, pedido de Gabriel): el destino ahora vive en la
+            cuota, que es donde se cobra, y este atajo cubre el caso normal de
+            que siempre cobre el mismo. */}
+        <div className="space-y-3 border-b border-slate-100 p-4">
+          <label className="block max-w-md">
+            <span className={ETIQUETA_COMPACTA}>Le transfieren todas las cuotas a</span>
+            <select
+              data-testid="cuenta-cobro-todas"
+              value=""
+              onChange={(evento) => {
+                if (evento.target.value) aplicarATodasLasCuotas(evento.target.value)
+              }}
+              className={`${CAMPO_COMPACTO} bg-white`}
+            >
+              <option value="">— elegir para aplicar a todas —</option>
+              {participantesElegibles.map((participante) => (
+                <option key={participante.key} value={participante.key}>
+                  {participante.nombre}
+                  {clavesSinDatos.has(participante.key) && ' — sin datos de transferencia'}
+                </option>
+              ))}
+            </select>
+            <span className="mt-1 block text-[11px] text-slate-500">
+              Pisa lo elegido en todas las cuotas de abajo. Después podés cambiar una por una las que
+              cobre otro.
+            </span>
+          </label>
+
+          {cuotasSinDestino.length > 0 && (
+            <p className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-800">
+              {cuotasSinDestino.length === cuotas.length
+                ? 'Ninguna cuota tiene a quién transferirle todavía: el cliente no va a ver ningún alias para pagar.'
+                : `Sin destino todavía: cuota ${cuotasSinDestino.map((cuota) => cuota.numero).join(', ')}. El cliente no va a ver ningún alias para pagar esas.`}
+            </p>
+          )}
+
+          {cuotasConDestinoSinDatos.length > 0 && (
+            <p className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-800">
+              La cuota {cuotasConDestinoSinDatos.map((cuota) => cuota.numero).join(', ')} le toca a
+              alguien que todavía no tiene alias, banco y titular cargados, así que el cliente no va a
+              ver dónde pagarla. Cargale los datos en Usuarios (o en Cuentas externas) y listo.
+            </p>
+          )}
+        </div>
+
+        <div className="overflow-x-auto">
+          <table className="w-full border-collapse text-left text-xs">
+            <thead className={TABLA_CLARA_HEADER}>
+              <tr>
+                <th className="w-36 border-b border-slate-200 px-4 py-3">Cuota y vto.</th>
+                <th className="w-28 border-b border-slate-200 px-4 py-3">Monto</th>
+                <th className="min-w-[26rem] border-b border-slate-200 px-4 py-3">Se reparte entre</th>
+                <th className="w-60 border-b border-slate-200 px-4 py-3">A quién se le transfiere</th>
+                <th className="w-44 border-b border-slate-200 px-4 py-3 text-center">Control de suma</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-slate-200">
+              {cuotas.map((cuota, indiceCuota) => {
+                const filas = distribuciones[cuota.numero] ?? []
+                const control = controlDeSuma(cuota.montoBase, filas)
+                const claveQueCobra = cuentasCobro[cuota.numero] || cuentaCobroDelLote
+                const resumenQueCobra = claveQueCobra ? resumenDe(claveQueCobra) : null
+                const enLaPagina = verTodas || !paginado || (indiceCuota >= desde && indiceCuota < hasta)
+
+                return (
+                  <tr
+                    key={cuota.numero}
+                    data-cuota={cuota.numero}
+                    className={`transition ${FILA_CUOTA_SUMA[control.estado]} ${enLaPagina ? '' : 'hidden'}`}
+                  >
+                    {/* La fecha de vencimiento al lado del número (08/09,
+                        pedido de Nico): esta pantalla se recorre cuota por
+                        cuota decidiendo quién cobra cada una, y sin la fecha
+                        había que salir al detalle del lote para saber de qué
+                        mes se estaba hablando. */}
+                    <td className="px-4 py-2.5 align-top whitespace-nowrap">
+                      <div className="flex items-center gap-2">
+                        <span className={NUMERO_CUOTA_SUMA[control.estado]}>
+                          #{String(cuota.numero).padStart(2, '0')}
+                        </span>
+                        <span className="font-medium text-slate-800 tabular-nums">
+                          {formatearFechaCorta(cuota.fechaVencimiento)}
+                        </span>
+                      </div>
+                    </td>
+                    <td className="px-4 py-2.5 align-top font-mono text-sm font-bold whitespace-nowrap text-slate-900">
+                      {cuota.montoBase} {moneda}
+                    </td>
+                    <td className="px-4 py-2.5 align-top">
+                      <div className="space-y-1.5">
+                        {filas.map((fila, indice) => {
+                          const porcentaje = porcentajeDeLaCuota(cuota.montoBase, fila.monto)
+                          return (
+                            <div
+                              key={fila.id}
+                              className="flex items-center gap-2 rounded-lg border border-slate-200 bg-slate-50 p-1"
+                            >
+                              <SelectorParticipante
+                                name={`cuota${cuota.numero}Participante`}
+                                valor={fila.participanteKey}
+                                onChange={(valor) =>
+                                  modificarFilaCuota(cuota.numero, indice, 'participanteKey', valor)
+                                }
+                                opciones={participantesElegibles}
+                                className="min-w-0 flex-1"
+                              />
+                              {/* El porcentaje se calcula, no se carga: lo que
+                                  se guarda es el monto. */}
+                              <span
+                                className="w-12 shrink-0 rounded border border-slate-200 bg-white px-1.5 py-1 text-right font-mono text-[11px] font-bold text-slate-500"
+                                title="Porcentaje de la cuota"
+                              >
+                                {porcentaje === null ? '—' : `${porcentaje}%`}
+                              </span>
+                              <input
+                                type="number"
+                                step="0.01"
+                                min="0"
+                                placeholder="Monto"
+                                value={fila.monto}
+                                onChange={(evento) =>
+                                  modificarFilaCuota(cuota.numero, indice, 'monto', evento.target.value)
+                                }
+                                name={`cuota${cuota.numero}Monto`}
+                                aria-label={`Monto de la cuota ${cuota.numero}`}
+                                className={`${CAMPO_COMPACTO_SIN_ANCHO} w-24 shrink-0 bg-white text-right font-mono font-bold`}
+                              />
+                              <button
+                                type="button"
+                                onClick={() => quitarFilaCuota(cuota.numero, indice)}
+                                aria-label="Quitar"
+                                title="Quitar integrante"
+                                className="shrink-0 cursor-pointer rounded p-1 text-slate-400 transition hover:text-red-500"
+                              >
+                                <Trash2 className="h-3.5 w-3.5" />
+                              </button>
+                            </div>
+                          )
+                        })}
+                        <button
+                          type="button"
+                          onClick={() => agregarFilaCuota(cuota.numero)}
+                          className={BOTON_AGREGAR_TEXTO}
+                        >
+                          + Agregar participante a esta cuota
+                        </button>
+                      </div>
+                    </td>
+                    <td className="px-4 py-2.5 align-top">
+                      <select
+                        name={`cuota${cuota.numero}CuentaCobro`}
+                        value={cuentasCobro[cuota.numero] ?? ''}
+                        onChange={(evento) =>
+                          setCuentasCobro((anteriores) => ({
+                            ...anteriores,
+                            [cuota.numero]: evento.target.value,
+                          }))
+                        }
+                        aria-label={`A quién se le transfiere la cuota ${cuota.numero}`}
+                        className={`${CAMPO_COMPACTO} bg-white`}
+                      >
+                        {/* Los lotes anteriores al 08/09 pueden tener todavía
+                            una cuenta cargada a nivel lote: se nombra para que
+                            no sea un resguardo invisible. En los nuevos no hay
+                            ninguna y la opción vacía es lisa y llanamente
+                            "sin asignar". */}
+                        <option value="">
+                          {cuentaCobroDelLote
+                            ? `— la cuenta del lote (${nombrePorClave(cuentaCobroDelLote)}) —`
+                            : '— sin asignar —'}
                         </option>
-                      ))}
-                    </select>
-                  </label>
-
-                  {resumenQueCobra ? (
-                    <div className="mt-2 text-xs text-slate-600">
-                      <p className="font-medium text-blue-900">{resumenQueCobra.nombre}</p>
-                      <p className="mt-1">
-                        Le corresponde de este lote: {resumenQueCobra.acumulado} {moneda}
-                      </p>
-                      <p>
-                        Cobra directo (cuotas asignadas): {resumenQueCobra.cobraDirecto} {moneda}
-                      </p>
-                      <p className="mt-1 font-semibold">
-                        {resumenQueCobra.saldoProyectado > 0
-                          ? `Le seguirías debiendo ${resumenQueCobra.saldoProyectado} ${moneda}`
-                          : resumenQueCobra.saldoProyectado < 0
-                            ? `Cobraría de más ${Math.abs(resumenQueCobra.saldoProyectado)} ${moneda}`
-                            : 'Quedarías al día con esta persona'}
-                      </p>
-                      {resumenQueCobra.saldoActual !== 0 && (
-                        <p className="mt-1 text-slate-500">
-                          (incluye su saldo de cuenta corriente de hoy:{' '}
-                          {resumenQueCobra.saldoActual} {moneda})
+                        {participantesElegibles.map((participante) => (
+                          <option key={participante.key} value={participante.key}>
+                            {participante.nombre}
+                            {clavesSinDatos.has(participante.key) && ' — sin datos de transferencia'}
+                          </option>
+                        ))}
+                      </select>
+                      {/* Cómo le queda la cuenta a quien cobra esta cuota,
+                          en una línea: el detalle está en su tarjeta de
+                          arriba. */}
+                      {resumenQueCobra ? (
+                        <p className="mt-1 text-[11px] text-slate-500">
+                          {resumenQueCobra.saldoProyectado > 0
+                            ? `Le seguirías debiendo ${resumenQueCobra.saldoProyectado} ${moneda}`
+                            : resumenQueCobra.saldoProyectado < 0
+                              ? `Cobraría de más ${Math.abs(resumenQueCobra.saldoProyectado)} ${moneda}`
+                              : 'Quedarías al día con esta persona'}
+                        </p>
+                      ) : (
+                        <p className="mt-1 text-[11px] text-amber-700">
+                          Sin destino: el cliente no va a ver dónde pagar esta cuota.
                         </p>
                       )}
-                    </div>
-                  ) : (
-                    <p className="mt-2 text-xs text-slate-500">
-                      Sin destino elegido: el cliente no va a ver ningún alias para pagar esta
-                      cuota.
-                    </p>
-                  )}
-                </div>
-              </div>
-            </div>
-          )
-        })}
-      </div>
-
-      <h2 className={`mb-2 ${TITULO_H2}`}>Resumen del lote</h2>
-      <p className="mb-3 text-sm text-slate-600">
-        &quot;Le corresponde&quot; es lo que suma para esa persona en la distribución de las cuotas.
-        &quot;Cobra directo&quot; es lo que le entra a su cuenta por las cuotas que le asignaste.
-        La tercera columna cruza las dos con el saldo de cuenta corriente que ya tiene hoy.
-      </p>
-      {resumen.length === 0 ? (
-        <p className="mb-6 text-sm text-slate-600">Sin distribución cargada todavía.</p>
-      ) : (
-        <div className={`mb-6 ${TABLA_CONTENEDOR}`}>
-        <table className="w-full text-sm">
-          <thead>
-            <tr className={TABLA_HEADER_FILA}>
-              <th className={TABLA_HEADER_CELDA}>Participante</th>
-              <th className={TABLA_HEADER_CELDA}>Le corresponde</th>
-              <th className={TABLA_HEADER_CELDA}>Cobra directo</th>
-              <th className={TABLA_HEADER_CELDA}>Cómo queda la cuenta</th>
-              <th className={TABLA_HEADER_CELDA}>Objetivo</th>
-            </tr>
-          </thead>
-          <tbody>
-            {resumen.map((fila) => (
-              <tr key={fila.clave} className={TABLA_FILA}>
-                <td className={TABLA_CELDA}>{fila.nombre}</td>
-                <td className={TABLA_CELDA}>
-                  {fila.acumulado} {moneda}
-                </td>
-                <td className={TABLA_CELDA}>
-                  {fila.cobraDirecto} {moneda}
-                </td>
-                <td className={TABLA_CELDA}>
-                  {fila.saldoProyectado > 0
-                    ? `Le debés ${fila.saldoProyectado} ${moneda}`
-                    : fila.saldoProyectado < 0
-                      ? `Cobra de más ${Math.abs(fila.saldoProyectado)} ${moneda}`
-                      : 'Al día'}
-                </td>
-                <td className={TABLA_CELDA}>
-                  {fila.objetivo === null
-                    ? '—'
-                    : fila.acumulado >= fila.objetivo
-                      ? 'Saldado'
-                      : `${fila.acumulado} de ${fila.objetivo}, faltan ${
-                          Math.round((fila.objetivo - fila.acumulado) * 100) / 100
-                        }`}
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+                    </td>
+                    <td className="px-4 py-2.5 text-center align-top">
+                      <span className={PILL_SUMA[control.estado]}>
+                        {textoDelControl(control, cuota.montoBase, moneda)}
+                      </span>
+                      <p className="mt-1 font-mono text-[10px] text-slate-500">
+                        Asignado: {control.repartido} / {cuota.montoBase} {moneda}
+                      </p>
+                    </td>
+                  </tr>
+                )
+              })}
+            </tbody>
+          </table>
         </div>
-      )}
 
-      <BotonEnvio className={`cursor-pointer ${BOTON_PRIMARIO}`}>Guardar distribución</BotonEnvio>
+        <div className="flex flex-wrap items-center justify-between gap-3 border-t border-slate-200 bg-slate-50 p-4 text-xs">
+          <div className="flex flex-wrap items-center gap-3 text-slate-500">
+            {paginado && !verTodas && (
+              <>
+                <span>
+                  Mostrando cuotas {desde + 1}–{hasta} de {cuotas.length}
+                </span>
+                <span className="text-slate-300">|</span>
+              </>
+            )}
+            <span className="font-mono font-semibold text-slate-700">
+              Total repartido: {controlDelLote.repartido} / {sumaDeLasCuotas} {moneda}
+            </span>
+          </div>
+          <div className="flex flex-wrap items-center gap-3">
+            {paginado && !verTodas && (
+              <nav aria-label="Páginas de cuotas" className="flex items-center gap-1">
+                <button
+                  type="button"
+                  disabled={pagina === 0}
+                  onClick={() => irAPagina(pagina - 1)}
+                  className={`${BOTON_CHICO_NEUTRO} cursor-pointer border border-slate-200 bg-white`}
+                >
+                  Anterior
+                </button>
+                {Array.from({ length: cantidadPaginas }, (_, numeroPagina) => (
+                  <button
+                    key={numeroPagina}
+                    type="button"
+                    onClick={() => irAPagina(numeroPagina)}
+                    aria-current={numeroPagina === pagina ? 'page' : undefined}
+                    className={
+                      numeroPagina === pagina
+                        ? 'rounded bg-blue-600 px-2.5 py-1 font-semibold text-white'
+                        : 'cursor-pointer rounded border border-slate-200 bg-white px-2.5 py-1 text-slate-700 hover:bg-slate-100'
+                    }
+                  >
+                    {numeroPagina + 1}
+                  </button>
+                ))}
+                <button
+                  type="button"
+                  disabled={pagina === cantidadPaginas - 1}
+                  onClick={() => irAPagina(pagina + 1)}
+                  className={`${BOTON_CHICO_NEUTRO} cursor-pointer border border-slate-200 bg-white`}
+                >
+                  Siguiente
+                </button>
+              </nav>
+            )}
+            <BotonEnvio className={`cursor-pointer ${BOTON_CHICO_PRIMARIO}`}>Guardar distribución</BotonEnvio>
+          </div>
+        </div>
+      </section>
     </>
   )
 }

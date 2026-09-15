@@ -310,7 +310,7 @@ test.describe('Cuentas externas', () => {
       await page.selectOption('select[name="cuota1CuentaCobro"]', {
         label: `${nombreCuentaExterna} (cuenta externa)`,
       })
-      await page.getByRole('button', { name: 'Guardar distribución' }).click()
+      await page.getByRole('button', { name: 'Guardar distribución' }).first().click()
 
       // Se verifica contra la base y contra lo que ve una persona en
       // pantalla, no contra el `value` del <select>: ese <select> es un
@@ -374,7 +374,7 @@ test.describe('Cuentas externas', () => {
       await page.selectOption('select[name="cuota1CuentaCobro"]', {
         label: `${nombreCuentaExterna} (cuenta externa)`,
       })
-      await page.getByRole('button', { name: 'Guardar distribución' }).click()
+      await page.getByRole('button', { name: 'Guardar distribución' }).first().click()
 
       // Hay que esperar a que el guardado se confirme ANTES de limpiar
       // cookies y cambiar de usuario: si se navega a /login mientras el

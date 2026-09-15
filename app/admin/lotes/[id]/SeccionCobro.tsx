@@ -4,7 +4,13 @@ import { agregarParticipante, quitarParticipante } from './participantes-actions
 import { tieneDatosTransferencia } from '@/lib/lotes/validar-cuenta-cobro'
 import { resolverAdminPorDefecto } from '@/lib/lotes/admin-por-defecto'
 import { BotonEnvio } from '@/components/BotonEnvio'
-import { ENTRADA, BOTON_PRIMARIO, TITULO_H2 } from '@/lib/ui/clases'
+import { Plus, Trash2 } from 'lucide-react'
+import {
+  CAMPO_COMPACTO,
+  ETIQUETA_COMPACTA,
+  BOTON_CHICO_PRIMARIO,
+  BOTON_AGREGAR_PUNTEADO,
+} from '@/lib/ui/clases'
 
 // Quiénes cobran este lote: admin, acreedor, vendedor y los participantes
 // adicionales.
@@ -20,6 +26,11 @@ import { ENTRADA, BOTON_PRIMARIO, TITULO_H2 } from '@/lib/ui/clases'
 // dos mitades de la misma decisión, y tenerlas en pantallas distintas obligaba
 // a ir y volver. Como confirmar la venta ya redirige acá, el admin cae directo
 // en la pantalla donde puede hacer las dos cosas.
+//
+// Desde el 15/09 (mockup 6) se dibuja adentro de la tarjeta "Entre estos se
+// reparte cada cuota", debajo de las fichas de los integrantes: arriba se ve
+// quiénes son y acá abajo se cambian. Los formularios y sus campos son los
+// mismos de antes.
 //
 // Carga sus propios datos en vez de recibirlos por props: son ocho consultas
 // que solo usa este bloque, y pasarlas desde la página que lo dibuja fue lo
@@ -127,102 +138,106 @@ export async function SeccionCobro({ loteId }: { loteId: string }) {
   const actualizarCobroConId = actualizarCobro.bind(null, loteId)
   const agregarParticipanteConId = agregarParticipante.bind(null, loteId)
 
-  return (
-    <section className="mb-8 max-w-3xl">
-      <h2 className={`mb-2 ${TITULO_H2}`}>Cobro</h2>
-      <p className="mb-3 text-sm text-slate-600">
-        Asigná quiénes son el admin, el acreedor y el vendedor de este lote. Los que sumes acá son
-        los únicos entre los que después vas a poder repartir cada cuota, y los únicos a los que vas
-        a poder mandarle una cuota a cobrar, más abajo.
-      </p>
+  function sinDatos(persona: { alias: string | null; banco: string | null; titular: string | null }) {
+    return !tieneDatosTransferencia({
+      alias: persona.alias,
+      banco: persona.banco,
+      titular: persona.titular,
+    })
+  }
 
-      <form action={actualizarCobroConId} className="flex flex-col gap-3">
-        <label className="text-sm">
-          Admin
-          <select
-            name="adminId"
-            defaultValue={adminPorDefecto ?? ''}
-            className={`${ENTRADA} w-full`}
-          >
-            <option value="">— sin asignar —</option>
-            {administradores.map((persona) => (
-              <option key={persona.id} value={persona.id}>
-                {persona.full_name}
-                {!tieneDatosTransferencia({
-                  alias: persona.alias,
-                  banco: persona.banco,
-                  titular: persona.titular,
-                }) && ' — sin datos de transferencia'}
-              </option>
-            ))}
-          </select>
-        </label>
-        <label className="text-sm">
-          Acreedor
-          <select
-            name="acreedorId"
-            defaultValue={lote.acreedor_id ?? ''}
-            className={`${ENTRADA} w-full`}
-          >
-            <option value="">— sin asignar —</option>
-            {acreedores.map((persona) => (
-              <option key={persona.id} value={persona.id}>
-                {persona.full_name}
-                {!tieneDatosTransferencia({
-                  alias: persona.alias,
-                  banco: persona.banco,
-                  titular: persona.titular,
-                }) && ' — sin datos de transferencia'}
-              </option>
-            ))}
-          </select>
-        </label>
-        <label className="text-sm">
-          Vendedor
-          <select
-            name="vendedorId"
-            defaultValue={lote.vendedor_id ?? ''}
-            className={`${ENTRADA} w-full`}
-          >
-            <option value="">— sin asignar —</option>
-            {vendedores.map((persona) => (
-              <option key={persona.id} value={persona.id}>
-                {persona.full_name}
-                {!tieneDatosTransferencia({
-                  alias: persona.alias,
-                  banco: persona.banco,
-                  titular: persona.titular,
-                }) && ' — sin datos de transferencia'}
-              </option>
-            ))}
-          </select>
-        </label>
-        <BotonEnvio className={`cursor-pointer self-start ${BOTON_PRIMARIO}`}>
-          Guardar cobro
-        </BotonEnvio>
+  return (
+    <div className="mt-4 grid gap-4 border-t border-slate-100 pt-4 lg:grid-cols-2">
+      <form action={actualizarCobroConId} className="space-y-3">
+        <div>
+          <p className="text-xs font-bold text-slate-800">Roles del lote</p>
+          <p className="text-[11px] text-slate-500">
+            Quién es el admin, el acreedor y el vendedor. Junto con los participantes de al lado,
+            son los únicos entre los que se reparte cada cuota.
+          </p>
+        </div>
+        <div className="grid gap-2 sm:grid-cols-3">
+          <label className="block">
+            <span className={ETIQUETA_COMPACTA}>Admin</span>
+            <select name="adminId" defaultValue={adminPorDefecto ?? ''} className={`${CAMPO_COMPACTO} bg-white`}>
+              <option value="">— sin asignar —</option>
+              {administradores.map((persona) => (
+                <option key={persona.id} value={persona.id}>
+                  {persona.full_name}
+                  {sinDatos(persona) && ' — sin datos de transferencia'}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label className="block">
+            <span className={ETIQUETA_COMPACTA}>Acreedor</span>
+            <select
+              name="acreedorId"
+              defaultValue={lote.acreedor_id ?? ''}
+              className={`${CAMPO_COMPACTO} bg-white`}
+            >
+              <option value="">— sin asignar —</option>
+              {acreedores.map((persona) => (
+                <option key={persona.id} value={persona.id}>
+                  {persona.full_name}
+                  {sinDatos(persona) && ' — sin datos de transferencia'}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label className="block">
+            <span className={ETIQUETA_COMPACTA}>Vendedor</span>
+            <select
+              name="vendedorId"
+              defaultValue={lote.vendedor_id ?? ''}
+              className={`${CAMPO_COMPACTO} bg-white`}
+            >
+              <option value="">— sin asignar —</option>
+              {vendedores.map((persona) => (
+                <option key={persona.id} value={persona.id}>
+                  {persona.full_name}
+                  {sinDatos(persona) && ' — sin datos de transferencia'}
+                </option>
+              ))}
+            </select>
+          </label>
+        </div>
+        <BotonEnvio className={`cursor-pointer ${BOTON_CHICO_PRIMARIO}`}>Guardar cobro</BotonEnvio>
       </form>
 
-      {/* Va pegado debajo de los roles, listando en una línea quién más
-          participa; el formulario aparece recién al apretar el "+" (antes
-          era un bloque aparte explicado en largo, que hacía ruido). */}
-      <div className="mt-4 border-t border-blue-100 pt-4">
-        <p className="text-sm font-medium text-blue-900">Otros participantes del cobro</p>
+      <div className="space-y-2">
+        <div>
+          <p className="text-xs font-bold text-slate-800">Otros participantes del cobro</p>
+          <p className="text-[11px] text-slate-500">
+            Gente que comparte la comisión de este lote sin ser el admin, el acreedor ni el vendedor
+            principal (ej. un segundo vendedor).
+          </p>
+        </div>
         {(participantes ?? []).length === 0 ? (
-          <p className="mt-1 text-sm text-slate-600">Ninguno.</p>
+          <p className="text-xs text-slate-500">Ninguno.</p>
         ) : (
           // Ancla estable para los tests: desde que esta sección comparte
-          // pantalla con el reparto por cuota hay más de una <ul> con los
+          // pantalla con el reparto por cuota hay más de una lista con los
           // mismos nombres adentro (misma convención que tarjeta-pago).
-          <ul data-testid="participantes-del-lote" className="mt-2 flex flex-col gap-1">
+          <ul data-testid="participantes-del-lote" className="flex flex-wrap gap-2">
             {participantes!.map((participante) => (
-              <li key={participante.id} className="flex items-center justify-between text-sm">
-                <span>
+              <li
+                key={participante.id}
+                className="flex items-center gap-2 rounded-lg border border-slate-200 bg-slate-50 py-1 pr-1 pl-3 text-xs"
+              >
+                <span className="font-semibold text-slate-800">
                   {nombreParticipante(participante)}
-                  {participante.etiqueta && ` — ${participante.etiqueta}`}
+                  {participante.etiqueta && (
+                    <span className="font-normal text-slate-500"> — {participante.etiqueta}</span>
+                  )}
                 </span>
                 <form action={quitarParticipante.bind(null, loteId, participante.id)}>
-                  <BotonEnvio className="cursor-pointer text-red-700 underline-offset-2 hover:underline">
-                    Quitar
+                  <BotonEnvio
+                    className="cursor-pointer rounded-md p-1 text-slate-400 transition hover:bg-rose-50 hover:text-rose-600"
+                    aria-label="Quitar"
+                    title="Quitar del lote"
+                  >
+                    <Trash2 className="h-3.5 w-3.5" />
                   </BotonEnvio>
                 </form>
               </li>
@@ -230,19 +245,18 @@ export async function SeccionCobro({ loteId }: { loteId: string }) {
           </ul>
         )}
 
-        <details className="mt-3">
-          <summary className="cursor-pointer select-none text-sm font-medium text-blue-800 underline-offset-4 hover:underline">
-            + Agregar participante al lote
+        <details className="group">
+          <summary className={BOTON_AGREGAR_PUNTEADO}>
+            <Plus className="h-4 w-4" aria-hidden="true" />
+            <span>+ Agregar participante al lote</span>
           </summary>
-          <p className="mt-2 text-xs text-slate-500">
-            Gente que comparte la comisión de este lote sin ser el admin, el acreedor ni el vendedor
-            principal (ej. un segundo vendedor). Cuánto cobra cada uno se carga cuota por cuota,
-            acá abajo.
-          </p>
-          <form action={agregarParticipanteConId} className="mt-2 flex max-w-sm flex-col gap-3">
-            <label className="text-sm">
-              Quién
-              <select name="participanteId" className={`${ENTRADA} w-full`}>
+          <form
+            action={agregarParticipanteConId}
+            className="mt-2 grid max-w-md gap-2 rounded-lg border border-slate-200 bg-slate-50 p-3 sm:grid-cols-2"
+          >
+            <label className="block">
+              <span className={ETIQUETA_COMPACTA}>Quién</span>
+              <select name="participanteId" className={`${CAMPO_COMPACTO} bg-white`}>
                 <option value="">— elegir —</option>
                 {participantesElegibles.map((persona) => (
                   <option key={persona.id} value={persona.id}>
@@ -256,16 +270,16 @@ export async function SeccionCobro({ loteId }: { loteId: string }) {
                 ))}
               </select>
             </label>
-            <label className="text-sm">
-              Etiqueta (opcional)
-              <input name="etiqueta" placeholder="Ej: Vendedor 2" className={`${ENTRADA} w-full`} />
+            <label className="block">
+              <span className={ETIQUETA_COMPACTA}>Etiqueta (opcional)</span>
+              <input name="etiqueta" placeholder="Ej: Vendedor 2" className={`${CAMPO_COMPACTO} bg-white`} />
             </label>
-            <BotonEnvio className={`cursor-pointer self-start ${BOTON_PRIMARIO}`}>
-              Agregar al lote
-            </BotonEnvio>
+            <div className="sm:col-span-2">
+              <BotonEnvio className={`cursor-pointer ${BOTON_CHICO_PRIMARIO}`}>Agregar al lote</BotonEnvio>
+            </div>
           </form>
         </details>
       </div>
-    </section>
+    </div>
   )
 }
