@@ -119,7 +119,13 @@ export function AdminShell({
           </div>
         </div>
 
-        <div className="flex-1 overflow-y-auto p-6">{children}</div>
+        {/* `relative` no es decorativo (15/09, espacio vacío en Loteos): sin
+            él, un elemento `absolute` de la página (los textos `sr-only` de
+            las tablas) toma como referencia la ventana y no este contenedor.
+            No se mueve con el scroll de acá adentro y estira la página
+            entera: aparecía un segundo scroll con espacio en blanco abajo de
+            todo. */}
+        <div className="relative flex-1 overflow-y-auto p-6">{children}</div>
       </div>
     </div>
   )

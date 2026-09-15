@@ -98,6 +98,99 @@ test.describe('Loteos', () => {
     await admin.from('loteos').delete().eq('id', loteoDestino.id)
   })
 
+  test('el buscador de loteos filtra la lista por nombre sin acentos y no pisa los filtros de reasignar', async ({
+    page,
+  }) => {
+    const admin = createAdminClient()
+    const marca = Date.now()
+    const nombreNorte = `E2E Buscar Nórte ${marca}`
+    const nombreSur = `E2E Buscar Sur ${marca}`
+    const { data: loteosCreados } = await admin
+      .from('loteos')
+      .insert([{ nombre: nombreNorte }, { nombre: nombreSur }])
+      .select('id')
+
+    try {
+      await login(page, fixtures.admin.email, fixtures.password)
+      await page.goto('/admin/loteos?ubicacion=E2E-ubicacion-que-queda')
+
+      // Sin acento y en minúsculas: tiene que encontrar "Nórte" igual.
+      await page.locator('input[name="loteo"]').fill(`buscar norte ${marca}`)
+      await expect(page).toHaveURL(/loteo=buscar/)
+
+      const listado = page.locator('table').first()
+      await expect(listado.getByText(nombreNorte)).toBeVisible()
+      await expect(listado.getByText(nombreSur)).toHaveCount(0)
+      await expect(listado.getByText('— sin loteo asignado —')).toHaveCount(0)
+      await expect(page.getByTestId('cantidad-loteos-listados')).toContainText('1 de')
+
+      // El filtro de ubicación de la tabla de reasignar sigue en la URL.
+      expect(new URL(page.url()).searchParams.get('ubicacion')).toBe('E2E-ubicacion-que-queda')
+      await expect(page.locator('input[name="ubicacion"]')).toHaveValue('E2E-ubicacion-que-queda')
+
+      await page.locator('input[name="loteo"]').fill(`ningun loteo se llama asi ${marca}`)
+      await expect(listado.getByText(/Ningún loteo tiene/)).toBeVisible()
+    } finally {
+      await admin.from('loteos').delete().in('id', (loteosCreados ?? []).map((loteo) => loteo.id))
+    }
+  })
+
+  test('la casilla del encabezado marca y desmarca todos los lotes, y mover se lleva a todos', async ({ page }) => {
+    const admin = createAdminClient()
+    const marca = Date.now()
+    const ubicacionUnica = `E2E Marcar Todos ${marca}`
+
+    const { data: loteoDestino } = await admin
+      .from('loteos')
+      .insert({ nombre: `E2E Loteo Marcar Todos ${marca}` })
+      .select('id')
+      .single()
+    const { data: lotes } = await admin
+      .from('lotes')
+      .insert(
+        [1, 2, 3].map((numero) => ({
+          identificador: `E2E Marcar Todos ${numero} ${marca}`,
+          moneda: 'USD',
+          estado: 'disponible',
+          ubicacion: ubicacionUnica,
+          acreedor_id: fixtures.acreedorConDatos.id,
+        }))
+      )
+      .select('id')
+    const loteIds = (lotes ?? []).map((lote) => lote.id)
+
+    try {
+      await login(page, fixtures.admin.email, fixtures.password)
+      await page.goto(`/admin/loteos?ubicacion=${encodeURIComponent(ubicacionUnica)}`)
+
+      const casillas = page.locator('input[name="loteIds"]')
+      const marcarTodos = page.getByRole('checkbox', { name: 'Marcar todos los lotes de la tabla' })
+      await expect(casillas).toHaveCount(3)
+
+      await marcarTodos.check()
+      for (let i = 0; i < 3; i++) await expect(casillas.nth(i)).toBeChecked()
+
+      // Una fila desmarcada deja la casilla general a medias.
+      await casillas.nth(1).uncheck()
+      await expect(marcarTodos).not.toBeChecked()
+      expect(await marcarTodos.evaluate((casilla) => (casilla as HTMLInputElement).indeterminate)).toBe(true)
+
+      await marcarTodos.uncheck()
+      await marcarTodos.check()
+      for (let i = 0; i < 3; i++) await expect(casillas.nth(i)).toBeChecked()
+
+      await page.locator('select[name="loteoDestino"]').selectOption(loteoDestino!.id)
+      await page.getByRole('button', { name: 'Mover seleccionados' }).click()
+      await expect(page.getByText(/3 lote\(s\) reasignado\(s\) correctamente/)).toBeVisible()
+
+      const { data: movidos } = await admin.from('lotes').select('loteo_id').in('id', loteIds)
+      expect((movidos ?? []).map((lote) => lote.loteo_id)).toEqual([loteoDestino!.id, loteoDestino!.id, loteoDestino!.id])
+    } finally {
+      await admin.from('lotes').delete().in('id', loteIds)
+      await admin.from('loteos').delete().eq('id', loteoDestino!.id)
+    }
+  })
+
   test('filtrar por "sin loteo asignado" muestra solo esos lotes', async ({ page }) => {
     const admin = createAdminClient()
 

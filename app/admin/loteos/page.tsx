@@ -3,11 +3,13 @@ import { createAdminClient } from '@/lib/supabase/admin'
 import { requireAdministrador } from '@/lib/auth/require-admin'
 import { traerTodasLasFilas } from '@/lib/supabase/traer-todas-las-filas'
 import { actualizarLoteo, crearLoteo, reasignarLotesEnBloque, subirPlantillaContrato } from './actions'
+import { filtrarLoteosPorNombre } from '@/lib/loteos/filtrar-loteos'
 import { FiltroEnVivo } from '@/components/FiltroEnVivo'
 import { CampoArchivoDirecto } from '@/components/CampoArchivoDirecto'
+import { CasillaMarcarTodos } from '@/components/CasillaMarcarTodos'
 import { EnlaceBoton } from '@/components/EnlaceBoton'
 import { BotonEnvio } from '@/components/BotonEnvio'
-import { ArrowDown, ArrowLeftRight, Eye, FileText, LayoutGrid, Plus } from 'lucide-react'
+import { ArrowDown, ArrowLeftRight, Eye, FileText, LayoutGrid, Plus, Search } from 'lucide-react'
 import {
   BANNER_ERROR,
   BANNER_OK,
@@ -39,17 +41,18 @@ import {
 
 // Loteos (15/09, mockup 5 de Stitch). Del mockup se tomo el diseño y nada
 // mas, como pidio Gabriel el 09/09 ("no agregues cosas de funcionamiento que
-// no hayamos diseñado"). Quedaron afuera, a proposito, cuatro cosas que el
-// mockup dibuja y la pantalla no hace: el buscador de loteos por nombre, la
-// ubicacion debajo de cada loteo (un loteo no tiene ubicacion), la casilla
-// para marcar todos los lotes y la opcion "quitar asignacion" al mover.
-// Ver design-system/mockups/stitch-2026-09/README.md.
+// no hayamos diseñado"). De lo que el mockup dibujaba y la pantalla no hacia,
+// Gabriel pidio el mismo 15/09 el buscador de loteos por nombre y la casilla
+// para marcar todos los lotes. Siguen afuera la ubicacion debajo de cada
+// loteo (dijo que no) y la opcion "quitar asignacion" al mover (a
+// confirmar). Ver design-system/mockups/stitch-2026-09/README.md.
 export default async function LoteosPage({
   searchParams,
 }: {
   searchParams: Promise<{
     error?: string
     ok?: string
+    loteo?: string
     q?: string
     ubicacion?: string
     moneda?: string
@@ -60,6 +63,7 @@ export default async function LoteosPage({
   const {
     error,
     ok,
+    loteo: buscarLoteo,
     q: filtroTexto,
     ubicacion: filtroUbicacion,
     moneda: filtroMoneda,
@@ -142,6 +146,15 @@ export default async function LoteosPage({
   const cantidadLoteos = (loteos ?? []).length
   const hayFiltros = Boolean(filtroTexto || filtroUbicacion || filtroMoneda || loteoActual)
 
+  // El buscador achica solo la tabla de loteos. Los desplegables de abajo
+  // ("Loteo actual", "Mover los seleccionados a") siguen con todos.
+  const loteosVisibles = filtrarLoteosPorNombre(loteos ?? [], buscarLoteo)
+  const buscandoLoteo = Boolean(buscarLoteo?.trim())
+
+  // Los dos filtros de la pantalla viven en la misma URL: cada uno conserva
+  // lo del otro al aplicarse (ver FiltroEnVivo).
+  const PARAMETROS_DE_REASIGNAR = ['q', 'ubicacion', 'moneda', 'loteoActual']
+
   return (
     <main className="space-y-6">
       {/* Cabecera del modulo: icono, titulo, para que sirve la pantalla y,
@@ -182,9 +195,27 @@ export default async function LoteosPage({
         </p>
       )}
 
-      {/* Crear un loteo. En el mockup comparte la barra con un buscador de
-          loteos que la pantalla no tiene: ver el comentario de arriba. */}
-      <div className="rounded-2xl border border-slate-200/80 bg-white p-4 shadow-sm">
+      {/* Buscar un loteo a la izquierda y crear uno a la derecha, en la misma
+          barra, como el mockup. Son dos formularios: el buscador filtra en
+          vivo por la URL y el de crear es un POST. */}
+      <div className="flex flex-col gap-3 rounded-2xl border border-slate-200/80 bg-white p-4 shadow-sm md:flex-row md:items-center md:justify-between">
+        <FiltroEnVivo conservar={PARAMETROS_DE_REASIGNAR} className="relative w-full md:max-w-sm">
+          <label className="sr-only" htmlFor="buscar-loteo">
+            Buscar loteo por nombre
+          </label>
+          <Search
+            className="pointer-events-none absolute top-1/2 left-2.5 h-3.5 w-3.5 -translate-y-1/2 text-slate-400"
+            aria-hidden="true"
+          />
+          <input
+            id="buscar-loteo"
+            name="loteo"
+            type="search"
+            placeholder="Buscar loteo por nombre..."
+            defaultValue={buscarLoteo ?? ''}
+            className={`${CAMPO_COMPACTO} pl-8`}
+          />
+        </FiltroEnVivo>
         <form
           action={crearLoteo}
           data-testid="crear-loteo"
@@ -213,7 +244,11 @@ export default async function LoteosPage({
           <h2 className="text-xs font-bold tracking-wider text-slate-800 uppercase">
             Listado de desarrollos y loteos
           </h2>
-          <span className="rounded-full bg-blue-100 px-2 py-0.5 text-[10px] font-bold text-blue-800">
+          <span
+            data-testid="cantidad-loteos-listados"
+            className="rounded-full bg-blue-100 px-2 py-0.5 text-[10px] font-bold text-blue-800"
+          >
+            {buscandoLoteo && `${loteosVisibles.length} de `}
             {cantidadLoteos} {cantidadLoteos === 1 ? 'loteo' : 'loteos'}
           </span>
         </div>
@@ -229,7 +264,14 @@ export default async function LoteosPage({
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
-              {(loteos ?? []).map((loteo) => {
+              {buscandoLoteo && loteosVisibles.length === 0 && (
+                <tr>
+                  <td colSpan={5} className="px-4 py-3.5 text-sm text-slate-600">
+                    Ningún loteo tiene &quot;{buscarLoteo?.trim()}&quot; en el nombre.
+                  </td>
+                </tr>
+              )}
+              {loteosVisibles.map((loteo) => {
                 const cantidad = cantidadPorLoteoId.get(loteo.id) ?? 0
                 const verSusLotes = `/admin/loteos?loteoActual=${loteo.id}#lotes-filtrados`
                 return (
@@ -323,6 +365,9 @@ export default async function LoteosPage({
                   </tr>
                 )
               })}
+              {/* Mientras se busca un loteo, la fila "sin loteo" no es un
+                  resultado: se esconde para que queden solo los que coinciden. */}
+              {!buscandoLoteo && (
               <tr className="bg-slate-50/50 transition hover:bg-slate-100/60">
                 <td className="px-4 py-3.5">
                   <div className="flex items-center gap-2">
@@ -362,6 +407,7 @@ export default async function LoteosPage({
                   </EnlaceBoton>
                 </td>
               </tr>
+              )}
             </tbody>
           </table>
         </div>
@@ -384,7 +430,10 @@ export default async function LoteosPage({
           </span>
         </div>
 
-        <FiltroEnVivo className="grid grid-cols-1 gap-3 rounded-lg border border-slate-100 bg-slate-50 p-3 sm:grid-cols-2 lg:grid-cols-4">
+        <FiltroEnVivo
+          conservar={['loteo']}
+          className="grid grid-cols-1 gap-3 rounded-lg border border-slate-100 bg-slate-50 p-3 sm:grid-cols-2 lg:grid-cols-4"
+        >
           <label className="block">
             <span className={ETIQUETA_COMPACTA}>Identificador</span>
             <input
@@ -436,7 +485,14 @@ export default async function LoteosPage({
               Filtrar
             </button>
             {hayFiltros && (
-              <EnlaceBoton href="/admin/loteos#lotes-filtrados" className={`text-xs ${ENLACE}`}>
+              <EnlaceBoton
+                href={
+                  buscandoLoteo
+                    ? `/admin/loteos?loteo=${encodeURIComponent(buscarLoteo!.trim())}#lotes-filtrados`
+                    : '/admin/loteos#lotes-filtrados'
+                }
+                className={`text-xs ${ENLACE}`}
+              >
                 Limpiar filtros
               </EnlaceBoton>
             )}
@@ -468,7 +524,11 @@ export default async function LoteosPage({
               <thead className={TABLA_CLARA_HEADER}>
                 <tr>
                   <th className={`${TABLA_CLARA_TH} w-10 text-center`}>
-                    <span className="sr-only">Seleccionar</span>
+                    <CasillaMarcarTodos
+                      nombre="loteIds"
+                      etiqueta="Marcar todos los lotes de la tabla"
+                      className="h-4 w-4 cursor-pointer rounded border-slate-300 align-middle accent-blue-600 disabled:cursor-not-allowed"
+                    />
                   </th>
                   <th className={TABLA_CLARA_TH}>Identificador de lote</th>
                   <th className={TABLA_CLARA_TH}>Ubicación</th>

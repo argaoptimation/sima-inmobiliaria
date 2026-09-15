@@ -64,14 +64,19 @@ Clases nuevas en `lib/ui/clases.ts`, bloque "MOCKUP 5 (loteos) y 6": cabecera de
 módulo, controles compactos de 12px, tabla de encabezado oscuro y tabla de
 encabezado claro.
 
-**Lo que el mockup dibuja y la pantalla no hace** (quedó afuera, a preguntar):
+**Lo que el mockup dibuja y la pantalla no hacía** — respuestas de Gabriel (15/09):
 
-- **Buscador de loteos por nombre** arriba del listado.
-- **Ubicación debajo del nombre de cada loteo** ("Villa Allende, Córdoba"): un
-  loteo no tiene ubicación; la tienen sus lotes.
-- **Casilla para marcar todos los lotes** en la tabla de reasignar.
-- **"Quitar asignación (sin loteo)"** como destino al mover: hoy mover exige
-  elegir un loteo.
+- **Buscador de loteos por nombre** arriba del listado: **sí, hecho** (15/09).
+  Filtra sin acentos ni mayúsculas y no pisa los filtros de reasignar (los dos
+  viven en la URL: `FiltroEnVivo` tiene `conservar`).
+- **Casilla para marcar todos los lotes** en la tabla de reasignar: **sí,
+  hecho** (15/09, `components/CasillaMarcarTodos.tsx`). Queda a medias si hay
+  algunas marcadas.
+- **Ubicación debajo del nombre de cada loteo** ("Villa Allende, Córdoba"):
+  **no**. Un loteo no tiene ubicación; la tienen sus lotes.
+- **"Quitar asignación (sin loteo)"** como destino al mover: a confirmar (se
+  le explicó qué es). Hoy mover exige elegir un loteo, así que un lote puesto
+  por error en un loteo no puede volver a "sin loteo".
 - **"Actualizado hace 5 min"** en el listado.
 
 **Desvíos de diseño:**
