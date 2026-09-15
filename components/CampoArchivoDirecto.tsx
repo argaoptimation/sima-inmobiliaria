@@ -141,7 +141,11 @@ export function CampoArchivoDirecto({
       onChange={(e) => manejarSeleccion(e.target.files?.[0] ?? null)}
       className={
         compacto
-          ? 'text-xs file:mr-2 file:cursor-pointer file:rounded file:border-0 file:bg-blue-800 file:px-2 file:py-1 file:text-xs file:font-semibold file:text-white disabled:cursor-wait'
+          ? // `text-[0px]` esconde el "Ningún archivo seleccionado" del
+            // navegador (15/09, mockup 5): en una celda de tabla empujaba el
+            // boton de subir a otro renglon, y el nombre del archivo elegido
+            // ya lo muestra `estado` al lado.
+            'w-auto max-w-full text-[0px] file:cursor-pointer file:rounded-lg file:border file:border-slate-200 file:bg-white file:px-2.5 file:py-1 file:text-[11px] file:font-semibold file:text-slate-700 hover:file:bg-slate-50 disabled:cursor-wait'
           : 'mt-3 block w-full text-sm text-blue-900 file:mr-3 file:cursor-pointer file:rounded-lg file:border-0 file:bg-blue-800 file:px-4 file:py-2 file:text-sm file:font-semibold file:text-white file:transition-colors hover:file:bg-blue-900 disabled:cursor-wait'
       }
     />

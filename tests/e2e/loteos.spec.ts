@@ -14,8 +14,8 @@ test.describe('Loteos', () => {
 
     await login(page, fixtures.admin.email, fixtures.password)
     await page.goto('/admin/loteos')
-    await page.getByPlaceholder('Ej: Loteo San Martín').fill(nombreLoteo)
-    await page.getByRole('button', { name: 'Crear loteo' }).click()
+    await page.getByTestId('crear-loteo').locator('input[name="nombre"]').fill(nombreLoteo)
+    await page.getByRole('button', { name: 'Crear nuevo loteo' }).click()
     await page.waitForURL('**/admin/loteos')
 
     await expect(page.locator('tbody').getByText(nombreLoteo)).toBeVisible()

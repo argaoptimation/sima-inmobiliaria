@@ -544,3 +544,122 @@ export const CHIP_ARCHIVO =
   'inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-xs font-semibold text-blue-700 transition-colors hover:border-blue-300 hover:bg-blue-50'
 export const CHIP_ARCHIVO_VACIO =
   'inline-flex items-center gap-1.5 rounded-lg border border-dashed border-slate-200 bg-slate-50 px-2.5 py-1.5 text-xs font-medium text-slate-400'
+
+// ---------------------------------------------------------------------------
+// Rediseno Stitch 2026-09 -- MOCKUP 5 (loteos) y 6 (distribucion de cuotas)
+//
+// Salen del code.html de cada mockup (15/09). Son pantallas de trabajo con
+// muchos controles por fila, asi que el mockup baja todo a 12px: campos,
+// botones y encabezados de tabla mas chicos que en el detalle del lote.
+// ---------------------------------------------------------------------------
+
+// Cabecera de modulo: icono azul lleno, titulo, una bajada que dice para que
+// sirve la pantalla y, a la derecha, un resumen en numeros.
+export const CABECERA_MODULO_ICONO =
+  'flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-blue-600 text-white shadow-sm shadow-blue-600/30'
+export const CABECERA_MODULO_TITULO = 'font-heading text-2xl font-bold tracking-tight text-slate-900'
+export const CABECERA_MODULO_BAJADA = 'max-w-3xl text-xs text-slate-500'
+export const CABECERA_MODULO_RESUMEN =
+  'flex w-fit items-center gap-2 rounded-xl border border-blue-200 bg-blue-50 px-3.5 py-2 text-xs font-medium text-blue-800 tabular-nums'
+
+// Controles compactos (12px) para barras de filtro y celdas de tabla.
+export const CAMPO_COMPACTO =
+  'w-full rounded-lg border border-slate-200 bg-slate-50/80 px-2.5 py-1.5 text-xs text-slate-700 transition placeholder:text-slate-400 focus:border-blue-600 focus:ring-2 focus:ring-blue-600/20 focus:outline-none'
+export const ETIQUETA_COMPACTA = 'mb-1 block text-[10px] font-bold tracking-wide text-slate-500 uppercase'
+export const BOTON_CHICO_PRIMARIO =
+  'inline-flex items-center gap-1.5 rounded-lg bg-blue-600 px-4 py-2 text-xs font-semibold whitespace-nowrap text-white shadow-xs transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-60'
+export const BOTON_CHICO_NEUTRO =
+  'inline-flex items-center gap-1.5 rounded-lg bg-slate-100 px-2.5 py-1 text-[11px] font-semibold whitespace-nowrap text-slate-700 transition hover:bg-slate-200 disabled:cursor-not-allowed disabled:opacity-60'
+export const BOTON_CHICO_AZUL_SUAVE =
+  'inline-flex items-center gap-1.5 rounded-lg bg-blue-50 px-2.5 py-1 text-[11px] font-semibold whitespace-nowrap text-blue-700 transition hover:bg-blue-100 disabled:cursor-not-allowed disabled:opacity-60'
+export const BOTON_ICONO_AZUL =
+  'inline-flex items-center justify-center rounded-lg p-1.5 text-blue-600 transition hover:bg-blue-50 hover:text-blue-800'
+
+// Tabla con encabezado oscuro (el color de la barra lateral): la de los
+// loteos, que es el listado principal de la pantalla.
+export const TABLA_OSCURA_HEADER = 'bg-[#0d1527] text-[11px] font-semibold tracking-wider text-slate-200 uppercase'
+export const TABLA_OSCURA_TH = 'border-b border-slate-800 px-4 py-3'
+// Tabla con encabezado claro: las que viven adentro de un panel (reasignar,
+// la matriz de distribucion), para no competir con el listado de arriba.
+export const TABLA_CLARA_HEADER = 'bg-slate-50 text-[11px] font-semibold tracking-wider text-slate-600 uppercase'
+export const TABLA_CLARA_TH = 'border-b border-slate-200 px-3 py-2.5'
+export const TABLA_COMPACTA_TD = 'px-3 py-2.5'
+
+// "84 lotes": la cantidad como pastilla, azul, o ambar cuando son lotes que
+// estan esperando que se les asigne un loteo.
+export const CONTADOR_LOTES =
+  'inline-flex items-center rounded-full border border-blue-200 bg-blue-50 px-2.5 py-1 text-xs font-bold text-blue-700 tabular-nums'
+export const CONTADOR_LOTES_PENDIENTES =
+  'inline-flex items-center rounded-full border border-amber-200 bg-amber-100 px-2.5 py-1 text-xs font-bold text-amber-800 tabular-nums'
+
+// La distribucion se lee como pasos numerados: 1 quienes cobran, 2 como se
+// reparte cada cuota.
+export const PASO_NUMERO =
+  'flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-blue-100 text-xs font-bold text-blue-700'
+export const PASO_TITULO = 'text-sm font-bold tracking-tight text-slate-900'
+export const PASO_BAJADA = 'text-xs text-slate-500'
+
+// "+ Agregar ...": borde punteado, porque agrega algo que todavia no esta.
+export const BOTON_AGREGAR_PUNTEADO =
+  'inline-flex w-fit cursor-pointer list-none items-center gap-1.5 rounded-lg border border-dashed border-blue-300 bg-white px-3.5 py-2 text-xs font-semibold text-blue-600 shadow-2xs transition select-none hover:bg-blue-50 hover:text-blue-800 [&::-webkit-details-marker]:hidden'
+export const BOTON_AGREGAR_TEXTO =
+  'inline-flex w-fit cursor-pointer items-center gap-1 rounded px-1.5 py-0.5 text-[11px] font-bold text-blue-600 transition hover:bg-blue-50 hover:text-blue-800'
+
+// Ficha de cada integrante del lote. El color dice el papel, igual que en
+// el mockup: admin gris, acreedor azul, vendedor indigo, el resto violeta.
+export const FICHA_INTEGRANTE: Record<string, { ficha: string; avatar: string; papel: string }> = {
+  admin: {
+    ficha: 'border-slate-200 bg-slate-50',
+    avatar: 'bg-slate-200 text-slate-700',
+    papel: 'border-slate-200 bg-white text-slate-600',
+  },
+  acreedor: {
+    ficha: 'border-blue-200 bg-blue-50/50',
+    avatar: 'bg-blue-600 text-white',
+    papel: 'border-blue-200 bg-blue-100/70 text-blue-700',
+  },
+  vendedor: {
+    ficha: 'border-indigo-200 bg-indigo-50/40',
+    avatar: 'bg-indigo-600 text-white',
+    papel: 'border-indigo-200 bg-indigo-100 text-indigo-700',
+  },
+  otro: {
+    ficha: 'border-violet-200 bg-violet-50/40',
+    avatar: 'bg-violet-600 text-white',
+    papel: 'border-violet-200 bg-violet-100 text-violet-700',
+  },
+}
+
+// Control de suma de cada cuota: verde repartida entera, ambar falta,
+// rojo de mas, gris sin repartir. El numero de la cuota toma el mismo color
+// para que la columna se pueda recorrer de un vistazo.
+const PILL_SUMA_BASE =
+  'inline-flex items-center gap-1 rounded-full border px-2.5 py-1 text-[11px] font-bold whitespace-nowrap shadow-2xs'
+export const PILL_SUMA = {
+  completa: `${PILL_SUMA_BASE} border-emerald-200 bg-emerald-50 text-emerald-700`,
+  falta: `${PILL_SUMA_BASE} border-amber-200 bg-amber-100 text-amber-800`,
+  excedida: `${PILL_SUMA_BASE} border-red-200 bg-red-100 text-red-700`,
+  sin_repartir: `${PILL_SUMA_BASE} border-slate-200 bg-slate-100 text-slate-600`,
+}
+const NUMERO_CUOTA_BASE = 'rounded border px-2 py-0.5 font-mono font-bold'
+export const NUMERO_CUOTA_SUMA = {
+  completa: `${NUMERO_CUOTA_BASE} border-blue-200 bg-blue-50 text-blue-600`,
+  falta: `${NUMERO_CUOTA_BASE} border-amber-200 bg-amber-100 text-amber-700`,
+  excedida: `${NUMERO_CUOTA_BASE} border-red-200 bg-red-100 text-red-700`,
+  sin_repartir: `${NUMERO_CUOTA_BASE} border-slate-200 bg-slate-100 text-slate-600`,
+}
+export const FILA_CUOTA_SUMA = {
+  completa: 'bg-white hover:bg-slate-50/80',
+  falta: 'bg-amber-50/20 hover:bg-amber-100/30',
+  excedida: 'bg-red-50/30 hover:bg-red-50/50',
+  sin_repartir: 'bg-white hover:bg-slate-50/80',
+}
+
+// Tarjeta de "como le queda la cuenta" a cada integrante.
+export const TARJETA_IMPACTO = 'relative rounded-xl border border-slate-200 bg-slate-50 p-4'
+const PILL_IMPACTO_BASE = 'rounded-full border px-2 py-0.5 text-[10px] font-semibold whitespace-nowrap'
+export const PILL_IMPACTO = {
+  leDebes: `${PILL_IMPACTO_BASE} border-amber-200 bg-amber-100 text-amber-800`,
+  cobraDeMas: `${PILL_IMPACTO_BASE} border-rose-200 bg-rose-100 text-rose-700`,
+  alDia: `${PILL_IMPACTO_BASE} border-emerald-200 bg-emerald-100 text-emerald-800`,
+}

@@ -57,8 +57,8 @@ test.describe('Generación de contrato por loteo (25/08)', () => {
 
     // 1) Crear el loteo y subirle la plantilla.
     await page.goto('/admin/loteos')
-    await page.getByPlaceholder('Ej: Loteo San Martín').fill(NOMBRE_LOTEO)
-    await page.getByRole('button', { name: 'Crear loteo' }).click()
+    await page.getByTestId('crear-loteo').locator('input[name="nombre"]').fill(NOMBRE_LOTEO)
+    await page.getByRole('button', { name: 'Crear nuevo loteo' }).click()
     await page.waitForURL(/\/admin\/loteos/)
 
     const filaLoteo = page.locator('tr', { hasText: NOMBRE_LOTEO })
@@ -143,8 +143,8 @@ test.describe('Generación de contrato por loteo (25/08)', () => {
     await admin.from('loteos').delete().eq('nombre', `${NOMBRE_LOTEO} Con Typo`)
 
     await page.goto('/admin/loteos')
-    await page.getByPlaceholder('Ej: Loteo San Martín').fill(`${NOMBRE_LOTEO} Con Typo`)
-    await page.getByRole('button', { name: 'Crear loteo' }).click()
+    await page.getByTestId('crear-loteo').locator('input[name="nombre"]').fill(`${NOMBRE_LOTEO} Con Typo`)
+    await page.getByRole('button', { name: 'Crear nuevo loteo' }).click()
     await page.waitForURL(/\/admin\/loteos/)
 
     const filaLoteo = page.locator('tr', { hasText: `${NOMBRE_LOTEO} Con Typo` })
