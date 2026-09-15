@@ -29,6 +29,16 @@ import {
   CUOTAS_POR_PAGINA,
   type ControlDeSuma,
 } from '@/lib/lotes/control-de-suma'
+import {
+  estadoDeLaSuma,
+  leerPorcentaje,
+  leToca,
+  repartirCuota,
+  repartoCoincide,
+  sumaDePorcentajes,
+  type PorcentajeDeIntegrante,
+} from '@/lib/lotes/reparto-por-porcentaje'
+import { listarCuotas } from '@/lib/lotes/vinculos-integrante'
 
 interface Fila {
   id: string
@@ -43,9 +53,14 @@ interface Participante {
 
 interface Props {
   moneda: string
-  cuotas: { numero: number; montoBase: number; fechaVencimiento: string }[]
+  // `cobrada`: ya tiene pagos imputados, así que su reparto ya generó el
+  // Debe en la cuenta corriente. Repartir con porcentajes no la toca.
+  cuotas: { numero: number; montoBase: number; fechaVencimiento: string; cobrada: boolean }[]
   participantesElegibles: Participante[]
-  objetivosIniciales: { participanteKey: string; monto: string }[]
+  // Claves de los integrantes actuales del lote, en el orden de las fichas.
+  integrantes: string[]
+  // Porcentaje del lote guardado de cada uno, como texto para el campo.
+  porcentajesIniciales: Record<string, string>
   distribucionesIniciales: Record<number, { participanteKey: string; monto: string }[]>
   // A qué cuenta se transfiere cada cuota (clave de participante, o ''
   // cuando todavía no se eligió).
@@ -138,18 +153,32 @@ function textoDelControl(control: ControlDeSuma, montoCuota: number, moneda: str
   return `De más: ${Math.abs(control.diferencia)} ${moneda}`
 }
 
+function cuantasCuotas(cantidad: number): string {
+  return cantidad === 1 ? '1 cuota' : `${cantidad} cuotas`
+}
+
+function mayuscula(texto: string): string {
+  return texto.charAt(0).toUpperCase() + texto.slice(1)
+}
+
+const redondear = (valor: number) => Math.round(valor * 100) / 100
+
 export function DistribucionCuotas({
   moneda,
   cuotas,
   participantesElegibles,
-  objetivosIniciales,
+  integrantes,
+  porcentajesIniciales,
   distribucionesIniciales,
   cuentaCobroInicialPorCuota,
   cuentaCobroDelLote,
   sinDatosTransferencia,
   saldoActualPorClave,
 }: Props) {
-  const [objetivos, setObjetivos] = useState<Fila[]>(() => objetivosIniciales.map(conId))
+  const [porcentajes, setPorcentajes] = useState<Record<string, string>>(() => porcentajesIniciales)
+  // Cuántas cuotas se llenaron con el último "Repartir con estos
+  // porcentajes", para confirmarlo en pantalla hasta que se toque un %.
+  const [cuotasRepartidasConPorcentaje, setCuotasRepartidasConPorcentaje] = useState<number | null>(null)
   const [distribuciones, setDistribuciones] = useState<Record<number, Fila[]>>(() =>
     Object.fromEntries(
       Object.entries(distribucionesIniciales).map(([numero, filas]) => [numero, filas.map(conId)])
@@ -177,6 +206,7 @@ export function DistribucionCuotas({
   }
 
   const clavesSinDatos = new Set(sinDatosTransferencia)
+  const sumaDeLasCuotas = redondear(cuotas.reduce((acum, cuota) => acum + cuota.montoBase, 0))
 
   // Reemplaza el destino de TODAS las cuotas de una (08/09). Es lo que
   // antes hacía la "cuenta de cobro actual" del lote, que se sacó por
@@ -199,16 +229,63 @@ export function DistribucionCuotas({
     return participantesElegibles.find((participante) => participante.key === clave)?.nombre ?? clave
   }
 
-  function agregarObjetivo() {
-    setObjetivos((anteriores) => [...anteriores, filaVacia()])
+  // Paso 2: cuánto le toca a cada uno del lote (15/09). Una fila por
+  // integrante, más la de quien tenga un porcentaje guardado y ya no sea
+  // integrante (para que se vea y se pueda borrar).
+  const clavesConPorcentaje = [
+    ...integrantes,
+    ...Object.keys(porcentajes).filter((clave) => !integrantes.includes(clave) && porcentajes[clave].trim() !== ''),
+  ]
+  const listaDePorcentajes: PorcentajeDeIntegrante[] = clavesConPorcentaje.flatMap((clave) => {
+    const porcentaje = leerPorcentaje(porcentajes[clave] ?? '')
+    return porcentaje === null ? [] : [{ participanteKey: clave, porcentaje }]
+  })
+  const sumaPorcentajes = sumaDePorcentajes(listaDePorcentajes)
+  const estadoPorcentajes = estadoDeLaSuma(sumaPorcentajes)
+  const cuotasSinCobrar = cuotas.filter((cuota) => !cuota.cobrada)
+  const cuotasCobradas = cuotas.length - cuotasSinCobrar.length
+
+  // Cuotas sin cobrar que ya tienen un reparto distinto del que les darían
+  // los porcentajes: repartir se lo pisa, y eso se avisa antes.
+  const cuotasQueSePisan = cuotasSinCobrar
+    .filter((cuota) => {
+      const filas = distribuciones[cuota.numero] ?? []
+      const tieneReparto = filas.some((fila) => fila.participanteKey && Number(fila.monto) > 0)
+      return tieneReparto && !repartoCoincide(filas, repartirCuota(cuota.montoBase, listaDePorcentajes))
+    })
+    .map((cuota) => cuota.numero)
+
+  const motivoParaNoRepartir =
+    estadoPorcentajes === 'sin_porcentajes'
+      ? 'Cargá el porcentaje de cada uno para poder repartir.'
+      : estadoPorcentajes === 'sobra'
+        ? 'Los porcentajes suman más de 100%: corregilos antes de repartir.'
+        : cuotasSinCobrar.length === 0
+          ? 'Todas las cuotas ya tienen pagos: no queda ninguna por repartir.'
+          : null
+
+  function modificarPorcentaje(clave: string, valor: string) {
+    setPorcentajes((anteriores) => ({ ...anteriores, [clave]: valor }))
+    setCuotasRepartidasConPorcentaje(null)
   }
 
-  function quitarObjetivo(indice: number) {
-    setObjetivos((anteriores) => anteriores.filter((_, i) => i !== indice))
-  }
-
-  function modificarObjetivo(indice: number, campo: keyof Fila, valor: string) {
-    setObjetivos((anteriores) => anteriores.map((fila, i) => (i === indice ? { ...fila, [campo]: valor } : fila)))
+  // Llena el reparto de todas las cuotas sin cobrar con los porcentajes. No
+  // guarda: queda en pantalla, igual que cargarlo a mano, hasta "Guardar
+  // distribución". Las cobradas no se tocan porque su Debe ya se anotó con
+  // el reparto que tenían.
+  function repartirConPorcentajes() {
+    setDistribuciones((anteriores) => {
+      const nuevas = { ...anteriores }
+      for (const cuota of cuotasSinCobrar) {
+        // Mismo orden en que la página las muestra al recargar: primero el
+        // que se lleva más.
+        nuevas[cuota.numero] = repartirCuota(cuota.montoBase, listaDePorcentajes)
+          .sort((a, b) => Number(b.monto) - Number(a.monto))
+          .map(conId)
+      }
+      return nuevas
+    })
+    setCuotasRepartidasConPorcentaje(cuotasSinCobrar.length)
   }
 
   function agregarFilaCuota(numero: number) {
@@ -260,25 +337,17 @@ export function DistribucionCuotas({
       }
     }
 
-    const objetivosPorClave = new Map<string, number>()
-    for (const fila of objetivos) {
-      if (!fila.participanteKey) continue
-      const montoTexto = fila.monto.trim()
-      if (montoTexto === '') continue
-      const monto = Number(montoTexto)
-      if (!Number.isFinite(monto)) continue
-      objetivosPorClave.set(fila.participanteKey, (objetivosPorClave.get(fila.participanteKey) ?? 0) + monto)
-    }
+    const porcentajePorClave = new Map(listaDePorcentajes.map((fila) => [fila.participanteKey, fila.porcentaje]))
 
     const claves = new Set<string>([
       ...acumulados.keys(),
-      ...objetivosPorClave.keys(),
+      ...porcentajePorClave.keys(),
       ...cobraDirectoPorClave.keys(),
     ])
 
     return Array.from(claves).map((clave) => {
       const acumulado = Math.round((acumulados.get(clave) ?? 0) * 100) / 100
-      const objetivo = objetivosPorClave.has(clave) ? (objetivosPorClave.get(clave) as number) : null
+      const porcentaje = porcentajePorClave.get(clave) ?? null
       const cobraDirecto = Math.round((cobraDirectoPorClave.get(clave) ?? 0) * 100) / 100
       const saldoActual = saldoActualPorClave[clave] ?? 0
       // Positivo: la empresa le sigue debiendo. Negativo: cobró de más.
@@ -289,7 +358,7 @@ export function DistribucionCuotas({
         clave,
         nombre: nombrePorClave(clave),
         acumulado,
-        objetivo,
+        porcentaje,
         cobraDirecto,
         saldoActual,
         saldoProyectado,
@@ -301,11 +370,24 @@ export function DistribucionCuotas({
     return resumen.find((fila) => fila.clave === clave) ?? null
   }
 
-  const sumaDeLasCuotas = Math.round(cuotas.reduce((acum, cuota) => acum + cuota.montoBase, 0) * 100) / 100
   const controlDelLote = controlDeSuma(
     sumaDeLasCuotas,
     cuotas.flatMap((cuota) => distribuciones[cuota.numero] ?? [])
   )
+  const cuotasSinRepartir = cuotas.filter(
+    (cuota) => controlDeSuma(cuota.montoBase, distribuciones[cuota.numero] ?? []).estado === 'sin_repartir'
+  )
+
+  // "Según su %" de la tarjeta: lo que le toca por porcentaje contra lo que
+  // ya suma en el reparto de las cuotas.
+  function textoSegunPorcentaje(acumulado: number, porcentaje: number): string {
+    const objetivo = leToca(sumaDeLasCuotas, porcentaje)
+    const diferencia = redondear(acumulado - objetivo)
+    if (diferencia === 0) return `${porcentaje}% · repartido completo`
+    return diferencia < 0
+      ? `${porcentaje}% = ${objetivo}: faltan ${-diferencia}`
+      : `${porcentaje}% = ${objetivo}: sobran ${diferencia}`
+  }
 
   return (
     <>
@@ -314,6 +396,173 @@ export function DistribucionCuotas({
           <option key={participante.key} value={participante.nombre} />
         ))}
       </datalist>
+
+      {/* Paso 2: cuánto le toca a cada uno del lote, en porcentaje (15/09,
+          pedido de Gabriel: "en la misma pestaña de distribución de cada lote
+          debería configurarse fácilmente esta cuestión, ya que es lo
+          primordial"). Reemplaza a los "Objetivos (opcional)" en plata. */}
+      <section data-testid="porcentajes-del-lote" className={`${PANEL} space-y-4`}>
+        <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-100 pb-3">
+          <div className="flex items-center gap-2.5">
+            <span className={PASO_NUMERO}>2</span>
+            <div>
+              <h2 className={PASO_TITULO}>Cuánto le toca a cada uno de este lote</h2>
+              <p className="max-w-3xl text-xs text-slate-500">
+                El porcentaje de lo que se cobra en cuotas que le corresponde a cada integrante (la
+                comisión). Con un click reparte las cuotas que falta cobrar; después se puede retocar
+                cualquier cuota a mano en el paso 3.
+              </p>
+            </div>
+          </div>
+          <span
+            data-testid="suma-porcentajes"
+            className={
+              PILL_SUMA[
+                estadoPorcentajes === 'sobra'
+                  ? 'excedida'
+                  : estadoPorcentajes === 'sin_porcentajes'
+                    ? 'sin_repartir'
+                    : estadoPorcentajes
+              ]
+            }
+          >
+            {estadoPorcentajes === 'completa'
+              ? 'Suman 100% ✓'
+              : estadoPorcentajes === 'falta'
+                ? `Suman ${sumaPorcentajes}% · falta ${redondear(100 - sumaPorcentajes)}%`
+                : estadoPorcentajes === 'sobra'
+                  ? `Suman ${sumaPorcentajes}% · sobra ${redondear(sumaPorcentajes - 100)}%`
+                  : 'Sin porcentajes cargados'}
+          </span>
+        </div>
+
+        {/* Ancho mínimo: en celular la tabla scrollea de costado en vez de
+            partir cada nombre en cuatro renglones. */}
+        <div className="overflow-x-auto rounded-lg border border-slate-200">
+          <table className="w-full min-w-[40rem] border-collapse text-left text-xs">
+            <thead className={TABLA_CLARA_HEADER}>
+              <tr>
+                <th className="border-b border-slate-200 px-4 py-2.5">Integrante</th>
+                <th className="w-36 border-b border-slate-200 px-4 py-2.5">% del lote</th>
+                <th className="border-b border-slate-200 px-4 py-2.5">
+                  Le toca de {sumaDeLasCuotas} {moneda}
+                </th>
+                <th className="border-b border-slate-200 px-4 py-2.5">Repartido hoy en las cuotas</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-slate-100">
+              {clavesConPorcentaje.map((clave) => {
+                const nombre = nombrePorClave(clave)
+                const porcentaje = leerPorcentaje(porcentajes[clave] ?? '')
+                const repartido = resumenDe(clave)?.acumulado ?? 0
+                const objetivo = porcentaje === null ? null : leToca(sumaDeLasCuotas, porcentaje)
+                const diferencia = objetivo === null ? null : redondear(repartido - objetivo)
+                return (
+                  <tr key={clave} data-porcentaje-de={clave}>
+                    <td className="px-4 py-2 font-semibold text-slate-800">{nombre}</td>
+                    <td className="px-4 py-2">
+                      <div className="flex items-center gap-1.5">
+                        <input type="hidden" name="porcentajeParticipante" value={clave} />
+                        <input
+                          type="number"
+                          name="porcentajeValor"
+                          step="0.01"
+                          min="0"
+                          max="100"
+                          inputMode="decimal"
+                          value={porcentajes[clave] ?? ''}
+                          onChange={(evento) => modificarPorcentaje(clave, evento.target.value)}
+                          aria-label={`Porcentaje del lote de ${nombre}`}
+                          className={`${CAMPO_COMPACTO_SIN_ANCHO} w-20 bg-white text-right font-mono font-bold`}
+                        />
+                        <span className="font-semibold text-slate-500">%</span>
+                      </div>
+                    </td>
+                    <td className="px-4 py-2 font-mono font-semibold text-slate-800">
+                      {objetivo === null ? '—' : `${objetivo} ${moneda}`}
+                    </td>
+                    <td className="px-4 py-2">
+                      <span className="font-mono text-slate-700">
+                        {repartido} {moneda}
+                      </span>
+                      {diferencia !== null && (
+                        <span
+                          className={`ml-2 text-[11px] font-semibold ${
+                            diferencia === 0
+                              ? 'text-emerald-700'
+                              : diferencia < 0
+                                ? 'text-amber-700'
+                                : 'text-rose-700'
+                          }`}
+                        >
+                          {diferencia === 0
+                            ? '✓ coincide'
+                            : diferencia < 0
+                              ? `faltan ${-diferencia}`
+                              : `sobran ${diferencia}`}
+                        </span>
+                      )}
+                    </td>
+                  </tr>
+                )
+              })}
+            </tbody>
+          </table>
+        </div>
+
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div className="flex min-w-0 flex-1 basis-80 flex-wrap items-center gap-3">
+            <button
+              type="button"
+              onClick={repartirConPorcentajes}
+              disabled={motivoParaNoRepartir !== null}
+              className="inline-flex cursor-pointer items-center gap-1.5 rounded-lg whitespace-nowrap border border-blue-200 bg-blue-50 px-3.5 py-1.5 text-xs font-semibold text-blue-700 transition hover:bg-blue-100 disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              Repartir las cuotas con estos porcentajes
+            </button>
+            <p className="max-w-2xl min-w-0 flex-1 basis-64 text-[11px] text-slate-500">
+              {motivoParaNoRepartir ??
+                `Llena el reparto de ${
+                  cuotasSinCobrar.length === 1 ? 'la cuota' : `las ${cuantasCuotas(cuotasSinCobrar.length)}`
+                }${
+                  cuotasCobradas === 0
+                    ? ''
+                    : ` que todavía no se ${cuotasSinCobrar.length === 1 ? 'cobró' : 'cobraron'} (${
+                        cuotasCobradas === 1
+                          ? 'la cuota con pagos no se toca: su reparto ya se anotó'
+                          : `las ${cuantasCuotas(cuotasCobradas)} con pagos no se tocan: su reparto ya se anotó`
+                      } en las cuentas corrientes)`
+                }.${
+                  cuotasQueSePisan.length > 0
+                    ? ` Ojo: ${listarCuotas(cuotasQueSePisan)} ya ${
+                        cuotasQueSePisan.length === 1 ? 'tiene' : 'tienen'
+                      } otro reparto cargado y se va a pisar.`
+                    : ''
+                }${
+                  estadoPorcentajes === 'falta'
+                    ? ` Como suman ${sumaPorcentajes}%, cada cuota va a quedar con un ${redondear(
+                        100 - sumaPorcentajes
+                      )}% sin repartir.`
+                    : ''
+                }`}
+            </p>
+          </div>
+          <BotonEnvio className={`cursor-pointer ${BOTON_CHICO_PRIMARIO}`}>
+            <Check className="h-3.5 w-3.5" />
+            Guardar distribución
+          </BotonEnvio>
+        </div>
+
+        {cuotasRepartidasConPorcentaje !== null && (
+          <p
+            data-testid="porcentajes-aplicados"
+            className="rounded-lg border border-emerald-200 bg-emerald-50 p-2.5 text-xs font-medium text-emerald-800"
+          >
+            Listo: se repartieron {cuantasCuotas(cuotasRepartidasConPorcentaje)} con estos porcentajes.
+            Todavía no está guardado: revisalas abajo y apretá &quot;Guardar distribución&quot;.
+          </p>
+        )}
+      </section>
 
       {/* Cómo le queda la cuenta a cada uno, en vivo (mockup 6: "Impacto en
           cuentas corrientes"). Antes era la tabla "Resumen del lote" al final
@@ -340,6 +589,26 @@ export function DistribucionCuotas({
             </span>
           </div>
         </div>
+
+        {/* El "Cobra de más" de alguien que no tiene nada repartido no es un
+            error de cuentas: es lo que va a anotar el sistema si esas cuotas
+            se cobran así, sin reparto (15/09, lo notó Gabriel). Se explica
+            en vez de esconderlo. */}
+        {cuotasSinRepartir.length > 0 && (
+          <p
+            data-testid="aviso-cuotas-sin-repartir"
+            className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-xs text-amber-800"
+          >
+            {cuotasSinRepartir.length === cuotas.length
+              ? `Ninguna de las ${cuantasCuotas(cuotas.length)} tiene reparto todavía.`
+              : `${mayuscula(listarCuotas(cuotasSinRepartir.map((cuota) => cuota.numero)))} ${
+                  cuotasSinRepartir.length === 1 ? 'no tiene' : 'no tienen'
+                } reparto todavía.`}{' '}
+            Mientras no lo tengan, a nadie le corresponde nada de esa plata: quien la cobre figura con
+            &quot;Cobra de más&quot;. Cargá el porcentaje de cada uno en el paso 2 y apretá &quot;Repartir
+            las cuotas con estos porcentajes&quot;.
+          </p>
+        )}
 
         {resumen.length === 0 ? (
           <p className="text-sm text-slate-600">Sin distribución cargada todavía.</p>
@@ -400,15 +669,9 @@ export function DistribucionCuotas({
                       </p>
                     )}
                     <div className="flex justify-between gap-2 text-slate-600">
-                      <dt>Objetivo:</dt>
+                      <dt>Según su %:</dt>
                       <dd className="text-right font-medium text-slate-800">
-                        {fila.objetivo === null
-                          ? '—'
-                          : fila.acumulado >= fila.objetivo
-                            ? 'Saldado'
-                            : `${fila.acumulado} de ${fila.objetivo}, faltan ${
-                                Math.round((fila.objetivo - fila.acumulado) * 100) / 100
-                              }`}
+                        {fila.porcentaje === null ? '—' : textoSegunPorcentaje(fila.acumulado, fila.porcentaje)}
                       </dd>
                     </div>
                   </dl>
@@ -417,58 +680,13 @@ export function DistribucionCuotas({
             })}
           </div>
         )}
-
-        {/* Objetivos: cuánto le corresponde en total a cada uno. Son lo que
-            alimenta la línea "Objetivo" de las tarjetas de arriba. */}
-        <div className="space-y-2 border-t border-slate-100 pt-3">
-          <div>
-            <p className="text-xs font-bold text-slate-800">Objetivos (opcional)</p>
-            <p className="text-[11px] text-slate-500">
-              Cuánto le corresponde en total a cada participante de este lote. Sin objetivo cargado,
-              la tarjeta solo muestra lo acumulado, sin comparar contra nada.
-            </p>
-          </div>
-          {objetivos.map((fila, indice) => (
-            <div key={fila.id} className="flex flex-wrap items-center gap-2">
-              <SelectorParticipante
-                name="objetivoParticipante"
-                valor={fila.participanteKey}
-                onChange={(valor) => modificarObjetivo(indice, 'participanteKey', valor)}
-                opciones={participantesElegibles}
-                className="w-64"
-              />
-              <input
-                type="number"
-                step="0.01"
-                min="0"
-                placeholder="Monto objetivo"
-                value={fila.monto}
-                onChange={(evento) => modificarObjetivo(indice, 'monto', evento.target.value)}
-                name="objetivoMonto"
-                className={`${CAMPO_COMPACTO_SIN_ANCHO} w-40 bg-white font-mono`}
-              />
-              <button
-                type="button"
-                onClick={() => quitarObjetivo(indice)}
-                aria-label="Quitar"
-                title="Quitar objetivo"
-                className="cursor-pointer rounded p-1 text-slate-400 transition hover:text-red-500"
-              >
-                <Trash2 className="h-3.5 w-3.5" />
-              </button>
-            </div>
-          ))}
-          <button type="button" onClick={agregarObjetivo} className={BOTON_AGREGAR_TEXTO}>
-            + Agregar objetivo
-          </button>
-        </div>
       </section>
 
-      {/* Paso 2: la matriz cuota a cuota. */}
+      {/* Paso 3: la matriz cuota a cuota. */}
       <section id={idMatriz} className={`${PANEL_SIN_PADDING} scroll-mt-4`}>
         <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-200 bg-slate-50/50 p-4">
           <div className="flex items-center gap-3">
-            <span className={PASO_NUMERO}>2</span>
+            <span className={PASO_NUMERO}>3</span>
             <div>
               <div className="flex flex-wrap items-center gap-2">
                 <h2 className={PASO_TITULO}>
@@ -587,6 +805,14 @@ export function DistribucionCuotas({
                           {formatearFechaCorta(cuota.fechaVencimiento)}
                         </span>
                       </div>
+                      {cuota.cobrada && (
+                        <span
+                          className="mt-1 inline-block rounded bg-emerald-50 px-1.5 text-[10px] font-semibold text-emerald-700"
+                          title="Tiene pagos: su reparto ya se anotó en las cuentas corrientes y repartir con porcentajes no la toca"
+                        >
+                          Con pagos
+                        </span>
+                      )}
                     </td>
                     <td className="px-4 py-2.5 align-top font-mono text-sm font-bold whitespace-nowrap text-slate-900">
                       {cuota.montoBase} {moneda}

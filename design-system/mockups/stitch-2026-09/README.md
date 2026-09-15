@@ -98,15 +98,34 @@ Clases nuevas en el mismo bloque de `lib/ui/clases.ts`: pasos numerados, fichas 
 integrante por papel, control de suma y tarjetas de impacto. La lógica del control de
 suma y del paginado está en `lib/lotes/control-de-suma.ts`.
 
-**Lo que el mockup dibuja y la pantalla no hace** (quedó afuera, a preguntar):
+**Lo que el mockup dibuja y la pantalla no hacía** — respuestas de Gabriel (15/09):
 
-- **Exportar XLS** de la distribución.
-- **Cargar el reparto en porcentaje.** El porcentaje se muestra, calculado, al lado de
-  cada monto; lo que se carga y se guarda sigue siendo el monto.
-- **"Regla rápida de asignación".**
-- **Agrupar cuotas consecutivas iguales** en un bloque ("#06 - #15, regla replicada").
+- **Exportar XLS** de la distribución: **no**.
+- **Cargar el reparto de cada cuota en porcentaje**: **no** (Nico lo carga a mano). El
+  porcentaje se sigue mostrando calculado al lado de cada monto.
+- **"Regla rápida de asignación"**: se le explicó. Lo principal lo cubre el paso 2
+  nuevo (ver abajo), que reparte todas las cuotas sin pagos de una vez; lo que no hace
+  es aplicar a un tramo ("cuotas 1 a 6").
+- **Agrupar cuotas consecutivas iguales** en un bloque: **por ahora no**.
 - **"Cierre de cuentas: $0 balance neto"**, el ID de cuota ("QTA-01-2024") y
-  "Anticipo/Seña" en la cabecera: son datos que el sistema no tiene así.
+  "Anticipo/Seña" en la cabecera: se le explicó cuándo servirían; a confirmar.
+
+**Pedidos de funcionamiento del 15/09** (no venían del mockup):
+
+- **Paso 2 "Cuánto le toca a cada uno de este lote"**: el porcentaje de cada integrante
+  (la comisión: 85 acreedor / 10 admin / 5 vendedor). Reemplaza a los "Objetivos" en
+  plata (migraciones 0065 y 0066). "Repartir las cuotas con estos porcentajes" llena el
+  reparto de las cuotas **sin pagos** (las que ya tienen pagos no se tocan: su Debe ya
+  se anotó) y avisa qué cuotas cargadas a mano se pisan. No guarda solo. La lógica está
+  en `lib/lotes/reparto-por-porcentaje.ts`.
+- **Quitar un integrante** desde su ficha (participantes, cuentas externas y vendedor;
+  el admin y el acreedor se cambian en "Roles del lote"), con un **aviso previo** de qué
+  cuotas toca. Al confirmar, en las cuotas sin pagos se le saca el reparto y el destino;
+  en las que tienen pagos no se toca nada. Si el cliente informó un pago sin confirmar
+  de una cuota que le transfiere a esa persona, no deja. Cambiar el vendedor o el
+  acreedor en "Roles del lote" muestra el mismo aviso. Ver
+  `lib/lotes/vinculos-integrante.ts` y `quitar_integrante_lote` (0065).
+- La lista "Otros participantes" con su tacho se sacó: repetía las fichas.
 - Los rótulos **"Debe responder / Saldo a favor / Resta cobrar"**: se dejaron los que
   la pantalla ya usaba (Le debés / Cobra de más / Al día), que están atados a cómo se
   calcula el saldo.
@@ -120,7 +139,8 @@ suma y del paginado está en `lib/lotes/control-de-suma.ts`.
   lo pidió Nico para no recorrer una lista larga.
 - **Roles del lote (admin, acreedor, vendedor) y "Otros participantes"** no aparecen en
   el mockup; quedaron en la tarjeta 1, debajo de las fichas de los integrantes.
-- **Objetivos (opcional)** quedó al pie de la tarjeta de impacto, que es donde se ven.
+- ~~**Objetivos (opcional)** quedó al pie de la tarjeta de impacto~~ — desde el 15/09
+  son los porcentajes del paso 2.
 - **"Le transfieren todas las cuotas a"** (el atajo que ya existía) va en la barra de
   la matriz.
 - **El destino de cada cuota muestra solo el nombre** (el banco y el alias están en las

@@ -1,10 +1,11 @@
 import { createClient } from '@/lib/supabase/server'
 import { actualizarCobro } from './actions'
-import { agregarParticipante, quitarParticipante } from './participantes-actions'
+import { agregarParticipante } from './participantes-actions'
+import { FormularioRolesDelLote, type AvisoDeSalidaDeRol } from './FormularioRolesDelLote'
 import { tieneDatosTransferencia } from '@/lib/lotes/validar-cuenta-cobro'
 import { resolverAdminPorDefecto } from '@/lib/lotes/admin-por-defecto'
 import { BotonEnvio } from '@/components/BotonEnvio'
-import { Plus, Trash2 } from 'lucide-react'
+import { Plus } from 'lucide-react'
 import {
   CAMPO_COMPACTO,
   ETIQUETA_COMPACTA,
@@ -34,8 +35,21 @@ import {
 //
 // Carga sus propios datos en vez de recibirlos por props: son ocho consultas
 // que solo usa este bloque, y pasarlas desde la página que lo dibuja fue lo
-// que hizo que el detalle del lote llegara a 1500 líneas.
-export async function SeccionCobro({ loteId }: { loteId: string }) {
+// que hizo que el detalle del lote llegara a 1500 líneas. La excepción son
+// los avisos de salida (15/09): los calcula la página, que ya tiene leídas
+// las cuotas y el reparto para las fichas.
+//
+// La lista de "Otros participantes" con su tacho se sacó el 15/09: eran las
+// mismas personas que las fichas de arriba, y quitar a alguien ahora pasa por
+// el aviso previo de su ficha.
+export async function SeccionCobro({
+  loteId,
+  avisosDeSalida,
+}: {
+  loteId: string
+  // Por profile id, de quienes hoy tienen un rol en el lote.
+  avisosDeSalida: Record<string, AvisoDeSalidaDeRol>
+}) {
   const supabase = await createClient()
 
   const {
@@ -82,46 +96,12 @@ export async function SeccionCobro({ loteId }: { loteId: string }) {
 
   const { data: participantes } = await supabase
     .from('lote_participantes')
-    .select('id, profile_id, cuenta_externa_id, etiqueta')
+    .select('profile_id')
     .eq('lote_id', loteId)
-    .order('created_at', { ascending: true })
 
-  const profileIdsParticipantes = (participantes ?? [])
+  const participanteProfileIds = (participantes ?? [])
     .map((p) => p.profile_id)
     .filter((pid): pid is string => pid !== null)
-  const cuentaExternaIdsParticipantes = (participantes ?? [])
-    .map((p) => p.cuenta_externa_id)
-    .filter((cid): cid is string => cid !== null)
-
-  const { data: profilesParticipantes } =
-    profileIdsParticipantes.length > 0
-      ? await supabase
-          .from('profiles')
-          .select('id, full_name, role')
-          .in('id', profileIdsParticipantes)
-      : { data: [] }
-
-  const { data: cuentasExternasParticipantes } =
-    cuentaExternaIdsParticipantes.length > 0
-      ? await supabase
-          .from('cuentas_externas')
-          .select('id, nombre')
-          .in('id', cuentaExternaIdsParticipantes)
-      : { data: [] }
-
-  function nombreParticipante(participante: {
-    profile_id: string | null
-    cuenta_externa_id: string | null
-  }) {
-    if (participante.profile_id) {
-      const persona = profilesParticipantes?.find((p) => p.id === participante.profile_id)
-      return persona ? `${persona.full_name} (${persona.role})` : 'Persona eliminada'
-    }
-    const cuentaExterna = cuentasExternasParticipantes?.find(
-      (c) => c.id === participante.cuenta_externa_id
-    )
-    return cuentaExterna ? `${cuentaExterna.nombre} (cuenta externa)` : 'Cuenta externa eliminada'
-  }
 
   const participantesElegibles = (staff ?? []).filter(
     (persona) =>
@@ -146,104 +126,42 @@ export async function SeccionCobro({ loteId }: { loteId: string }) {
     })
   }
 
+  const opcion = (persona: { id: string; full_name: string | null; alias: string | null; banco: string | null; titular: string | null }) => ({
+    id: persona.id,
+    nombre: persona.full_name ?? '—',
+    sinDatos: sinDatos(persona),
+  })
+
   return (
     <div className="mt-4 grid gap-4 border-t border-slate-100 pt-4 lg:grid-cols-2">
-      <form action={actualizarCobroConId} className="space-y-3">
-        <div>
-          <p className="text-xs font-bold text-slate-800">Roles del lote</p>
-          <p className="text-[11px] text-slate-500">
-            Quién es el admin, el acreedor y el vendedor. Junto con los participantes de al lado,
-            son los únicos entre los que se reparte cada cuota.
-          </p>
-        </div>
-        <div className="grid gap-2 sm:grid-cols-3">
-          <label className="block">
-            <span className={ETIQUETA_COMPACTA}>Admin</span>
-            <select name="adminId" defaultValue={adminPorDefecto ?? ''} className={`${CAMPO_COMPACTO} bg-white`}>
-              <option value="">— sin asignar —</option>
-              {administradores.map((persona) => (
-                <option key={persona.id} value={persona.id}>
-                  {persona.full_name}
-                  {sinDatos(persona) && ' — sin datos de transferencia'}
-                </option>
-              ))}
-            </select>
-          </label>
-          <label className="block">
-            <span className={ETIQUETA_COMPACTA}>Acreedor</span>
-            <select
-              name="acreedorId"
-              defaultValue={lote.acreedor_id ?? ''}
-              className={`${CAMPO_COMPACTO} bg-white`}
-            >
-              <option value="">— sin asignar —</option>
-              {acreedores.map((persona) => (
-                <option key={persona.id} value={persona.id}>
-                  {persona.full_name}
-                  {sinDatos(persona) && ' — sin datos de transferencia'}
-                </option>
-              ))}
-            </select>
-          </label>
-          <label className="block">
-            <span className={ETIQUETA_COMPACTA}>Vendedor</span>
-            <select
-              name="vendedorId"
-              defaultValue={lote.vendedor_id ?? ''}
-              className={`${CAMPO_COMPACTO} bg-white`}
-            >
-              <option value="">— sin asignar —</option>
-              {vendedores.map((persona) => (
-                <option key={persona.id} value={persona.id}>
-                  {persona.full_name}
-                  {sinDatos(persona) && ' — sin datos de transferencia'}
-                </option>
-              ))}
-            </select>
-          </label>
-        </div>
-        <BotonEnvio className={`cursor-pointer ${BOTON_CHICO_PRIMARIO}`}>Guardar cobro</BotonEnvio>
-      </form>
+      <FormularioRolesDelLote
+        accion={actualizarCobroConId}
+        administradores={administradores.map(opcion)}
+        acreedores={acreedores.map(opcion)}
+        vendedores={vendedores.map(opcion)}
+        valoresIniciales={{
+          adminId: adminPorDefecto ?? '',
+          acreedorId: lote.acreedor_id ?? '',
+          vendedorId: lote.vendedor_id ?? '',
+        }}
+        adminSiQuedaVacio={resolverAdminPorDefecto({
+          adminIdActual: null,
+          administradores,
+          usuarioActualId: user?.id ?? null,
+          usuarioActualEsAdministrador: true,
+        })}
+        participanteProfileIds={participanteProfileIds}
+        avisos={avisosDeSalida}
+      />
 
       <div className="space-y-2">
         <div>
           <p className="text-xs font-bold text-slate-800">Otros participantes del cobro</p>
           <p className="text-[11px] text-slate-500">
             Gente que comparte la comisión de este lote sin ser el admin, el acreedor ni el vendedor
-            principal (ej. un segundo vendedor).
+            principal (ej. un segundo vendedor). Aparecen arriba, en las fichas, y se quitan desde ahí.
           </p>
         </div>
-        {(participantes ?? []).length === 0 ? (
-          <p className="text-xs text-slate-500">Ninguno.</p>
-        ) : (
-          // Ancla estable para los tests: desde que esta sección comparte
-          // pantalla con el reparto por cuota hay más de una lista con los
-          // mismos nombres adentro (misma convención que tarjeta-pago).
-          <ul data-testid="participantes-del-lote" className="flex flex-wrap gap-2">
-            {participantes!.map((participante) => (
-              <li
-                key={participante.id}
-                className="flex items-center gap-2 rounded-lg border border-slate-200 bg-slate-50 py-1 pr-1 pl-3 text-xs"
-              >
-                <span className="font-semibold text-slate-800">
-                  {nombreParticipante(participante)}
-                  {participante.etiqueta && (
-                    <span className="font-normal text-slate-500"> — {participante.etiqueta}</span>
-                  )}
-                </span>
-                <form action={quitarParticipante.bind(null, loteId, participante.id)}>
-                  <BotonEnvio
-                    className="cursor-pointer rounded-md p-1 text-slate-400 transition hover:bg-rose-50 hover:text-rose-600"
-                    aria-label="Quitar"
-                    title="Quitar del lote"
-                  >
-                    <Trash2 className="h-3.5 w-3.5" />
-                  </BotonEnvio>
-                </form>
-              </li>
-            ))}
-          </ul>
-        )}
 
         <details className="group">
           <summary className={BOTON_AGREGAR_PUNTEADO}>

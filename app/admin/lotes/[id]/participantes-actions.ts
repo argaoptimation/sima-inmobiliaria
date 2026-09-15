@@ -5,6 +5,10 @@ import { createAdminClient } from '@/lib/supabase/admin'
 import { redirect } from 'next/navigation'
 import { requireAdministrador } from '@/lib/auth/require-admin'
 import { mensajeDeError } from '@/lib/errores'
+import { revalidarNotificaciones } from '@/lib/notificaciones/revalidar'
+import { cargarVinculosDelLote } from '@/lib/lotes/cargar-vinculos-del-lote'
+import { avisoDeSalida } from '@/lib/lotes/vinculos-integrante'
+import { mensajeDeSalidaHecha, nombreDeCuenta } from '@/lib/lotes/salida-de-integrante'
 
 // Estas acciones devuelven a /distribucion, no al detalle del lote: desde el
 // 06/09 la sección de cobro y la de participantes viven ahí, junto al reparto
@@ -89,70 +93,98 @@ export async function agregarParticipante(loteId: string, formData: FormData) {
   redirect(`/admin/lotes/${loteId}/distribucion`)
 }
 
-export async function quitarParticipante(loteId: string, participanteId: string) {
+// Saca a un integrante del lote: un participante adicional, una cuenta
+// externa o el vendedor (15/09, pedido de Gabriel). La pantalla ya mostró
+// antes qué cuotas toca y pidió confirmar; acá se vuelve a calcular todo con
+// los datos del momento, porque entre que se abrió la pantalla y se confirmó
+// el cliente pudo haber informado un pago.
+//
+// Hasta el 15/09 esto se negaba si la persona cobraba alguna cuota ("cambiá
+// a quién se le transfieren y después quitalo") y, si solo tenía parte del
+// reparto, la sacaba sin avisar y dejaba ese reparto colgando. Ahora avisa
+// y resuelve las dos cosas: ver quitar_integrante_lote (migración 0065) y
+// lib/lotes/vinculos-integrante.ts.
+//
+// El admin y el acreedor no se quitan por acá: el lote siempre tiene admin
+// (Nicolás, por defecto) y acreedor, y se cambian en "Roles del lote".
+export async function quitarIntegrante(loteId: string, formData: FormData) {
   await requireAdministrador()
+
+  const volver = `/admin/lotes/${loteId}/distribucion`
+  const clave = ((formData.get('clave') as string) || '').trim()
+  const profileId = clave.startsWith('profile:') ? clave.slice('profile:'.length) : null
+  const cuentaExternaId = clave.startsWith('externa:') ? clave.slice('externa:'.length) : null
+
+  if (!profileId && !cuentaExternaId) {
+    redirect(`${volver}?error=${encodeURIComponent('No se entendió a quién quitar')}`)
+  }
 
   const supabase = await createClient()
 
-  const { data: participante } = await supabase
-    .from('lote_participantes')
-    .select('profile_id, cuenta_externa_id')
-    .eq('id', participanteId)
-    .maybeSingle()
+  const { data: lote } = await supabase
+    .from('lotes')
+    .select('admin_id, acreedor_id, vendedor_id, cuenta_cobro_id, cuenta_cobro_externa_id, ciclo_actual')
+    .eq('id', loteId)
+    .single()
 
-  if (!participante) {
-    redirect(`/admin/lotes/${loteId}/distribucion`)
+  if (!lote) {
+    redirect(`${volver}?error=${encodeURIComponent('No se encontró el lote')}`)
   }
 
-  // Cuotas que hoy se le transfieren a esta persona/cuenta. Desde el 08/09
-  // el destino vive en la cuota y ya no en el lote, así que el guard mira
-  // ahí: sacarlo del lote dejaría esas cuotas apuntando a alguien que ya no
-  // participa, y el cliente vería un alias que no corresponde.
-  const columna = participante!.profile_id ? 'cuenta_cobro_id' : 'cuenta_cobro_externa_id'
-  const valor = participante!.profile_id ?? participante!.cuenta_externa_id
+  const consultaParticipante = supabase.from('lote_participantes').select('id').eq('lote_id', loteId)
+  const { data: participante } = profileId
+    ? await consultaParticipante.eq('profile_id', profileId).maybeSingle()
+    : await consultaParticipante.eq('cuenta_externa_id', cuentaExternaId!).maybeSingle()
 
-  const { data: cuotasQueCobra } = await supabase
-    .from('cuotas')
-    .select('numero')
-    .eq('lote_id', loteId)
-    .eq(columna, valor!)
-    .order('numero')
+  const esVendedor = profileId !== null && profileId === lote!.vendedor_id
 
-  if ((cuotasQueCobra ?? []).length > 0) {
-    redirect(
-      `/admin/lotes/${loteId}/distribucion?error=${encodeURIComponent(
-        `No se puede quitar: hoy cobra la cuota ${cuotasQueCobra!.map((cuota) => cuota.numero).join(', ')} de este lote. Cambiá a quién se le transfieren y después quitalo.`
-      )}`
-    )
+  if (!participante && !esVendedor) {
+    const mensaje =
+      profileId && profileId === lote!.acreedor_id
+        ? 'El acreedor no se quita desde acá: se cambia en "Roles del lote".'
+        : profileId && profileId === lote!.admin_id
+          ? 'El admin no se quita desde acá: se cambia en "Roles del lote".'
+          : 'Esa persona ya no es integrante de este lote.'
+    redirect(`${volver}?error=${encodeURIComponent(mensaje)}`)
   }
 
   // Los lotes anteriores al 08/09 pueden tener todavía una cuenta de cobro
   // cargada a nivel lote, que sigue siendo el resguardo de las cuotas sin
-  // destino propio.
-  const { data: lote } = await supabase
-    .from('lotes')
-    .select('cuenta_cobro_id, cuenta_cobro_externa_id')
-    .eq('id', loteId)
-    .single()
+  // destino propio (incluidas las ya cobradas, que no se tocan).
+  const esLaCuentaDeCobroDelLote =
+    (profileId !== null && profileId === lote!.cuenta_cobro_id) ||
+    (cuentaExternaId !== null && cuentaExternaId === lote!.cuenta_cobro_externa_id)
 
-  const esLaCuentaDeCobroActual =
-    (participante!.profile_id !== null && participante!.profile_id === lote?.cuenta_cobro_id) ||
-    (participante!.cuenta_externa_id !== null &&
-      participante!.cuenta_externa_id === lote?.cuenta_cobro_externa_id)
-
-  if (esLaCuentaDeCobroActual) {
+  if (esLaCuentaDeCobroDelLote) {
     redirect(
-      `/admin/lotes/${loteId}/distribucion?error=${encodeURIComponent(
+      `${volver}?error=${encodeURIComponent(
         'No se puede quitar: es la cuenta de cobro actual de este lote. Reasignala primero.'
       )}`
     )
   }
 
-  const { error } = await supabase.from('lote_participantes').delete().eq('id', participanteId)
+  const vinculos = await cargarVinculosDelLote(supabase, loteId, lote!.ciclo_actual)
+  const nombre = await nombreDeCuenta(supabase, profileId, cuentaExternaId)
+  const { bloqueo } = avisoDeSalida(nombre, vinculos.de(clave))
 
-  if (error) {
-    redirect(`/admin/lotes/${loteId}/distribucion?error=${encodeURIComponent(mensajeDeError(error))}`)
+  if (bloqueo) {
+    redirect(`${volver}?error=${encodeURIComponent(bloqueo)}`)
   }
 
-  redirect(`/admin/lotes/${loteId}/distribucion`)
+  const { data: resultado, error } = await supabase.rpc('quitar_integrante_lote', {
+    p_lote_id: loteId,
+    p_profile_id: profileId,
+    p_cuenta_externa_id: cuentaExternaId,
+  })
+
+  if (error) {
+    console.error('quitar_integrante_lote:', error)
+    redirect(`${volver}?error=${encodeURIComponent(mensajeDeError(error))}`)
+  }
+
+  // Las cuotas que quedaron sin destino hacen aparecer "no hay a dónde pagar"
+  // en la campana.
+  revalidarNotificaciones()
+
+  redirect(`${volver}?ok=${encodeURIComponent(mensajeDeSalidaHecha(nombre, resultado))}`)
 }

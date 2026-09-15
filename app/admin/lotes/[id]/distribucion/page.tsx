@@ -5,8 +5,13 @@ import { obtenerCuotasSinDistribucion } from '@/lib/cuenta-corriente/cuotas-sin-
 import { resolverAdminPorDefecto } from '@/lib/lotes/admin-por-defecto'
 import { tieneDatosTransferencia } from '@/lib/lotes/validar-cuenta-cobro'
 import { traerTodasLasFilasPorTandas } from '@/lib/supabase/traer-todas-las-filas'
+import { cargarVinculosDelLote } from '@/lib/lotes/cargar-vinculos-del-lote'
+import { avisoDeSalida, cambiaAlgoAlQuitarlo } from '@/lib/lotes/vinculos-integrante'
 import { guardarDistribucionLote } from './actions'
+import { quitarIntegrante } from '../participantes-actions'
 import { DistribucionCuotas } from './DistribucionCuotas'
+import { FichasIntegrantes, type FichaIntegrante } from './FichasIntegrantes'
+import type { AvisoDeSalidaDeRol } from '../FormularioRolesDelLote'
 import { EnlaceBoton } from '@/components/EnlaceBoton'
 import { Building2, ChevronLeft, Settings } from 'lucide-react'
 import {
@@ -24,9 +29,14 @@ import { SeccionCobro } from '../SeccionCobro'
 
 // Distribución de cuotas (15/09, mockup 6 de Stitch). Del mockup se tomo el
 // diseño y nada mas (regla de Gabriel del 09/09). Lo que dibuja y la pantalla
-// no hace -- exportar a Excel, cargar el reparto en porcentaje, la "regla
-// rapida de asignacion", agrupar cuotas iguales en un bloque -- quedo afuera
-// y anotado en design-system/mockups/stitch-2026-09/README.md.
+// no hace -- exportar a Excel, la "regla rapida de asignacion", agrupar
+// cuotas iguales en un bloque -- quedo afuera y anotado en
+// design-system/mockups/stitch-2026-09/README.md.
+//
+// El mismo 15/09 Gabriel pidio dos cosas de funcionamiento que se sumaron:
+// cuanto le toca a cada uno del lote en porcentaje (paso 2, que llena el
+// reparto de las cuotas sin cobrar) y poder quitar a un integrante con un
+// aviso previo de las cuotas que tiene atadas (fichas del paso 1).
 export default async function DistribucionLotePage({
   params,
   searchParams,
@@ -88,6 +98,7 @@ export default async function DistribucionLotePage({
     .from('lote_participantes')
     .select('profile_id, cuenta_externa_id, etiqueta')
     .eq('lote_id', id)
+    .order('created_at', { ascending: true })
 
   // El admin del lote entra siempre, aunque el lote sea viejo y tenga
   // admin_id en null: es el default de resolverAdminPorDefecto (en la
@@ -199,47 +210,80 @@ export default async function DistribucionLotePage({
     }
   }
 
+  // Qué cuotas tiene atadas cada uno (cuáles ya se cobraron, a quién se le
+  // transfiere cada una, entre quiénes está repartida) y su porcentaje del
+  // lote. Alimenta el aviso previo de "Quitar" y el paso 2.
+  const vinculos = await cargarVinculosDelLote(supabase, id, lote.ciclo_actual)
+  const cobradaPorNumero = new Map(vinculos.cuotas.map((cuota) => [cuota.numero, cuota.cobrada]))
+
   // Las fichas de "Entre estos se reparte cada cuota" (mockup 6): quién es,
   // qué papel tiene en el lote y a qué cuenta se le transfiere. Antes era una
   // fila de pastillas con el nombre solo.
+  //
+  // Desde el 15/09 cada ficha de un participante adicional, una cuenta
+  // externa o el vendedor tiene su botón "Quitar", con el aviso de qué pasa
+  // con sus cuotas. El admin y el acreedor no: el lote siempre tiene los dos
+  // y se cambian en "Roles del lote".
   const PAPEL_ETIQUETA: Record<string, string> = {
     admin: 'Administrador',
     acreedor: 'Acreedor',
     vendedor: 'Vendedor',
   }
-  const fichasIntegrantes = [
+  const esParticipante = (clave: string) =>
+    (participantesLote ?? []).some(
+      (participante) =>
+        (participante.profile_id && `profile:${participante.profile_id}` === clave) ||
+        (participante.cuenta_externa_id && `externa:${participante.cuenta_externa_id}` === clave)
+    )
+  const fichasIntegrantes: FichaIntegrante[] = [
     ...(perfilesIntegrantes ?? []).map((persona) => {
       const papel = papelEnElLote(persona.id)
+      const key = `profile:${persona.id}`
+      const nombre = persona.full_name ?? '—'
+      const quitable = esParticipante(key) || (papel === 'vendedor' && persona.id === lote.vendedor_id)
       return {
-        key: `profile:${persona.id}`,
-        nombre: persona.full_name ?? '—',
+        key,
+        nombre,
         estilo: FICHA_INTEGRANTE[papel] ?? FICHA_INTEGRANTE.otro,
         papel: PAPEL_ETIQUETA[papel] ?? papel,
         banco: persona.banco,
         alias: persona.alias,
+        sinDatos: sinDatosTransferencia.has(key),
+        salida: quitable ? avisoDeSalida(nombre, vinculos.de(key)) : null,
       }
     }),
-    ...(cuentasExternas ?? []).map((cuentaExterna) => ({
-      key: `externa:${cuentaExterna.id}`,
-      nombre: cuentaExterna.nombre,
-      estilo: FICHA_INTEGRANTE.otro,
-      papel: 'Cuenta externa',
-      banco: cuentaExterna.banco,
-      alias: cuentaExterna.alias,
-    })),
+    ...(cuentasExternas ?? []).map((cuentaExterna) => {
+      const key = `externa:${cuentaExterna.id}`
+      return {
+        key,
+        nombre: cuentaExterna.nombre,
+        estilo: FICHA_INTEGRANTE.otro,
+        papel: 'Cuenta externa',
+        banco: cuentaExterna.banco,
+        alias: cuentaExterna.alias,
+        sinDatos: sinDatosTransferencia.has(key),
+        salida: esParticipante(key) ? avisoDeSalida(cuentaExterna.nombre, vinculos.de(key)) : null,
+      }
+    }),
   ]
 
-  const { data: objetivos } = await supabase
-    .from('lote_distribucion_objetivos')
-    .select('profile_id, cuenta_externa_id, monto_objetivo')
-    .eq('lote_id', id)
+  // El mismo aviso, para "Roles del lote": cambiar al vendedor o al acreedor
+  // saca al anterior del lote.
+  const avisosDeSalidaDeRoles: Record<string, AvisoDeSalidaDeRol> = {}
+  for (const idConRol of [adminDelLote, lote.acreedor_id, lote.vendedor_id]) {
+    if (!idConRol || avisosDeSalidaDeRoles[idConRol]) continue
+    const nombre = (perfilesIntegrantes ?? []).find((persona) => persona.id === idConRol)?.full_name ?? '—'
+    const vinculosDeLaPersona = vinculos.de(`profile:${idConRol}`)
+    avisosDeSalidaDeRoles[idConRol] = {
+      nombre,
+      ...avisoDeSalida(nombre, vinculosDeLaPersona),
+      cambia: cambiaAlgoAlQuitarlo(vinculosDeLaPersona),
+    }
+  }
 
-  const objetivosIniciales = (objetivos ?? []).map((objetivo) => ({
-    participanteKey: objetivo.profile_id
-      ? `profile:${objetivo.profile_id}`
-      : `externa:${objetivo.cuenta_externa_id}`,
-    monto: String(objetivo.monto_objetivo),
-  }))
+  const porcentajesIniciales = Object.fromEntries(
+    Object.entries(vinculos.porcentajePorClave).map(([clave, porcentaje]) => [clave, String(porcentaje)])
+  )
 
   // Paginado y por tandas (15/09): un lote de 60 cuotas repartidas entre 3
   // son 180 filas, pero la lista de ids viaja en la URL y PostgREST corta en
@@ -259,10 +303,19 @@ export default async function DistribucionLotePage({
       .range(desde, hasta)
   )
 
+  // Dentro de cada cuota, primero el que se lleva más (15/09). Las filas
+  // llegan ordenadas por id, que es un uuid al azar, así que sin esto el
+  // orden de las personas de una cuota cambiaba cada vez que se guardaba.
+  // Con un 85/10/5 todas las cuotas quedan acreedor, admin, vendedor.
   const distribucionesIniciales: Record<number, { participanteKey: string; monto: string }[]> = {}
   for (const cuota of cuotas) {
     distribucionesIniciales[cuota.numero] = distribuciones
       .filter((distribucion) => distribucion.cuota_id === cuota.id)
+      .sort(
+        (a, b) =>
+          Number(b.monto) - Number(a.monto) ||
+          (a.profile_id ?? a.cuenta_externa_id ?? '').localeCompare(b.profile_id ?? b.cuenta_externa_id ?? '')
+      )
       .map((distribucion) => ({
         participanteKey: distribucion.profile_id
           ? `profile:${distribucion.profile_id}`
@@ -295,7 +348,7 @@ export default async function DistribucionLotePage({
   // <select> siempre tenga una opción que matchee, sin importar el role actual.
   const clavesConocidas = new Set(participantesElegibles.map((p) => p.key))
   const clavesUsadas = new Set<string>()
-  for (const fila of objetivosIniciales) clavesUsadas.add(fila.participanteKey)
+  for (const clave of Object.keys(porcentajesIniciales)) clavesUsadas.add(clave)
   for (const filas of Object.values(distribucionesIniciales)) {
     for (const fila of filas) clavesUsadas.add(fila.participanteKey)
   }
@@ -447,8 +500,8 @@ export default async function DistribucionLotePage({
             <span className={PASO_NUMERO}>1</span>
             <div>
               <h2 className={PASO_TITULO}>
-                Entre estos se reparte cada cuota ({participantesElegibles.length}{' '}
-                {participantesElegibles.length === 1 ? 'integrante' : 'integrantes'})
+                Entre estos se reparte cada cuota ({fichasIntegrantes.length}{' '}
+                {fichasIntegrantes.length === 1 ? 'integrante' : 'integrantes'})
               </h2>
               <p className={PASO_BAJADA}>
                 Los únicos a los que se les puede repartir una cuota o mandar a cobrarla.
@@ -470,40 +523,10 @@ export default async function DistribucionLotePage({
             cuotas. Cargalos acá abajo.
           </p>
         ) : (
-          <ul className="flex flex-wrap items-center gap-3">
-            {fichasIntegrantes.map((ficha) => (
-              <li
-                key={ficha.key}
-                className={`flex items-center gap-2.5 rounded-lg border px-3 py-2 ${ficha.estilo.ficha}`}
-              >
-                <span
-                  className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-xs font-bold ${ficha.estilo.avatar}`}
-                >
-                  {ficha.nombre.trim().charAt(0).toUpperCase() || '—'}
-                </span>
-                <div className="leading-tight">
-                  <div className="flex flex-wrap items-center gap-1.5">
-                    <span className="text-xs font-bold text-slate-900">{ficha.nombre}</span>
-                    <span
-                      className={`rounded border px-1.5 text-[10px] font-semibold uppercase ${ficha.estilo.papel}`}
-                    >
-                      {ficha.papel}
-                    </span>
-                  </div>
-                  {sinDatosTransferencia.has(ficha.key) ? (
-                    <p className="text-[11px] font-medium text-amber-700">Sin datos de transferencia</p>
-                  ) : (
-                    <p className="font-mono text-[11px] text-slate-500">
-                      {ficha.banco} · alias: {ficha.alias}
-                    </p>
-                  )}
-                </div>
-              </li>
-            ))}
-          </ul>
+          <FichasIntegrantes fichas={fichasIntegrantes} accionQuitar={quitarIntegrante.bind(null, id)} />
         )}
 
-        <SeccionCobro loteId={id} />
+        <SeccionCobro loteId={id} avisosDeSalida={avisosDeSalidaDeRoles} />
       </section>
 
       {cuotasSinDistribucion.length > 0 && (
@@ -538,9 +561,11 @@ export default async function DistribucionLotePage({
               numero: cuota.numero,
               montoBase: cuota.monto_base,
               fechaVencimiento: cuota.fecha_vencimiento,
+              cobrada: cobradaPorNumero.get(cuota.numero) ?? false,
             }))}
             participantesElegibles={participantesElegibles}
-            objetivosIniciales={objetivosIniciales}
+            integrantes={fichasIntegrantes.map((ficha) => ficha.key)}
+            porcentajesIniciales={porcentajesIniciales}
             distribucionesIniciales={distribucionesIniciales}
             cuentaCobroInicialPorCuota={cuentaCobroInicialPorCuota}
             cuentaCobroDelLote={cuentaCobroDelLote}

@@ -4,6 +4,7 @@ import { createClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
 import { requireAdministrador } from '@/lib/auth/require-admin'
 import { revalidarNotificaciones } from '@/lib/notificaciones/revalidar'
+import { leerPorcentaje } from '@/lib/lotes/reparto-por-porcentaje'
 
 interface FilaValida {
   profile_id: string | null
@@ -47,7 +48,7 @@ function filasValidas(filas: { participanteKey: string; monto: string }[]): Fila
 }
 
 // Si el mismo participante aparece en mas de una fila dentro de la misma
-// cuota (u objetivos), se suman en vez de mandar dos inserts con la misma
+// cuota, se suman en vez de mandar dos inserts con la misma
 // clave unica -- evita un 23505 por algo que para el admin es un detalle
 // menor de UI (agrego dos filas para la misma persona sin querer).
 function combinarPorParticipante(filas: FilaValida[]): FilaValida[] {
@@ -156,9 +157,17 @@ export async function guardarDistribucionLote(loteId: string, formData: FormData
   // antes para este lote y se inserta de nuevo exactamente lo que llegó en
   // este envío -- coherente con el botón único "Guardar distribución" que
   // manda todo el estado del lote junto en cada submit.
-  const objetivosValidos = combinarPorParticipante(
-    filasValidas(leerFilas(formData, 'objetivoParticipante', 'objetivoMonto'))
-  )
+  //
+  // Cuánto le toca a cada uno del lote, en porcentaje (15/09). Reemplaza a
+  // los "objetivos" en plata. Un campo vacío es "sin porcentaje" y no se
+  // guarda; uno inválido (negativo, más de 100) tampoco.
+  const porcentajesValidos = new Map<string, { profile_id: string | null; cuenta_externa_id: string | null; porcentaje: number }>()
+  for (const fila of leerFilas(formData, 'porcentajeParticipante', 'porcentajeValor')) {
+    const participante = parseParticipanteKey(fila.participanteKey)
+    const porcentaje = leerPorcentaje(fila.monto)
+    if (!participante || porcentaje === null) continue
+    porcentajesValidos.set(fila.participanteKey, { ...participante, porcentaje })
+  }
 
   const filasParaInsertar: (FilaValida & { cuota_id: string })[] = []
 
@@ -176,11 +185,7 @@ export async function guardarDistribucionLote(loteId: string, formData: FormData
   // se pierde la distribución previamente guardada del lote.
   const { error: errorGuardar } = await supabase.rpc('guardar_distribucion_lote', {
     p_lote_id: loteId,
-    p_objetivos: objetivosValidos.map((fila) => ({
-      profile_id: fila.profile_id,
-      cuenta_externa_id: fila.cuenta_externa_id,
-      monto: fila.monto,
-    })),
+    p_objetivos: [...porcentajesValidos.values()],
     p_distribuciones: filasParaInsertar.map((fila) => ({
       cuota_id: fila.cuota_id,
       profile_id: fila.profile_id,

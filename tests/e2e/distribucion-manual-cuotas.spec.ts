@@ -68,6 +68,8 @@ test.describe('Distribución manual por cuota', () => {
     const filaResumen = page.getByTestId('resumen-participante').filter({ hasText: 'E2E Vendedor A (vendedor)' })
     await expect(filaResumen.getByText('—')).toBeVisible()
 
+    // Al recargar, dentro de la cuota va primero el que se lleva más (400).
+    // Antes del 15/09 el orden salía al azar y este test pasaba por suerte.
     await page.reload()
     await expect(page.locator('input[name="cuota1Participante"]').nth(0)).toHaveValue(
       `profile:${fixtures.vendedorLoteA.id}`
@@ -78,29 +80,121 @@ test.describe('Distribución manual por cuota', () => {
     await expect(page.locator('input[name="cuota1Monto"]').nth(0)).toHaveValue('400')
   })
 
-  test('objetivo opcional: el resumen pasa a "Saldado" en vivo al cargar la segunda cuota, sin guardar', async ({
+  test('porcentaje del lote: la tarjeta compara en vivo lo repartido contra lo que le toca, sin guardar', async ({
     page,
   }) => {
     await login(page, fixtures.admin.email, fixtures.password)
     await page.goto(`/admin/lotes/${fixtures.loteId}/distribucion`)
 
-    await page.getByRole('button', { name: '+ Agregar objetivo' }).click()
-    await seleccionarParticipante(page, 'objetivoParticipante', 0, 'E2E Vendedor A (vendedor)')
-    await page.locator('input[name="objetivoMonto"]').nth(0).fill('1000')
+    // El lote de prueba tiene 3 cuotas de 1000: el 50% son 1500.
+    await page.getByRole('spinbutton', { name: 'Porcentaje del lote de E2E Vendedor A (vendedor)' }).fill('50')
 
     await page.getByRole('button', { name: '+ Agregar participante a esta cuota' }).nth(0).click()
     await seleccionarParticipante(page, 'cuota1Participante', 0, 'E2E Vendedor A (vendedor)')
     await page.locator('input[name="cuota1Monto"]').nth(0).fill('500')
 
-    await expect(page.getByText('500 de 1000, faltan 500')).toBeVisible()
+    const tarjeta = page.getByTestId('resumen-participante').filter({ hasText: 'E2E Vendedor A (vendedor)' })
+    await expect(tarjeta).toContainText('50% = 1500: faltan 1000')
 
-    await page.getByRole('button', { name: '+ Agregar participante a esta cuota' }).nth(1).click()
+    await page.locator('tr[data-cuota="2"]').getByRole('button', { name: '+ Agregar participante a esta cuota' }).click()
     await seleccionarParticipante(page, 'cuota2Participante', 0, 'E2E Vendedor A (vendedor)')
-    await page.locator('input[name="cuota2Monto"]').nth(0).fill('500')
+    await page.locator('input[name="cuota2Monto"]').nth(0).fill('1000')
 
-    // Todo esto pasó sin ningún guardado ni recarga -- el resumen cruzó
-    // las dos cuotas al instante, del lado del cliente.
-    await expect(page.getByText('Saldado')).toBeVisible()
+    // Todo esto pasó sin ningún guardado ni recarga: la tarjeta cruzó las
+    // dos cuotas al instante, del lado del cliente.
+    await expect(tarjeta).toContainText('50% · repartido completo')
+  })
+
+  test('repartir con porcentajes llena las cuotas sin pagos, no toca las que tienen pagos, y guardar persiste todo', async ({
+    page,
+  }) => {
+    const admin = createAdminClient()
+
+    // La cuota 1 ya tiene un pago imputado con su reparto de antes: eso ya
+    // se anotó en la cuenta corriente y no se puede pisar.
+    const { data: pago } = await admin
+      .from('pagos')
+      .insert({
+        cliente_id: fixtures.cliente.id,
+        lote_id: fixtures.loteId,
+        moneda: 'USD',
+        motivo: 'cuota',
+        medio_pago: 'efectivo',
+        monto: 1000,
+        estado: 'confirmado',
+        confirmado_admin_por: fixtures.admin.id,
+      })
+      .select('id')
+      .single()
+    await admin.from('pago_imputaciones').insert({ pago_id: pago!.id, cuota_id: fixtures.cuotaIds[0], monto_imputado: 1000 })
+    await admin.from('cuota_distribuciones').insert([
+      { cuota_id: fixtures.cuotaIds[0], profile_id: fixtures.acreedorConDatos.id, monto: 1000 },
+      // La cuota 3 tenía un reparto cargado a mano: se avisa que se pisa.
+      { cuota_id: fixtures.cuotaIds[2], profile_id: fixtures.vendedorLoteA.id, monto: 300 },
+    ])
+
+    try {
+      await login(page, fixtures.admin.email, fixtures.password)
+      await page.goto(`/admin/lotes/${fixtures.loteId}/distribucion`)
+
+      await expect(page.getByTestId('aviso-cuotas-sin-repartir')).toContainText('La cuota 2 no tiene reparto todavía')
+
+      const seccion = page.getByTestId('porcentajes-del-lote')
+      await seccion.getByRole('spinbutton', { name: /E2E Acreedor Con Datos/ }).fill('85')
+      await seccion.getByRole('spinbutton', { name: /E2E Vendedor A/ }).fill('5')
+      await expect(page.getByTestId('suma-porcentajes')).toHaveText('Suman 90% · falta 10%')
+
+      // Admin del lote: el que está por defecto (el único administrador).
+      const campoAdmin = seccion.locator('tr', { hasText: '(admin)' }).getByRole('spinbutton')
+      await campoAdmin.fill('10')
+      await expect(page.getByTestId('suma-porcentajes')).toHaveText('Suman 100% ✓')
+
+      await expect(seccion).toContainText('las 2 cuotas que todavía no se cobraron')
+      await expect(seccion).toContainText('Ojo: la cuota 3 ya tiene otro reparto cargado y se va a pisar.')
+
+      await seccion.getByRole('button', { name: 'Repartir las cuotas con estos porcentajes' }).click()
+      await expect(page.getByTestId('porcentajes-aplicados')).toContainText('se repartieron 2 cuotas')
+
+      await expect(page.locator('tr[data-cuota="2"]')).toContainText('Repartida completa')
+      await expect(page.locator('tr[data-cuota="3"]')).toContainText('Repartida completa')
+      await expect(page.locator('tr[data-cuota="1"]')).toContainText('Con pagos')
+
+      await page.getByRole('button', { name: 'Guardar distribución' }).first().click()
+      await page.waitForURL(/ok=1/)
+
+      const montosDe = async (cuotaId: string) => {
+        const { data } = await admin.from('cuota_distribuciones').select('profile_id, monto').eq('cuota_id', cuotaId)
+        return Object.fromEntries((data ?? []).map((fila) => [fila.profile_id, fila.monto]))
+      }
+
+      expect(await montosDe(fixtures.cuotaIds[0])).toEqual({ [fixtures.acreedorConDatos.id]: 1000 })
+      expect(await montosDe(fixtures.cuotaIds[1])).toEqual({
+        [fixtures.acreedorConDatos.id]: 850,
+        [fixtures.vendedorLoteA.id]: 50,
+        [fixtures.admin.id]: 100,
+      })
+      expect(await montosDe(fixtures.cuotaIds[2])).toEqual({
+        [fixtures.acreedorConDatos.id]: 850,
+        [fixtures.vendedorLoteA.id]: 50,
+        [fixtures.admin.id]: 100,
+      })
+
+      const { data: porcentajes } = await admin
+        .from('lote_distribucion_objetivos')
+        .select('profile_id, porcentaje')
+        .eq('lote_id', fixtures.loteId)
+      expect(Object.fromEntries((porcentajes ?? []).map((fila) => [fila.profile_id, Number(fila.porcentaje)]))).toEqual({
+        [fixtures.acreedorConDatos.id]: 85,
+        [fixtures.vendedorLoteA.id]: 5,
+        [fixtures.admin.id]: 10,
+      })
+
+      await page.reload()
+      await expect(page.getByTestId('suma-porcentajes')).toHaveText('Suman 100% ✓')
+    } finally {
+      await admin.from('pago_imputaciones').delete().eq('pago_id', pago!.id)
+      await admin.from('pagos').delete().eq('id', pago!.id)
+    }
   })
 
   test('modificar la distribución de una cuota puntual no toca las demás cuotas', async ({ page }) => {
@@ -328,7 +422,9 @@ test.describe('Distribución manual por cuota', () => {
 
     await expect(page.locator('input[name="cuota1Monto"]').nth(0)).toHaveValue('500')
 
-    await page.getByRole('button', { name: 'Quitar' }).first().click()
+    // Exacto y dentro de la cuota: desde el 15/09 las fichas de los
+    // integrantes también tienen un "Quitar a ... del lote".
+    await page.locator('tr[data-cuota="1"]').getByRole('button', { name: 'Quitar', exact: true }).click()
     await page.getByRole('button', { name: 'Guardar distribución' }).first().click()
     await page.waitForURL(/ok=1/)
 

@@ -27,6 +27,21 @@ async function abrirFormularioParticipante(page: import('@playwright/test').Page
   }).toPass({ timeout: 15000 })
 }
 
+/**
+ * La ficha de un integrante en "Entre estos se reparte cada cuota". Desde el
+ * 15/09 los participantes se ven (y se quitan) solo ahí: la lista de "Otros
+ * participantes" con su tacho se sacó porque repetía las mismas personas.
+ */
+function fichaDe(page: import('@playwright/test').Page, nombre: string) {
+  return page.getByTestId('ficha-integrante').filter({ hasText: nombre })
+}
+
+/** Quitar pasa por un aviso previo: se abre y se confirma. */
+async function quitarDelLote(page: import('@playwright/test').Page, nombre: string) {
+  await page.getByRole('button', { name: `Quitar a ${nombre} del lote` }).click()
+  await expect(page.getByTestId('aviso-quitar-integrante')).toBeVisible()
+  await page.getByRole('button', { name: `Sí, quitar a ${nombre}` }).click()
+}
 
 test.describe('Múltiples participantes por lote', () => {
   let fixtures: TestFixtures
@@ -49,7 +64,8 @@ test.describe('Múltiples participantes por lote', () => {
       await page.getByLabel('Etiqueta (opcional)').fill('Vendedor 2')
       await page.getByRole('button', { name: 'Agregar al lote' }).click()
 
-      await expect(page.getByText('E2E Vendedor B (vendedor) — Vendedor 2')).toBeVisible()
+      // La etiqueta es el papel que muestra su ficha.
+      await expect(fichaDe(page, 'E2E Vendedor B')).toContainText('Vendedor 2')
     } finally {
       await admin
         .from('lote_participantes')
@@ -86,9 +102,7 @@ test.describe('Múltiples participantes por lote', () => {
       // matchearía también la opción homónima del <select> de "Cuenta de
       // cobro actual", y desde el 06/09 además la lista de "entre estos se
       // reparte cada cuota", que está en la misma pantalla.
-      await expect(
-        page.locator('[data-testid="participantes-del-lote"] li', { hasText: `${nombreCuentaExterna} (cuenta externa)` })
-      ).toBeVisible()
+      await expect(fichaDe(page, nombreCuentaExterna)).toContainText('Cuenta externa')
     } finally {
       await admin.from('lote_participantes').delete().eq('cuenta_externa_id', cuentaExternaId)
       await admin.from('cuentas_externas').delete().eq('id', cuentaExternaId)
@@ -163,7 +177,7 @@ test.describe('Múltiples participantes por lote', () => {
       await page.getByRole('button', { name: 'Agregar al lote' }).click()
       // getByText matchearía también la opción homónima del <select> de
       // "Agregar participante": se acota al <li> de la lista.
-      await expect(page.locator('[data-testid="participantes-del-lote"] li', { hasText: 'E2E Vendedor B (vendedor)' })).toBeVisible()
+      await expect(fichaDe(page, 'E2E Vendedor B')).toBeVisible()
 
       await abrirFormularioParticipante(page)
       await page.selectOption('select[name="participanteId"]', { label: 'E2E Vendedor B (vendedor)' })
@@ -188,15 +202,23 @@ test.describe('Múltiples participantes por lote', () => {
     await page.getByRole('button', { name: 'Agregar al lote' }).click()
     // getByText matchearía también la opción homónima del <select> de
     // "Agregar participante": se acota al <li> de la lista.
-    await expect(page.locator('[data-testid="participantes-del-lote"] li', { hasText: 'E2E Vendedor A (vendedor)' })).toBeVisible()
+    await expect(fichaDe(page, 'E2E Vendedor A')).toBeVisible()
 
-    // quitarParticipante no tiene ningún diálogo de confirmación de por
-    // medio (a diferencia de eliminar una cuenta externa o un lote entero):
-    // es un submit directo, mismo criterio que "agregar".
-    const fila = page.locator('[data-testid="participantes-del-lote"] li', { hasText: 'E2E Vendedor A (vendedor)' })
-    await fila.getByRole('button', { name: 'Quitar' }).click()
+    // Desde el 15/09 quitar pasa por un aviso previo de qué cuotas toca. Sin
+    // cuotas atadas, lo dice y se confirma igual.
+    await page.getByRole('button', { name: 'Quitar a E2E Vendedor A del lote' }).click()
+    await expect(page.getByTestId('aviso-quitar-integrante')).toContainText(
+      'No tiene cuotas asignadas en este lote'
+    )
+    // Cancelar no toca nada.
+    await page.getByTestId('aviso-quitar-integrante').getByRole('button', { name: 'Cancelar' }).click()
+    await expect(page.getByTestId('aviso-quitar-integrante')).toHaveCount(0)
+    await expect(fichaDe(page, 'E2E Vendedor A')).toBeVisible()
 
-    await expect(page.getByText('Ninguno.')).toBeVisible()
+    await quitarDelLote(page, 'E2E Vendedor A')
+
+    await expect(page.getByText('E2E Vendedor A ya no es integrante del lote.')).toBeVisible()
+    await expect(fichaDe(page, 'E2E Vendedor A')).toHaveCount(0)
   })
 
   test('quitar un participante que es la cuenta de cobro actual es rechazado', async ({ page }) => {
@@ -212,7 +234,7 @@ test.describe('Múltiples participantes por lote', () => {
     await page.getByRole('button', { name: 'Agregar al lote' }).click()
     // getByText matchearía también la opción homónima del <select> de
     // "Agregar participante": se acota al <li> de la lista.
-    await expect(page.locator('[data-testid="participantes-del-lote"] li', { hasText: 'E2E Acreedor Con Datos (acreedor)' })).toBeVisible()
+    await expect(fichaDe(page, 'E2E Acreedor Con Datos')).toBeVisible()
 
     try {
       // Se asigna directo por base (el selector de "Cuenta de cobro" solo
@@ -243,8 +265,7 @@ test.describe('Múltiples participantes por lote', () => {
         .toBe(fixtures.acreedorConDatos.id)
 
       await page.reload()
-      const fila = page.locator('[data-testid="participantes-del-lote"] li', { hasText: 'E2E Acreedor Con Datos (acreedor)' })
-      await fila.getByRole('button', { name: 'Quitar' }).click()
+      await quitarDelLote(page, 'E2E Acreedor Con Datos')
 
       await expect(
         page.getByText(
@@ -297,7 +318,7 @@ test.describe('Múltiples participantes por lote', () => {
       // getByText matchearía también las opciones homónimas de los <select>:
       // se acota al <li> de la lista, mismo criterio que el resto del suite.
       await expect(
-        page.locator('[data-testid="participantes-del-lote"] li', { hasText: 'E2E Vendedor B (vendedor)' })
+        fichaDe(page, 'E2E Vendedor B')
       ).toBeVisible()
 
       await page.selectOption('select[name="cuota1CuentaCobro"]', {
@@ -336,59 +357,195 @@ test.describe('Múltiples participantes por lote', () => {
     }
   })
 
-  test('no se puede quitar del lote a alguien que hoy cobra una cuota', async ({ page }) => {
-    const admin = createAdminClient()
+  // Hasta el 15/09 quitar a alguien que cobraba una cuota se negaba, y si
+  // solo tenía parte del reparto lo sacaba sin avisar. Ahora avisa antes
+  // qué cuotas toca y, al confirmar: en las cuotas sin pagos le saca el
+  // reparto y el destino; en las que ya tienen pagos no toca nada.
+  test.describe('quitar a alguien con cuotas atadas', () => {
+    let pagoId: string | null = null
 
-    await login(page, fixtures.admin.email, fixtures.password)
-    await page.goto(`/admin/lotes/${fixtures.loteId}/distribucion`)
-
-    try {
-      await abrirFormularioParticipante(page)
-      await page.selectOption('select[name="participanteId"]', { label: 'E2E Vendedor B (vendedor)' })
-      await page.getByRole('button', { name: 'Agregar al lote' }).click()
-      await expect(
-        page.locator('[data-testid="participantes-del-lote"] li', { hasText: 'E2E Vendedor B (vendedor)' })
-      ).toBeVisible()
-
-      // Se asigna por base para probar el guard aislado del formulario.
-      await admin
-        .from('cuotas')
-        .update({ cuenta_cobro_id: fixtures.vendedorLoteB.id })
-        .eq('lote_id', fixtures.loteId)
-        .eq('numero', 1)
-
-      await expect
-        .poll(
-          async () => {
-            const { data: cuota } = await admin
-              .from('cuotas')
-              .select('cuenta_cobro_id')
-              .eq('lote_id', fixtures.loteId)
-              .eq('numero', 1)
-              .single()
-            return cuota?.cuenta_cobro_id ?? null
-          },
-          { timeout: 10000 }
-        )
-        .toBe(fixtures.vendedorLoteB.id)
-
-      await page.reload()
-      const fila = page.locator('[data-testid="participantes-del-lote"] li', {
-        hasText: 'E2E Vendedor B (vendedor)',
-      })
-      await fila.getByRole('button', { name: 'Quitar' }).click()
-
-      await expect(page.getByText('No se puede quitar: hoy cobra la cuota 1')).toBeVisible()
-    } finally {
+    test.afterEach(async () => {
+      const admin = createAdminClient()
+      if (pagoId) {
+        await admin.from('pago_imputaciones').delete().eq('pago_id', pagoId)
+        await admin.from('pagos').delete().eq('id', pagoId)
+        pagoId = null
+      }
+      await admin.from('cuota_distribuciones').delete().in('cuota_id', fixtures.cuotaIds)
+      await admin.from('lote_distribucion_objetivos').delete().eq('lote_id', fixtures.loteId)
       await admin
         .from('cuotas')
         .update({ cuenta_cobro_id: null, cuenta_cobro_externa_id: null })
         .eq('lote_id', fixtures.loteId)
+      await admin.from('lote_participantes').delete().eq('lote_id', fixtures.loteId)
+      await admin.from('lotes').update({ vendedor_id: fixtures.vendedorLoteA.id }).eq('id', fixtures.loteId)
+    })
+
+    // Vendedor B participa del lote: cobra la cuota 1 (ya tiene un pago) y la
+    // 2 (sin pagos), tiene parte del reparto en las tres y un 5% del lote.
+    async function prepararVendedorBConCuotas(conPagoPendienteEnLaCuota2 = false) {
+      const admin = createAdminClient()
+      await admin.from('lote_participantes').insert({ lote_id: fixtures.loteId, profile_id: fixtures.vendedorLoteB.id })
       await admin
-        .from('lote_participantes')
-        .delete()
+        .from('cuotas')
+        .update({ cuenta_cobro_id: fixtures.vendedorLoteB.id })
+        .in('id', [fixtures.cuotaIds[0], fixtures.cuotaIds[1]])
+      await admin.from('cuota_distribuciones').insert(
+        fixtures.cuotaIds.flatMap((cuotaId) => [
+          { cuota_id: cuotaId, profile_id: fixtures.vendedorLoteB.id, monto: 50 },
+          { cuota_id: cuotaId, profile_id: fixtures.acreedorConDatos.id, monto: 950 },
+        ])
+      )
+      await admin
+        .from('lote_distribucion_objetivos')
+        .insert({ lote_id: fixtures.loteId, profile_id: fixtures.vendedorLoteB.id, porcentaje: 5 })
+
+      const { data: pago } = await admin
+        .from('pagos')
+        .insert({
+          cliente_id: fixtures.cliente.id,
+          lote_id: fixtures.loteId,
+          moneda: 'USD',
+          motivo: 'cuota',
+          medio_pago: 'transferencia',
+          monto: 1000,
+          estado: conPagoPendienteEnLaCuota2 ? 'pendiente' : 'confirmado',
+          cuota_origen_id: conPagoPendienteEnLaCuota2 ? fixtures.cuotaIds[1] : fixtures.cuotaIds[0],
+          confirmado_admin_por: conPagoPendienteEnLaCuota2 ? null : fixtures.admin.id,
+        })
+        .select('id')
+        .single()
+      pagoId = pago!.id
+      if (!conPagoPendienteEnLaCuota2) {
+        await admin
+          .from('pago_imputaciones')
+          .insert({ pago_id: pago!.id, cuota_id: fixtures.cuotaIds[0], monto_imputado: 1000 })
+      }
+    }
+
+    test('avisa antes qué cuotas toca y al confirmar solo cambia las que no tienen pagos', async ({ page }) => {
+      const admin = createAdminClient()
+      await prepararVendedorBConCuotas()
+
+      await login(page, fixtures.admin.email, fixtures.password)
+      await page.goto(`/admin/lotes/${fixtures.loteId}/distribucion`)
+
+      await page.getByRole('button', { name: 'Quitar a E2E Vendedor B del lote' }).click()
+      const aviso = page.getByTestId('aviso-quitar-integrante')
+      await expect(aviso).toContainText('Tiene parte del reparto en las cuotas 2 y 3, que todavía no se cobraron')
+      await expect(aviso).toContainText('La cuota 2 se le transfiere a E2E Vendedor B: queda sin destino')
+      await expect(aviso).toContainText('Se borra su 5% del lote.')
+      await expect(aviso).toContainText('En la cuota 1, que ya se cobró, no se toca nada')
+
+      await page.getByRole('button', { name: 'Sí, quitar a E2E Vendedor B' }).click()
+      await expect(
+        page.getByText(
+          'E2E Vendedor B ya no es integrante del lote. Se le sacó la parte del reparto en 2 cuotas sin cobrar. 1 cuota quedó sin destino: elegí a quién se le transfieren.'
+        )
+      ).toBeVisible()
+      await expect(fichaDe(page, 'E2E Vendedor B')).toHaveCount(0)
+
+      const { data: repartosDeB } = await admin
+        .from('cuota_distribuciones')
+        .select('cuota_id')
+        .eq('profile_id', fixtures.vendedorLoteB.id)
+        .in('cuota_id', fixtures.cuotaIds)
+      expect((repartosDeB ?? []).map((fila) => fila.cuota_id)).toEqual([fixtures.cuotaIds[0]])
+
+      const { data: cuotas } = await admin
+        .from('cuotas')
+        .select('numero, cuenta_cobro_id')
+        .eq('lote_id', fixtures.loteId)
+        .order('numero')
+      expect(cuotas?.map((cuota) => cuota.cuenta_cobro_id)).toEqual([fixtures.vendedorLoteB.id, null, null])
+
+      const { data: porcentaje } = await admin
+        .from('lote_distribucion_objetivos')
+        .select('id')
         .eq('lote_id', fixtures.loteId)
         .eq('profile_id', fixtures.vendedorLoteB.id)
-    }
+      expect(porcentaje).toEqual([])
+
+      // El reparto del acreedor en las tres cuotas no se tocó.
+      const { count } = await admin
+        .from('cuota_distribuciones')
+        .select('id', { count: 'exact', head: true })
+        .eq('profile_id', fixtures.acreedorConDatos.id)
+        .in('cuota_id', fixtures.cuotaIds)
+      expect(count).toBe(3)
+    })
+
+    test('con un pago informado sin confirmar en una cuota que cobra, no deja quitarlo', async ({ page }) => {
+      const admin = createAdminClient()
+      await prepararVendedorBConCuotas(true)
+
+      await login(page, fixtures.admin.email, fixtures.password)
+      await page.goto(`/admin/lotes/${fixtures.loteId}/distribucion`)
+
+      await page.getByRole('button', { name: 'Quitar a E2E Vendedor B del lote' }).click()
+      const aviso = page.getByTestId('aviso-quitar-integrante')
+      await expect(aviso).toContainText(
+        'Todavía no se puede quitar: el cliente ya informó un pago de la cuota 2, que se le transfiere a E2E Vendedor B, y falta confirmarlo.'
+      )
+      await expect(aviso.getByRole('button', { name: /Sí, quitar/ })).toHaveCount(0)
+
+      const { data: participante } = await admin
+        .from('lote_participantes')
+        .select('id')
+        .eq('lote_id', fixtures.loteId)
+        .eq('profile_id', fixtures.vendedorLoteB.id)
+      expect(participante).toHaveLength(1)
+    })
+
+    test('cambiar el vendedor en "Roles del lote" avisa antes y saca al anterior de sus cuotas sin pagos', async ({
+      page,
+    }) => {
+      const admin = createAdminClient()
+      await admin.from('cuota_distribuciones').insert([
+        { cuota_id: fixtures.cuotaIds[1], profile_id: fixtures.vendedorLoteA.id, monto: 50 },
+        { cuota_id: fixtures.cuotaIds[2], profile_id: fixtures.vendedorLoteA.id, monto: 50 },
+      ])
+
+      await login(page, fixtures.admin.email, fixtures.password)
+      await page.goto(`/admin/lotes/${fixtures.loteId}/distribucion`)
+
+      await expect(page.getByTestId('aviso-cambio-de-rol')).toHaveCount(0)
+      await page.selectOption('select[name="vendedorId"]', { label: 'E2E Vendedor B' })
+
+      const aviso = page.getByTestId('aviso-cambio-de-rol')
+      await expect(aviso).toContainText('Al guardar, E2E Vendedor A deja de ser integrante del lote')
+      await expect(aviso).toContainText('Tiene parte del reparto en las cuotas 2 y 3')
+
+      await page.getByRole('button', { name: 'Guardar y sacar a E2E Vendedor A de sus cuotas' }).click()
+      await expect(page.getByText(/Datos de cobro guardados\. E2E Vendedor A ya no es integrante del lote\./)).toBeVisible()
+
+      const { data: lote } = await admin.from('lotes').select('vendedor_id').eq('id', fixtures.loteId).single()
+      expect(lote?.vendedor_id).toBe(fixtures.vendedorLoteB.id)
+
+      const { count } = await admin
+        .from('cuota_distribuciones')
+        .select('id', { count: 'exact', head: true })
+        .eq('profile_id', fixtures.vendedorLoteA.id)
+        .in('cuota_id', fixtures.cuotaIds)
+      expect(count).toBe(0)
+    })
+
+    test('el vendedor se quita desde su ficha; el admin y el acreedor no tienen ese botón', async ({ page }) => {
+      await login(page, fixtures.admin.email, fixtures.password)
+      await page.goto(`/admin/lotes/${fixtures.loteId}/distribucion`)
+
+      await expect(page.getByRole('button', { name: 'Quitar a E2E Acreedor Con Datos del lote' })).toHaveCount(0)
+      await expect(fichaDe(page, 'E2E Acreedor Con Datos').getByRole('button')).toHaveCount(0)
+
+      await quitarDelLote(page, 'E2E Vendedor A')
+      await expect(page.getByText('E2E Vendedor A ya no es integrante del lote.')).toBeVisible()
+
+      const { data: lote } = await createAdminClient()
+        .from('lotes')
+        .select('vendedor_id')
+        .eq('id', fixtures.loteId)
+        .single()
+      expect(lote?.vendedor_id).toBeNull()
+    })
   })
 })

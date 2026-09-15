@@ -31,11 +31,8 @@ async function agregarComoParticipante(
     label: `${nombreCuentaExterna} (cuenta externa)`,
   })
   await page.getByRole('button', { name: 'Agregar al lote' }).click()
-  await expect(
-    page.locator('[data-testid="participantes-del-lote"] li', {
-      hasText: `${nombreCuentaExterna} (cuenta externa)`,
-    })
-  ).toBeVisible()
+  // Desde el 15/09 los participantes se ven en las fichas de integrantes.
+  await expect(page.getByTestId('ficha-integrante').filter({ hasText: nombreCuentaExterna })).toBeVisible()
 }
 
 test.describe('Cuentas externas', () => {
@@ -332,8 +329,14 @@ test.describe('Cuentas externas', () => {
         )
         .not.toBeNull()
 
+      // La opción elegida de la cuota 1, y no un getByText suelto: desde el
+      // 15/09 el nombre ya no está en una lista visible de participantes y el
+      // primero que aparece es una opción (oculta) de otro desplegable. La
+      // opción marcada viene del servidor, no depende de la hidratación.
       await page.reload()
-      await expect(page.getByText(`${nombreCuentaExterna} (cuenta externa)`).first()).toBeVisible()
+      await expect(page.locator('select[name="cuota1CuentaCobro"] option:checked')).toHaveText(
+        `${nombreCuentaExterna} (cuenta externa)`
+      )
     } finally {
       // fixtures.loteId es compartido con otros specs (cuenta-cobro.spec.ts,
       // pase-a-vendido.spec.ts, etc.) -- se limpia la asignación para no

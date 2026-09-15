@@ -18,6 +18,10 @@ import {
 import { mesDeFecha } from '@/lib/lotes/aplicar-indexacion'
 import { hoyArgentina } from '@/lib/fecha/hoy-argentina'
 import { revalidarNotificaciones } from '@/lib/notificaciones/revalidar'
+import { resolverAdminPorDefecto } from '@/lib/lotes/admin-por-defecto'
+import { cargarVinculosDelLote } from '@/lib/lotes/cargar-vinculos-del-lote'
+import { avisoDeSalida, cambiaAlgoAlQuitarlo } from '@/lib/lotes/vinculos-integrante'
+import { mensajeDeSalidaHecha, nombreDeCuenta } from '@/lib/lotes/salida-de-integrante'
 
 function idOVacio(valor: FormDataEntryValue | null): string | null {
   const texto = valor as string | null
@@ -487,6 +491,84 @@ export async function actualizarCobro(loteId: string, formData: FormData) {
   }
 
   const supabase = await createClient()
+  const volver = `/admin/lotes/${loteId}/distribucion`
+
+  // Quién deja de ser integrante con este cambio (15/09, pedido de Gabriel):
+  // cambiar el vendedor o el acreedor saca al anterior del lote igual que el
+  // botón "Quitar" de su ficha, así que sus cuotas sin cobrar se resuelven
+  // de la misma forma y con el mismo aviso previo. Sin esto quedaba
+  // repartido en cuotas de un lote del que ya no participa.
+  const { data: loteActual } = await supabase
+    .from('lotes')
+    .select('admin_id, acreedor_id, vendedor_id, ciclo_actual')
+    .eq('id', loteId)
+    .single()
+
+  if (!loteActual) {
+    redirect(`${volver}?error=${encodeURIComponent('No se encontró el lote')}`)
+  }
+
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
+  const { data: administradores } = await supabase.from('profiles').select('id').eq('role', 'administrador')
+  const adminEfectivo = (adminIdActual: string | null) =>
+    resolverAdminPorDefecto({
+      adminIdActual,
+      administradores: administradores ?? [],
+      usuarioActualId: user?.id ?? null,
+      usuarioActualEsAdministrador: true,
+    })
+  const { data: participantes } = await supabase
+    .from('lote_participantes')
+    .select('profile_id')
+    .eq('lote_id', loteId)
+
+  const siguen = new Set(
+    [adminEfectivo(adminId), acreedorId, vendedorId, ...(participantes ?? []).map((p) => p.profile_id)].filter(
+      (valor): valor is string => Boolean(valor)
+    )
+  )
+  const salen = [
+    ...new Set(
+      [adminEfectivo(loteActual!.admin_id), loteActual!.acreedor_id, loteActual!.vendedor_id].filter(
+        (valor): valor is string => Boolean(valor)
+      )
+    ),
+  ].filter((idPersona) => !siguen.has(idPersona))
+
+  const confirmados = new Set(formData.getAll('confirmarSalida').map(String))
+  const salenConCambios: { id: string; nombre: string }[] = []
+
+  if (salen.length > 0) {
+    const vinculos = await cargarVinculosDelLote(supabase, loteId, loteActual!.ciclo_actual)
+
+    for (const idPersona of salen) {
+      const nombre = await nombreDeCuenta(supabase, idPersona, null)
+      const vinculosDeLaPersona = vinculos.de(`profile:${idPersona}`)
+      const { bloqueo } = avisoDeSalida(nombre, vinculosDeLaPersona)
+
+      if (bloqueo) {
+        redirect(`${volver}?error=${encodeURIComponent(`No se guardó el cambio de roles. ${bloqueo}`)}`)
+      }
+
+      if (!cambiaAlgoAlQuitarlo(vinculosDeLaPersona)) continue
+
+      // El formulario manda a quién le mostró el aviso. Si no está, la
+      // pantalla estaba vieja (alguien le asignó cuotas en el medio): no se
+      // saca a nadie de sus cuotas sin que se haya visto el aviso.
+      if (!confirmados.has(idPersona)) {
+        redirect(
+          `${volver}?error=${encodeURIComponent(
+            `No se guardó el cambio de roles: ${nombre} tiene cuotas asignadas en este lote. Elegí el cambio de nuevo y leé el aviso antes de guardar.`
+          )}`
+        )
+      }
+
+      salenConCambios.push({ id: idPersona, nombre })
+    }
+  }
+
   const { error } = await supabase
     .from('lotes')
     .update({
@@ -497,10 +579,33 @@ export async function actualizarCobro(loteId: string, formData: FormData) {
     .eq('id', loteId)
 
   if (error) {
-    redirect(`/admin/lotes/${loteId}/distribucion?error=${encodeURIComponent(mensajeDeError(error))}`)
+    redirect(`${volver}?error=${encodeURIComponent(mensajeDeError(error))}`)
   }
 
-  redirect(`/admin/lotes/${loteId}/distribucion?ok=${encodeURIComponent('Datos de cobro guardados.')}`)
+  const mensajes = ['Datos de cobro guardados.']
+
+  for (const persona of salenConCambios) {
+    const { data: resultado, error: errorSalida } = await supabase.rpc('quitar_integrante_lote', {
+      p_lote_id: loteId,
+      p_profile_id: persona.id,
+      p_cuenta_externa_id: null,
+    })
+
+    if (errorSalida) {
+      console.error('quitar_integrante_lote (cambio de roles):', errorSalida)
+      redirect(
+        `${volver}?error=${encodeURIComponent(
+          `Los roles se guardaron, pero no se pudo sacar a ${persona.nombre} de sus cuotas sin cobrar. Probá quitarlo de nuevo.`
+        )}`
+      )
+    }
+
+    mensajes.push(mensajeDeSalidaHecha(persona.nombre, resultado))
+  }
+
+  if (salenConCambios.length > 0) revalidarNotificaciones()
+
+  redirect(`${volver}?ok=${encodeURIComponent(mensajes.join(' '))}`)
 }
 
 export async function subirDocumentoLote(loteId: string, formData: FormData) {
