@@ -38,6 +38,17 @@ import { FiltroEnVivo } from '@/components/FiltroEnVivo'
 import { RefinanciarCuotas } from './RefinanciarCuotas'
 import { EnlaceBoton } from '@/components/EnlaceBoton'
 import { BotonEnvio } from '@/components/BotonEnvio'
+import { ResumenDesplegable } from '@/components/ResumenDesplegable'
+import { traerTodasLasFilasPorTandas } from '@/lib/supabase/traer-todas-las-filas'
+import {
+  estadoDeCuota,
+  contarCuotas,
+  cuotasDelResumen,
+  pagosDelResumen,
+  ultimosDelResumen,
+  avanceDelPlan,
+  type EstadoDeCuota,
+} from '@/lib/lotes/detalle-resumido'
 import {
   MapPin,
   Pencil,
@@ -107,6 +118,8 @@ import { COLUMNA_LECTURA,
   CHIP_ARCHIVO,
   CHIP_ARCHIVO_VACIO,
   ETIQUETA_CAMPO,
+  PILL_CUOTA,
+  FUERA_DEL_RESUMEN,
 } from '@/lib/ui/clases'
 
 const MESES_ABREVIADOS = [
@@ -627,9 +640,21 @@ export default async function LoteDetallePage({
   // pantalla ya tenia; lo unico nuevo es juntarlas arriba en vez de
   // obligar a recorrer la tabla para sacar la cuenta a ojo.
   const cuotasDelCiclo = cuotas ?? []
-  const cuotasPagadas = cuotasDelCiclo.filter((cuota) => cuota.saldo_pendiente <= 0).length
+  const loteVendido = lote!.estado === 'vendido'
+  const cuotasDelDetalle = cuotasDelCiclo.map((cuota) => ({
+    numero: cuota.numero,
+    montoBase: cuota.monto_base,
+    montoAjustado: cuota.monto_ajustado,
+    saldoPendiente: cuota.saldo_pendiente,
+    fechaVencimiento: cuota.fecha_vencimiento,
+    refinanciada: cuota.refinanciada,
+  }))
+  // Las pagadas se cuentan sin las refinanciadas (14/09). Antes salian del
+  // saldo en cero, y refinanciar deja en cero las cuotas viejas: un lote con
+  // 1 cuota pagada y 2 refinanciadas decia "3 / 7 pagadas".
+  const conteoCuotas = contarCuotas(cuotasDelDetalle, loteVendido, hoy)
   const proximaCuota = cuotasDelCiclo.find((cuota) => cuota.saldo_pendiente > 0) ?? null
-  const cuotasQueRestan = cuotasDelCiclo.length - cuotasPagadas
+  const cuotasQueRestan = conteoCuotas.vivas - conteoCuotas.pagadas
   // Cuanto del plan ya entro. Sale de las cuotas (lo pactado menos lo que
   // sigue debiendo), NO de totalCobradoHistorico: ese numero solo se calcula
   // para lotes que pasaron por una rescision, asi que en un lote normal es
@@ -640,13 +665,40 @@ export default async function LoteDetallePage({
   // porque son dos cosas distintas: el precio puede incluir una entrega o
   // una sena que nunca fueron cuota. Comparar el plan contra si mismo es lo
   // unico que da un porcentaje que cierra.
-  const totalDelPlan =
-    Math.round(
-      cuotasDelCiclo.reduce((acum, cuota) => acum + (cuota.monto_ajustado || cuota.monto_base), 0) * 100
-    ) / 100
-  const cobradoDelPlan = Math.round((totalDelPlan - saldoPendienteTotal) * 100) / 100
-  const porcentajeCobrado =
-    totalDelPlan > 0 ? Math.min(100, Math.max(0, Math.round((cobradoDelPlan / totalDelPlan) * 100))) : null
+  //
+  // De las refinanciadas solo cuenta lo que se les llego a pagar, que es lo
+  // que dicen sus imputaciones: ver avanceDelPlan.
+  const imputacionesDeRefinanciadas = await traerTodasLasFilasPorTandas<{ monto_imputado: number }>(
+    cuotasDelCiclo.filter((cuota) => cuota.refinanciada).map((cuota) => cuota.id),
+    (tanda, desde, hasta) =>
+      supabase
+        .from('pago_imputaciones')
+        .select('monto_imputado')
+        .in('cuota_id', tanda)
+        .order('id')
+        .range(desde, hasta)
+  )
+  const {
+    total: totalDelPlan,
+    cobrado: cobradoDelPlan,
+    porcentaje: porcentajeCobrado,
+  } = avanceDelPlan(
+    cuotasDelDetalle,
+    imputacionesDeRefinanciadas.reduce((acum, imputacion) => acum + imputacion.monto_imputado, 0)
+  )
+
+  // Las listas que crecen con el plan se ven resumidas (14/09): ver
+  // lib/lotes/detalle-resumido.ts.
+  const numerosDelResumen = cuotasDelResumen(cuotasDelDetalle)
+  const hayCuotasFueraDelResumen = numerosDelResumen.size < cuotasDelCiclo.length
+  const aclaracionDelResumen = !loteVendido
+    ? `Se ven las primeras ${numerosDelResumen.size} de ${cuotasDelCiclo.length}.`
+    : proximaCuota
+      ? `Se ven ${numerosDelResumen.size} de ${cuotasDelCiclo.length}, alrededor de la cuota ${proximaCuota.numero}, que es la próxima a cobrar.`
+      : `Se ven las últimas ${numerosDelResumen.size} de ${cuotasDelCiclo.length}.`
+  const idsPagosDelResumen = pagosDelResumen(pagosConComprobante)
+  const pagosSinConfirmar = pagosConComprobante.filter((pago) => pago.estado !== 'confirmado').length
+  const posicionesAjustesDelResumen = ultimosDelResumen((ajustesIndexacion ?? []).length)
   const inicialesCliente = (cliente?.full_name ?? '')
     .split(' ')
     .filter(Boolean)
@@ -938,9 +990,9 @@ export default async function LoteDetallePage({
           <div className={TARJETA_KPI}>
             <div className="flex items-center justify-between gap-2">
               <span className={LOTE_KPI_ETIQUETA}>Saldo pendiente</span>
-              {cuotasDelCiclo.length > 0 && (
+              {conteoCuotas.vivas > 0 && (
                 <span className="rounded-full border border-emerald-200/60 bg-emerald-50 px-2.5 py-0.5 text-[11px] font-bold text-emerald-700 tabular-nums">
-                  {cuotasPagadas} / {cuotasDelCiclo.length} pagadas
+                  {conteoCuotas.pagadas} / {conteoCuotas.vivas} pagadas
                 </span>
               )}
             </div>
@@ -1145,7 +1197,32 @@ export default async function LoteDetallePage({
           <span className={PANEL_HEADER_ICONO}>
             <CalendarDays className="h-5 w-5" />
           </span>
-          <h2 className={PANEL_TITULO}>Cuotas</h2>
+          <div>
+            <h2 className={PANEL_TITULO}>Cuotas</h2>
+            {/* El resumen de la tabla en numeros (14/09): con la tabla
+                mostrando 5 cuotas, esto es lo que dice como esta el plan
+                entero. En un lote sin vender no hay nada que contar: son
+                todas del plan, y el cartel de abajo lo explica. */}
+            {loteVendido && cuotasDelCiclo.length > 0 && (
+              <div data-testid="resumen-cuotas" className="mt-1 flex flex-wrap gap-1.5">
+                {/* En cero van en gris: "0 vencidas" en rojo es una alarma
+                    que dice lo contrario de lo que pasa. */}
+                <span className={conteoCuotas.pagadas > 0 ? PILL_CUOTA.pagada : PILL_CUOTA.esperando}>
+                  {conteoCuotas.pagadas} {conteoCuotas.pagadas === 1 ? 'pagada' : 'pagadas'}
+                </span>
+                <span className={conteoCuotas.vencidas > 0 ? PILL_CUOTA.vencida : PILL_CUOTA.esperando}>
+                  {conteoCuotas.vencidas} {conteoCuotas.vencidas === 1 ? 'vencida' : 'vencidas'}
+                </span>
+                <span className={PILL_CUOTA.esperando}>{conteoCuotas.porVencer} por vencer</span>
+                {conteoCuotas.refinanciadas > 0 && (
+                  <span className={PILL_CUOTA.refinanciada}>
+                    {conteoCuotas.refinanciadas}{' '}
+                    {conteoCuotas.refinanciadas === 1 ? 'refinanciada' : 'refinanciadas'}
+                  </span>
+                )}
+              </div>
+            )}
+          </div>
         </div>
         {/* El link va para cualquier estado, no solo 'vendido': desde el
             06/09 esa pantalla también tiene la sección de cobro (quién es el
@@ -1194,13 +1271,27 @@ export default async function LoteDetallePage({
       )}
       {seRefinancio && (
         <p className="rounded-xl border border-slate-200 bg-slate-50 p-3 text-sm text-slate-600">
-          Este lote se refinanció. Las cuotas viejas quedan acá con la etiqueta
+          Este lote se refinanció. Las cuotas viejas siguen en la tabla completa con la etiqueta
           &quot;Refinanció&quot; porque son el historial de lo que el cliente debía y de lo que
           pagó — no se borran. Las cuotas nuevas siguen la numeración en vez de arrancar de uno,
           así que debajo de cada número va su lugar dentro del plan refinanciado, que es lo que
           también ve el cliente en su portal y en el recibo.
         </p>
       )}
+      {/* 5 cuotas y un boton para ver todas (14/09, pedido de Gabriel): con
+          60 cuotas la tabla eran 60 filas, y "Datos del lote" quedaba abajo
+          de todo. Las filas fuera del resumen se renderizan igual y se
+          esconden por CSS, asi la tabla no cambia de ancho al desplegarla. */}
+      <ResumenDesplegable
+        hayMas={hayCuotasFueraDelResumen}
+        textoVerTodo={`Ver las ${cuotasDelCiclo.length} cuotas`}
+        textoVerMenos="Ver solo el resumen"
+        aclaracion={
+          conteoCuotas.refinanciadas > 0
+            ? `${aclaracionDelResumen} Las refinanciadas se ven en la tabla completa.`
+            : aclaracionDelResumen
+        }
+      >
       <div data-testid="tabla-cuotas" className={TABLA_EMBEBIDA}>
       <table className="w-full text-sm">
         <thead>
@@ -1211,13 +1302,21 @@ export default async function LoteDetallePage({
             <th className={TABLA_HEADER_CELDA}>Ajuste por índice</th>
             <th className={TABLA_HEADER_CELDA}>Saldo pendiente</th>
             <th className={TABLA_HEADER_CELDA}>Interés moratorio</th>
-            <th className={TABLA_HEADER_CELDA}></th>
+            <th className={TABLA_HEADER_CELDA}>Estado</th>
           </tr>
         </thead>
         <tbody>
           {cuotas?.map((cuota) => {
-            const vencida =
-              lote!.estado === 'vendido' && cuota.saldo_pendiente > 0 && cuota.fecha_vencimiento < hoy
+            const estadoCuota = estadoDeCuota(
+              {
+                saldoPendiente: cuota.saldo_pendiente,
+                fechaVencimiento: cuota.fecha_vencimiento,
+                refinanciada: cuota.refinanciada,
+              },
+              loteVendido,
+              hoy
+            )
+            const vencida = estadoCuota === 'vencida'
             const interesMoratorio = vencida
               ? calcularInteresMoratorio(
                   {
@@ -1236,7 +1335,13 @@ export default async function LoteDetallePage({
                  refinanciado las cuotas muertas pueden ser 36 y las vivas 10,
                  y con todas del mismo color la tabla se lee como "este
                  cliente debe 46 cuotas". */
-              <tr key={cuota.id} className={cuota.refinanciada ? FILA_APAGADA : TABLA_FILA}>
+              <tr
+                key={cuota.id}
+                data-cuota={cuota.numero}
+                className={`${cuota.refinanciada ? FILA_APAGADA : TABLA_FILA} ${
+                  numerosDelResumen.has(cuota.numero) ? '' : FUERA_DEL_RESUMEN
+                }`}
+              >
                 <td className={TABLA_CELDA}>
                   {cuota.numero}
                   {/* El cartel va JUNTO AL NUMERO y no en la columna de saldo
@@ -1321,13 +1426,20 @@ export default async function LoteDetallePage({
                     )
                   )}
                 </td>
-                <td className={TABLA_CELDA}>{vencida && <span className="text-red-700">Vencida</span>}</td>
+                <td className={TABLA_CELDA}>
+                  {ETIQUETA_ESTADO_CUOTA[estadoCuota] && (
+                    <span className={ETIQUETA_ESTADO_CUOTA[estadoCuota]!.clase}>
+                      {ETIQUETA_ESTADO_CUOTA[estadoCuota]!.texto}
+                    </span>
+                  )}
+                </td>
               </tr>
             )
           })}
         </tbody>
       </table>
       </div>
+      </ResumenDesplegable>
 
       {perfilPropio!.role === 'administrador' && lote!.estado === 'vendido' && cuotasRefinanciables.length > 0 && (
         <details className="mb-6 rounded border border-blue-100 text-sm">
@@ -1558,7 +1670,24 @@ export default async function LoteDetallePage({
               pendiente es justamente lo que no entraba. Cada tarjeta lleva
               data-testid="pago-lote" para que los tests no dependan de si
               esto es una tabla o una lista. */}
-          <div className="space-y-3 p-5">
+          {/* Resumido a 5 como las cuotas (14/09): esta columna crece a la
+              par de la tabla -- un pago por cuota -- y la grilla toma el alto
+              de la mas larga, asi que sin esto "Datos del lote" seguia igual
+              de lejos. Los pagos sin confirmar entran siempre. Van en una
+              columna con gap y no con space-y, porque space-y le deja el
+              margen a la ultima visible cuando las que siguen estan ocultas. */}
+          <div className="p-5">
+          <ResumenDesplegable
+            hayMas={idsPagosDelResumen.size < pagosConComprobante.length}
+            textoVerTodo={`Ver los ${pagosConComprobante.length} pagos`}
+            textoVerMenos="Ver solo los últimos"
+            aclaracion={
+              pagosSinConfirmar > 0
+                ? 'Se ven los más recientes y todos los que falta confirmar.'
+                : `Se ven los ${idsPagosDelResumen.size} más recientes.`
+            }
+          >
+          <div className="flex flex-col gap-3">
             {pagosConComprobante.map((pago) => {
               const confirmarEstePago = confirmarPago.bind(null, pago.id)
               const pendiente = pago.estado !== 'confirmado'
@@ -1566,7 +1695,9 @@ export default async function LoteDetallePage({
                 <div
                   key={pago.id}
                   data-testid="pago-lote"
-                  className={pendiente ? TARJETA_PAGO_PENDIENTE : TARJETA_PAGO}
+                  className={`${pendiente ? TARJETA_PAGO_PENDIENTE : TARJETA_PAGO} ${
+                    idsPagosDelResumen.has(pago.id) ? '' : FUERA_DEL_RESUMEN
+                  }`}
                 >
                   <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
                     <span className="text-sm font-bold text-slate-900">
@@ -1620,6 +1751,8 @@ export default async function LoteDetallePage({
               )
             })}
           </div>
+          </ResumenDesplegable>
+          </div>
         </div>
       )}
         </div>
@@ -1627,10 +1760,19 @@ export default async function LoteDetallePage({
 
       <div className={COLUMNA_LECTURA}>
 
+      {/* Un ajuste por mes en un lote en pesos con índice: la tercera lista
+          que crece con el plan (14/09). Se ven los 5 más recientes. */}
       {(ajustesIndexacion ?? []).length > 0 && (
         <>
           <h2 className={`mb-2 mt-6 ${TITULO_H2}`}>Historial de índice</h2>
-          <div className={`mb-2 ${TABLA_CONTENEDOR}`}>
+          <ResumenDesplegable
+            className="mb-2"
+            hayMas={posicionesAjustesDelResumen.size < (ajustesIndexacion ?? []).length}
+            textoVerTodo={`Ver los ${(ajustesIndexacion ?? []).length} ajustes`}
+            textoVerMenos="Ver solo los últimos"
+            aclaracion={`Se ven los ${posicionesAjustesDelResumen.size} más recientes.`}
+          >
+          <div data-testid="historial-indice" className={TABLA_CONTENEDOR}>
           <table className="w-full text-sm">
             <thead>
               <tr className={TABLA_HEADER_FILA}>
@@ -1643,7 +1785,10 @@ export default async function LoteDetallePage({
             </thead>
             <tbody>
               {(ajustesIndexacion ?? []).map((ajuste, i) => (
-                <tr key={i} className={TABLA_FILA}>
+                <tr
+                  key={i}
+                  className={`${TABLA_FILA} ${posicionesAjustesDelResumen.has(i) ? '' : FUERA_DEL_RESUMEN}`}
+                >
                   <td className={TABLA_CELDA}>{formatearPeriodoIndice(ajuste.fecha_desde)}</td>
                   <td className={TABLA_CELDA}>
                     {ajuste.indice_nombre ?? '—'}
@@ -1659,6 +1804,7 @@ export default async function LoteDetallePage({
             </tbody>
           </table>
           </div>
+          </ResumenDesplegable>
         </>
       )}
 
@@ -2030,6 +2176,17 @@ export default async function LoteDetallePage({
 // Una fila de cuota que ya no esta viva (refinanciada): en gris y sin el
 // hover, para que la vista se apoye en las que si hay que cobrar.
 const FILA_APAGADA = 'bg-slate-50/60 text-slate-400'
+
+// La columna Estado (14/09). Antes solo decia "Vencida" en rojo y el resto
+// quedaba en blanco; con la tabla resumida a 5 filas, poder leer de un
+// vistazo cuales se pagaron es justamente el resumen. La refinanciada ya
+// tiene su cartel al lado del numero, y la de un lote sin vender no esta en
+// ningun estado todavia.
+const ETIQUETA_ESTADO_CUOTA: Partial<Record<EstadoDeCuota, { texto: string; clase: string }>> = {
+  pagada: { texto: 'Pagada', clase: PILL_CUOTA.pagada },
+  vencida: { texto: 'Vencida', clase: PILL_CUOTA.vencida },
+  por_vencer: { texto: 'Por vencer', clase: PILL_CUOTA.esperando },
+}
 
 // Un adjunto: link si el archivo esta, chip apagado si no se pudo firmar la
 // URL. Antes cada uno era un parrafo con "Ver X" o "X no disponible", y con

@@ -459,6 +459,15 @@ export const PILL_CUOTA = {
   refinanciada: `${PILL_CUOTA_BASE} bg-purple-50 text-purple-700 border border-purple-200/60`,
 }
 
+// Listas resumidas del detalle del lote (14/09): lo que queda fuera del
+// resumen lleva FUERA_DEL_RESUMEN y se esconde mientras el contenedor de
+// ResumenDesplegable diga data-resumido="si". Va por CSS y no filtrando en
+// React para que las filas se rendericen una sola vez en el servidor, con la
+// tabla y sus anchos iguales en los dos modos.
+export const FUERA_DEL_RESUMEN = 'group-data-[resumido=si]/resumen:hidden'
+export const BOTON_VER_TODO =
+  'flex w-full cursor-pointer items-center justify-center gap-1.5 rounded-xl border border-dashed border-slate-300 bg-slate-50 px-3 py-2 text-xs font-semibold text-blue-700 transition-colors hover:border-blue-300 hover:bg-blue-50'
+
 // Cada pago, como tarjeta y no como fila: en la columna angosta no entran
 // fecha + medio + monto + comprobante + doble confirmacion en una fila, y
 // el estado de la doble validacion es justo lo que hay que poder leer.

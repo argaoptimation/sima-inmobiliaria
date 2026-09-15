@@ -119,6 +119,10 @@ test.describe('Refinanciar cuotas (26/08)', () => {
     // arbol: desde el rediseno del 09/09 vive adentro de un panel y el
     // xpath por hermano dejo de llegar.
     const tablaCuotas = page.getByTestId('tabla-cuotas').getByRole('table')
+    // Desde el 14/09 la tabla muestra un resumen de 5 y las refinanciadas
+    // quedan en la tabla completa: 7 cuotas, 2 refinanciadas y 5 vivas.
+    await expect(tablaCuotas.locator('tbody tr:visible')).toHaveCount(5)
+    await page.getByRole('button', { name: 'Ver las 7 cuotas' }).click()
     const filaCuota2 = tablaCuotas.locator('tbody tr').nth(1)
     await expect(filaCuota2.getByText('Refinanció')).toBeVisible()
     const filaCuota4 = tablaCuotas.locator('tbody tr').nth(3)
